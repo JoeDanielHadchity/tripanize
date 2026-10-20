@@ -1,0 +1,46 @@
+import { z } from "zod";
+import { prisma } from "@/server/db";
+import { AppError } from "@/server/errors";
+import { requireTrip } from "@/server/auth/permissions";
+import { isValidTimeZone } from "@/lib/dates";
+import { formatZodError } from "@/server/trips/schemas";
+
+const profileInput = z.object({
+  name: z.string().trim().min(1, "Enter a display name").max(80),
+  homeCity: z.string().trim().max(120).optional().nullable(),
+  defaultCurrency: z.string().regex(/^[A-Z]{3}$/),
+  pace: z.enum(["RELAXED", "BALANCED", "AMBITIOUS"]),
+  interests: z.array(z.string().max(60)).max(30),
+  dietary: z.string().trim().max(500).optional().nullable(),
+  accessibility: z.string().trim().max(1000).optional().nullable(),
+  mapsApp: z.enum(["GOOGLE", "APPLE", "OSM"]),
+  timezone: z.string().optional().nullable(),
+});
+
+export async function getProfile(userId: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, include: { profile: true } });
+  return { user, profile: user.profile ?? { userId, homeCity: null, defaultCurrency: "EUR", pace: "BALANCED" as const, interests: [], dietary: null, accessibility: null, mapsApp: "GOOGLE" as const, timezone: null } };
+}
+
+export async function updateProfile(userId: string, input: z.input<typeof profileInput>) {
+  const r = profileInput.safeParse(input);
+  if (!r.success) throw new AppError("VALIDATION", formatZodError(r.error));
+  const { name, ...p } = r.data;
+  const data = { ...p, homeCity: p.homeCity || null, dietary: p.dietary || null, accessibility: p.accessibility || null, timezone: p.timezone && isValidTimeZone(p.timezone) ? p.timezone : null };
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { name } }),
+    prisma.profile.upsert({ where: { userId }, create: { userId, ...data }, update: data }),
+  ]);
+}
+
+export async function updateNotificationPrefs(userId: string, tripId: string, input: { emailEnabled: boolean; frequency: string; changeTypes: string[] }) {
+  await requireTrip(tripId, userId, "view");
+  const frequency = input.frequency === "daily" ? "daily" : "immediate";
+  const allowed = ["new", "date", "venue", "cancelled", "sold_out", "booking_open", "price"];
+  const changeTypes = input.changeTypes.filter((c) => allowed.includes(c));
+  await prisma.notificationPreference.upsert({
+    where: { userId_tripId: { userId, tripId } },
+    create: { userId, tripId, emailEnabled: input.emailEnabled, frequency, changeTypes },
+    update: { emailEnabled: input.emailEnabled, frequency, changeTypes },
+  });
+}

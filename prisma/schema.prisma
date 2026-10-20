@@ -1,0 +1,754 @@
+// Roam data model.
+// Money is always stored as integer minor units (e.g. cents) alongside an ISO currency code.
+// Calendar dates are stored as "YYYY-MM-DD" strings interpreted in the relevant trip/destination time zone,
+// and wall-clock times as "HH:MM" strings, so a trip day never shifts because of server time zones.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Auth (Better Auth core tables) ─────────────────────────
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  profile          Profile?
+  memberships      TripMembership[]
+  ownedTrips       Trip[]                   @relation("TripOwner")
+  packingItems     PackingItem[]            @relation("PackingOwner")
+  notificationPrefs NotificationPreference[]
+  deliveries       NotificationDelivery[]
+  travelerLinks    Traveler[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ───────────────────────── Profile ─────────────────────────
+
+model Profile {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  homeCity        String?
+  defaultCurrency String   @default("EUR")
+  pace            Pace     @default(BALANCED)
+  interests       String[]
+  dietary         String?
+  accessibility   String?
+  mapsApp         MapsApp  @default(GOOGLE)
+  timezone        String?
+  updatedAt       DateTime @updatedAt
+}
+
+enum Pace {
+  RELAXED
+  BALANCED
+  AMBITIOUS
+}
+
+enum MapsApp {
+  GOOGLE
+  APPLE
+  OSM
+}
+
+// ───────────────────────── Trips & membership ─────────────────────────
+
+model Trip {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation("TripOwner", fields: [ownerId], references: [id])
+  name      String
+  startDate String? // YYYY-MM-DD
+  endDate   String?
+  timezone  String   @default("UTC")
+  currency  String   @default("EUR")
+  budgetMinor Int?
+  pace      Pace     @default(BALANCED)
+  interests String[]
+  transport String[]
+  accessibility String?
+  preferences   String?
+  dietary       String?
+  restaurantPrefs String?
+  departureCity String?
+  arrivalLocation String?
+  arrivalAt     String? // local "YYYY-MM-DDTHH:MM"
+  departureLocation String?
+  departureAt   String?
+  adults    Int      @default(1)
+  children  Int      @default(0)
+  isRoadTrip Boolean @default(false)
+  carPickupLocation String?
+  carPickupAt       String?
+  carReturnLocation String?
+  carReturnAt       String?
+  notes     String?
+  imageUrl    String?
+  imageCredit String?
+  imagePageUrl String?
+  copiedFromExample String?
+  // Bumped on every shared change so other members' devices can sync.
+  revision  Int      @default(0)
+  lastChangedById String?
+  version   Int      @default(1)
+  // Event discovery settings
+  autoDiscovery        Boolean   @default(false)
+  discoveryEveryHours  Int       @default(24)
+  nextDiscoveryAt      DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships  TripMembership[]
+  invitations  Invitation[]
+  travelers    Traveler[]
+  destinations Destination[]
+  places       TripPlace[]
+  days         ItineraryDay[]
+  stops        Stop[]
+  versions     ItineraryVersion[]
+  bookings     Booking[]
+  expenses     Expense[]
+  settlements  Settlement[]
+  packingItems PackingItem[]
+  tasks        TripTask[]
+  events       TripEvent[]
+  discoveryRuns DiscoveryRun[]
+  jobs         GenerationJob[]
+  audit        AuditLog[]
+  attachments  Attachment[]
+  notificationPrefs NotificationPreference[]
+  deliveries   NotificationDelivery[]
+}
+
+enum TripRole {
+  OWNER
+  COLLABORATOR
+  VIEWER
+}
+
+model TripMembership {
+  id         String    @id @default(cuid())
+  tripId     String
+  trip       Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       TripRole
+  travelerId String?   @unique
+  traveler   Traveler? @relation(fields: [travelerId], references: [id])
+  createdAt  DateTime  @default(now())
+
+  @@unique([tripId, userId])
+  @@index([userId])
+}
+
+// A traveler identity within a trip. May exist before (or without) an account,
+// so expenses can be recorded for people who have not joined yet.
+model Traveler {
+  id          String    @id @default(cuid())
+  tripId      String
+  trip        Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  name        String
+  isChild     Boolean   @default(false)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Set when the linked account leaves or is removed; history stays intact.
+  leftAt      DateTime?
+  createdAt   DateTime  @default(now())
+  membership  TripMembership?
+  invitations Invitation[]
+  paidExpenses Expense[]       @relation("ExpensePayer")
+  shares      ExpenseShare[]
+  sentSettlements     Settlement[] @relation("SettlementFrom")
+  receivedSettlements Settlement[] @relation("SettlementTo")
+  tasks       TripTask[]
+
+  @@unique([tripId, userId])
+  @@index([tripId])
+}
+
+model Invitation {
+  id           String    @id @default(cuid())
+  tripId       String
+  trip         Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  // Only a SHA-256 hash of the secret token is stored.
+  tokenHash    String    @unique
+  email        String?
+  role         TripRole
+  travelerId   String?
+  traveler     Traveler? @relation(fields: [travelerId], references: [id], onDelete: SetNull)
+  createdById  String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  acceptedAt   DateTime?
+  acceptedById String?
+  emailStatus  String? // "sent", "not_configured", "failed: ..."
+  createdAt    DateTime  @default(now())
+
+  @@index([tripId])
+}
+
+// ───────────────────────── Destinations ─────────────────────────
+
+model Destination {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  position  Int
+  name      String
+  country   String?
+  lat       Float?
+  lng       Float?
+  timezone  String?
+  arriveDate String?
+  departDate String?
+  accommodationName    String?
+  accommodationAddress String?
+  neighborhood String?
+  checkInTime  String?
+  checkOutTime String?
+  parkingNotes String?
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  days      ItineraryDay[]
+
+  @@index([tripId])
+}
+
+enum PlaceKind {
+  MUST_SEE
+  OPTIONAL
+}
+
+model TripPlace {
+  id     String    @id @default(cuid())
+  tripId String
+  trip   Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  kind   PlaceKind
+  name   String
+  notes  String?
+
+  @@index([tripId])
+}
+
+// ───────────────────────── Itinerary ─────────────────────────
+
+model ItineraryDay {
+  id            String   @id @default(cuid())
+  tripId        String
+  trip          Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  date          String // YYYY-MM-DD
+  destinationId String?
+  destination   Destination? @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+  title         String?
+  area          String?
+  notes         String?
+  questions     String[]
+  isTravelDay   Boolean  @default(false)
+  driveMinutes  Int?
+  activePlan    String   @default("A") // "A" | "B"
+  planBNote     String?
+  estCostMinor  Int?
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  stops         Stop[]
+
+  @@unique([tripId, date])
+}
+
+enum StopStatus {
+  SUGGESTED
+  PLANNED
+  CONFIRMED
+  SKIPPED
+}
+
+enum StopOrigin {
+  AI
+  MANUAL
+  EVENT
+  BOOKING
+  COMMITMENT
+}
+
+model Stop {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  // null day => unscheduled idea (never shown in Today).
+  dayId     String?
+  day       ItineraryDay? @relation(fields: [dayId], references: [id], onDelete: SetNull)
+  plan      String   @default("A") // "A" | "B"
+  position  Int      @default(0)
+  title     String
+  category  String   @default("sight")
+  locationName String?
+  address   String?
+  lat       Float?
+  lng       Float?
+  reason    String?
+  startTime String? // HH:MM
+  durationMin Int?
+  travelToNextMin Int?
+  travelMode String?
+  travelNote String?
+  officialUrl String?
+  sourceUrls  String[]
+  estCostMinor Int?
+  currency  String?
+  bookingRequired Boolean @default(false)
+  bookingNote String?
+  hoursNote  String?
+  notes     String?
+  status    StopStatus @default(PLANNED)
+  // A fixed commitment must not be moved without explicit confirmation.
+  isFixed   Boolean  @default(false)
+  isMeal    Boolean  @default(false)
+  isFreeTime Boolean @default(false)
+  indoor    Boolean?
+  origin    StopOrigin @default(MANUAL)
+  // Projection of a canonical booking (the booking stays the source of truth).
+  bookingId String?  @unique
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  eventId   String?  @unique
+  event     TripEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  version   Int      @default(1)
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId, dayId])
+}
+
+model ItineraryVersion {
+  id          String   @id @default(cuid())
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  reason      String
+  createdById String?
+  snapshot    Json
+  createdAt   DateTime @default(now())
+
+  @@index([tripId, createdAt])
+}
+
+// ───────────────────────── Bookings ─────────────────────────
+
+enum BookingCategory {
+  ACCOMMODATION
+  FLIGHT
+  TRAIN
+  TRANSPORT
+  CAR_RENTAL
+  ATTRACTION
+  RESTAURANT
+  EXPERIENCE
+  OTHER
+}
+
+enum BookingStatus {
+  IDEA
+  TO_BOOK
+  REQUESTED
+  BOOKED
+  PAID
+  CANCELLED
+}
+
+model Booking {
+  id          String          @id @default(cuid())
+  tripId      String
+  trip        Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  title       String
+  category    BookingCategory
+  date        String? // null => "date not selected"
+  startTime   String?
+  endDate     String?
+  durationMin Int?
+  guests      String?
+  status      BookingStatus   @default(IDEA)
+  priority    Int             @default(2) // 1 high, 2 normal, 3 low
+  whenToBook  String?
+  estCostMinor  Int?
+  finalCostMinor Int?
+  currency    String          @default("EUR")
+  ticketType  String?
+  preferences String?
+  address     String?
+  bookingUrl  String?
+  // Kept off overview cards; shown only in the detail view to members.
+  confirmationRef String?
+  notes       String?
+  cancellationTerms String?
+  version     Int             @default(1)
+  createdById String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  stop        Stop?
+  expenses    Expense[]
+  attachments Attachment[]
+
+  @@index([tripId])
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  tripId     String
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  bookingId  String?
+  booking    Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String   @unique
+  uploadedById String
+  createdAt  DateTime @default(now())
+}
+
+// ───────────────────────── Expenses ─────────────────────────
+
+enum SplitMethod {
+  EQUAL
+  PERCENT
+  AMOUNT
+  SINGLE
+}
+
+model Expense {
+  id          String      @id @default(cuid())
+  tripId      String
+  trip        Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  description String
+  category    String
+  amountMinor Int
+  currency    String
+  date        String // YYYY-MM-DD in trip time zone
+  payerId     String
+  payer       Traveler    @relation("ExpensePayer", fields: [payerId], references: [id])
+  splitMethod SplitMethod
+  notes       String?
+  bookingId   String?
+  booking     Booking?    @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  // Optional explicit conversion chosen by the user (original amount is preserved above).
+  convCurrency String?
+  convRate     String? // decimal string
+  convRateDate String?
+  convAmountMinor Int?
+  version     Int         @default(1)
+  createdById String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+  shares      ExpenseShare[]
+
+  @@index([tripId])
+}
+
+model ExpenseShare {
+  id          String   @id @default(cuid())
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  travelerId  String
+  traveler    Traveler @relation(fields: [travelerId], references: [id])
+  amountMinor Int
+  // Basis points (1/100 of a percent) when the split method is PERCENT.
+  percentBp   Int?
+
+  @@unique([expenseId, travelerId])
+}
+
+model Settlement {
+  id          String   @id @default(cuid())
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  fromId      String
+  from        Traveler @relation("SettlementFrom", fields: [fromId], references: [id])
+  toId        String
+  to          Traveler @relation("SettlementTo", fields: [toId], references: [id])
+  amountMinor Int
+  currency    String
+  paidAt      DateTime
+  note        String?
+  createdById String
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  @@index([tripId])
+}
+
+// ───────────────────────── Packing & tasks ─────────────────────────
+
+model PackingItem {
+  id         String   @id @default(cuid())
+  tripId     String
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  // null owner => the group's shared list.
+  ownerId    String?
+  owner      User?    @relation("PackingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  // "shared" or the owner's user id; used for de-duplication.
+  listKey    String
+  label      String
+  normKey    String
+  category   String
+  quantity   Int      @default(1)
+  packed     Boolean  @default(false)
+  source     String   @default("user") // "user" | "suggested"
+  reason     String?
+  // A removed suggestion is remembered so refreshing does not re-add it.
+  dismissed  Boolean  @default(false)
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tripId, listKey, normKey])
+}
+
+model TripTask {
+  id         String    @id @default(cuid())
+  tripId     String
+  trip       Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  title      String
+  done       Boolean   @default(false)
+  dueDate    String?
+  assigneeId String?
+  assignee   Traveler? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  position   Int       @default(0)
+  version    Int       @default(1)
+  createdAt  DateTime  @default(now())
+}
+
+// ───────────────────────── Events ─────────────────────────
+
+enum EventStatus {
+  NEW
+  SAVED
+  HIDDEN
+  SCHEDULED
+}
+
+model TripEvent {
+  id           String      @id @default(cuid())
+  tripId       String
+  trip         Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  dedupeKey    String
+  title        String
+  category     String
+  date         String?
+  startTime    String?
+  endDate      String?
+  dateVerified Boolean     @default(false)
+  venue        String?
+  city         String?
+  address      String?
+  officialUrl  String?
+  bookingUrl   String?
+  priceText    String?
+  availability String?
+  bookingDeadline String?
+  whyFits      String?
+  uncertainty  String?
+  cancelled    Boolean     @default(false)
+  soldOut      Boolean     @default(false)
+  status       EventStatus @default(NEW)
+  origin       String      @default("discovered") // "discovered" | "user"
+  lastCheckedAt DateTime?
+  // Material changes not yet acknowledged by the travelers.
+  changes      Json?
+  changeHash   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  sources      EventSource[]
+  stop         Stop?
+
+  @@unique([tripId, dedupeKey])
+}
+
+model EventSource {
+  id        String    @id @default(cuid())
+  eventId   String
+  event     TripEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  url       String
+  title     String?
+  retrievedAt DateTime @default(now())
+
+  @@unique([eventId, url])
+}
+
+model DiscoveryRun {
+  id         String    @id @default(cuid())
+  tripId     String
+  trip       Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  trigger    String // "manual" | "scheduled"
+  status     String    @default("queued") // queued | running | succeeded | failed
+  found      Int       @default(0)
+  added      Int       @default(0)
+  changed    Int       @default(0)
+  error      String?
+  requestedById String?
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  @@index([tripId, createdAt])
+}
+
+// ───────────────────────── AI jobs ─────────────────────────
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model GenerationJob {
+  id            String    @id @default(cuid())
+  tripId        String
+  trip          Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  kind          String // "full" | "days" | "swap"
+  params        Json
+  status        JobStatus @default(QUEUED)
+  progress      Json      @default("[]")
+  proposal      Json?
+  checks        Json?
+  error         String?
+  errorCode     String?
+  cancelRequested Boolean @default(false)
+  appliedAt     DateTime?
+  appliedDates  String[]
+  requestedById String
+  model         String?
+  createdAt     DateTime  @default(now())
+  startedAt     DateTime?
+  finishedAt    DateTime?
+
+  @@index([tripId, createdAt])
+  @@index([status, createdAt])
+}
+
+// ───────────────────────── Notifications & audit ─────────────────────────
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  emailEnabled Boolean @default(false)
+  frequency String   @default("immediate") // immediate | daily
+  // Which event changes matter: new, date, venue, cancelled, sold_out, booking_open, price
+  changeTypes String[]
+  lastDigestAt DateTime?
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, tripId])
+}
+
+model NotificationDelivery {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tripId     String?
+  trip       Trip?    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  channel    String
+  subject    String
+  dedupeKey  String
+  status     String // sent | failed | not_configured
+  providerId String?
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, dedupeKey])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actorName String?
+  entity    String
+  entityId  String
+  action    String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([tripId, entity, entityId])
+}
+
+model ExternalCache {
+  key       String   @id
+  value     Json
+  fetchedAt DateTime @default(now())
+}
+
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
