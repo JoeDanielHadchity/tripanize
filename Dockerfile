@@ -17,4 +17,4 @@ RUN mkdir -p /app/storage && chown -R node:node /app/storage
 USER node
 EXPOSE 3000
 # Web: apply migrations then serve. The worker uses the same image with `npm run worker`.
-CMD ["sh", "-c", "npx prisma migrate deploy && npx next start -p 3000"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx next start -p ${PORT:-3000}"]
