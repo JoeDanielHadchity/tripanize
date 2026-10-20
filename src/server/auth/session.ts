@@ -8,7 +8,8 @@ export type SessionUser = { id: string; name: string; email: string };
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
-  return { id: session.user.id, name: session.user.name, email: session.user.email };
+  // Code sign-ups may skip the name; fall back to the email's local part so travelers never appear blank.
+  return { id: session.user.id, name: session.user.name?.trim() || session.user.email.split("@")[0], email: session.user.email };
 });
 
 export async function requireUser(): Promise<SessionUser> {

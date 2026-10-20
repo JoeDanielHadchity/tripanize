@@ -59,7 +59,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ tripI
           appUrl={appUrl}
           localOnly={/localhost|127\.0\.0\.1|0\.0\.0\.0/.test(appUrl)}
           travelers={trip.travelers.map((t) => ({ id: t.id, name: t.name, isChild: t.isChild, linked: Boolean(t.userId), left: Boolean(t.leftAt) }))}
-          members={trip.memberships.map((m) => ({ userId: m.userId, name: m.user.name, email: isOwner || m.userId === user.id ? m.user.email : null, role: m.role }))}
+          members={trip.memberships.map((m) => ({ userId: m.userId, name: m.user.name || m.user.email.split("@")[0], email: isOwner || m.userId === user.id ? m.user.email : null, role: m.role }))}
           invitations={isOwner ? trip.invitations.map((i) => ({ id: i.id, role: i.role, email: i.email, expiresAt: i.expiresAt.toISOString(), emailStatus: i.emailStatus, traveler: trip.travelers.find((t) => t.id === i.travelerId)?.name ?? null })) : []}
         />
       </div>

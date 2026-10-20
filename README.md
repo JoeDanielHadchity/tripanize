@@ -10,12 +10,12 @@ Roam is a mobile-first travel workspace. Describe a trip, click **Plan with AI**
 |---|---|
 | Frontend + server | Next.js 16 (App Router, React 19, server components and server actions), Tailwind CSS 4 |
 | Database | PostgreSQL via Prisma 7 (`prisma/schema.prisma`) |
-| Auth | Better Auth (email + password, DB sessions, password reset by email, rate-limited) |
+| Auth | Better Auth: passwordless 6-digit email codes (default) or email + password; DB sessions, password reset by email, rate-limited |
 | AI | OpenAI Responses API, strict structured outputs (zod schema) + `web_search` tool, server-side only |
 | Background jobs | `src/worker` polling worker: AI planning jobs, scheduled event discovery, notification digests. Jobs are claimed atomically, so several workers are safe |
 | Weather / geocoding | Open-Meteo (no key). Live forecast for the next 14 days; beyond that, *typical* conditions (5-year average), labeled as such |
 | Routing | openrouteservice if `ORS_API_KEY` is set; otherwise straight-line **estimates**, always labeled |
-| Email | Any SMTP provider (`SMTP_URL`). Used for password reset, invitations and event alerts |
+| Email | Resend (`RESEND_API_KEY`) or any SMTP provider (`SMTP_URL`). Used for sign-in codes, password reset, invitations and event alerts |
 | Files | Private disk storage (`STORAGE_DIR`), served only through a membership-checked route |
 | PDF | pdfkit with an embedded Unicode font (DejaVu) |
 | Offline | Service worker + cached read-only trip snapshot (`/offline`); cleared on sign-out |
@@ -48,7 +48,7 @@ Or run `docker compose up --build` (Postgres + web + worker).
 |---|---|---|
 | `OPENAI_API_KEY` (+ optional `OPENAI_MODEL`, default `gpt-5.1`) | Plan with AI, swap alternatives, event discovery | These buttons are disabled with an explanation. Nothing is simulated. |
 | Outbound HTTPS to `api.openai.com` | Same as above | Jobs fail with "could not reach OpenAI"; the itinerary is unchanged |
-| `SMTP_URL`, `EMAIL_FROM` | Password reset, invitation emails, event alerts | Reset page says email isn't configured; invites still work by copying the link; alerts are recorded as `not_configured`, never "sent" |
+| `RESEND_API_KEY` or `SMTP_URL`, plus `EMAIL_FROM` | Sign-in codes, password reset, invitation emails, event alerts | Sign-in page says codes can't be sent and offers password sign-in; Reset page says email isn't configured; invites still work by copying the link; alerts are recorded as `not_configured`, never "sent" |
 | Outbound HTTPS to `api.open-meteo.com`, `archive-api.open-meteo.com`, `geocoding-api.open-meteo.com` | Weather, packing weather reasons, destination time zones | "Weather unavailable" indicators; packing falls back to season |
 | `en.wikipedia.org` | Destination images | Gradient fallback |
 | `ORS_API_KEY` | Live driving/walking times | Labeled estimates |
@@ -66,6 +66,7 @@ PW_CHROMIUM_PATH=... npx playwright test   # e2e against a running server + work
 - `tests/integration`: membership boundaries, viewer and collaborator rights, invitations (single use, expiry, revocation, email binding, linking a planned traveler, rejoining), packing privacy and refresh, concurrent edits, booking sync, reordering, fixed-commitment protection, day regeneration and undo, unscheduled-idea exclusion, event dedupe, change detection and scheduling, AI failure without data loss, partial results.
 - `tests/e2e/core-flow.spec.ts`: the full two-account flow on desktop and phone viewports.
 - `tests/e2e/ai-failure.spec.ts` (`E2E_AI_UNREACHABLE=1`): the real job pipeline when OpenAI is unreachable.
+- `tests/e2e/email-code.spec.ts` (`E2E_RESEND_STUB=http://localhost:4011`): code sign-in for a new and a returning user, with the app started with `RESEND_API_KEY=<anything> RESEND_API_URL=http://localhost:4011/emails` and `scripts/resend-stub.mjs` running. **That stub is a test harness only.** It checks the request Roam sends to Resend's API, not delivery.
 - `tests/e2e/ai-review.spec.ts` (`E2E_AI_STUB=1`): the review, accept, swap and restore UI, driven by `scripts/openai-stub.mjs`. **That stub is a test harness only.** It checks Roam's handling of a structured response, not ChatGPT itself.
 
 Note: in production mode Better Auth rate-limits auth endpoints (30 requests/minute per IP). The e2e suite creates several accounts from one IP, so run one Playwright project per minute (`--project=desktop`, then `--project=phone`).

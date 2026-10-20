@@ -33,19 +33,25 @@ Optional, for ticket uploads that survive redeploys: **Settings → Volumes → 
 3. **Variables:** add the same `DATABASE_URL`, `BETTER_AUTH_SECRET`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `APP_URL`, `BETTER_AUTH_URL`.
 4. It needs no domain.
 
-## 4. Optional: email (invitations, password reset, event alerts)
-Create a free account at an SMTP provider (e.g. Resend, Postmark, Brevo) and add to **both** services:
+## 4. Email sign-in with Resend (recommended)
+With this, people sign in by typing their email and entering a 6-digit code — no password, and no Claude account needed. It also sends invitations, password resets and event alerts.
+
+1. Create a free account at https://resend.com.
+2. **Domains → Add Domain**, enter a domain you own (e.g. `yourdomain.com`) and add the DNS records Resend shows at your domain registrar. Wait until it says **Verified**.
+   *Just testing?* Skip this and use `onboarding@resend.dev` as the sender below — but Resend then only delivers to the email address you signed up to Resend with.
+3. **API Keys → Create API Key** (permission: *Sending access*). Copy it (starts with `re_`).
+4. Add to **both** Railway services (web and worker):
 
 | Variable | Example |
 |---|---|
-| `SMTP_URL` | `smtps://resend:YOUR_API_KEY@smtp.resend.com:465` |
-| `EMAIL_FROM` | `Roam <trips@yourdomain.com>` |
+| `RESEND_API_KEY` | `re_xxxxxxxx` |
+| `EMAIL_FROM` | `Roam <trips@yourdomain.com>` (must be on your verified domain) |
 
-Without it, everything works except emails: invitation links can still be copied and shared, and the password-reset page explains that email isn't set up.
+Railway redeploys automatically. Without `RESEND_API_KEY` (or an SMTP server in `SMTP_URL`), the sign-in page explains that codes can't be sent and people use a password instead.
 
 ## 5. Check it works
-1. Open your Railway address → **Get started** → create an account.
+1. Open your Railway address → **Sign in** → type your email → **Email me a sign-in code**. Enter the code from your inbox (check spam the first time).
 2. Create a trip → **Plan with AI**. The progress list should move past "Queued" within a few seconds. If it stays queued, the worker isn't running (check its logs).
-3. Trip settings → **Create invitation link** → open it in a private window → sign up with a second email → accept.
+3. Trip settings → **Create invitation link** → open it in a private window → sign in with a second email's code → accept.
 
 Every push to the repository's main branch redeploys both services automatically.

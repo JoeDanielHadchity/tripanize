@@ -1,7 +1,8 @@
 import nodemailer, { type Transporter } from "nodemailer";
 
-// Email delivery is a separate, optional integration. When SMTP_URL is not set we never pretend a
-// message was sent: callers receive { status: "not_configured" } and must surface that to the user.
+// Email delivery is a separate, optional integration: Resend (RESEND_API_KEY) or any SMTP server (SMTP_URL).
+// When neither is set we never pretend a message was sent: callers receive { status: "not_configured" }
+// and must surface that to the user.
 
 export type EmailResult =
   | { status: "sent"; providerId: string | null }
@@ -11,10 +12,32 @@ export type EmailResult =
 let transporter: Transporter | null = null;
 
 export function emailConfigured() {
-  return Boolean(process.env.SMTP_URL);
+  return Boolean(process.env.RESEND_API_KEY || process.env.SMTP_URL);
+}
+
+const from = () => process.env.EMAIL_FROM ?? "Roam <no-reply@localhost>";
+
+async function sendWithResend(msg: { to: string; subject: string; text: string; html?: string }): Promise<EmailResult> {
+  // RESEND_API_URL exists only so tests can point at a local stand-in.
+  const res = await fetch(process.env.RESEND_API_URL ?? "https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: from(), to: [msg.to], subject: msg.subject, text: msg.text, html: msg.html }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
+  if (!res.ok) return { status: "failed", error: `Resend ${res.status}: ${String(body.message ?? res.statusText).slice(0, 180)}` };
+  return { status: "sent", providerId: body.id ?? null };
 }
 
 export async function sendEmail(msg: { to: string; subject: string; text: string; html?: string }): Promise<EmailResult> {
+  if (process.env.RESEND_API_KEY) {
+    try {
+      return await sendWithResend(msg);
+    } catch (err) {
+      return { status: "failed", error: err instanceof Error ? err.message.slice(0, 200) : "Unknown email error" };
+    }
+  }
   if (!process.env.SMTP_URL) {
     if (process.env.NODE_ENV !== "production" && process.env.DEV_LOG_EMAILS === "true") {
       // Development aid only, explicitly opted into. Never enabled in production.
@@ -25,7 +48,7 @@ export async function sendEmail(msg: { to: string; subject: string; text: string
   try {
     transporter ??= nodemailer.createTransport(process.env.SMTP_URL);
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM ?? "Roam <no-reply@localhost>",
+      from: from(),
       to: msg.to,
       subject: msg.subject,
       text: msg.text,
