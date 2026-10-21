@@ -52,9 +52,9 @@ export async function exportTripPdf(userId: string, tripId: string, opts: { date
   doc.on("data", (c: Buffer) => chunks.push(c));
   const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
 
-  const ink = "#2a2522";
-  const muted = "#6b625b";
-  const accent = "#a84a2a";
+  const ink = "#13201f";
+  const muted = "#4f6563";
+  const accent = "#0f766e";
   doc.font("bold").fontSize(20).fillColor(ink).text(trip.name);
   doc.font("body").fontSize(10).fillColor(muted).text(`${formatDateRange(trip.startDate, trip.endDate)} · ${trip.destinations.map((d) => d.name).join(" → ") || "No destinations yet"}`);
   doc.text(`Exported ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC. Times are local. Costs, travel times and opening hours are estimates unless marked verified.`);

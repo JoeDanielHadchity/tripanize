@@ -115,7 +115,7 @@ export function SharingPanel(p: Props) {
                 </ul>
               </div>
             )}
-            {!p.emailReady && <p className="mt-3 text-xs text-muted">Email invitations need SMTP configured on the server. Links work without it.</p>}
+            {!p.emailReady && <p className="mt-3 text-xs text-muted">Email invitations need email delivery (Resend or SMTP) set up on the server. Links work without it.</p>}
           </Card>
         )}
       </section>

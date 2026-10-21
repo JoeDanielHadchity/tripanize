@@ -32,7 +32,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
     <>
       <PageHeader title="Plan with AI" subtitle={`ChatGPT drafts a day-by-day plan from this trip's details. Nothing changes in your itinerary until you review and accept it.`} />
       {sp.start && (
-        <Notice tone="sage" title="Your trip is created" className="mb-5">
+        <Notice tone="accent" title="Your trip is created" className="mb-5">
           <p>Choose how to start. You can switch any time.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <a href="#plan-form" className="inline-flex min-h-11 items-center rounded-xl bg-accent px-4 font-medium text-on-accent">Plan with AI</a>

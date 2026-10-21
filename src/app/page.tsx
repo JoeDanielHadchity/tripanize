@@ -35,7 +35,7 @@ export default async function Home() {
               <LinkButton href="/examples/lisbon-porto">See an example trip</LinkButton>
             </div>
           </div>
-          <div aria-hidden className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-[linear-gradient(150deg,#b0502c_0%,#d99a6c_50%,#6f8a74_100%)] shadow-xl">
+          <div aria-hidden className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-[linear-gradient(150deg,#0f766e_0%,#2a9d8f_50%,#e0795a_100%)] shadow-xl">
             <div className="absolute inset-x-5 bottom-5 rounded-2xl bg-surface/95 p-4 text-ink shadow-lg">
               <p className="text-xs font-medium uppercase tracking-wide text-muted">Next stop · 10:30</p>
               <p className="mt-1 font-display text-xl">Jerónimos Monastery</p>

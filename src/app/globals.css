@@ -3,19 +3,20 @@
 @import "@fontsource-variable/fraunces";
 
 :root {
-  --bg: #f6f1ea;
-  --surface: #fffdf9;
-  --surface-2: #efe7dc;
-  --ink: #26211d;
-  --muted: #655b52;
-  --line: #e0d5c7;
-  --accent: #b0502c;
-  --accent-ink: #94411f;
-  --accent-soft: #f5e1d6;
+  --bg: #f1f7f6;
+  --surface: #ffffff;
+  --surface-2: #e3efed;
+  --ink: #13201f;
+  --muted: #4f6563;
+  --line: #d3e5e2;
+  --accent: #0f766e;
+  --accent-ink: #115e59;
+  --accent-soft: #d5efeb;
   --on-accent: #ffffff;
-  --sage: #6f8a74;
-  --sage-ink: #43604b;
-  --sage-soft: #e2eadf;
+  /* "sage" tokens hold the secondary color (coral in the Lagoon palette). */
+  --sage: #c2553a;
+  --sage-ink: #a3401f;
+  --sage-soft: #fbe3da;
   --warn-ink: #7a4f00;
   --warn-soft: #fbefd5;
   --danger: #a3261c;
@@ -26,19 +27,19 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1a1714;
-    --surface: #242019;
-    --surface-2: #2e2821;
-    --ink: #f3ece4;
-    --muted: #bcb0a3;
-    --line: #3d352c;
-    --accent: #e0805a;
-    --accent-ink: #f0a07f;
-    --accent-soft: #3e2a20;
-    --on-accent: #1a1210;
-    --sage: #8fab93;
-    --sage-ink: #a9c6ad;
-    --sage-soft: #26312a;
+    --bg: #0f1716;
+    --surface: #16211f;
+    --surface-2: #1d2b29;
+    --ink: #e8f2f0;
+    --muted: #a3b8b5;
+    --line: #2a3b38;
+    --accent: #2fb8a8;
+    --accent-ink: #6fdccd;
+    --accent-soft: #123532;
+    --on-accent: #04201c;
+    --sage: #f0957a;
+    --sage-ink: #f6b29d;
+    --sage-soft: #3a2119;
     --warn-ink: #f1c76b;
     --warn-soft: #3a2f17;
     --danger: #f08a7e;

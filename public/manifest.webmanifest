@@ -4,7 +4,7 @@
   "description": "A little less planning. A lot more going.",
   "start_url": "/trips",
   "display": "standalone",
-  "background_color": "#f6f1ea",
-  "theme_color": "#b0502c",
+  "background_color": "#f1f7f6",
+  "theme_color": "#0f766e",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }

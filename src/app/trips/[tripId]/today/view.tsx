@@ -80,7 +80,7 @@ export function TodayView(p: {
           </div>
         </Card>
       )}
-      {!focus && stops.length > 0 && <Notice tone="sage">That's everything planned for today. Enjoy the evening.</Notice>}
+      {!focus && stops.length > 0 && <Notice tone="accent">That's everything planned for today. Enjoy the evening.</Notice>}
 
       <div className="flex flex-wrap items-center gap-2">
         <div role="group" aria-label="Plan A or B" className="flex rounded-xl border border-line bg-surface p-0.5">

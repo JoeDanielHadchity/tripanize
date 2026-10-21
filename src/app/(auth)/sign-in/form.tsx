@@ -89,7 +89,7 @@ export function SignInForm({ next, emailReady }: { next: string; emailReady: boo
 
       {step.kind === "code" && (
         <form onSubmit={onCode} className="mt-8 space-y-4">
-          {info && !error && <Notice tone="sage">{info}</Notice>}
+          {info && !error && <Notice tone="accent">{info}</Notice>}
           {error && <Notice tone="danger">{error}</Notice>}
           <Field label="Sign-in code" htmlFor="otp">
             <Input id="otp" name="otp" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} required autoFocus />

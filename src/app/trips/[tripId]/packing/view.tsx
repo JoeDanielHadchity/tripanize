@@ -103,7 +103,7 @@ export function PackingView({ tripId, canEditShared, personal, shared, tasks, tr
             if (r) setResult(`${r.added ? `Added ${r.added} new suggestion${r.added === 1 ? "" : "s"}.` : "No new suggestions — your lists already cover them."}${r.weatherUsed ? "" : " Weather data wasn't available, so weather-based items rely on the season only."}`);
           }}>{pending ? "Working…" : personal.length || shared.length ? "Refresh suggestions" : "Suggest a packing list"}</Button>
         </div>
-        {result && <Notice tone="sage" className="mt-3">{result}</Notice>}
+        {result && <Notice tone="accent" className="mt-3">{result}</Notice>}
       </Card>
       <div className="grid gap-6 lg:grid-cols-2">
         <List tripId={tripId} title="My packing list" items={personal} shared={false} editable emptyText="Only you can see this list." />

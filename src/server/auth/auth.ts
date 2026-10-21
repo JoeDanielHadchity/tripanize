@@ -56,7 +56,7 @@ export const auth = betterAuth({
           to: email,
           subject: `${otp} is your Tripanize sign-in code`,
           text: `Your Tripanize sign-in code is ${otp}\n\nEnter it on the sign-in page within 10 minutes. If you didn't try to sign in, you can ignore this email.`,
-          html: `<div style="font-family:system-ui,sans-serif;max-width:28rem;margin:auto;padding:24px;color:#2b2420"><p style="font-size:18px;font-weight:600;margin:0 0 12px">Your Tripanize sign-in code</p><p style="font-size:32px;letter-spacing:6px;font-weight:700;margin:0 0 16px">${otp}</p><p style="margin:0 0 8px">Enter it on the sign-in page within 10 minutes.</p><p style="color:#776b62;font-size:13px;margin:0">If you didn't try to sign in, you can ignore this email.</p></div>`,
+          html: `<div style="font-family:system-ui,sans-serif;max-width:28rem;margin:auto;padding:24px;color:#13201f"><p style="font-size:18px;font-weight:600;margin:0 0 12px">Your Tripanize sign-in code</p><p style="font-size:32px;letter-spacing:6px;font-weight:700;margin:0 0 16px">${otp}</p><p style="margin:0 0 8px">Enter it on the sign-in page within 10 minutes.</p><p style="color:#4f6563;font-size:13px;margin:0">If you didn't try to sign in, you can ignore this email.</p></div>`,
         });
         if (res.status !== "sent") throw new Error(res.status === "not_configured" ? "EMAIL_NOT_CONFIGURED" : "EMAIL_FAILED");
       },

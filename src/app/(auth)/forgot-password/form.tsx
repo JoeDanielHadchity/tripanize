@@ -28,7 +28,7 @@ export function ForgotForm({ emailReady }: { emailReady: boolean }) {
           This installation has no email delivery configured (RESEND_API_KEY or SMTP_URL), so reset links can't be sent. Ask the person who runs this Tripanize server to enable email delivery.
         </Notice>
       ) : state === "sent" ? (
-        <Notice tone="sage" title="Check your inbox" className="mt-6">
+        <Notice tone="accent" title="Check your inbox" className="mt-6">
           If an account exists for that address, we've emailed a link that's valid for 30 minutes.
         </Notice>
       ) : (

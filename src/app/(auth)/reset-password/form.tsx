@@ -32,7 +32,7 @@ export function ResetForm({ token, invalid }: { token: string | null; invalid: b
     <>
       <h1 className="font-display text-3xl font-semibold">Choose a new password</h1>
       {state === "done" ? (
-        <Notice tone="sage" title="Password updated" className="mt-6">
+        <Notice tone="accent" title="Password updated" className="mt-6">
           You've been signed out everywhere. <Link href="/sign-in" className="underline">Sign in</Link> with your new password.
         </Notice>
       ) : (

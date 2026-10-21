@@ -57,7 +57,7 @@ export function EventsView(p: Props) {
 
       <Card>
         <h2 className="font-display text-lg font-semibold">My event alerts</h2>
-        {!p.emailReady && <Notice tone="warn" className="mt-2">Email delivery isn't configured on this server (SMTP), so alerts can't be sent yet. Your preferences are saved and nothing will be reported as sent.</Notice>}
+        {!p.emailReady && <Notice tone="warn" className="mt-2">Email delivery isn't set up on this server yet (Resend or SMTP), so alerts can't be sent. Your preferences are saved and nothing will be reported as sent.</Notice>}
         <form className="mt-3 space-y-3" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); run(() => notificationPrefsAction(p.tripId, { emailEnabled: f.get("email") === "on", frequency: String(f.get("freq")), changeTypes: f.getAll("types").map(String) }), { success: "Alert preferences saved" }); }}>
           <label className="flex min-h-11 items-center gap-2 text-sm font-medium"><input type="checkbox" name="email" defaultChecked={p.pref.emailEnabled} className="h-5 w-5" /> Email me about changes (opt-in)</label>
           <Field label="Frequency" htmlFor="freq"><Select id="freq" name="freq" defaultValue={p.pref.frequency} className="w-auto"><option value="immediate">As soon as found</option><option value="daily">Daily digest</option></Select></Field>
@@ -176,7 +176,7 @@ function ScheduleDialog({ ev, onClose, tripId, days }: Props & { ev: Ev | null; 
         </form>
       ) : (
         <div className="space-y-3 text-sm">
-          {review.conflicts.length === 0 && review.warnings.length === 0 && <Notice tone="sage">No conflicts with your plan for {formatDate(review.date)}.</Notice>}
+          {review.conflicts.length === 0 && review.warnings.length === 0 && <Notice tone="accent">No conflicts with your plan for {formatDate(review.date)}.</Notice>}
           {review.conflicts.map((c, i) => <p key={i} className={c.severity === "conflict" ? "rounded-lg bg-danger-soft px-3 py-2 text-danger" : "rounded-lg bg-warn-soft px-3 py-2 text-warn-ink"}>{c.message}</p>)}
           {review.warnings.map((w, i) => <p key={i} className="rounded-lg bg-warn-soft px-3 py-2 text-warn-ink">{w}</p>)}
           <p className="text-muted">The event is added as a planned stop (not booked). Existing stops and fixed commitments are not moved — resolve any overlap yourself.</p>

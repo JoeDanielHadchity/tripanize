@@ -96,7 +96,7 @@ function TripTile({ trip }: { trip: TripCard }) {
   const p = PHASE[trip.phase];
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface">
-      <div className="relative h-36 bg-[linear-gradient(150deg,#b0502c_0%,#d99a6c_50%,#6f8a74_100%)]">
+      <div className="relative h-36 bg-[linear-gradient(150deg,#0f766e_0%,#2a9d8f_50%,#e0795a_100%)]">
         {trip.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={trip.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
