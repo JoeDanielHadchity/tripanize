@@ -32,9 +32,11 @@ Production email is connected through the encrypted `RESEND_API_KEY` Cloudflare 
 
 ## Hosting-first scope
 
-Available: password account registration and sign-in, email sign-in codes, password resets, manual trip planning, itinerary editing, bookings, shared expenses and balances, email invitations and invitation links, packing lists, manual events, private file uploads, JSON export and PDF export.
+Available: password account registration and sign-in, email sign-in codes, password resets, manual trip planning, itinerary editing, bookings, shared expenses and balances, email invitations and invitation links, packing lists, manual events, private file uploads, JSON export and PDF export. AI drafts, selected-day regeneration, stop alternatives, tailored questions and manual event searches become available when the encrypted `OPENAI_API_KEY` runtime secret is configured.
 
-Not yet connected: OpenAI planning and automatic event discovery. Before enabling those, migrate the background-job execution to a suitable Cloudflare queue/workflow and configure credentials securely. Do not start the legacy `src/worker/index.ts` polling process on another host.
+AI background work is implemented with native Durable Object alarms, requiring no separate host or queue provisioning. Each five-day planning section is checkpointed in private Durable Object storage, and each external call runs outside the serialized HTTP database queue. The default model is `gpt-6.1-sol`; override it through `OPENAI_MODEL`. Keep the API key in an encrypted runtime secret, never a public or build variable.
+
+Not yet connected: automatic scheduled event discovery and daily email digests. Do not start the legacy `src/worker/index.ts` polling process on another host.
 
 ## Verify production
 

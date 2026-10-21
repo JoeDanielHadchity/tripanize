@@ -16,7 +16,8 @@
     "build:cloudflare": "npm run build",
     "preview": "wrangler dev --local --config dist/server/wrangler.json",
     "deploy": "npm run build && wrangler deploy --config dist/server/wrangler.json",
-    "test:cloudflare": "node scripts/check-cloudflare.mjs storage && node scripts/check-cloudflare.mjs app"
+    "test:cloudflare": "node scripts/check-cloudflare.mjs storage && node scripts/check-cloudflare.mjs app",
+    "test:cloudflare:ai": "node scripts/check-cloudflare-ai.mjs"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",

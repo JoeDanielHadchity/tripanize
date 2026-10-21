@@ -1,0 +1,10 @@
+{
+  "name": "tripanize-local-ai-test",
+  "main": "ai-worker.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": { "OPENAI_API_KEY": "local-test-only", "OPENAI_MODEL": "gpt-6.1-sol" },
+  "durable_objects": { "bindings": [{ "name": "PROBE", "class_name": "AiProbe" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AiProbe"] }],
+  "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }]
+}

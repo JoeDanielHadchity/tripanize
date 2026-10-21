@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Card, Field, Notice, Spinner, Textarea, cx } from "@/components/ui";
 import { useAction } from "@/components/client";
 import { planQuestionsAction, savePlanPrefsAction } from "@/app/actions/itinerary";
@@ -13,6 +13,28 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs }: { tripId: str
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [note, setNote] = useState(prefs?.note ?? "");
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !set?.pendingJobId) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const result = await planQuestionsAction(tripId, false, true);
+        if (stopped) return;
+        if (!result.ok) throw new Error(result.error);
+        setSet(result.data);
+        setLoadError(null);
+        if (result.data.pendingJobId) timer = setTimeout(poll, 2000);
+        else setPicked({});
+      } catch {
+        if (!stopped) { setLoadError("Couldn't check the questions yet. Retrying…"); timer = setTimeout(poll, 5000); }
+      }
+    };
+    timer = setTimeout(poll, 2000);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [open, set?.pendingJobId, tripId]);
 
   async function load(refresh = false) {
     setOpen(true);
@@ -76,10 +98,11 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs }: { tripId: str
     <Card>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-display text-xl font-semibold">A few questions first</h2>
-        {set && <span className="text-xs text-muted">{set.source === "ai" ? "Written by AI for this trip" : aiReady ? "Standard questions (AI questions weren't available)" : "Standard questions"}</span>}
+        {set && !set.pendingJobId && <span className="text-xs text-muted">{set.source === "ai" ? "Written by AI for this trip" : "Standard questions"}</span>}
       </div>
-      {!set ? (
-        <p className="mt-4 flex items-center gap-2 text-sm text-muted"><Spinner /> {aiReady ? "Writing questions for this trip…" : "Loading questions…"}</p>
+      {loadError && <Notice className="mt-3">{loadError}</Notice>}
+      {!set || set.pendingJobId ? (
+        <div className="mt-4 space-y-3"><p className="flex items-center gap-2 text-sm text-muted"><Spinner /> {aiReady ? "Writing questions for this trip…" : "Loading questions…"}</p><Button variant="ghost" onClick={() => setOpen(false)}>Close</Button></div>
       ) : (
         <div className="mt-4 space-y-5">
           {set.questions.map((q) => (

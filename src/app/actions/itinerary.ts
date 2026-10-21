@@ -117,10 +117,10 @@ export async function applyPlanAction(tripId: string, jobId: string, dates: stri
   });
 }
 
-export async function planQuestionsAction(tripId: string, refresh = false) {
+export async function planQuestionsAction(tripId: string, refresh = false, poll = false) {
   return runAction(async () => {
     const u = await requireUser();
-    return getPlanQuestions(u.id, tripId, { refresh });
+    return getPlanQuestions(u.id, tripId, { refresh, poll });
   });
 }
 
