@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Button, Field, Input, Notice, Select, Textarea, cx } from "./ui";
 import { useAction, useConfirm } from "./client";
+import { DateRangeCalendar } from "./date-range";
 import { createTripAction, previewTripChangeAction, updateTripAction } from "@/app/actions/trips";
 import { CURRENCIES } from "@/lib/money";
 import { INTERESTS, TRANSPORT } from "@/lib/constants";
@@ -162,6 +163,10 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
           <Field label="Trip name" htmlFor="name">
             <Input id="name" required value={t.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Summer in Portugal" maxLength={120} />
           </Field>
+          <div>
+            <p className="mb-2 text-sm font-medium">Trip dates</p>
+            <DateRangeCalendar start={t.startDate ?? ""} end={t.endDate ?? ""} onChange={(a, b) => setT((x) => ({ ...x, startDate: a, endDate: b }))} />
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Start date" htmlFor="startDate"><Input id="startDate" type="date" value={t.startDate ?? ""} onChange={(e) => set("startDate", e.target.value)} /></Field>
             <Field label="End date" htmlFor="endDate"><Input id="endDate" type="date" value={t.endDate ?? ""} min={t.startDate ?? undefined} onChange={(e) => set("endDate", e.target.value)} /></Field>
