@@ -33,6 +33,23 @@ export async function acceptInviteAction(token: string) {
   });
 }
 
+export async function acceptInviteByIdAction(invitationId: string) {
+  return runAction(async () => {
+    const u = await requireUser();
+    const r = await inv.acceptInvitationById(u.id, invitationId);
+    revalidatePath("/trips");
+    return r;
+  });
+}
+
+export async function declineInviteAction(invitationId: string) {
+  return runAction(async () => {
+    const u = await requireUser();
+    await inv.declineInvitation(u.id, invitationId);
+    revalidatePath("/trips");
+  });
+}
+
 export async function removeMemberAction(tripId: string, userId: string) {
   return runAction(async () => {
     const u = await requireUser();

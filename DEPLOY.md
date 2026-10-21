@@ -18,26 +18,33 @@ Open the web service → **Variables** and add:
 | `OPENAI_MODEL` | `gpt-5.1` (or another model your key can use) |
 | `STORAGE_DIR` | `/app/storage` |
 
-Then **Settings → Networking → Generate Domain**. Copy the address (e.g. `https://tripanize-production.up.railway.app`) and add two more variables with that exact address:
+Then connect your domain, **tripanize.app**:
+
+1. Web service → **Settings → Networking → Custom Domain** → enter `tripanize.app` → Railway shows a DNS record (a `CNAME` pointing to something like `xxxx.up.railway.app`) and a verification `TXT` record.
+2. At the company where you bought tripanize.app, open its DNS settings and add exactly those records.
+   - For the bare domain `tripanize.app` the CNAME goes on the root (`@`). If your registrar refuses a CNAME on `@`, use its **ALIAS**/**ANAME** record type instead, or move DNS to Cloudflare (free), which allows it.
+   - Optional: also add `www.tripanize.app` in Railway the same way, so both addresses work.
+3. Wait until Railway shows the domain as active (minutes, sometimes up to an hour). HTTPS is set up automatically.
+4. Add these variables:
 
 | Variable | Value |
 |---|---|
-| `APP_URL` | `https://your-address.up.railway.app` |
-| `BETTER_AUTH_URL` | `https://your-address.up.railway.app` |
+| `APP_URL` | `https://tripanize.app` |
+| `BETTER_AUTH_URL` | `https://tripanize.app` |
 
 Optional, for ticket uploads that survive redeploys: **Settings → Volumes → Add volume**, mount path `/app/storage`.
 
 ## 3. Add the worker
 1. **+ New → GitHub Repo →** the same repository.
 2. In this new service: **Settings → Deploy → Custom Start Command:** `npm run worker`
-3. **Variables:** add the same `DATABASE_URL`, `BETTER_AUTH_SECRET`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `APP_URL`, `BETTER_AUTH_URL`.
+3. **Variables:** add the same `DATABASE_URL`, `BETTER_AUTH_SECRET`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `APP_URL` (`https://tripanize.app`), `BETTER_AUTH_URL` (`https://tripanize.app`).
 4. It needs no domain.
 
 ## 4. Email sign-in with Resend (recommended)
 With this, people sign in by typing their email and entering a 6-digit code — no password, and no Claude account needed. It also sends invitations, password resets and event alerts.
 
 1. Create a free account at https://resend.com.
-2. **Domains → Add Domain**, enter a domain you own (e.g. `yourdomain.com`) and add the DNS records Resend shows at your domain registrar. Wait until it says **Verified**.
+2. **Domains → Add Domain**, enter `tripanize.app` and add the DNS records Resend shows (an `MX` and `TXT` records for SPF, and a `TXT` record for DKIM) in the same DNS settings as above. They don't conflict with Railway's records. Wait until Resend says **Verified**.
    *Just testing?* Skip this and use `onboarding@resend.dev` as the sender below — but Resend then only delivers to the email address you signed up to Resend with.
 3. **API Keys → Create API Key** (permission: *Sending access*). Copy it (starts with `re_`).
 4. Add to **both** Railway services (web and worker):
@@ -45,12 +52,12 @@ With this, people sign in by typing their email and entering a 6-digit code — 
 | Variable | Example |
 |---|---|
 | `RESEND_API_KEY` | `re_xxxxxxxx` |
-| `EMAIL_FROM` | `Tripanize <trips@yourdomain.com>` (must be on your verified domain) |
+| `EMAIL_FROM` | `Tripanize <hello@tripanize.app>` (any address @tripanize.app works once the domain is verified) |
 
 Railway redeploys automatically. Without `RESEND_API_KEY` (or an SMTP server in `SMTP_URL`), the sign-in page explains that codes can't be sent and people use a password instead.
 
 ## 5. Check it works
-1. Open your Railway address → **Sign in** → type your email → **Email me a sign-in code**. Enter the code from your inbox (check spam the first time).
+1. Open https://tripanize.app → **Sign in** → type your email → **Email me a sign-in code**. Enter the code from your inbox (check spam the first time).
 2. Create a trip → **Plan with AI**. The progress list should move past "Queued" within a few seconds. If it stays queued, the worker isn't running (check its logs).
 3. Trip settings → **Create invitation link** → open it in a private window → sign in with a second email's code → accept.
 

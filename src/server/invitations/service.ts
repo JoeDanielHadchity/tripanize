@@ -48,7 +48,7 @@ export async function createInvitation(
     const res = await sendEmail({
       to: email,
       subject: `${inviter.name} invited you to “${trip.name}” on Tripanize`,
-      text: `${inviter.name} invited you to join the trip “${trip.name}” as a ${input.role === "COLLABORATOR" ? "collaborator (can edit)" : "viewer (read-only)"}.\n\nSign in or create an account with this email address (${email}), then open:\n${url}\n\nThis link expires in ${INVITE_TTL_DAYS} days.`,
+      text: `${inviter.name} invited you to join the trip “${trip.name}” as a ${input.role === "COLLABORATOR" ? "collaborator (can edit)" : "viewer (read-only)"}.\n\nOpen this link to join:\n${url}\n\nOr go to ${process.env.APP_URL ?? "Tripanize"} and sign in with this email address (${email}) — we'll email you a sign-in code, no password needed. The invitation will be waiting on your trips page.\n\nThe invitation expires in ${INVITE_TTL_DAYS} days.`,
     });
     emailStatus = res.status === "failed" ? `failed: ${res.error}` : res.status;
     await prisma.invitation.update({ where: { id: inv.id }, data: { emailStatus } });
@@ -84,10 +84,41 @@ export async function previewInvitation(token: string): Promise<InvitationPrevie
  * history); a returning traveler is re-linked to their previous identity; otherwise a new traveler is created.
  */
 export async function acceptInvitation(userId: string, token: string) {
+  return acceptWhere(userId, { tokenHash: hashToken(token) });
+}
+
+/** Invitations addressed to this account's email that are still open, shown on the home screen. */
+export async function listPendingInvitations(userId: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  const invs = await prisma.invitation.findMany({
+    where: { email: user.email.toLowerCase(), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() }, trip: { memberships: { none: { userId } } } },
+    include: { trip: { select: { name: true, startDate: true, endDate: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  const senders = await prisma.user.findMany({ where: { id: { in: invs.map((i) => i.createdById) } }, select: { id: true, name: true, email: true } });
+  const from = (id: string) => { const u = senders.find((x) => x.id === id); return u ? u.name || u.email.split("@")[0] : "Someone"; };
+  return invs.map((i) => ({ id: i.id, tripName: i.trip.name, startDate: i.trip.startDate, endDate: i.trip.endDate, role: i.role, from: from(i.createdById) }));
+}
+
+/** Accept an email-addressed invitation from the home screen (no link needed: the signed-in email proves it). */
+export async function acceptInvitationById(userId: string, invitationId: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  const inv = await prisma.invitation.findUnique({ where: { id: invitationId } });
+  if (!inv?.email || inv.email !== user.email.toLowerCase()) throw new AppError("NOT_FOUND", "This invitation is not valid.");
+  return acceptWhere(userId, { id: invitationId });
+}
+
+export async function declineInvitation(userId: string, invitationId: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  const res = await prisma.invitation.updateMany({ where: { id: invitationId, email: user.email.toLowerCase(), acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
+  if (!res.count) throw new AppError("NOT_FOUND", "Invitation not found or already used.");
+}
+
+async function acceptWhere(userId: string, where: { tokenHash: string } | { id: string }) {
   await rateLimit(`accept:${userId}`, 20, 3600);
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   return prisma.$transaction(async (tx) => {
-    const inv = await tx.invitation.findUnique({ where: { tokenHash: hashToken(token) } });
+    const inv = await tx.invitation.findUnique({ where });
     if (!inv || inv.revokedAt) throw new AppError("NOT_FOUND", "This invitation is not valid or was revoked.");
     if (inv.acceptedAt) throw new AppError("CONFLICT", "This invitation has already been used.");
     if (inv.expiresAt < new Date()) throw new AppError("VALIDATION", "This invitation has expired. Ask the trip owner for a new link.");

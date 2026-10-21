@@ -6,6 +6,8 @@ import { AppHeader } from "@/components/shell";
 import { Badge, EmptyState, LinkButton, PageHeader, cx } from "@/components/ui";
 import { formatDateRange, tripLength } from "@/lib/dates";
 import { EXAMPLES } from "@/server/examples/data";
+import { listPendingInvitations } from "@/server/invitations/service";
+import { PendingInvites } from "@/components/pending-invites";
 
 export const metadata: Metadata = { title: "My trips" };
 
@@ -28,11 +30,13 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
   const { q = "", phase = "all" } = await searchParams;
   const all = await listTrips(user.id);
   const trips = await listTrips(user.id, { q, phase });
+  const invites = await listPendingInvitations(user.id);
   return (
     <>
       <AppHeader user={user} current="trips" />
       <main id="main" className="mx-auto max-w-6xl px-4 pb-16 pt-6">
         <PageHeader title="My trips" subtitle={all.length ? `${all.length} trip${all.length === 1 ? "" : "s"} you own or were invited to` : "Only trips you own or were invited to appear here."} actions={<LinkButton href="/trips/new" variant="primary">+ Plan a new trip</LinkButton>} />
+        <PendingInvites invites={invites} />
         {all.length > 0 && (
           <form role="search" className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center" action="/trips">
             <label htmlFor="q" className="sr-only">Search trips</label>

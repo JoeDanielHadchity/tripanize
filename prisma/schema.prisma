@@ -147,6 +147,9 @@ model Trip {
   imageCredit String?
   imagePageUrl String?
   copiedFromExample String?
+  // Pre-planning questions (AI-written multiple choice) and the travelers' answers, used by the planner.
+  planQuestions Json?
+  planPrefs     Json?
   // Bumped on every shared change so other members' devices can sync.
   revision  Int      @default(0)
   lastChangedById String?

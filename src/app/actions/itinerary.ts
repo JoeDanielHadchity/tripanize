@@ -6,6 +6,7 @@ import { runAction } from "@/server/errors";
 import * as it from "@/server/itinerary/service";
 import { enqueueJob, cancelJob, type JobKind } from "@/server/planner/jobs";
 import { applyProposal } from "@/server/planner/apply";
+import { getPlanQuestions, savePlanPrefs } from "@/server/planner/questions";
 
 const rv = (tripId: string) => revalidatePath(`/trips/${tripId}`, "layout");
 
@@ -113,5 +114,20 @@ export async function applyPlanAction(tripId: string, jobId: string, dates: stri
     const r = await applyProposal(u.id, tripId, jobId, dates);
     rv(tripId);
     return r;
+  });
+}
+
+export async function planQuestionsAction(tripId: string, refresh = false) {
+  return runAction(async () => {
+    const u = await requireUser();
+    return getPlanQuestions(u.id, tripId, { refresh });
+  });
+}
+
+export async function savePlanPrefsAction(tripId: string, input: { answers: { q: string; a: string[] }[]; note: string | null } | null) {
+  return runAction(async () => {
+    const u = await requireUser();
+    await savePlanPrefs(u.id, tripId, input);
+    rv(tripId);
   });
 }

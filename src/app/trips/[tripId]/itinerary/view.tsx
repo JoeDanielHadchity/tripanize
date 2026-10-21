@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, EmptyState, Input, Notice, cx } from "@/components/ui";
 import { Dialog, MenuButton, useAction, useConfirm } from "@/components/client";
 import { StopCard } from "@/components/itinerary/stop-card";
@@ -92,6 +92,8 @@ export function ItineraryView(p: Props) {
       ) : view === "map" ? (
         <TripMap days={p.days} ideas={p.ideas} />
       ) : (
+        <>
+        <DayStrip days={p.days} />
         <ol className="space-y-6">
           {p.days.map((d) => {
             const stops = d.stops.filter((s) => s.plan === d.activePlan);
@@ -198,6 +200,7 @@ export function ItineraryView(p: Props) {
             );
           })}
         </ol>
+        </>
       )}
 
       {!query && view === "list" && (
@@ -268,5 +271,45 @@ export function ItineraryView(p: Props) {
         )}
       </Dialog>
     </div>
+  );
+}
+
+// Swipeable row of day cards; tapping one jumps to that day. The card for the day in view is highlighted.
+function DayStrip({ days }: { days: DayView[] }) {
+  const [active, setActive] = useState(days[0]?.date ?? null);
+  // A tapped day stays highlighted while the page scrolls to it (and if the page can't scroll that far).
+  const pinnedUntil = useRef(0);
+  useEffect(() => {
+    const els = days.map((d) => document.getElementById(`day-${d.date}`)).filter((e): e is HTMLElement => Boolean(e));
+    const io = new IntersectionObserver((entries) => {
+      const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (top && Date.now() > pinnedUntil.current) setActive(top.target.id.slice(4));
+    }, { rootMargin: "-80px 0px -60% 0px" });
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, [days]);
+  useEffect(() => {
+    document.getElementById(`strip-${active}`)?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  }, [active]);
+  if (days.length < 2) return null;
+  return (
+    <nav aria-label="Days" className="sticky top-0 z-10 -mx-4 mb-4 bg-bg/95 px-4 py-2 backdrop-blur sm:mx-0 sm:px-0">
+      <ol className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]">
+        {days.map((d, i) => {
+          const n = d.stops.filter((s) => s.plan === d.activePlan && s.status !== "SKIPPED").length;
+          const on = d.date === active;
+          return (
+            <li key={d.id} className="snap-start">
+              <a id={`strip-${d.date}`} href={`#day-${d.date}`} aria-current={on ? "true" : undefined} onClick={() => { pinnedUntil.current = Date.now() + 1500; setActive(d.date); }}
+                className={cx("block min-h-11 w-36 rounded-2xl border px-3 py-2.5 transition-colors", on ? "border-accent bg-accent text-on-accent shadow-sm" : "border-line bg-surface hover:bg-surface-2")}>
+                <span className={cx("block text-[11px] font-semibold uppercase tracking-wider", on ? "opacity-90" : "text-muted")}>Day {i + 1}</span>
+                <span className="block font-semibold">{formatDate(d.date, { weekday: "short", day: "numeric", month: "short" })}</span>
+                <span className={cx("block text-xs", on ? "opacity-90" : "text-muted")}>{n} stop{n === 1 ? "" : "s"}{d.isTravelDay ? " · travel" : ""}</span>
+              </a>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

@@ -1,4 +1,5 @@
 import type { PlannerContext } from "./context";
+import type { PlanPrefs } from "./questions";
 
 export const PLANNER_INSTRUCTIONS = `You are Tripanize's trip planner. Produce a realistic, day-by-day itinerary as structured data.
 
@@ -18,9 +19,16 @@ Hard rules:
 - When web search is available, use it to check opening days/hours, ticket requirements and official websites for key stops. Set hoursVerified true only when confirmed from an official or reliable current source; otherwise state the caveat in hoursNote. Only include URLs you actually found; never invent URLs.
 - Costs: estCost is the estimated total for the whole group in the planning currency (a number, no symbol). Use null if unknown.
 - Coordinates: give approximate lat/lng when you are confident; otherwise null.
-- Put open questions for the travelers in "questions" rather than guessing important facts.`;
+- Put open questions for the travelers in "questions" rather than guessing important facts.
+- "travelerPreferences" holds the travelers' own answers to pre-planning questions (pace, rhythm, activities, food, budget, getting around). Follow them closely; where they conflict with older trip settings, the answers win.`;
 
 const cut = (s: string | null | undefined, n = 600) => (s ? s.slice(0, n) : null);
+
+function prefsForPrompt(raw: unknown) {
+  const p = raw as PlanPrefs | null;
+  if (!p?.answers?.length && !p?.note) return null;
+  return { answers: (p.answers ?? []).map((x) => ({ question: x.q, chosen: x.a })), extraNote: p.note };
+}
 
 export function buildPlannerInput(ctx: PlannerContext, opts: { chunkDates: string[]; previouslyPlanned: { date: string; titles: string[] }[]; extraInstruction?: string | null }) {
   const t = ctx.trip;
@@ -60,6 +68,7 @@ export function buildPlannerInput(ctx: PlannerContext, opts: { chunkDates: strin
     alreadyPlannedOnOtherDays: [...ctx.otherDaysPlanned.map((d) => ({ date: d.date, titles: d.stops })), ...opts.previouslyPlanned].slice(0, 60),
     weather,
     notes: cut(t.notes, 1500),
+    travelerPreferences: prefsForPrompt(t.planPrefs),
   };
   return `${opts.extraInstruction ? `Traveler request for this regeneration: ${opts.extraInstruction.slice(0, 500)}\n\n` : ""}<trip_data>\n${JSON.stringify(data, null, 1)}\n</trip_data>`;
 }

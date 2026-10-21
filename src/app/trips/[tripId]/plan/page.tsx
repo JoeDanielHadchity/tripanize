@@ -7,6 +7,8 @@ import { missingEssentials } from "@/server/planner/context";
 import { latestJobs } from "@/server/planner/jobs";
 import { LinkButton, Notice, PageHeader } from "@/components/ui";
 import { PlanPanel } from "./panel";
+import { PlanQuestions } from "./questions";
+import type { PlanPrefs } from "@/server/planner/questions";
 import { formatTimestamp } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Plan with AI" };
@@ -44,6 +46,9 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
         </Notice>
       )}
       {!canEdit && <Notice tone="warn" className="mb-5">You have view-only access, so you can't start AI planning for this trip.</Notice>}
+      <div className="mb-6">
+        <PlanQuestions tripId={tripId} canEdit={canEdit} aiReady={aiConfigured()} prefs={(trip.planPrefs as PlanPrefs | null) ?? null} />
+      </div>
       <PlanPanel
         tripId={tripId}
         canEdit={canEdit}

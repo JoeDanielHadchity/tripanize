@@ -9,6 +9,18 @@ export const auth = betterAuth({
   appName: "Tripanize",
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
+  // Accept sign-ins from both the bare domain and its www. variant (e.g. tripanize.app and www.tripanize.app).
+  trustedOrigins: (() => {
+    const base = process.env.APP_URL || process.env.BETTER_AUTH_URL;
+    if (!base) return [];
+    try {
+      const u = new URL(base);
+      const alt = u.hostname.startsWith("www.") ? u.hostname.slice(4) : `www.${u.hostname}`;
+      return [u.origin, `${u.protocol}//${alt}`];
+    } catch {
+      return [];
+    }
+  })(),
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
