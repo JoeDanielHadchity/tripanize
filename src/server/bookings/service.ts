@@ -50,7 +50,7 @@ function toData(input: BookingInput) {
   const d = r.data;
   // Never store payment card numbers, even by accident in free-text fields.
   for (const v of [d.notes, d.confirmationRef, d.preferences, d.guests]) {
-    if (v && /\b(?:\d[ -]?){13,19}\b/.test(v)) throw new AppError("VALIDATION", "That looks like a card number. Roam doesn't store payment card details — please remove it.");
+    if (v && /\b(?:\d[ -]?){13,19}\b/.test(v)) throw new AppError("VALIDATION", "That looks like a card number. Tripanize doesn't store payment card details — please remove it.");
   }
   if (d.bookingUrl && !safeUrl(d.bookingUrl)) throw new AppError("VALIDATION", "The booking link must start with https:// or http://");
   const est = d.estCost ? parseMoney(d.estCost, d.currency) : null;

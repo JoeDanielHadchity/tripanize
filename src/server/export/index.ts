@@ -28,7 +28,7 @@ export async function exportTripJson(userId: string, tripId: string) {
     },
   });
   const { stops: ideas, ...rest } = trip;
-  return { exportedAt: new Date().toISOString(), format: "roam-trip-export/v1", trip: { ...rest, unscheduledIdeas: ideas } };
+  return { exportedAt: new Date().toISOString(), format: "tripanize-trip-export/v1", trip: { ...rest, unscheduledIdeas: ideas } };
 }
 
 const FONT = path.join(process.cwd(), "assets/fonts/DejaVuSans.ttf");
@@ -45,7 +45,7 @@ export async function exportTripPdf(userId: string, tripId: string, opts: { date
   });
   const bookings = await prisma.booking.findMany({ where: { tripId, status: { in: ["BOOKED", "PAID", "REQUESTED"] }, ...(opts.date ? { date: opts.date } : {}) }, orderBy: [{ date: "asc" }, { startTime: "asc" }] });
 
-  const doc = new PDFDocument({ size: "A4", margin: 48, info: { Title: `${trip.name} — Roam itinerary` } });
+  const doc = new PDFDocument({ size: "A4", margin: 48, info: { Title: `${trip.name} — Tripanize itinerary` } });
   doc.registerFont("body", FONT);
   doc.registerFont("bold", FONT_BOLD);
   const chunks: Buffer[] = [];

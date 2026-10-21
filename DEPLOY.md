@@ -1,4 +1,4 @@
-# Deploying Roam on Railway
+# Deploying Tripanize on Railway
 
 You'll create three things in one Railway project: a **database**, the **web app**, and a **worker** (runs AI planning in the background). About 15 minutes.
 
@@ -18,7 +18,7 @@ Open the web service → **Variables** and add:
 | `OPENAI_MODEL` | `gpt-5.1` (or another model your key can use) |
 | `STORAGE_DIR` | `/app/storage` |
 
-Then **Settings → Networking → Generate Domain**. Copy the address (e.g. `https://roam-production.up.railway.app`) and add two more variables with that exact address:
+Then **Settings → Networking → Generate Domain**. Copy the address (e.g. `https://tripanize-production.up.railway.app`) and add two more variables with that exact address:
 
 | Variable | Value |
 |---|---|
@@ -45,7 +45,7 @@ With this, people sign in by typing their email and entering a 6-digit code — 
 | Variable | Example |
 |---|---|
 | `RESEND_API_KEY` | `re_xxxxxxxx` |
-| `EMAIL_FROM` | `Roam <trips@yourdomain.com>` (must be on your verified domain) |
+| `EMAIL_FROM` | `Tripanize <trips@yourdomain.com>` (must be on your verified domain) |
 
 Railway redeploys automatically. Without `RESEND_API_KEY` (or an SMTP server in `SMTP_URL`), the sign-in page explains that codes can't be sent and people use a password instead.
 

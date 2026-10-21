@@ -5,6 +5,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ tripId:
   const { tripId } = await params;
   return withUser(async (userId) => {
     const data = await exportTripJson(userId, tripId);
-    return new Response(JSON.stringify(data, null, 2), { headers: { ...noStore, "Content-Type": "application/json", "Content-Disposition": `attachment; filename="roam-trip-export.json"` } });
+    return new Response(JSON.stringify(data, null, 2), { headers: { ...noStore, "Content-Type": "application/json", "Content-Disposition": `attachment; filename="tripanize-trip-export.json"` } });
   });
 }

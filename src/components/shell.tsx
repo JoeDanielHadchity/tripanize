@@ -10,7 +10,7 @@ export function Logo({ small }: { small?: boolean }) {
         <path d="M8 21c3-7 6-10 8-10s3 3 8-2" stroke="var(--on-accent)" strokeWidth="2.4" fill="none" strokeLinecap="round" />
         <circle cx="23.5" cy="9.5" r="2.2" fill="var(--on-accent)" />
       </svg>
-      <span className="font-display text-xl font-semibold tracking-tight">Roam</span>
+      <span className="font-display text-xl font-semibold tracking-tight">Tripanize</span>
     </span>
   );
 }
@@ -24,7 +24,7 @@ export function AppHeader({ user, current }: { user: SessionUser; current?: "tri
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
-        <Link href="/trips" aria-label="Roam — my trips">
+        <Link href="/trips" aria-label="Tripanize — my trips">
           <Logo small />
         </Link>
         <nav aria-label="Account" className="flex items-center gap-1">

@@ -10,7 +10,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tripId: 
     const { profile } = await getProfile(userId);
     const pdf = await exportTripPdf(userId, tripId, { date: date && isDateStr(date) ? date : null, mapsApp: profile.mapsApp });
     return new Response(new Uint8Array(pdf), {
-      headers: { ...noStore, "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="roam-${date ?? "trip"}.pdf"` },
+      headers: { ...noStore, "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="tripanize-${date ?? "trip"}.pdf"` },
     });
   });
 }

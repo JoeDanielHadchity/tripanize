@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// Review/accept/version/swap UI using the TEST-ONLY OpenAI stub (scripts/openai-stub.mjs). This verifies Roam's
+// Review/accept/version/swap UI using the TEST-ONLY OpenAI stub (scripts/openai-stub.mjs). This verifies Tripanize's
 // handling of a structured AI response — it does NOT verify a real ChatGPT request.
 test.skip(!process.env.E2E_AI_STUB, "Requires the worker to run against scripts/openai-stub.mjs");
 

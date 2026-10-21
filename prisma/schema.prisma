@@ -1,4 +1,4 @@
-// Roam data model.
+// Tripanize data model.
 // Money is always stored as integer minor units (e.g. cents) alongside an ISO currency code.
 // Calendar dates are stored as "YYYY-MM-DD" strings interpreted in the relevant trip/destination time zone,
 // and wall-clock times as "HH:MM" strings, so a trip day never shifts because of server time zones.

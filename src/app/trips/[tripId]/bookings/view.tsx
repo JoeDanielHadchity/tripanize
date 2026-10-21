@@ -33,7 +33,7 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates }:
 
   return (
     <div className="space-y-6">
-      <Notice tone="neutral">Roam records reservations — it doesn't book anything with providers. Book through the official link, then mark it <strong>Booked</strong> here so everyone sees it. Don't store card numbers; confirmation numbers are only shown in a booking's details.</Notice>
+      <Notice tone="neutral">Tripanize records reservations — it doesn't book anything with providers. Book through the official link, then mark it <strong>Booked</strong> here so everyone sees it. Don't store card numbers; confirmation numbers are only shown in a booking's details.</Notice>
 
       {anchors.length > 0 && (
         <section aria-labelledby="anchors">

@@ -25,7 +25,7 @@ export function ForgotForm({ emailReady }: { emailReady: boolean }) {
       <h1 className="font-display text-3xl font-semibold">Reset your password</h1>
       {!emailReady ? (
         <Notice tone="warn" title="Password reset email isn't available on this server yet" className="mt-6">
-          This installation has no email delivery configured (RESEND_API_KEY or SMTP_URL), so reset links can't be sent. Ask the person who runs this Roam server to enable email delivery.
+          This installation has no email delivery configured (RESEND_API_KEY or SMTP_URL), so reset links can't be sent. Ask the person who runs this Tripanize server to enable email delivery.
         </Notice>
       ) : state === "sent" ? (
         <Notice tone="sage" title="Check your inbox" className="mt-6">

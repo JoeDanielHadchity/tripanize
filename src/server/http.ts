@@ -7,7 +7,7 @@ export class UpstreamError extends Error {
   }
 }
 
-const UA = `Roam/1.0 (+${process.env.APP_URL ?? "https://localhost"})`;
+const UA = `Tripanize/1.0 (+${process.env.APP_URL ?? "https://localhost"})`;
 
 // After a network failure, skip a host for a few minutes so pages stay fast while a service is down.
 const downUntil = new Map<string, number>();

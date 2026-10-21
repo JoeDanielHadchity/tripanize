@@ -6,7 +6,7 @@ import { prisma } from "@/server/db";
 import { sendEmail } from "@/server/notifications/email";
 
 export const auth = betterAuth({
-  appName: "Roam",
+  appName: "Tripanize",
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
@@ -18,8 +18,8 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       const res = await sendEmail({
         to: user.email,
-        subject: "Reset your Roam password",
-        text: `Someone asked to reset the password for your Roam account.\n\nOpen this link within 30 minutes to choose a new password:\n${url}\n\nIf this wasn't you, you can ignore this email.`,
+        subject: "Reset your Tripanize password",
+        text: `Someone asked to reset the password for your Tripanize account.\n\nOpen this link within 30 minutes to choose a new password:\n${url}\n\nIf this wasn't you, you can ignore this email.`,
       });
       if (res.status !== "sent") {
         // Surface the real reason to the reset form instead of silently claiming success.
@@ -42,9 +42,9 @@ export const auth = betterAuth({
         if (type !== "sign-in") throw new Error("UNSUPPORTED_OTP_TYPE");
         const res = await sendEmail({
           to: email,
-          subject: `${otp} is your Roam sign-in code`,
-          text: `Your Roam sign-in code is ${otp}\n\nEnter it on the sign-in page within 10 minutes. If you didn't try to sign in, you can ignore this email.`,
-          html: `<div style="font-family:system-ui,sans-serif;max-width:28rem;margin:auto;padding:24px;color:#2b2420"><p style="font-size:18px;font-weight:600;margin:0 0 12px">Your Roam sign-in code</p><p style="font-size:32px;letter-spacing:6px;font-weight:700;margin:0 0 16px">${otp}</p><p style="margin:0 0 8px">Enter it on the sign-in page within 10 minutes.</p><p style="color:#776b62;font-size:13px;margin:0">If you didn't try to sign in, you can ignore this email.</p></div>`,
+          subject: `${otp} is your Tripanize sign-in code`,
+          text: `Your Tripanize sign-in code is ${otp}\n\nEnter it on the sign-in page within 10 minutes. If you didn't try to sign in, you can ignore this email.`,
+          html: `<div style="font-family:system-ui,sans-serif;max-width:28rem;margin:auto;padding:24px;color:#2b2420"><p style="font-size:18px;font-weight:600;margin:0 0 12px">Your Tripanize sign-in code</p><p style="font-size:32px;letter-spacing:6px;font-weight:700;margin:0 0 16px">${otp}</p><p style="margin:0 0 8px">Enter it on the sign-in page within 10 minutes.</p><p style="color:#776b62;font-size:13px;margin:0">If you didn't try to sign in, you can ignore this email.</p></div>`,
         });
         if (res.status !== "sent") throw new Error(res.status === "not_configured" ? "EMAIL_NOT_CONFIGURED" : "EMAIL_FAILED");
       },

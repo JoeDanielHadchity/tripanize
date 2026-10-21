@@ -4,7 +4,7 @@ import { ToastProvider, ConfirmProvider } from "@/components/client";
 import { OfflineBanner, ServiceWorker } from "@/components/offline";
 
 export const metadata: Metadata = {
-  title: { default: "Roam — A little less planning. A lot more going.", template: "%s · Roam" },
+  title: { default: "Tripanize — A little less planning. A lot more going.", template: "%s · Tripanize" },
   description: "Plan trips with AI, share them with your travel companions, and keep bookings, expenses and packing in one calm place.",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg" },

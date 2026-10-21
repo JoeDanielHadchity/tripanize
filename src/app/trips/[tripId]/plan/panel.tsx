@@ -207,7 +207,7 @@ export function PlanPanel(props: { tripId: string; canEdit: boolean; aiReady: bo
             ))}
             {running && <li><Spinner label={job.status === "QUEUED" ? "Waiting for the planning worker…" : "Working — this step can take a few minutes"} /></li>}
           </ol>
-          {job.status === "QUEUED" && <p className="mt-2 text-xs text-muted">Jobs are processed by Roam's background worker. If this stays queued for more than a minute, the worker may not be running on this server.</p>}
+          {job.status === "QUEUED" && <p className="mt-2 text-xs text-muted">Jobs are processed by Tripanize's background worker. If this stays queued for more than a minute, the worker may not be running on this server.</p>}
           {job.status === "FAILED" && <Notice tone="danger" className="mt-3" title="The AI plan wasn't created">{job.error}{job.error && /unchanged|not changed/.test(job.error) ? "" : " Your itinerary was not changed."}</Notice>}
         </Card>
       )}

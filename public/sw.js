@@ -1,10 +1,10 @@
-// Roam service worker: read-only offline support.
+// Tripanize service worker: read-only offline support.
 // - Static assets are cached for offline use.
 // - Trip snapshots (/api/trips/:id/snapshot) are cached by the page while online and served when offline.
 // - Page navigations fall back to /offline when the network is unavailable.
 // - Mutations are never queued: editing requires a connection (the UI says so).
-const STATIC = "roam-static-v1";
-const SNAPSHOTS = "roam-trip-snapshots";
+const STATIC = "tripanize-static-v1";
+const SNAPSHOTS = "tripanize-trip-snapshots";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(STATIC).then((c) => c.addAll(["/offline", "/icon.svg", "/manifest.webmanifest"])).then(() => self.skipWaiting()));

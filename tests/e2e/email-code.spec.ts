@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 // Passwordless sign-in by email code. Runs against scripts/resend-stub.mjs (the app started with
-// RESEND_API_KEY set and RESEND_API_URL pointing at the stub): this checks Roam's code flow and the request
+// RESEND_API_KEY set and RESEND_API_URL pointing at the stub): this checks Tripanize's code flow and the request
 // it sends to Resend's API, not delivery by Resend itself.
 test.skip(!process.env.E2E_RESEND_STUB, "Requires the app to run against scripts/resend-stub.mjs");
 const STUB = process.env.E2E_RESEND_STUB ?? "";

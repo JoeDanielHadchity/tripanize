@@ -21,14 +21,14 @@ export function OfflineTrips() {
   useEffect(() => {
     setOnline(navigator.onLine);
     try {
-      setIndex(JSON.parse(localStorage.getItem("roam:offline-index") ?? "{}"));
+      setIndex(JSON.parse(localStorage.getItem("tripanize:offline-index") ?? "{}"));
     } catch {
       setIndex({});
     }
   }, []);
   async function open(id: string) {
     try {
-      const c = await caches.open("roam-trip-snapshots");
+      const c = await caches.open("tripanize-trip-snapshots");
       const r = await c.match(`/api/trips/${id}/snapshot`);
       if (r) setSnap(await r.json());
     } catch {

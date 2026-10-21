@@ -15,7 +15,7 @@ export function emailConfigured() {
   return Boolean(process.env.RESEND_API_KEY || process.env.SMTP_URL);
 }
 
-const from = () => process.env.EMAIL_FROM ?? "Roam <no-reply@localhost>";
+const from = () => process.env.EMAIL_FROM ?? "Tripanize <no-reply@localhost>";
 
 async function sendWithResend(msg: { to: string; subject: string; text: string; html?: string }): Promise<EmailResult> {
   // RESEND_API_URL exists only so tests can point at a local stand-in.

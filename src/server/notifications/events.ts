@@ -33,7 +33,7 @@ async function deliver(userId: string, email: string, tripId: string, tripName: 
   const fresh = lines.filter((l) => !already.some((a) => a.dedupeKey === l.key));
   if (!fresh.length) return;
   const url = `${process.env.APP_URL ?? "http://localhost:3000"}/trips/${tripId}/events`;
-  const res = await sendEmail({ to: email, subject: `Event updates for “${tripName}”`, text: `${fresh.map((l) => `• ${l.text}`).join("\n")}\n\nReview them in Roam: ${url}\n\nYou receive this because you turned on event alerts for this trip.` });
+  const res = await sendEmail({ to: email, subject: `Event updates for “${tripName}”`, text: `${fresh.map((l) => `• ${l.text}`).join("\n")}\n\nReview them in Tripanize: ${url}\n\nYou receive this because you turned on event alerts for this trip.` });
   const status = res.status === "sent" ? "sent" : res.status === "not_configured" ? "not_configured" : "failed";
   for (const l of fresh) {
     await prisma.notificationDelivery.upsert({

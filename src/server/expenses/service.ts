@@ -124,7 +124,7 @@ const settlementInput = z.object({
   note: z.string().max(300).optional().nullable(),
 });
 
-/** Records a repayment between travelers. This is a ledger entry — no money is moved by Roam. */
+/** Records a repayment between travelers. This is a ledger entry — no money is moved by Tripanize. */
 export async function recordSettlement(userId: string, tripId: string, input: z.input<typeof settlementInput>) {
   await requireTrip(tripId, userId, "edit");
   const r = settlementInput.safeParse(input);

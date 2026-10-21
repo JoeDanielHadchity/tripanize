@@ -4,15 +4,15 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: roam
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-roam}
-      POSTGRES_DB: roam
+      POSTGRES_USER: tripanize
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tripanize}
+      POSTGRES_DB: tripanize
     volumes: [pgdata:/var/lib/postgresql/data]
   web:
     build: .
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://roam:${POSTGRES_PASSWORD:-roam}@db:5432/roam
+      DATABASE_URL: postgresql://tripanize:${POSTGRES_PASSWORD:-tripanize}@db:5432/tripanize
     ports: ["3000:3000"]
     volumes: [storage:/app/storage]
     depends_on: [db]
@@ -20,7 +20,7 @@ services:
     build: .
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://roam:${POSTGRES_PASSWORD:-roam}@db:5432/roam
+      DATABASE_URL: postgresql://tripanize:${POSTGRES_PASSWORD:-tripanize}@db:5432/tripanize
     command: ["npm", "run", "worker"]
     volumes: [storage:/app/storage]
     depends_on: [db, web]

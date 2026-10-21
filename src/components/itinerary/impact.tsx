@@ -21,7 +21,7 @@ export function ImpactSummary({ impact, currency, label }: { impact: ImpactData;
       {impact.conflicts.map((c, i) => (
         <p key={i} className={c.severity === "conflict" ? "rounded-lg bg-danger-soft px-3 py-2 text-danger" : "rounded-lg bg-warn-soft px-3 py-2 text-warn-ink"}>{c.message}</p>
       ))}
-      {impact.bookingsAffected.length > 0 && <p className="rounded-lg bg-warn-soft px-3 py-2 text-warn-ink">Affects booking(s): {impact.bookingsAffected.map((b) => `${b.title} (${b.status.toLowerCase()})`).join(", ")}. Roam only updates your plan — contact the provider to change a reservation.</p>}
+      {impact.bookingsAffected.length > 0 && <p className="rounded-lg bg-warn-soft px-3 py-2 text-warn-ink">Affects booking(s): {impact.bookingsAffected.map((b) => `${b.title} (${b.status.toLowerCase()})`).join(", ")}. Tripanize only updates your plan — contact the provider to change a reservation.</p>}
       {changes.length > 0 && <ul className="space-y-0.5">{changes}</ul>}
       {impact.meals.length > 0 && <p>Meal timing: {impact.meals.map((m) => `${m.title} ${m.from ?? "—"} → ${m.to ?? "—"}`).join("; ")}</p>}
       {impact.moved.length > 0 && (

@@ -29,7 +29,7 @@ export function TodayView(p: {
 
   useEffect(() => {
     try {
-      const m = localStorage.getItem("roam:mapsApp");
+      const m = localStorage.getItem("tripanize:mapsApp");
       if (m === "GOOGLE" || m === "APPLE" || m === "OSM") setMapsApp(m);
     } catch {
       /* ignore */
@@ -92,7 +92,7 @@ export function TodayView(p: {
         </div>
         <label className="ml-auto flex items-center gap-2 text-sm">
           <span className="text-muted">Maps</span>
-          <Select aria-label="Preferred maps app" className="min-h-11 w-auto" value={mapsApp} onChange={(e) => { const v = e.target.value as MapsApp; setMapsApp(v); try { localStorage.setItem("roam:mapsApp", v); } catch { /* ignore */ } }}>
+          <Select aria-label="Preferred maps app" className="min-h-11 w-auto" value={mapsApp} onChange={(e) => { const v = e.target.value as MapsApp; setMapsApp(v); try { localStorage.setItem("tripanize:mapsApp", v); } catch { /* ignore */ } }}>
             <option value="GOOGLE">Google Maps</option>
             <option value="APPLE">Apple Maps</option>
             <option value="OSM">OpenStreetMap</option>

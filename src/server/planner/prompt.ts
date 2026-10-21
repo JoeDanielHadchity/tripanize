@@ -1,6 +1,6 @@
 import type { PlannerContext } from "./context";
 
-export const PLANNER_INSTRUCTIONS = `You are Roam's trip planner. Produce a realistic, day-by-day itinerary as structured data.
+export const PLANNER_INSTRUCTIONS = `You are Tripanize's trip planner. Produce a realistic, day-by-day itinerary as structured data.
 
 Hard rules:
 - Plan ONLY the dates listed in "datesToPlan", one entry per date, in order. Use local times (HH:MM, 24h).

@@ -33,7 +33,7 @@ export default async function ExamplePage({ params }: { params: Promise<{ slug: 
           <p className="mt-2 text-sm text-white/85">{ex.nights + 1} days · {ex.destinations.map((d) => d.name).join(" → ")} · budget ≈ €{ex.budget}</p>
         </div>
         <Notice tone="warn" className="mt-5" title="This is a read-only example">
-          Written by the Roam team to show what a plan looks like — opening hours and prices are illustrative and unverified. Nothing here is saved or editable. Save a copy to get your own editable trip; the copy contains exactly this content shifted to your dates.
+          Written by the Tripanize team to show what a plan looks like — opening hours and prices are illustrative and unverified. Nothing here is saved or editable. Save a copy to get your own editable trip; the copy contains exactly this content shifted to your dates.
         </Notice>
         <div className="mt-5">{user ? <CopyExample slug={ex.slug} /> : <LinkButton href={`/sign-up?next=${encodeURIComponent(`/examples/${ex.slug}`)}`} variant="primary">Create an account to save a copy</LinkButton>}</div>
         <ol className="mt-8 space-y-5">

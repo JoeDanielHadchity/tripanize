@@ -37,8 +37,8 @@ export function ExpensesView(p: Props) {
 
   useEffect(() => {
     try {
-      const s = localStorage.getItem("roam:exp-sort") as SortKey | null;
-      const g = localStorage.getItem("roam:exp-group") as GroupKey | null;
+      const s = localStorage.getItem("tripanize:exp-sort") as SortKey | null;
+      const g = localStorage.getItem("tripanize:exp-group") as GroupKey | null;
       if (s) setSort(s);
       if (g) setGroup(g);
     } catch {
@@ -59,7 +59,7 @@ export function ExpensesView(p: Props) {
       </div>
 
       {p.ledger.length === 0 ? (
-        <EmptyState title="No expenses yet" action={p.canEdit ? <Button variant="primary" onClick={() => setEditing("new")}>Add the first expense</Button> : undefined}>Record who paid and who it was for. Roam works out who owes whom — exactly, to the cent.</EmptyState>
+        <EmptyState title="No expenses yet" action={p.canEdit ? <Button variant="primary" onClick={() => setEditing("new")}>Add the first expense</Button> : undefined}>Record who paid and who it was for. Tripanize works out who owes whom — exactly, to the cent.</EmptyState>
       ) : (
         p.ledger.map((l) => (
           <section key={l.currency} aria-labelledby={`led-${l.currency}`} className="space-y-3">
@@ -140,7 +140,7 @@ export function ExpensesView(p: Props) {
             <h2 id="exp-list" className="font-display text-lg font-semibold">All expenses</h2>
             <div className="flex flex-wrap gap-2">
               <label className="text-sm"><span className="mb-1 block text-xs text-muted">Sort</span>
-                <Select value={sort} onChange={(e) => { setSort(e.target.value as SortKey); persist("roam:exp-sort", e.target.value); }} className="w-auto">
+                <Select value={sort} onChange={(e) => { setSort(e.target.value as SortKey); persist("tripanize:exp-sort", e.target.value); }} className="w-auto">
                   <option value="created_desc">Newest entered</option>
                   <option value="created_asc">Oldest entered</option>
                   <option value="date_desc">Expense date (newest)</option>
@@ -151,7 +151,7 @@ export function ExpensesView(p: Props) {
                 </Select>
               </label>
               <label className="text-sm"><span className="mb-1 block text-xs text-muted">Group</span>
-                <Select value={group} onChange={(e) => { setGroup(e.target.value as GroupKey); persist("roam:exp-group", e.target.value); }} className="w-auto">
+                <Select value={group} onChange={(e) => { setGroup(e.target.value as GroupKey); persist("tripanize:exp-group", e.target.value); }} className="w-auto">
                   <option value="day">By day</option>
                   <option value="category">By category</option>
                   <option value="none">No grouping</option>
@@ -193,7 +193,7 @@ export function ExpensesView(p: Props) {
 
       <section aria-labelledby="rep" className="space-y-2">
         <h2 id="rep" className="font-display text-lg font-semibold">Repayments</h2>
-        <p className="text-xs text-muted">Recorded repayments reduce balances. They are not spending and aren't included in totals or subtotals. Roam doesn't move money.</p>
+        <p className="text-xs text-muted">Recorded repayments reduce balances. They are not spending and aren't included in totals or subtotals. Tripanize doesn't move money.</p>
         {p.settlements.length === 0 ? <p className="text-sm text-muted">None recorded yet.</p> : (
           <ul className="divide-y divide-line rounded-2xl border border-line bg-surface">
             {p.settlements.map((s) => (
@@ -394,7 +394,7 @@ function SettleDialog({ open, initial, onClose, tripId, travelers, tripCurrency,
           if (r !== null) onClose();
         }}
       >
-        <Notice tone="neutral">Record a repayment someone made outside Roam (cash, bank transfer, payment app). Roam doesn't transfer money. Partial repayments are fine.</Notice>
+        <Notice tone="neutral">Record a repayment someone made outside Tripanize (cash, bank transfer, payment app). Tripanize doesn't transfer money. Partial repayments are fine.</Notice>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Who paid back" htmlFor="st-from"><Select id="st-from" name="from" defaultValue={initial.fromId}>{travelers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
           <Field label="To whom" htmlFor="st-to"><Select id="st-to" name="to" defaultValue={initial.toId ?? travelers[1]?.id}>{travelers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>

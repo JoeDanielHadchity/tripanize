@@ -76,7 +76,7 @@ export function SharingPanel(p: Props) {
           <Card>
             <h3 className="font-semibold">Invite someone</h3>
             {p.localOnly ? (
-              <Notice tone="warn" className="mt-2" title="Others can't reach this server yet">Invitation links point to {p.appUrl}, which only works on this machine. Deploy Roam to a public address (and set APP_URL) before invited travelers can sign up and accept.</Notice>
+              <Notice tone="warn" className="mt-2" title="Others can't reach this server yet">Invitation links point to {p.appUrl}, which only works on this machine. Deploy Tripanize to a public address (and set APP_URL) before invited travelers can sign up and accept.</Notice>
             ) : (
               <p className="mt-1 text-xs text-muted">Links point to {p.appUrl}. Recipients must be able to open that address and sign in with their own account.</p>
             )}

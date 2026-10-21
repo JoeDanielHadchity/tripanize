@@ -1,6 +1,6 @@
 {
-  "name": "Roam",
-  "short_name": "Roam",
+  "name": "Tripanize",
+  "short_name": "Tripanize",
   "description": "A little less planning. A lot more going.",
   "start_url": "/trips",
   "display": "standalone",

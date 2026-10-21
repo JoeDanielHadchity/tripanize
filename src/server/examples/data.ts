@@ -1,4 +1,4 @@
-// Curated example trip written by the Roam team (not AI output, not live data). Shown read-only and labeled
+// Curated example trip written by the Tripanize team (not AI output, not live data). Shown read-only and labeled
 // "Example"; travelers can save a copy as their own editable trip with their chosen start date.
 
 export type ExampleStop = { title: string; category: string; startTime: string; durationMin: number; travelToNextMin?: number; address?: string; reason: string; estCost?: number; isMeal?: boolean; isFreeTime?: boolean; officialUrl?: string; plan?: "B" };

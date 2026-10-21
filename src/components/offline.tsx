@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const SNAPSHOT_CACHE = "roam-trip-snapshots";
+const SNAPSHOT_CACHE = "tripanize-trip-snapshots";
 
 /** Removes every cached private trip snapshot (called on sign-out). */
 export async function clearOfflineData() {
@@ -10,7 +10,7 @@ export async function clearOfflineData() {
     if ("caches" in window) {
       for (const k of await caches.keys()) await caches.delete(k);
     }
-    localStorage.removeItem("roam:offline-index");
+    localStorage.removeItem("tripanize:offline-index");
     navigator.serviceWorker?.controller?.postMessage({ type: "clear" });
   } catch {
     /* storage unavailable */
@@ -64,10 +64,10 @@ export function SaveOfflineSnapshot({ tripId }: { tripId: string }) {
         if (!res.ok) return;
         const cache = await caches.open(SNAPSHOT_CACHE);
         await cache.put(url, res.clone());
-        const idx = JSON.parse(localStorage.getItem("roam:offline-index") ?? "{}") as Record<string, string>;
+        const idx = JSON.parse(localStorage.getItem("tripanize:offline-index") ?? "{}") as Record<string, string>;
         const body = (await res.json()) as { trip: { name: string } };
         idx[tripId] = body.trip.name;
-        localStorage.setItem("roam:offline-index", JSON.stringify(idx));
+        localStorage.setItem("tripanize:offline-index", JSON.stringify(idx));
       } catch {
         /* best effort */
       }

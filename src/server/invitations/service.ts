@@ -47,7 +47,7 @@ export async function createInvitation(
   if (email) {
     const res = await sendEmail({
       to: email,
-      subject: `${inviter.name} invited you to “${trip.name}” on Roam`,
+      subject: `${inviter.name} invited you to “${trip.name}” on Tripanize`,
       text: `${inviter.name} invited you to join the trip “${trip.name}” as a ${input.role === "COLLABORATOR" ? "collaborator (can edit)" : "viewer (read-only)"}.\n\nSign in or create an account with this email address (${email}), then open:\n${url}\n\nThis link expires in ${INVITE_TTL_DAYS} days.`,
     });
     emailStatus = res.status === "failed" ? `failed: ${res.error}` : res.status;

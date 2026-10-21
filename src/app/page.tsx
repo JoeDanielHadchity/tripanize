@@ -29,7 +29,7 @@ export default async function Home() {
               A little less planning.<br />
               <span className="text-accent-ink">A lot more going.</span>
             </h1>
-            <p className="mt-5 max-w-lg text-lg text-muted">Roam is a calm travel workspace for you and the people you travel with: an AI-drafted itinerary you stay in control of, plus bookings, expenses, packing and events — on your phone when it matters.</p>
+            <p className="mt-5 max-w-lg text-lg text-muted">Tripanize is a calm travel workspace for you and the people you travel with: an AI-drafted itinerary you stay in control of, plus bookings, expenses, packing and events — on your phone when it matters.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <LinkButton href="/sign-up" variant="primary" className="px-6">Plan a trip</LinkButton>
               <LinkButton href="/examples/lisbon-porto">See an example trip</LinkButton>

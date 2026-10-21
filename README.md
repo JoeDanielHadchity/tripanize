@@ -1,8 +1,8 @@
-# Roam
+# Tripanize
 
 **A little less planning. A lot more going.**
 
-Roam is a mobile-first travel workspace. Describe a trip, click **Plan with AI**, and ChatGPT (OpenAI API) drafts a realistic day-by-day itinerary from your actual inputs. You review it and accept all or some of the days. Then you edit the plan, invite companions, track bookings, split expenses, keep packing lists, and shortlist events.
+Tripanize is a mobile-first travel workspace. Describe a trip, click **Plan with AI**, and ChatGPT (OpenAI API) drafts a realistic day-by-day itinerary from your actual inputs. You review it and accept all or some of the days. Then you edit the plan, invite companions, track bookings, split expenses, keep packing lists, and shortlist events.
 
 ## Architecture
 
@@ -66,7 +66,7 @@ PW_CHROMIUM_PATH=... npx playwright test   # e2e against a running server + work
 - `tests/integration`: membership boundaries, viewer and collaborator rights, invitations (single use, expiry, revocation, email binding, linking a planned traveler, rejoining), packing privacy and refresh, concurrent edits, booking sync, reordering, fixed-commitment protection, day regeneration and undo, unscheduled-idea exclusion, event dedupe, change detection and scheduling, AI failure without data loss, partial results.
 - `tests/e2e/core-flow.spec.ts`: the full two-account flow on desktop and phone viewports.
 - `tests/e2e/ai-failure.spec.ts` (`E2E_AI_UNREACHABLE=1`): the real job pipeline when OpenAI is unreachable.
-- `tests/e2e/email-code.spec.ts` (`E2E_RESEND_STUB=http://localhost:4011`): code sign-in for a new and a returning user, with the app started with `RESEND_API_KEY=<anything> RESEND_API_URL=http://localhost:4011/emails` and `scripts/resend-stub.mjs` running. **That stub is a test harness only.** It checks the request Roam sends to Resend's API, not delivery.
-- `tests/e2e/ai-review.spec.ts` (`E2E_AI_STUB=1`): the review, accept, swap and restore UI, driven by `scripts/openai-stub.mjs`. **That stub is a test harness only.** It checks Roam's handling of a structured response, not ChatGPT itself.
+- `tests/e2e/email-code.spec.ts` (`E2E_RESEND_STUB=http://localhost:4011`): code sign-in for a new and a returning user, with the app started with `RESEND_API_KEY=<anything> RESEND_API_URL=http://localhost:4011/emails` and `scripts/resend-stub.mjs` running. **That stub is a test harness only.** It checks the request Tripanize sends to Resend's API, not delivery.
+- `tests/e2e/ai-review.spec.ts` (`E2E_AI_STUB=1`): the review, accept, swap and restore UI, driven by `scripts/openai-stub.mjs`. **That stub is a test harness only.** It checks Tripanize's handling of a structured response, not ChatGPT itself.
 
 Note: in production mode Better Auth rate-limits auth endpoints (30 requests/minute per IP). The e2e suite creates several accounts from one IP, so run one Playwright project per minute (`--project=desktop`, then `--project=phone`).
