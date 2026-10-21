@@ -92,7 +92,7 @@ export function PlanPanel(props: { tripId: string; canEdit: boolean; aiReady: bo
     const poll = async () => {
       try {
         const res = await fetch(`/api/trips/${tripId}/jobs/${jobId}`, { cache: "no-store" });
-        if (!res.ok) throw new Error((await res.json()).error ?? "Couldn't load job");
+        if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Couldn't load job");
         const j = (await res.json()) as Job;
         if (stop) return;
         setJob(j);

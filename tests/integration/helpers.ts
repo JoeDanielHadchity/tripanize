@@ -4,8 +4,10 @@ import { createTrip } from "@/server/trips/service";
 import type { TripInput } from "@/server/trips/schemas";
 
 export async function resetDb() {
-  const tables = await prisma.$queryRawUnsafe<{ tablename: string }[]>(`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> '_prisma_migrations'`);
-  await prisma.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(", ")} CASCADE`);
+  const tables = await prisma.$queryRawUnsafe<{ name: string }[]>(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`);
+  await prisma.$executeRawUnsafe("PRAGMA foreign_keys=OFF");
+  try { for (const { name } of tables) await prisma.$executeRawUnsafe(`DELETE FROM "${name.replaceAll('"', '""')}"`); }
+  finally { await prisma.$executeRawUnsafe("PRAGMA foreign_keys=ON"); }
 }
 
 export async function makeUser(name: string, email?: string) {

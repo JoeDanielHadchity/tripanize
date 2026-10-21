@@ -11,7 +11,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { formatZodError } from "@/server/trips/schemas";
 
 export const stopInclude = { booking: true, event: { select: { id: true, title: true, officialUrl: true } } } satisfies Prisma.StopInclude;
-export type StopWithRefs = Prisma.StopGetPayload<{ include: typeof stopInclude }>;
+export type StopWithRefs = Omit<Prisma.StopGetPayload<{ include: typeof stopInclude }>, "sourceUrls"> & { sourceUrls: string[] };
 
 /** A booking projection takes its schedule from the canonical booking record. */
 export function effectiveStop(s: StopWithRefs) {

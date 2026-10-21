@@ -1,0 +1,11 @@
+{
+  "name": "tripanize-local-storage-test",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": { "bindings": [{ "name": "PROBE", "class_name": "StorageProbe" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["StorageProbe"] }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "tripanize-test-files" }],
+  "assets": { "directory": "../../public", "binding": "ASSETS", "run_worker_first": true },
+  "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }]
+}

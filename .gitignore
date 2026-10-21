@@ -9,3 +9,11 @@ test-results
 playwright-report
 *.tsbuildinfo
 next-env.d.ts
+
+.open-next
+.wrangler
+.dev.vars
+*.sqlite
+*.sqlite-*
+/dist/
+.vinext/

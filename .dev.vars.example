@@ -1,0 +1,3 @@
+APP_URL=http://localhost:8787
+BETTER_AUTH_URL=http://localhost:8787
+EMAIL_FROM="Tripanize <hello@tripanize.app>"

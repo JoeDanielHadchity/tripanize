@@ -8,7 +8,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdfkit", "pg"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

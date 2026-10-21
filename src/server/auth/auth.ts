@@ -3,15 +3,16 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins";
 import { prisma } from "@/server/db";
+import { currentRuntime } from "@/server/cloudflare/runtime";
 import { sendEmail } from "@/server/notifications/email";
 
-export const auth = betterAuth({
+function createAuth() { return betterAuth({
   appName: "Tripanize",
-  baseURL: process.env.BETTER_AUTH_URL,
-  secret: process.env.BETTER_AUTH_SECRET,
+  baseURL: currentRuntime().appUrl ?? process.env.BETTER_AUTH_URL,
+  secret: currentRuntime().authSecret,
   // Accept sign-ins from both the bare domain and its www. variant (e.g. tripanize.app and www.tripanize.app).
   trustedOrigins: (() => {
-    const base = process.env.APP_URL || process.env.BETTER_AUTH_URL;
+    const base = currentRuntime().appUrl ?? process.env.APP_URL ?? process.env.BETTER_AUTH_URL;
     if (!base) return [];
     try {
       const u = new URL(base);
@@ -21,7 +22,8 @@ export const auth = betterAuth({
       return [];
     }
   })(),
-  database: prismaAdapter(prisma, { provider: "postgresql" }),
+  database: prismaAdapter(prisma, { provider: "sqlite" }),
+  advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
@@ -63,4 +65,15 @@ export const auth = betterAuth({
     }),
     nextCookies(),
   ],
+});
+
+}
+let instance: ReturnType<typeof createAuth> | undefined;
+export const auth = new Proxy({} as ReturnType<typeof createAuth>, {
+  has(_target, property) { return property === "handler" || property === "api"; },
+  get(_target, property) {
+    instance ??= createAuth();
+    const value = Reflect.get(instance, property);
+    return typeof value === "function" ? value.bind(instance) : value;
+  },
 });
