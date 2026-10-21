@@ -102,6 +102,7 @@ function TripTile({ trip }: { trip: TripCard }) {
           <img src={trip.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
         )}
         <Badge tone={p.tone} className="absolute left-3 top-3 shadow-sm">{p.label}</Badge>
+        {!trip.imageUrl && <CardPlace destinations={trip.destinations} fallback={trip.name} />}
         {trip.imageCredit && <span className="absolute bottom-1 right-2 text-[10px] text-white/90 drop-shadow">{trip.imageCredit}</span>}
       </div>
       <div className="flex flex-1 flex-col p-4">
@@ -114,5 +115,16 @@ function TripTile({ trip }: { trip: TripCard }) {
         </div>
       </div>
     </article>
+  );
+}
+
+// Destination city names on the card banner: "Corfu", "Lisbon → Porto" (anything after a comma is dropped).
+function CardPlace({ destinations, fallback }: { destinations: string[]; fallback: string }) {
+  const names = destinations.map((d) => d.split(",")[0].trim()).filter(Boolean);
+  const label = names.length ? (names.length > 3 ? `${names[0]} → … → ${names[names.length - 1]}` : names.join(" → ")) : fallback;
+  return (
+    <span className={cx("absolute inset-x-4 bottom-3 line-clamp-2 font-display font-semibold leading-tight text-white [overflow-wrap:anywhere] [text-shadow:0_1px_8px_rgba(0,0,0,.25)]", label.length > 22 ? "text-2xl" : label.length > 12 ? "text-3xl" : "text-4xl")}>
+      {label}
+    </span>
   );
 }
