@@ -1,6 +1,6 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/fraunces";
+@import "./inter-font.css";
+@import "./fraunces-font.css";
 
 /* Tailwind dark: variant follows the same rule as the color tokens. */
 @custom-variant dark {

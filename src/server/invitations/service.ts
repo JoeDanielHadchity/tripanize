@@ -207,7 +207,7 @@ export async function addTraveler(actorId: string, tripId: string, name: string,
   await requireTrip(tripId, actorId, "edit");
   const n = name.trim().slice(0, 80);
   if (!n) throw new AppError("VALIDATION", "Enter a name.");
-  const dup = await prisma.traveler.findFirst({ where: { tripId, leftAt: null, name: { equals: n, mode: "insensitive" } } });
+  const dup = (await prisma.traveler.findMany({ where: { tripId, leftAt: null } })).find((t) => t.name.toLocaleLowerCase() === n.toLocaleLowerCase());
   if (dup) throw new AppError("VALIDATION", `${dup.name} is already on this trip.`);
   return prisma.$transaction(async (tx) => {
     const t = await tx.traveler.create({ data: { tripId, name: n, isChild } });

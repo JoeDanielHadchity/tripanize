@@ -1,17 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { currentRuntime } from "@/server/cloudflare/runtime";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { requireTrip } from "@/server/auth/permissions";
 import { recordChange } from "@/server/audit";
 
-/**
- * Private attachment storage on the server's disk, outside the public web root. Files are only served through an
- * authenticated route that checks trip membership. For multi-instance hosting, swap this driver for an object store
- * with private buckets and short-lived signed URLs.
- */
-const ROOT = path.resolve(/*turbopackIgnore: true*/ process.env.STORAGE_DIR ?? "./storage");
+/** Private R2 objects are served only after checking trip membership. */
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED: Record<string, string> = { "application/pdf": "pdf", "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
 
@@ -32,23 +26,29 @@ export async function saveAttachment(userId: string, tripId: string, bookingId: 
   const mime = sniff(buf);
   if (!mime || !ALLOWED[mime]) throw new AppError("VALIDATION", "Upload a PDF, PNG, JPEG or WebP file.");
   const key = `${tripId}/${randomBytes(16).toString("hex")}.${ALLOWED[mime]}`;
-  await mkdir(/*turbopackIgnore: true*/ path.join(ROOT, tripId), { recursive: true });
-  await writeFile(/*turbopackIgnore: true*/ path.join(ROOT, key), buf, { mode: 0o600 });
+  const files = currentRuntime().files;
+  if (!files) throw new AppError("NOT_CONFIGURED", "File storage is not configured.");
+  await files.put(key, buf, { httpMetadata: { contentType: mime } });
   const name = file.name.replace(/[^\w.\- ]/g, "_").slice(0, 120) || `ticket.${ALLOWED[mime]}`;
-  return prisma.$transaction(async (tx) => {
-    const a = await tx.attachment.create({ data: { tripId, bookingId, fileName: name, mimeType: mime, sizeBytes: buf.length, storageKey: key, uploadedById: userId } });
-    await recordChange(tx, { tripId, actorId: userId, entity: "attachment", entityId: a.id, action: "create", after: { bookingId, fileName: name } });
-    return a;
-  });
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const a = await tx.attachment.create({ data: { tripId, bookingId, fileName: name, mimeType: mime, sizeBytes: buf.length, storageKey: key, uploadedById: userId } });
+      await recordChange(tx, { tripId, actorId: userId, entity: "attachment", entityId: a.id, action: "create", after: { bookingId, fileName: name } });
+      return a;
+    });
+  } catch (error) {
+    await files.delete(key).catch(() => console.warn("[storage] An unreferenced upload needs cleanup."));
+    throw error;
+  }
 }
 
 export async function readAttachment(userId: string, attachmentId: string) {
   const a = await prisma.attachment.findUnique({ where: { id: attachmentId } });
   if (!a) throw new AppError("NOT_FOUND", "File not found.");
   await requireTrip(a.tripId, userId, "view");
-  const full = path.join(/*turbopackIgnore: true*/ ROOT, a.storageKey);
-  if (!full.startsWith(ROOT + path.sep)) throw new AppError("NOT_FOUND", "File not found.");
-  return { meta: a, data: await readFile(/*turbopackIgnore: true*/ full) };
+  const file = await currentRuntime().files?.get(a.storageKey);
+  if (!file) throw new AppError("NOT_FOUND", "File not found.");
+  return { meta: a, data: Buffer.from(await file.arrayBuffer()) };
 }
 
 export async function deleteAttachment(userId: string, tripId: string, attachmentId: string) {
@@ -59,5 +59,7 @@ export async function deleteAttachment(userId: string, tripId: string, attachmen
     await tx.attachment.delete({ where: { id: a.id } });
     await recordChange(tx, { tripId, actorId: userId, entity: "attachment", entityId: a.id, action: "delete" });
   });
-  await unlink(/*turbopackIgnore: true*/ path.join(ROOT, a.storageKey)).catch(() => undefined);
+  // Metadata deletion has committed. A transient R2 failure must not report the
+  // successful deletion as an unchanged booking; the orphan remains private.
+  await currentRuntime().files?.delete(a.storageKey).catch(() => console.warn("[storage] An unreferenced upload needs cleanup."));
 }

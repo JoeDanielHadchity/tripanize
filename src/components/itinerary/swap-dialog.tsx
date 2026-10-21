@@ -40,7 +40,7 @@ export function SwapDialog({ open, onClose, tripId, currency, stop, aiReady }: {
         t = setTimeout(poll, 4000);
         return;
       }
-      const j = await res.json();
+      const j = await res.json() as { status: string; proposal?: { alternatives?: PlanStop[] }; error?: string };
       setStatus(j.status);
       if (j.status === "SUCCEEDED") setAlts(j.proposal?.alternatives ?? []);
       else if (j.status === "FAILED" || j.status === "CANCELLED") setError(j.error ?? "Couldn't find alternatives.");

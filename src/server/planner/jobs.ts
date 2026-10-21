@@ -31,7 +31,7 @@ export async function enqueueJob(userId: string, tripId: string, kind: JobKind, 
   if (kind === "days" && !params.dates?.length) throw new AppError("VALIDATION", "Choose at least one day to regenerate.");
 
   const active = await prisma.generationJob.findFirst({
-    where: { tripId, status: { in: ["QUEUED", "RUNNING"] }, kind: kind === "swap" ? "swap" : { in: ["full", "days"] }, ...(kind === "swap" ? { params: { path: ["stopId"], equals: params.stopId! } } : {}) },
+    where: { tripId, status: { in: ["QUEUED", "RUNNING"] }, kind: kind === "swap" ? "swap" : { in: ["full", "days"] }, ...(kind === "swap" ? { params: { path: "$.stopId", equals: params.stopId! } } : {}) },
   });
   if (active) return { jobId: active.id, existing: true };
 

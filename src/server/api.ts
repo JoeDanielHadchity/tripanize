@@ -5,7 +5,8 @@ import { AppError } from "@/server/errors";
 
 /** Wraps a route handler: requires a session and maps AppErrors to HTTP responses. */
 export async function withUser(fn: (userId: string) => Promise<Response>) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
   try {
     return await fn(session.user.id);

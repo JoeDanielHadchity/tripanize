@@ -1,5 +1,6 @@
-import path from "node:path";
-import PDFDocument from "pdfkit";
+import { PDFDocument, PDFString, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import { currentRuntime } from "@/server/cloudflare/runtime";
 import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
 import { effectiveStop, stopInclude } from "@/server/itinerary/service";
@@ -31,71 +32,93 @@ export async function exportTripJson(userId: string, tripId: string) {
   return { exportedAt: new Date().toISOString(), format: "tripanize-trip-export/v1", trip: { ...rest, unscheduledIdeas: ideas } };
 }
 
-const FONT = path.join(process.cwd(), "assets/fonts/DejaVuSans.ttf");
-const FONT_BOLD = path.join(process.cwd(), "assets/fonts/DejaVuSans-Bold.ttf");
+async function pdfFonts() {
+  const assets = currentRuntime().assets;
+  if (!assets) throw new Error("PDF font assets are unavailable.");
+  return Promise.all(["DejaVuSans.ttf", "DejaVuSans-Bold.ttf"].map(async (name) => {
+    const response = await assets.fetch(new Request(`https://assets/fonts/${name}`));
+    if (!response.ok) throw new Error("Could not load PDF fonts.");
+    return Buffer.from(await response.arrayBuffer());
+  }));
+}
 
-/** PDF of one day (when `date` is set) or the whole trip, with bookings, addresses, directions and notes. */
+/** PDF export uses browser-compatible libraries and static font assets, without a filesystem. */
 export async function exportTripPdf(userId: string, tripId: string, opts: { date?: string | null; mapsApp?: MapsApp }) {
   await requireTrip(tripId, userId, "view");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: { destinations: { orderBy: { position: "asc" } } } });
-  const days = await prisma.itineraryDay.findMany({
-    where: { tripId, ...(opts.date ? { date: opts.date } : {}) },
-    orderBy: { date: "asc" },
-    include: { destination: true, stops: { include: stopInclude, orderBy: { position: "asc" } } },
-  });
+  const days = await prisma.itineraryDay.findMany({ where: { tripId, ...(opts.date ? { date: opts.date } : {}) }, orderBy: { date: "asc" }, include: { destination: true, stops: { include: stopInclude, orderBy: { position: "asc" } } } });
   const bookings = await prisma.booking.findMany({ where: { tripId, status: { in: ["BOOKED", "PAID", "REQUESTED"] }, ...(opts.date ? { date: opts.date } : {}) }, orderBy: [{ date: "asc" }, { startTime: "asc" }] });
-
-  const doc = new PDFDocument({ size: "A4", margin: 48, info: { Title: `${trip.name} — Tripanize itinerary` } });
-  doc.registerFont("body", FONT);
-  doc.registerFont("bold", FONT_BOLD);
-  const chunks: Buffer[] = [];
-  doc.on("data", (c: Buffer) => chunks.push(c));
-  const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
-
-  const ink = "#13201f";
-  const muted = "#4f6563";
-  const accent = "#0f766e";
-  doc.font("bold").fontSize(20).fillColor(ink).text(trip.name);
-  doc.font("body").fontSize(10).fillColor(muted).text(`${formatDateRange(trip.startDate, trip.endDate)} · ${trip.destinations.map((d) => d.name).join(" → ") || "No destinations yet"}`);
-  doc.text(`Exported ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC. Times are local. Costs, travel times and opening hours are estimates unless marked verified.`);
-  doc.moveDown();
-
+  const pdf = await PDFDocument.create();
+  pdf.registerFontkit(fontkit);
+  pdf.setTitle(`${trip.name} — Tripanize itinerary`);
+  const [regularBytes, boldBytes] = await pdfFonts();
+  const regular = await pdf.embedFont(regularBytes, { subset: true });
+  const bold = await pdf.embedFont(boldBytes, { subset: true });
+  const ink = rgb(0.075, 0.125, 0.122), muted = rgb(0.31, 0.396, 0.388), accent = rgb(0.059, 0.463, 0.431);
+  const margin = 48, width = 595.28, height = 841.89, available = width - margin * 2;
+  let page: PDFPage = pdf.addPage([width, height]);
+  let y = height - margin;
+  function write(value: string, options: { font?: PDFFont; size?: number; color?: ReturnType<typeof rgb>; gap?: number; link?: string } = {}) {
+    const font = options.font ?? regular, size = options.size ?? 9;
+    const chars = new Set(font.getCharacterSet());
+    const text = Array.from(value).map((c) => c === "\n" || chars.has(c.codePointAt(0)!) ? c : "?").join("");
+    y -= options.gap ?? 0;
+    for (const paragraph of text.split("\n")) {
+      const lines: string[] = [];
+      let line = "";
+      for (const word of paragraph.split(/\s+/)) {
+        const candidate = line ? `${line} ${word}` : word;
+        if (font.widthOfTextAtSize(candidate, size) <= available) { line = candidate; continue; }
+        if (line) { lines.push(line); line = ""; }
+        for (const c of word) {
+          if (line && font.widthOfTextAtSize(line + c, size) > available) { lines.push(line); line = ""; }
+          line += c;
+        }
+      }
+      lines.push(line);
+      for (const part of lines) {
+        if (y - size < margin) { page = pdf.addPage([width, height]); y = height - margin; }
+        y -= size;
+        page.drawText(part, { x: margin, y, font, size, color: options.color ?? ink });
+        if (options.link && part) {
+          const annotation = pdf.context.obj({ Type: "Annot", Subtype: "Link", Rect: [margin, y - 2, margin + font.widthOfTextAtSize(part, size), y + size], Border: [0, 0, 0], A: { Type: "Action", S: "URI", URI: PDFString.of(options.link) } });
+          page.node.addAnnot(pdf.context.register(annotation));
+        }
+        y -= size * 0.4;
+      }
+    }
+  }
+  write(trip.name, { font: bold, size: 20 });
+  write(`${formatDateRange(trip.startDate, trip.endDate)} · ${trip.destinations.map((d) => d.name).join(" → ") || "No destinations yet"}`, { size: 10, color: muted, gap: 5 });
+  write(`Exported ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC. Times are local. Costs, travel times and opening hours are estimates unless marked verified.`, { color: muted });
   if (bookings.length) {
-    doc.font("bold").fontSize(13).fillColor(accent).text(opts.date ? "Bookings this day" : "Key bookings");
-    doc.font("body").fontSize(10).fillColor(ink);
+    write(opts.date ? "Bookings this day" : "Key bookings", { font: bold, size: 13, color: accent, gap: 14 });
     for (const b of bookings) {
-      doc.text(`${b.date ? formatDate(b.date) : "Date not set"}${b.startTime ? ` ${b.startTime}` : ""} — ${b.title} (${b.status.toLowerCase()})${b.address ? ` · ${b.address}` : ""}`);
-      if (b.bookingUrl) doc.fillColor(muted).text(b.bookingUrl, { link: b.bookingUrl, underline: false }).fillColor(ink);
+      write(`${b.date ? formatDate(b.date) : "Date not set"}${b.startTime ? ` ${b.startTime}` : ""} — ${b.title} (${b.status.toLowerCase()})${b.address ? ` · ${b.address}` : ""}`);
+      if (b.bookingUrl) write(b.bookingUrl, { color: accent, link: b.bookingUrl });
     }
-    doc.moveDown();
   }
-
-  for (const d of days) {
-    if (doc.y > 680) doc.addPage();
-    doc.font("bold").fontSize(14).fillColor(ink).text(`${formatDate(d.date, { weekday: "long", day: "numeric", month: "long" })}${d.title ? ` — ${d.title}` : ""}`);
-    doc.font("body").fontSize(9).fillColor(muted).text([d.destination?.name, d.area, d.isTravelDay ? "Travel day" : null, d.activePlan === "B" ? "Plan B active" : null].filter(Boolean).join(" · "));
-    const stops = d.stops.filter((s) => s.plan === d.activePlan && s.status !== "SKIPPED");
-    if (!stops.length) doc.fontSize(10).fillColor(muted).text("Nothing scheduled.");
-    for (const s of stops) {
-      const e = effectiveStop(s);
-      if (doc.y > 720) doc.addPage();
-      const tag = s.booking ? (s.booking.status === "BOOKED" || s.booking.status === "PAID" ? "Booked" : `Booking: ${s.booking.status.toLowerCase().replace("_", " ")}`) : s.isFixed ? "Fixed" : s.status === "SUGGESTED" ? "Suggestion" : "";
-      doc.moveDown(0.3).font("bold").fontSize(11).fillColor(ink).text(`${e.startTime ?? "--:--"}  ${e.title}${tag ? `  [${tag}]` : ""}`);
-      doc.font("body").fontSize(9).fillColor(ink);
-      const meta = [e.durationMin ? formatDuration(e.durationMin) : null, e.estCostMinor ? `≈ ${formatMoney(e.estCostMinor, e.currency ?? trip.currency)}` : null, s.travelToNextMin ? `then ~${s.travelToNextMin} min ${s.travelMode ?? ""} to next (estimate)` : null].filter(Boolean).join(" · ");
-      if (meta) doc.text(meta);
-      if (e.address) doc.text(e.address);
-      const dir = directionsUrl(e, opts.mapsApp ?? "GOOGLE");
-      if (dir) doc.fillColor(accent).text("Directions", { link: dir }).fillColor(ink);
-      if (e.officialUrl) doc.fillColor(muted).text(e.officialUrl, { link: e.officialUrl });
-      if (s.hoursNote) doc.fillColor(muted).text(s.hoursNote);
-      if (s.bookingNote && !s.booking) doc.fillColor(muted).text(`Booking advice: ${s.bookingNote}`);
-      doc.fillColor(ink);
+  for (const day of days) {
+    if (y < margin + 80) { page = pdf.addPage([width, height]); y = height - margin; }
+    write(`${formatDate(day.date, { weekday: "long", day: "numeric", month: "long" })}${day.title ? ` — ${day.title}` : ""}`, { font: bold, size: 14, gap: 18 });
+    write([day.destination?.name, day.area, day.isTravelDay ? "Travel day" : null, day.activePlan === "B" ? "Plan B active" : null].filter(Boolean).join(" · "), { color: muted });
+    const stops = day.stops.filter((s) => s.plan === day.activePlan && s.status !== "SKIPPED");
+    if (!stops.length) write("Nothing scheduled.", { color: muted });
+    for (const stop of stops) {
+      const e = effectiveStop(stop);
+      const tag = stop.booking ? (["BOOKED", "PAID"].includes(stop.booking.status) ? "Booked" : `Booking: ${stop.booking.status.toLowerCase().replace("_", " ")}`) : stop.isFixed ? "Fixed" : stop.status === "SUGGESTED" ? "Suggestion" : "";
+      write(`${e.startTime ?? "--:--"}  ${e.title}${tag ? `  [${tag}]` : ""}`, { font: bold, size: 11, gap: 6 });
+      const details = [e.durationMin ? formatDuration(e.durationMin) : null, e.estCostMinor ? `≈ ${formatMoney(e.estCostMinor, e.currency ?? trip.currency)}` : null, stop.travelToNextMin ? `then ~${stop.travelToNextMin} min ${stop.travelMode ?? ""} to next (estimate)` : null].filter(Boolean).join(" · ");
+      if (details) write(details);
+      if (e.address) write(e.address);
+      const directions = directionsUrl(e, opts.mapsApp ?? "GOOGLE");
+      if (directions) write("Directions", { color: accent, link: directions });
+      if (e.officialUrl) write(e.officialUrl, { color: muted, link: e.officialUrl });
+      if (stop.hoursNote) write(stop.hoursNote, { color: muted });
+      if (stop.bookingNote && !stop.booking) write(`Booking advice: ${stop.bookingNote}`, { color: muted });
     }
-    if (d.notes) doc.moveDown(0.4).font("bold").fontSize(10).text("Notes").font("body").fontSize(9).text(d.notes);
-    if (d.questions.length) doc.font("bold").fontSize(10).text("Open questions").font("body").fontSize(9).text(d.questions.map((q) => `• ${q}`).join("\n"));
-    doc.moveDown();
+    if (day.notes) write(`Notes: ${day.notes}`, { gap: 6 });
+    if (day.questions.length) write(`Open questions\n${day.questions.map((q) => `• ${q}`).join("\n")}`, { gap: 6 });
   }
-  doc.end();
-  return done;
+  return Buffer.from(await pdf.save());
 }

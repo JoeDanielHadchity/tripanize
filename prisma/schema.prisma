@@ -5,11 +5,12 @@
 
 generator client {
   provider = "prisma-client"
+  runtime  = "workerd"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 // ───────────────────────── Auth (Better Auth core tables) ─────────────────────────
@@ -91,7 +92,7 @@ model Profile {
   homeCity        String?
   defaultCurrency String   @default("EUR")
   pace            Pace     @default(BALANCED)
-  interests       String[]
+  interests       Json @default("[]")
   dietary         String?
   accessibility   String?
   mapsApp         MapsApp  @default(GOOGLE)
@@ -124,8 +125,8 @@ model Trip {
   currency  String   @default("EUR")
   budgetMinor Int?
   pace      Pace     @default(BALANCED)
-  interests String[]
-  transport String[]
+  interests Json @default("[]")
+  transport Json @default("[]")
   accessibility String?
   preferences   String?
   dietary       String?
@@ -306,7 +307,7 @@ model ItineraryDay {
   title         String?
   area          String?
   notes         String?
-  questions     String[]
+  questions     Json @default("[]")
   isTravelDay   Boolean  @default(false)
   driveMinutes  Int?
   activePlan    String   @default("A") // "A" | "B"
@@ -357,7 +358,7 @@ model Stop {
   travelMode String?
   travelNote String?
   officialUrl String?
-  sourceUrls  String[]
+  sourceUrls  Json @default("[]")
   estCostMinor Int?
   currency  String?
   bookingRequired Boolean @default(false)
@@ -680,7 +681,7 @@ model GenerationJob {
   errorCode     String?
   cancelRequested Boolean @default(false)
   appliedAt     DateTime?
-  appliedDates  String[]
+  appliedDates  Json @default("[]")
   requestedById String
   model         String?
   createdAt     DateTime  @default(now())
@@ -702,7 +703,7 @@ model NotificationPreference {
   emailEnabled Boolean @default(false)
   frequency String   @default("immediate") // immediate | daily
   // Which event changes matter: new, date, venue, cancelled, sold_out, booking_open, price
-  changeTypes String[]
+  changeTypes Json @default("[]")
   lastDigestAt DateTime?
   updatedAt DateTime @updatedAt
 

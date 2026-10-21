@@ -1,64 +1,48 @@
-# Deploying Tripanize on Railway
+# Deploy Tripanize entirely on Cloudflare
 
-You'll create three things in one Railway project: a **database**, the **web app**, and a **worker** (runs AI planning in the background). About 15 minutes.
+## Account requirements
 
-## 1. Create the project and database
-1. Sign in at https://railway.app with your GitHub account.
-2. **New Project → Deploy from GitHub repo →** choose this repository. Railway detects the `Dockerfile` and starts building. That first service is the **web app**.
-3. In the same project: **+ New → Database → Add PostgreSQL**.
+1. The `tripanize.app` domain must be active in the target Cloudflare account.
+2. Cloudflare Workers and Pages must have access to this GitHub repository.
+3. Activate Cloudflare R2 and create a **private** bucket named `tripanize-attachments`. R2 activation accepts a recurring usage-based billing agreement. Review and accept that agreement in the Cloudflare account before proceeding. Keep the bucket's public development URL and public custom domains disabled.
+4. Publishing source changes requires GitHub write access. A Cloudflare-to-GitHub connection does not itself grant a separate local development session permission to push code.
 
-## 2. Configure the web app
-Open the web service → **Variables** and add:
+## Build and deploy
 
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (Railway fills this in) |
-| `BETTER_AUTH_SECRET` | a long random string, e.g. from https://generate-secret.vercel.app/32 |
-| `OPENAI_API_KEY` | your key from https://platform.openai.com/api-keys |
-| `OPENAI_MODEL` | `gpt-5.1` (or another model your key can use) |
-| `STORAGE_DIR` | `/app/storage` |
+In Cloudflare **Workers & Pages → Create application → Continue with GitHub**, select this repository and the branch containing the Cloudflare migration.
 
-Then connect your domain, **tripanize.app**:
+- Worker name: `tripanize`
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy --config dist/server/wrangler.json`
+- Project root: repository root
+- Node.js: 22.14 or later
 
-1. Web service → **Settings → Networking → Custom Domain** → enter `tripanize.app` → Railway shows a DNS record (a `CNAME` pointing to something like `xxxx.up.railway.app`) and a verification `TXT` record.
-2. At the company where you bought tripanize.app, open its DNS settings and add exactly those records.
-   - For the bare domain `tripanize.app` the CNAME goes on the root (`@`). If your registrar refuses a CNAME on `@`, use its **ALIAS**/**ANAME** record type instead, or move DNS to Cloudflare (free), which allows it.
-   - Optional: also add `www.tripanize.app` in Railway the same way, so both addresses work.
-3. Wait until Railway shows the domain as active (minutes, sometimes up to an hour). HTTPS is set up automatically.
-4. Add these variables:
+The build generates Prisma's Workers client and a production vinext bundle. Wrangler creates the `TripanizeApp` SQLite-backed Durable Object namespace using the `v1` migration. R2 is bound as `ATTACHMENTS`. The custom-domain route connects `tripanize.app` to the Worker.
 
-| Variable | Value |
-|---|---|
-| `APP_URL` | `https://tripanize.app` |
-| `BETTER_AUTH_URL` | `https://tripanize.app` |
+Alternatively, after authenticating Wrangler to the intended account:
 
-Optional, for ticket uploads that survive redeploys: **Settings → Volumes → Add volume**, mount path `/app/storage`.
+```bash
+npm ci
+npm run deploy
+```
 
-## 3. Add the worker
-1. **+ New → GitHub Repo →** the same repository.
-2. In this new service: **Settings → Deploy → Custom Start Command:** `npm run worker`
-3. **Variables:** add the same `DATABASE_URL`, `BETTER_AUTH_SECRET`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `APP_URL` (`https://tripanize.app`), `BETTER_AUTH_URL` (`https://tripanize.app`).
-4. It needs no domain.
+The public configuration includes the canonical app URL, authentication base URL and sender name. There are no API keys in this release. The application creates its authentication signing secret inside private Durable Object storage on first startup and reuses it across restarts and deployments.
 
-## 4. Email sign-in with Resend (recommended)
-With this, people sign in by typing their email and entering a 6-digit code — no password, and no Claude account needed. It also sends invitations, password resets and event alerts.
+## Hosting-first scope
 
-1. Create a free account at https://resend.com.
-2. **Domains → Add Domain**, enter `tripanize.app` and add the DNS records Resend shows (an `MX` and `TXT` records for SPF, and a `TXT` record for DKIM) in the same DNS settings as above. They don't conflict with Railway's records. Wait until Resend says **Verified**.
-   *Just testing?* Skip this and use `onboarding@resend.dev` as the sender below — but Resend then only delivers to the email address you signed up to Resend with.
-3. **API Keys → Create API Key** (permission: *Sending access*). Copy it (starts with `re_`).
-4. Add to **both** Railway services (web and worker):
+Available: password account registration and sign-in, manual trip planning, itinerary editing, bookings, shared expenses and balances, invitations by link, packing lists, manual events, private file uploads, JSON export and PDF export.
 
-| Variable | Example |
-|---|---|
-| `RESEND_API_KEY` | `re_xxxxxxxx` |
-| `EMAIL_FROM` | `Tripanize <hello@tripanize.app>` (any address @tripanize.app works once the domain is verified) |
+Not yet connected: OpenAI planning, automatic event discovery and outbound email. Before enabling those, migrate the background-job execution to a suitable Cloudflare queue/workflow and configure credentials securely. Do not start the legacy `src/worker/index.ts` polling process on another host.
 
-Railway redeploys automatically. Without `RESEND_API_KEY` (or an SMTP server in `SMTP_URL`), the sign-in page explains that codes can't be sent and people use a password instead.
+## Verify production
 
-## 5. Check it works
-1. Open https://tripanize.app → **Sign in** → type your email → **Email me a sign-in code**. Enter the code from your inbox (check spam the first time).
-2. Create a trip → **Plan with AI**. The progress list should move past "Queued" within a few seconds. If it stays queued, the worker isn't running (check its logs).
-3. Trip settings → **Create invitation link** → open it in a private window → sign in with a second email's code → accept.
+- Open `https://tripanize.app` and confirm the homepage and static fonts load.
+- Register with an email address and password, then sign out and sign back in.
+- Create a manual trip and check its dates and itinerary days.
+- Add a booking and verify it appears once in the itinerary.
+- Add an expense and check that the shares sum exactly to the entered amount.
+- Upload and download a booking attachment; confirm an unauthenticated request cannot retrieve it.
+- Export JSON and PDF.
+- Redeploy without resetting the Durable Object; confirm data and sessions persist.
 
-Every push to the repository's main branch redeploys both services automatically.
+Account billing activation and a production deployment are separate from a passing local build. Report them as complete only after verifying the Cloudflare deployment and live domain.
