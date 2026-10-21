@@ -2,6 +2,12 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/fraunces";
 
+/* Tailwind dark: variant follows the same rule as the color tokens. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) { @slot; }
+  @media (prefers-color-scheme: dark) { &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) { @slot; } }
+}
+
 :root {
   --bg: #f1f7f6;
   --surface: #ffffff;
@@ -25,8 +31,9 @@
   color-scheme: light;
 }
 
+/* Dark colors: when the person picks Dark in Settings, or picks System (the default) on a device in dark mode. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0f1716;
     --surface: #16211f;
     --surface-2: #1d2b29;
@@ -47,6 +54,28 @@
     --focus: #7fb0ff;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f1716;
+  --surface: #16211f;
+  --surface-2: #1d2b29;
+  --ink: #e8f2f0;
+  --muted: #a3b8b5;
+  --line: #2a3b38;
+  --accent: #2fb8a8;
+  --accent-ink: #6fdccd;
+  --accent-soft: #123532;
+  --on-accent: #04201c;
+  --sage: #f0957a;
+  --sage-ink: #f6b29d;
+  --sage-soft: #3a2119;
+  --warn-ink: #f1c76b;
+  --warn-soft: #3a2f17;
+  --danger: #f08a7e;
+  --danger-soft: #3d201c;
+  --focus: #7fb0ff;
+  color-scheme: dark;
 }
 
 @theme inline {

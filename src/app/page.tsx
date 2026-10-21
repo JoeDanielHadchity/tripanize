@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/server/auth/session";
-import { Logo } from "@/components/shell";
+import { Logo, SettingsLink } from "@/components/shell";
 import { LinkButton } from "@/components/ui";
 
 const FEATURES = [
@@ -18,6 +18,7 @@ export default async function Home() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <Logo />
         <nav aria-label="Account" className="flex gap-2">
+          <SettingsLink />
           <LinkButton href="/sign-in" variant="ghost">Sign in</LinkButton>
           <LinkButton href="/sign-up" variant="primary">Get started</LinkButton>
         </nav>
