@@ -19,7 +19,11 @@ The application is configured to run entirely on Cloudflare at **https://tripani
 
 The database object generates and persists its authentication signing secret on first startup. No secret is committed to Git or exposed in the browser.
 
-Production email uses a Resend key stored as an encrypted Cloudflare secret. Email sign-in codes, password resets and invitation emails are enabled. No credentials are committed to this repository. OpenAI planning and automatic event discovery remain disconnected. The old polling-worker source is retained for that follow-up; it is not a deployed process. Adding an AI key alone does not complete that background-job migration.
+Production email uses a Resend key stored as an encrypted Cloudflare secret. Email sign-in codes, password resets and invitation emails are enabled. No credentials are committed to this repository.
+
+AI planning uses OpenAI Responses with strict structured output and web research. Set `OPENAI_API_KEY` as an encrypted Cloudflare runtime secret to activate it. The default model is `gpt-6.1-sol`, configurable with `OPENAI_MODEL`. Requests use low reasoning effort and at most six web tool calls per response. Native Durable Object alarms run trip drafts, stop alternatives, tailored preference questions and user-requested event searches. Long plans save a checkpoint after each five-day section and resume in a fresh alarm, including after a restart. Existing itineraries change only after an authorized traveler accepts a draft.
+
+External AI calls run outside the application's database queue; individual background database operations still share the HTTP transaction lock. Automatic scheduled event discovery and daily digests remain disconnected. The old polling-worker source is retained but is not a deployed process.
 
 Both `tripanize.app` and `www.tripanize.app` are configured as custom domains. The production Worker URL is also enabled as an alternate entry point. Authentication trusts that exact configured URL; it does not trust other Workers or branch previews. Email links continue to use the canonical `APP_URL`.
 
@@ -34,9 +38,12 @@ npm run preview -- --var APP_URL:http://localhost:8787 --var BETTER_AUTH_URL:htt
 npm run typecheck
 npm test
 npm run test:cloudflare
+npm run test:cloudflare:ai
 ```
 
 `npm test` runs unit and integration tests against isolated local SQLite files. `npm run test:cloudflare` additionally exercises the real local Workers runtime: transactions, rollback, optimistic version checks, booking projection, integer-cent expense allocation, R2 uploads, PDF generation, persistence after a restart, account registration, authenticated pages and private-file access checks. It does not call OpenAI or send email.
+
+`npm run test:cloudflare:ai` checks native alarms, duplicate requests, responsiveness during AI waits, transaction isolation, restart checkpoints, background questions and cancellation against a local generator stub. It makes no external AI requests.
 
 See [DEPLOY.md](DEPLOY.md) for deployment and account requirements.
 

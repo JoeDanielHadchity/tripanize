@@ -5,6 +5,7 @@ import { rateLimit } from "@/server/ratelimit";
 import { aiConfigured } from "@/server/ai/openai";
 import { missingEssentials } from "./context";
 import type { Prisma } from "@/generated/prisma/client";
+import { currentRuntime } from "@/server/cloudflare/runtime";
 
 export type JobKind = "full" | "days" | "swap";
 export type JobParams = { dates?: string[]; stopId?: string; instruction?: string | null };
@@ -33,12 +34,13 @@ export async function enqueueJob(userId: string, tripId: string, kind: JobKind, 
   const active = await prisma.generationJob.findFirst({
     where: { tripId, status: { in: ["QUEUED", "RUNNING"] }, kind: kind === "swap" ? "swap" : { in: ["full", "days"] }, ...(kind === "swap" ? { params: { path: "$.stopId", equals: params.stopId! } } : {}) },
   });
-  if (active) return { jobId: active.id, existing: true };
+  if (active) { await currentRuntime().wakeAi?.(); return { jobId: active.id, existing: true }; }
 
   await rateLimit(`ai:${kind === "swap" ? "swap" : "plan"}:${userId}`, kind === "swap" ? 30 : 12, 3600, "You've reached the hourly limit for AI requests. Please try again later.");
   const job = await prisma.generationJob.create({
-    data: { tripId, kind, params: { ...params, instruction: params.instruction?.slice(0, 500) ?? null } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Queued — waiting for the planning worker" }] },
+    data: { tripId, kind, params: { ...params, instruction: params.instruction?.slice(0, 500) ?? null } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your draft is queued and will start shortly" }] },
   });
+  await currentRuntime().wakeAi?.();
   return { jobId: job.id, existing: false };
 }
 

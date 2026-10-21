@@ -37,6 +37,8 @@
     "APP_URL": "https://tripanize.app",
     "BETTER_AUTH_URL": "https://tripanize.app",
     "WORKERS_DEV_URL": "https://tripanize.joedanielhadchity1.workers.dev",
+    "OPENAI_MODEL": "gpt-6.1-sol",
+    "OPENAI_WEB_SEARCH": "true",
     "EMAIL_FROM": "Tripanize <hello@tripanize.app>"
   },
   "triggers": {

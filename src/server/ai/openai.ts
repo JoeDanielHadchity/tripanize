@@ -21,7 +21,7 @@ export function aiConfigured() {
 }
 
 export function aiModel() {
-  return process.env.OPENAI_MODEL || "gpt-5.1";
+  return process.env.OPENAI_MODEL || "gpt-6.1-sol";
 }
 
 export function webSearchEnabled() {
@@ -55,12 +55,15 @@ export async function generateStructured<S extends z.ZodType>(opts: {
     resp = await openai.responses.create(
       {
         model,
+        reasoning: /^gpt-[56]/.test(model) ? { effort: "low" } : undefined,
         instructions: opts.instructions,
         input: opts.input,
         tools: useSearch ? [{ type: "web_search" }] : undefined,
         include: useSearch ? ["web_search_call.action.sources"] : undefined,
+        // Supported by the Responses API; keep compatibility with older SDK typings.
+        ...(useSearch ? { max_tool_calls: 6 } : {}),
         text: { format: zodTextFormat(opts.schema, opts.name) },
-        max_output_tokens: opts.maxOutputTokens ?? 40000,
+        max_output_tokens: opts.maxOutputTokens ?? 24000,
         store: false,
       },
       { signal: opts.signal, timeout: opts.timeoutMs ?? 6 * 60_000 },

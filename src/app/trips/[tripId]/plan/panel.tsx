@@ -172,7 +172,7 @@ export function PlanPanel(props: { tripId: string; canEdit: boolean; aiReady: bo
                 <Button variant="primary" onClick={start} disabled={pending || !props.aiReady || (scope === "days" && !selDays.length)}>
                   {pending ? "Starting…" : "✨ Plan with AI"}
                 </Button>
-                <p className="text-xs text-muted">{props.aiReady ? `Uses OpenAI ${props.model}${props.webSearch ? " with web search for opening hours and official links" : ""}. Takes about 1–4 minutes. Your current itinerary stays as it is until you accept.` : "Unavailable: OpenAI isn't configured on this server."}</p>
+                <p className="text-xs text-muted">{props.aiReady ? `Creates a draft${props.webSearch ? " with web research for opening hours and official links" : ""}. Usually takes a few minutes; longer trips are planned in sections. Your itinerary stays as it is until you accept.` : "AI planning is not available yet."}</p>
               </div>
             </div>
           )}
@@ -207,7 +207,7 @@ export function PlanPanel(props: { tripId: string; canEdit: boolean; aiReady: bo
             ))}
             {running && <li><Spinner label={job.status === "QUEUED" ? "Waiting for the planning worker…" : "Working — this step can take a few minutes"} /></li>}
           </ol>
-          {job.status === "QUEUED" && <p className="mt-2 text-xs text-muted">Jobs are processed by Tripanize's background worker. If this stays queued for more than a minute, the worker may not be running on this server.</p>}
+          {job.status === "QUEUED" && <p className="mt-2 text-xs text-muted">Your draft will start shortly. You can leave this page and come back to check its progress.</p>}
           {job.status === "FAILED" && <Notice tone="danger" className="mt-3" title="The AI plan wasn't created">{job.error}{job.error && /unchanged|not changed/.test(job.error) ? "" : " Your itinerary was not changed."}</Notice>}
         </Card>
       )}

@@ -7,8 +7,11 @@ import { ProposalSchema, SwapSchema, type PlanDay, type Proposal } from "./schem
 import { checkProposal, type Issue } from "./checks";
 import { effectiveStop, stopInclude } from "@/server/itinerary/service";
 import type { JobParams } from "./jobs";
+import { generatePlanQuestions } from "./questions";
 
 export type Generator = typeof generateStructured;
+export type PlanCheckpoint = { dates: string[]; completedDates: string[]; proposal: Proposal; sources: string[] };
+export type Checkpoints = { load: () => Promise<PlanCheckpoint | undefined>; save: (value: PlanCheckpoint) => Promise<void> };
 
 const CHUNK_DAYS = 5;
 
@@ -41,7 +44,7 @@ export async function claimJob(jobId: string) {
  * Runs a planning job. The proposal is stored on the job only — the itinerary itself is never modified here,
  * so a failed, cancelled or partial generation cannot erase existing plans.
  */
-export async function runJob(jobId: string, generate: Generator = generateStructured) {
+export async function runJob(jobId: string, generate: Generator = generateStructured, checkpoint?: Checkpoints) {
   const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } });
   const params = job.params as JobParams;
   const controller = new AbortController();
@@ -49,12 +52,29 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
   const partialDays: PlanDay[] = [];
   let partialMeta: Pick<Proposal, "summary" | "unplacedMustSees" | "generalNotes"> = { summary: "", unplacedMustSees: [], generalNotes: [] };
   try {
+    const saved = await checkpoint?.load();
+    if (saved) {
+      const restored = ProposalSchema.parse(saved.proposal);
+      partialDays.push(...restored.days);
+      partialMeta = { summary: restored.summary, unplacedMustSees: restored.unplacedMustSees, generalNotes: restored.generalNotes };
+    }
+    if (job.cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
+    if (job.kind === "questions") {
+      await generatePlanQuestions(job.tripId, generate, controller.signal);
+      await prisma.generationJob.update({ where: { id: jobId }, data: { status: "SUCCEEDED", finishedAt: new Date() } });
+      return;
+    }
     if (job.kind === "swap") return await runSwap(jobId, job.tripId, params, generate, controller.signal);
 
     const missing = await missingEssentials(job.tripId);
     if (missing.length) throw new AIError("INVALID_RESPONSE", `Missing essentials: ${missing.map((m) => m.question).join(" ")}`);
     const ctx = await buildContext(job.tripId, job.kind === "days" ? params.dates ?? null : null);
     if (!ctx.dates.length) throw new AIError("INVALID_RESPONSE", "None of the selected days are within the trip dates.");
+    if (saved && JSON.stringify(saved.dates) !== JSON.stringify(ctx.dates)) {
+      partialDays.length = 0;
+      throw new AIError("INVALID_RESPONSE", "Trip dates changed during planning. Start a new draft; your itinerary is unchanged.");
+    }
+    const completedDates = new Set(saved?.completedDates ?? []);
     const forecast = ctx.weather ? Object.values(ctx.weather.byDate).filter((w) => w.kind === "forecast").length : 0;
     const typical = ctx.weather ? Object.values(ctx.weather.byDate).filter((w) => w.kind === "typical").length : 0;
     await progress(jobId, `Collected trip details: ${ctx.dates.length} day${ctx.dates.length > 1 ? "s" : ""} to plan, ${ctx.destinations.length} destination${ctx.destinations.length === 1 ? "" : "s"}, ${ctx.anchors.length} fixed item${ctx.anchors.length === 1 ? "" : "s"} to plan around`);
@@ -62,10 +82,12 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
     if (ctx.legs.length) await progress(jobId, `Estimated ${ctx.legs.length} travel leg(s) between destinations`);
 
     const chunks: string[][] = [];
-    for (let i = 0; i < ctx.dates.length; i += CHUNK_DAYS) chunks.push(ctx.dates.slice(i, i + CHUNK_DAYS));
-    const allSources = new Set<string>();
-    for (const [i, chunk] of chunks.entries()) {
-      await progress(jobId, chunks.length > 1 ? `Asking ${aiModel()} to plan ${chunk[0]} – ${chunk[chunk.length - 1]} (part ${i + 1} of ${chunks.length})` : `Asking ${aiModel()} to plan your trip (with web research where available)`);
+    const remaining = ctx.dates.filter((date) => !completedDates.has(date));
+    for (let i = 0; i < remaining.length; i += CHUNK_DAYS) chunks.push(remaining.slice(i, i + CHUNK_DAYS));
+    const allSources = new Set<string>(saved?.sources ?? []);
+    for (const chunk of chunks) {
+      if (controller.signal.aborted || (await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } })).cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
+      await progress(jobId, ctx.dates.length > CHUNK_DAYS ? `Planning ${chunk[0]} – ${chunk[chunk.length - 1]} (${completedDates.size} of ${ctx.dates.length} days drafted)` : "Researching places and drafting your itinerary");
       const res = await generate({
         schema: ProposalSchema,
         name: "trip_plan",
@@ -74,6 +96,7 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
         webSearch: true,
         signal: controller.signal,
       });
+      if (controller.signal.aborted || (await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } })).cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
       res.sources.forEach((s) => allSources.add(s));
       partialDays.push(...res.data.days.filter((d) => chunk.includes(d.date)));
       partialMeta = {
@@ -81,7 +104,12 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
         unplacedMustSees: [...partialMeta.unplacedMustSees, ...res.data.unplacedMustSees.filter((u) => !partialMeta.unplacedMustSees.some((x) => x.name === u.name))],
         generalNotes: [...new Set([...partialMeta.generalNotes, ...res.data.generalNotes])],
       };
+      chunk.forEach((date) => completedDates.add(date));
+      if (checkpoint) await checkpoint.save({ dates: ctx.dates, completedDates: [...completedDates], proposal: { ...partialMeta, days: partialDays }, sources: [...allSources] });
       await progress(jobId, `Received ${res.data.days.length} day(s) from the AI${res.sources.length ? `, citing ${res.sources.length} web source(s)` : ""}`);
+      // Resume the next section in a fresh durable alarm. Completed sections are
+      // not sent to the model again after an instance restart.
+      if (checkpoint && completedDates.size < ctx.dates.length) return;
     }
 
     // Must-sees placed on days outside this regeneration count as placed.

@@ -4,6 +4,8 @@ import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
 import { AppError } from "@/server/errors";
 import { aiConfigured, generateStructured } from "@/server/ai/openai";
+import { currentRuntime } from "@/server/cloudflare/runtime";
+import { rateLimit } from "@/server/ratelimit";
 
 // Before planning, travelers answer a few multiple-choice questions about pace, rhythm, food, budget and
 // activities. The AI writes questions tailored to the trip; the answers are stored on the trip and given to
@@ -11,7 +13,7 @@ import { aiConfigured, generateStructured } from "@/server/ai/openai";
 
 export type PlanQuestion = { id: string; q: string; multi: boolean; options: string[] };
 export type PlanPrefs = { answers: { q: string; a: string[] }[]; note: string | null; at: string; byId: string };
-export type PlanQuestionSet = { questions: PlanQuestion[]; source: "ai" | "standard" };
+export type PlanQuestionSet = { questions: PlanQuestion[]; source: "ai" | "standard"; pendingJobId?: string };
 
 const QuestionsSchema = z.object({
   questions: z.array(z.object({ id: z.string(), q: z.string(), multi: z.boolean(), options: z.array(z.string()) })),
@@ -35,27 +37,36 @@ function clean(qs: PlanQuestion[]): PlanQuestion[] {
     .slice(0, 8);
 }
 
-export async function getPlanQuestions(userId: string, tripId: string, opts: { refresh?: boolean } = {}): Promise<PlanQuestionSet> {
+export async function getPlanQuestions(userId: string, tripId: string, opts: { refresh?: boolean; poll?: boolean } = {}): Promise<PlanQuestionSet> {
   await requireTrip(tripId, userId, "view");
-  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: { destinations: { orderBy: { position: "asc" } }, places: true } });
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   const cached = trip.planQuestions as PlanQuestionSet | null;
+  const fallback: PlanQuestionSet = cached?.questions?.length ? cached : { questions: STANDARD_QUESTIONS, source: "standard" };
+  if (!aiConfigured()) return fallback;
+  const active = await prisma.generationJob.findFirst({ where: { tripId, kind: "questions", status: { in: ["QUEUED", "RUNNING"] } } });
+  if (opts.poll) return active ? { ...fallback, pendingJobId: active.id } : fallback;
   if (cached?.questions?.length && !opts.refresh) return cached;
-  if (!aiConfigured()) return { questions: STANDARD_QUESTIONS, source: "standard" };
+  await requireTrip(tripId, userId, "edit");
+  if (active) { await currentRuntime().wakeAi?.(); return { ...fallback, pendingJobId: active.id }; }
+  await rateLimit(`questions:${userId}`, 8, 3600, "Please wait before requesting more questions.");
+  const job = await prisma.generationJob.create({ data: { tripId, kind: "questions", requestedById: userId, params: {} } });
+  await currentRuntime().wakeAi?.();
+  return { ...fallback, pendingJobId: job.id };
+}
+
+export async function generatePlanQuestions(tripId: string, generate = generateStructured, signal?: AbortSignal) {
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: { destinations: { orderBy: { position: "asc" } }, places: true } });
   const known = {
     name: trip.name, start: trip.startDate, end: trip.endDate, destinations: trip.destinations.map((d) => d.name),
     adults: trip.adults, children: trip.children, pace: trip.pace.toLowerCase(), interests: trip.interests, transport: trip.transport,
     mustSee: trip.places.filter((p) => p.kind === "MUST_SEE").map((p) => p.name), dietary: trip.dietary, accessibility: trip.accessibility, roadTrip: trip.isRoadTrip,
   };
-  try {
-    const r = await generateStructured({ schema: QuestionsSchema, name: "plan_questions", instructions: QUESTION_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(known)}\n</trip_data>`, webSearch: false, timeoutMs: 90_000, maxOutputTokens: 4000 });
-    const questions = clean(r.data.questions);
-    if (questions.length < 3) return { questions: STANDARD_QUESTIONS, source: "standard" };
-    const set: PlanQuestionSet = { questions, source: "ai" };
-    await prisma.trip.update({ where: { id: tripId }, data: { planQuestions: set } });
-    return set;
-  } catch {
-    return { questions: STANDARD_QUESTIONS, source: "standard" };
-  }
+  const r = await generate({ schema: QuestionsSchema, name: "plan_questions", instructions: QUESTION_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(known)}\n</trip_data>`, webSearch: false, signal, timeoutMs: 90_000, maxOutputTokens: 4000 });
+  const questions = clean(r.data.questions);
+  if (questions.length < 3) return { questions: STANDARD_QUESTIONS, source: "standard" };
+  const set: PlanQuestionSet = { questions, source: "ai" };
+  await prisma.trip.update({ where: { id: tripId }, data: { planQuestions: set } });
+  return set;
 }
 
 export async function savePlanPrefs(userId: string, tripId: string, input: { answers: { q: string; a: string[] }[]; note: string | null } | null) {

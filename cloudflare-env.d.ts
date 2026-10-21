@@ -8,6 +8,8 @@ interface CloudflareEnv {
   BETTER_AUTH_URL: string;
   WORKERS_DEV_URL?: string;
   OPENAI_API_KEY?: string;
+  OPENAI_MODEL?: string;
+  OPENAI_WEB_SEARCH?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
 }

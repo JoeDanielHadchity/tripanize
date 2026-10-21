@@ -8,14 +8,17 @@ import { EventsSchema } from "@/server/planner/schema";
 import { isDateStr, isTimeStr, todayIn } from "@/lib/dates";
 import { upsertDiscoveredEvents } from "./service";
 import { notifyEventChanges } from "@/server/notifications/events";
+import { currentRuntime } from "@/server/cloudflare/runtime";
 
 export async function requestDiscovery(userId: string, tripId: string) {
   await requireTrip(tripId, userId, "edit");
   if (!aiConfigured()) throw new AppError("NOT_CONFIGURED", "Event discovery uses OpenAI web search, which isn't configured on this server (OPENAI_API_KEY missing). You can still add events yourself.");
   const active = await prisma.discoveryRun.findFirst({ where: { tripId, status: { in: ["queued", "running"] } } });
-  if (active) return active;
+  if (active) { await currentRuntime().wakeAi?.(); return active; }
   await rateLimit(`discover:${userId}`, 10, 3600, "You've refreshed events a lot recently. Please try again later.");
-  return prisma.discoveryRun.create({ data: { tripId, trigger: "manual", requestedById: userId } });
+  const run = await prisma.discoveryRun.create({ data: { tripId, trigger: "manual", requestedById: userId } });
+  await currentRuntime().wakeAi?.();
+  return run;
 }
 
 /** Performs one discovery run (called by the worker). New results only enter the shortlist. */

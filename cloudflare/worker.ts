@@ -4,6 +4,7 @@ import schema from "../prisma/migrations/202610220001_cloudflare_initial/migrati
 import { createDatabase } from "../src/server/db";
 import { appRuntime } from "../src/server/cloudflare/runtime";
 import { DurableSqliteAdapter } from "../src/server/cloudflare/sqlite-adapter";
+import { AiTasks } from "../src/server/cloudflare/ai-tasks";
 
 /** Serialize application requests so relational transactions remain isolated.
  * Buffer each response before releasing the queue: streamed server components
@@ -13,6 +14,7 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
   private database = createDatabase(new DurableSqliteAdapter(this.ctx.storage));
   private pending: Promise<unknown> = Promise.resolve();
   private secret = "";
+  private aiTasks = new AiTasks(this.ctx.storage, () => this.runtime(), (run) => this.serialize(run));
   constructor(ctx: DurableObjectState, env: CloudflareEnv) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
@@ -22,6 +24,7 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
       }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
+      if (await this.aiTasks.pending()) await this.aiTasks.wake();
     });
   }
   private serialize<T>(run: () => Promise<T>): Promise<T> {
@@ -29,17 +32,21 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     this.pending = result.then(() => undefined, () => undefined);
     return result;
   }
+  private runtime() {
+    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, wakeAi: () => this.aiTasks.wake() };
+  }
+  async alarm() { await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {
-    return this.serialize(() => appRuntime.run({ database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL }, async () => {
+    return this.serialize(() => appRuntime.run(this.runtime(), async () => {
       const response = await handler.fetch(request, this.env, { waitUntil: this.ctx.waitUntil.bind(this.ctx), passThroughOnException() {} });
       return new Response(response.body ? await response.arrayBuffer() : null, { status: response.status, statusText: response.statusText, headers: response.headers });
     }));
   }
   async maintenance() {
-    return this.serialize(() => appRuntime.run({ database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL }, async () => {
-      // No external integration calls in this hosting-first release.
+    return this.serialize(() => appRuntime.run(this.runtime(), async () => {
       await this.database.verification.deleteMany({ where: { expiresAt: { lt: new Date() } } });
       await this.database.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+      if (await this.aiTasks.pending()) await this.aiTasks.wake();
     }));
   }
 }
