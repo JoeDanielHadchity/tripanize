@@ -6,6 +6,7 @@ interface CloudflareEnv {
   ATTACHMENTS: R2Bucket;
   APP_URL: string;
   BETTER_AUTH_URL: string;
+  WORKERS_DEV_URL?: string;
   OPENAI_API_KEY?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;

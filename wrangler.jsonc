@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "tripanize",
+  "workers_dev": true,
   "main": "cloudflare/worker.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": [
@@ -34,6 +35,7 @@
   "vars": {
     "APP_URL": "https://tripanize.app",
     "BETTER_AUTH_URL": "https://tripanize.app",
+    "WORKERS_DEV_URL": "https://tripanize.joedanielhadchity1.workers.dev",
     "EMAIL_FROM": "Tripanize <hello@tripanize.app>"
   },
   "triggers": {
@@ -47,6 +49,10 @@
   "routes": [
     {
       "pattern": "tripanize.app",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.tripanize.app",
       "custom_domain": true
     }
   ]

@@ -26,13 +26,15 @@ npm ci
 npm run deploy
 ```
 
-The public configuration includes the canonical app URL, authentication base URL and sender name. There are no API keys in this release. The application creates its authentication signing secret inside private Durable Object storage on first startup and reuses it across restarts and deployments.
+The public configuration includes the canonical app URL, authentication base URL, exact production Worker URL and sender name. The custom-domain routes include both the bare domain and `www`. Keep `workers_dev` enabled so the alternate production address remains available across deployments. Only the configured Worker origin is added to authentication's trusted origins; branch previews remain disabled.
+
+Production email is connected through the encrypted `RESEND_API_KEY` Cloudflare secret, using the verified sender `Tripanize <hello@tripanize.app>`. Never put the key into this repository or public build variables. The application creates its authentication signing secret inside private Durable Object storage on first startup and reuses it across restarts and deployments.
 
 ## Hosting-first scope
 
-Available: password account registration and sign-in, manual trip planning, itinerary editing, bookings, shared expenses and balances, invitations by link, packing lists, manual events, private file uploads, JSON export and PDF export.
+Available: password account registration and sign-in, email sign-in codes, password resets, manual trip planning, itinerary editing, bookings, shared expenses and balances, email invitations and invitation links, packing lists, manual events, private file uploads, JSON export and PDF export.
 
-Not yet connected: OpenAI planning, automatic event discovery and outbound email. Before enabling those, migrate the background-job execution to a suitable Cloudflare queue/workflow and configure credentials securely. Do not start the legacy `src/worker/index.ts` polling process on another host.
+Not yet connected: OpenAI planning and automatic event discovery. Before enabling those, migrate the background-job execution to a suitable Cloudflare queue/workflow and configure credentials securely. Do not start the legacy `src/worker/index.ts` polling process on another host.
 
 ## Verify production
 
