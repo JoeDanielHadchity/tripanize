@@ -35,6 +35,28 @@ export function ItineraryView(p: Props) {
   const [showVersions, setShowVersions] = useState(false);
   const [drag, setDrag] = useState<{ dayId: string; id: string } | null>(null);
   const [notesDay, setNotesDay] = useState<DayView | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(p.days[0]?.date ?? null);
+  const selectedDay = p.days.find(d => d.date === selectedDate) ?? p.days[0];
+
+  useEffect(() => {
+    const syncDay = () => {
+      const requested = window.location.hash.replace(/^#day-/, "");
+      setSelectedDate(p.days.some(d => d.date === requested) ? requested : p.days[0]?.date ?? null);
+    };
+    syncDay();
+    window.addEventListener("hashchange", syncDay);
+    return () => window.removeEventListener("hashchange", syncDay);
+  }, [p.days, p.tripId]);
+
+  function selectDay(date: string) {
+    setSelectedDate(date);
+    setQ("");
+    setView("list");
+    setDrag(null);
+    const hash = `#day-${date}`;
+    if (window.location.hash !== hash) window.history.pushState(window.history.state, "", hash);
+    requestAnimationFrame(() => document.getElementById(`day-${date}`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  }
 
   const handlers = { onEdit: (s: StopView) => setEditing({ stop: s }), onMove: (s: StopView) => setMoving(s), onSwap: (s: StopView) => setSwapping(s) };
   const query = q.trim().toLowerCase();
@@ -84,7 +106,7 @@ export function ItineraryView(p: Props) {
               <li key={s.id} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm">
                 <p className="font-medium">{s.title}</p>
                 <p className="text-muted">{d ? `${formatDate(d.date)}${s.plan === "B" ? " · Plan B" : ""} · ${s.startTime ?? "no time"}` : "Unscheduled idea"}{s.address ? ` · ${s.address}` : ""}</p>
-                {d && <a href={`#day-${d.date}`} onClick={() => setQ("")} className="text-accent-ink underline">Go to day</a>}
+                {d && <a href={`#day-${d.date}`} onClick={e => { e.preventDefault(); selectDay(d.date); }} className="text-accent-ink underline">Go to day</a>}
               </li>
             ))}
           </ul>
@@ -93,14 +115,14 @@ export function ItineraryView(p: Props) {
         <TripMap days={p.days} ideas={p.ideas} />
       ) : (
         <>
-        <DayStrip days={p.days} />
-        <ol className="space-y-6">
-          {p.days.map((d) => {
+        <DayStrip days={p.days} active={selectedDay?.date ?? null} onSelect={selectDay} />
+        <ol aria-label="Selected itinerary day">
+          {p.days.filter(d => d.id === selectedDay?.id).map((d) => {
             const stops = d.stops.filter((s) => s.plan === d.activePlan);
             const hasB = d.stops.some((s) => s.plan === "B");
             const cost = stops.filter((s) => s.status !== "SKIPPED").reduce((a, s) => a + (s.currency === p.currency || !s.currency ? s.estCostMinor ?? 0 : 0), 0);
             return (
-              <li key={d.id} id={`day-${d.date}`} className="scroll-mt-20">
+              <li key={d.id} id={`day-${d.date}`} className="scroll-mt-28">
                 <section aria-labelledby={`h-${d.id}`} className="rounded-3xl border border-line bg-surface-2/40 p-3 sm:p-5">
                   <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -274,33 +296,28 @@ export function ItineraryView(p: Props) {
   );
 }
 
-// Swipeable row of day cards; tapping one jumps to that day. The card for the day in view is highlighted.
-function DayStrip({ days }: { days: DayView[] }) {
-  const [active, setActive] = useState(days[0]?.date ?? null);
-  // A tapped day stays highlighted while the page scrolls to it (and if the page can't scroll that far).
-  const pinnedUntil = useRef(0);
+// Day cards switch the visible day; horizontal scrolling keeps long trips compact.
+function DayStrip({ days, active, onSelect }: { days: DayView[]; active: string | null; onSelect: (date: string) => void }) {
+  const stripRef = useRef<HTMLOListElement>(null);
   useEffect(() => {
-    const els = days.map((d) => document.getElementById(`day-${d.date}`)).filter((e): e is HTMLElement => Boolean(e));
-    const io = new IntersectionObserver((entries) => {
-      const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-      if (top && Date.now() > pinnedUntil.current) setActive(top.target.id.slice(4));
-    }, { rootMargin: "-80px 0px -60% 0px" });
-    els.forEach((e) => io.observe(e));
-    return () => io.disconnect();
-  }, [days]);
-  useEffect(() => {
-    document.getElementById(`strip-${active}`)?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    const strip = stripRef.current;
+    const item = document.getElementById(`strip-${active}`);
+    if (!strip || !item) return;
+    const row = strip.getBoundingClientRect();
+    const card = item.getBoundingClientRect();
+    const delta = card.left < row.left ? card.left - row.left : card.right > row.right ? card.right - row.right : 0;
+    if (delta) strip.scrollBy({ left: delta, behavior: "smooth" });
   }, [active]);
   if (days.length < 2) return null;
   return (
     <nav aria-label="Days" className="sticky top-0 z-10 -mx-4 mb-4 bg-bg/95 px-4 py-2 backdrop-blur sm:mx-0 sm:px-0">
-      <ol className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]">
+      <ol ref={stripRef} className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]">
         {days.map((d, i) => {
           const n = d.stops.filter((s) => s.plan === d.activePlan && s.status !== "SKIPPED").length;
           const on = d.date === active;
           return (
             <li key={d.id} className="snap-start">
-              <a id={`strip-${d.date}`} href={`#day-${d.date}`} aria-current={on ? "true" : undefined} onClick={() => { pinnedUntil.current = Date.now() + 1500; setActive(d.date); }}
+              <a id={`strip-${d.date}`} href={`#day-${d.date}`} aria-current={on ? "true" : undefined} onClick={e => { e.preventDefault(); onSelect(d.date); }}
                 className={cx("block min-h-11 w-36 rounded-2xl border px-3 py-2.5 transition-colors", on ? "border-accent bg-accent text-on-accent shadow-sm" : "border-line bg-surface hover:bg-surface-2")}>
                 <span className={cx("block text-[11px] font-semibold uppercase tracking-wider", on ? "opacity-90" : "text-muted")}>Day {i + 1}</span>
                 <span className="block font-semibold">{formatDate(d.date, { weekday: "short", day: "numeric", month: "short" })}</span>
