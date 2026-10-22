@@ -9,72 +9,73 @@
 }
 
 :root {
-  --bg: #f1f7f6;
+  --bg: #faf7f1;
   --surface: #ffffff;
-  --surface-2: #e3efed;
-  --ink: #13201f;
-  --muted: #4f6563;
-  --line: #d3e5e2;
-  --accent: #0f766e;
-  --accent-ink: #115e59;
-  --accent-soft: #d5efeb;
+  --surface-2: #f1ece3;
+  --ink: #1b273b;
+  --muted: #5b6372;
+  --line: #dfe3eb;
+  --accent: #2457c5;
+  --accent-ink: #1e479e;
+  --accent-soft: #e7eeff;
   --on-accent: #ffffff;
-  /* "sage" tokens hold the secondary color (coral in the Lagoon palette). */
-  --sage: #c2553a;
-  --sage-ink: #a3401f;
-  --sage-soft: #fbe3da;
+  /* Legacy "sage" tokens hold Mediterranean burnt orange. */
+  --sage: #bc5633;
+  --sage-ink: #9f3f1f;
+  --sage-soft: #fae6dc;
   --warn-ink: #7a4f00;
   --warn-soft: #fbefd5;
   --danger: #a3261c;
   --danger-soft: #f9e0dc;
-  --focus: #1f5fbf;
+  --focus: #2457c5;
+  --brand-gradient: linear-gradient(150deg, #2457c5 0%, #315fa8 55%, #9f3f1f 100%);
   color-scheme: light;
 }
 
 /* Dark colors: when the person picks Dark in Settings, or picks System (the default) on a device in dark mode. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1716;
-    --surface: #16211f;
-    --surface-2: #1d2b29;
-    --ink: #e8f2f0;
-    --muted: #a3b8b5;
-    --line: #2a3b38;
-    --accent: #2fb8a8;
-    --accent-ink: #6fdccd;
-    --accent-soft: #123532;
-    --on-accent: #04201c;
-    --sage: #f0957a;
-    --sage-ink: #f6b29d;
-    --sage-soft: #3a2119;
+    --bg: #121a2b;
+    --surface: #1a2438;
+    --surface-2: #233049;
+    --ink: #f2f3f7;
+    --muted: #b1bbce;
+    --line: #35415a;
+    --accent: #8eafff;
+    --accent-ink: #b5cafff;
+    --accent-soft: #202f53;
+    --on-accent: #111c36;
+    --sage: #efa580;
+    --sage-ink: #f6b99c;
+    --sage-soft: #3b2925;
     --warn-ink: #f1c76b;
     --warn-soft: #3a2f17;
     --danger: #f08a7e;
     --danger-soft: #3d201c;
-    --focus: #7fb0ff;
+    --focus: #9cbcff;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #0f1716;
-  --surface: #16211f;
-  --surface-2: #1d2b29;
-  --ink: #e8f2f0;
-  --muted: #a3b8b5;
-  --line: #2a3b38;
-  --accent: #2fb8a8;
-  --accent-ink: #6fdccd;
-  --accent-soft: #123532;
-  --on-accent: #04201c;
-  --sage: #f0957a;
-  --sage-ink: #f6b29d;
-  --sage-soft: #3a2119;
+  --bg: #121a2b;
+  --surface: #1a2438;
+  --surface-2: #233049;
+  --ink: #f2f3f7;
+  --muted: #b1bbce;
+  --line: #35415a;
+  --accent: #8eafff;
+  --accent-ink: #b5cafff;
+  --accent-soft: #202f53;
+  --on-accent: #111c36;
+  --sage: #efa580;
+  --sage-ink: #f6b99c;
+  --sage-soft: #3b2925;
   --warn-ink: #f1c76b;
   --warn-soft: #3a2f17;
   --danger: #f08a7e;
   --danger-soft: #3d201c;
-  --focus: #7fb0ff;
+  --focus: #9cbcff;
   color-scheme: dark;
 }
 
@@ -144,6 +145,10 @@ dialog[open] {
 .font-display {
   font-family: var(--font-display);
   font-optical-sizing: auto;
+}
+
+.brand-backdrop {
+  background: var(--brand-gradient);
 }
 
 /* Bottom nav safe area on phones */
