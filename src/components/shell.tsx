@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { SessionUser } from "@/server/auth/session";
 import { SignOutButton } from "./signout";
+import { NotificationBell } from "./notifications";
 
 export function Logo({ small }: { small?: boolean }) {
   return (
@@ -10,14 +11,14 @@ export function Logo({ small }: { small?: boolean }) {
         <path d="M8 21c3-7 6-10 8-10s3 3 8-2" stroke="var(--on-accent)" strokeWidth="2.4" fill="none" strokeLinecap="round" />
         <circle cx="23.5" cy="9.5" r="2.2" fill="var(--on-accent)" />
       </svg>
-      <span className="font-display text-xl font-semibold tracking-tight">Tripanize</span>
+      <span className={`${small ? "hidden sm:inline " : ""}font-display text-xl font-semibold tracking-tight`}>Tripanize</span>
     </span>
   );
 }
 
 export function AppHeader({ user, current }: { user: SessionUser; current?: "trips" | "account" | "settings" }) {
   const link = (href: string, label: string, active: boolean) => (
-    <Link href={href} aria-current={active ? "page" : undefined} className={`rounded-lg px-3 py-2 text-sm font-medium ${active ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"}`}>
+    <Link href={href} aria-current={active ? "page" : undefined} className={`max-w-28 truncate rounded-lg px-2 py-2 text-sm font-medium sm:px-3 ${active ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"}`}>
       {label}
     </Link>
   );
@@ -30,6 +31,7 @@ export function AppHeader({ user, current }: { user: SessionUser; current?: "tri
         <nav aria-label="Account" className="flex items-center gap-1">
           {link("/trips", "My trips", current === "trips")}
           {link("/account", user.name.split(" ")[0] || "Account", current === "account")}
+          <NotificationBell />
           <SettingsLink active={current === "settings"} />
           <SignOutButton />
         </nav>

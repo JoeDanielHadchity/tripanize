@@ -1,5 +1,6 @@
 import type { Tx } from "@/server/db";
 import type { Prisma } from "@/generated/prisma/client";
+import { queueChangeNotifications } from "@/server/notifications/changes";
 
 /** Records an audit entry and bumps the trip revision so other members' devices refresh. */
 export async function recordChange(
@@ -7,7 +8,7 @@ export async function recordChange(
   args: { tripId: string; actorId: string | null; entity: string; entityId: string; action: string; before?: unknown; after?: unknown },
 ) {
   const actor = args.actorId ? await tx.user.findUnique({ where: { id: args.actorId }, select: { name: true } }) : null;
-  await tx.auditLog.create({
+  const change = await tx.auditLog.create({
     data: {
       tripId: args.tripId,
       actorId: args.actorId,
@@ -20,4 +21,5 @@ export async function recordChange(
     },
   });
   await tx.trip.update({ where: { id: args.tripId }, data: { revision: { increment: 1 }, lastChangedById: args.actorId } });
+  await queueChangeNotifications(tx, change);
 }

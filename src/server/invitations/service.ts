@@ -58,8 +58,11 @@ export async function createInvitation(
 
 export async function revokeInvitation(userId: string, tripId: string, invitationId: string) {
   await requireTrip(tripId, userId, "manage");
-  const res = await prisma.invitation.updateMany({ where: { id: invitationId, tripId, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
-  if (!res.count) throw new AppError("NOT_FOUND", "Invitation not found or already used.");
+  await prisma.$transaction(async tx => {
+    const res = await tx.invitation.updateMany({ where: { id: invitationId, tripId, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
+    if (!res.count) throw new AppError("NOT_FOUND", "Invitation not found or already used.");
+    await recordChange(tx, { tripId, actorId: userId, entity: "invitation", entityId: invitationId, action: "revoke" });
+  });
 }
 
 export type InvitationPreview =
@@ -175,6 +178,7 @@ export async function removeMember(actorId: string, tripId: string, memberUserId
     // Personal packing list is private to the member and goes with them.
     await tx.packingItem.deleteMany({ where: { tripId, ownerId: memberUserId } });
     await tx.notificationPreference.deleteMany({ where: { tripId, userId: memberUserId } });
+    await tx.tripNotification.deleteMany({ where: { tripId, userId: memberUserId } });
     await recordChange(tx, { tripId, actorId, entity: "membership", entityId: memberUserId, action: self ? "leave" : "remove" });
   });
 }
@@ -220,8 +224,11 @@ export async function renameTraveler(actorId: string, tripId: string, travelerId
   await requireTrip(tripId, actorId, "edit");
   const n = name.trim().slice(0, 80);
   if (!n) throw new AppError("VALIDATION", "Enter a name.");
-  const res = await prisma.traveler.updateMany({ where: { id: travelerId, tripId }, data: { name: n } });
-  if (!res.count) throw new AppError("NOT_FOUND", "Traveler not found.");
+  await prisma.$transaction(async tx => {
+    const res = await tx.traveler.updateMany({ where: { id: travelerId, tripId }, data: { name: n } });
+    if (!res.count) throw new AppError("NOT_FOUND", "Traveler not found.");
+    await recordChange(tx, { tripId, actorId, entity: "traveler", entityId: travelerId, action: "update" });
+  });
 }
 
 /** Planned travelers with no account and no history can be removed; others are kept for the ledger. */

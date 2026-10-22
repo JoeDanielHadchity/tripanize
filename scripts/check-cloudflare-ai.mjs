@@ -51,6 +51,15 @@ try {
   const cancelled = await get("/cancel");
   const cancelledState = await get("/state");
   assert.equal(cancelledState.jobs.find(j => j.id === cancelled.jobId).status, "CANCELLED");
-  console.log(JSON.stringify({ nativeAlarms: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, externalApiCalls: 0 }));
+  await get("/notifications/start");
+  const failedEmail = await until(s => s.emailAttempts.length === 1 && s.notifications[0].attempts === 1);
+  assert.equal(failedEmail.notifications[0].emailStatus, "queued");
+  await get("/notifications/retry");
+  await stop(child); child = await start();
+  const emailed = await until(s => s.notifications[0]?.emailStatus === "sent");
+  assert.equal(emailed.notifications.length, 1);
+  assert.equal(emailed.emailAttempts.length, 2);
+  assert.equal(emailed.emailAttempts[0], emailed.emailAttempts[1]);
+  console.log(JSON.stringify({ nativeAlarms: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, externalApiCalls: 0 }));
 } catch (error) { console.error(error.stack ?? error.message); console.error(logs.replace(/sk-[A-Za-z0-9_-]+/g, "[credential hidden]")); process.exitCode = 1; }
 finally { await stop(child); }

@@ -7,7 +7,9 @@ import nodemailer, { type Transporter } from "nodemailer";
 export type EmailResult =
   | { status: "sent"; providerId: string | null }
   | { status: "not_configured" }
-  | { status: "failed"; error: string };
+  | { status: "failed"; error: string; retryable?: boolean; retryAfterMs?: number };
+
+type EmailMessage = { to: string; subject: string; text: string; html?: string; idempotencyKey?: string };
 
 let transporter: Transporter | null = null;
 
@@ -17,20 +19,24 @@ export function emailConfigured() {
 
 const from = () => process.env.EMAIL_FROM ?? "Tripanize <no-reply@localhost>";
 
-async function sendWithResend(msg: { to: string; subject: string; text: string; html?: string }): Promise<EmailResult> {
+async function sendWithResend(msg: EmailMessage): Promise<EmailResult> {
   // RESEND_API_URL exists only so tests can point at a local stand-in.
   const res = await fetch(process.env.RESEND_API_URL ?? "https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", ...(msg.idempotencyKey ? { "Idempotency-Key": msg.idempotencyKey } : {}) },
     body: JSON.stringify({ from: from(), to: [msg.to], subject: msg.subject, text: msg.text, html: msg.html }),
     signal: AbortSignal.timeout(15_000),
   });
   const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
-  if (!res.ok) return { status: "failed", error: `Resend ${res.status}: ${String(body.message ?? res.statusText).slice(0, 180)}` };
+  if (!res.ok) {
+    const retryAfter = res.headers.get("Retry-After");
+    const retryAfterMs = retryAfter ? (/^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : Math.max(0, Date.parse(retryAfter) - Date.now())) : undefined;
+    return { status: "failed", error: `Resend ${res.status}: ${String(body.message ?? res.statusText).slice(0, 180)}`, retryable: res.status === 429 || res.status >= 500, retryAfterMs: Number.isFinite(retryAfterMs) ? Math.min(retryAfterMs!, 3600_000) : undefined };
+  }
   return { status: "sent", providerId: body.id ?? null };
 }
 
-export async function sendEmail(msg: { to: string; subject: string; text: string; html?: string }): Promise<EmailResult> {
+export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
   if (process.env.RESEND_API_KEY) {
     try {
       return await sendWithResend(msg);

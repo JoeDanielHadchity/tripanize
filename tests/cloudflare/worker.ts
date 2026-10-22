@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migration.sql";
 import eventBookings from "../../prisma/migrations/202610220002_event_bookings/migration.sql";
+import tripNotifications from "../../prisma/migrations/202610220003_trip_notifications/migration.sql";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
 import { appRuntime } from "../../src/server/cloudflare/runtime";
@@ -20,6 +21,7 @@ export class StorageProbe extends DurableObject<Env> {
       if (!await ctx.storage.get("ready")) { ctx.storage.transactionSync(() => ctx.storage.sql.exec(schema)); await ctx.storage.put("ready", true); }
       ctx.storage.transactionSync(() => {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(column => column.name === "eventId")) ctx.storage.sql.exec(eventBookings);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("NotificationPreference")').toArray().some(column => column.name === "changeEmailEnabled")) ctx.storage.sql.exec(tripNotifications);
       });
     });
   }

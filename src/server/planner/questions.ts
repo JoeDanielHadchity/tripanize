@@ -6,6 +6,7 @@ import { AppError } from "@/server/errors";
 import { aiConfigured, generateStructured } from "@/server/ai/openai";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { rateLimit } from "@/server/ratelimit";
+import { recordChange } from "@/server/audit";
 
 // Before planning, travelers answer a few multiple-choice questions about pace, rhythm, food, budget and
 // activities. The AI writes questions tailored to the trip; the answers are stored on the trip and given to
@@ -72,7 +73,10 @@ export async function generatePlanQuestions(tripId: string, generate = generateS
 export async function savePlanPrefs(userId: string, tripId: string, input: { answers: { q: string; a: string[] }[]; note: string | null } | null) {
   await requireTrip(tripId, userId, "edit");
   if (!input) {
-    await prisma.trip.update({ where: { id: tripId }, data: { planPrefs: Prisma.DbNull } });
+    await prisma.$transaction(async tx => {
+      await tx.trip.update({ where: { id: tripId }, data: { planPrefs: Prisma.DbNull } });
+      await recordChange(tx, { tripId, actorId: userId, entity: "preferences", entityId: tripId, action: "update" });
+    });
     return;
   }
   const answers = input.answers
@@ -82,5 +86,8 @@ export async function savePlanPrefs(userId: string, tripId: string, input: { ans
   const note = input.note?.trim().slice(0, 500) || null;
   if (!answers.length && !note) throw new AppError("VALIDATION", "Pick at least one answer, or skip the questions.");
   const prefs: PlanPrefs = { answers, note, at: new Date().toISOString(), byId: userId };
-  await prisma.trip.update({ where: { id: tripId }, data: { planPrefs: prefs } });
+  await prisma.$transaction(async tx => {
+    await tx.trip.update({ where: { id: tripId }, data: { planPrefs: prefs } });
+    await recordChange(tx, { tripId, actorId: userId, entity: "preferences", entityId: tripId, action: "update" });
+  });
 }
