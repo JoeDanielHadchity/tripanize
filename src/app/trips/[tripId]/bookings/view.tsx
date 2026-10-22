@@ -22,7 +22,7 @@ const catLabel = Object.fromEntries(BOOKING_CATEGORIES) as Record<string, string
 const statusLabel = Object.fromEntries(BOOKING_STATUSES) as Record<string, string>;
 const statusTone = (s: string) => (s === "BOOKED" || s === "PAID" ? "sage" : s === "CANCELLED" ? "neutral" : s === "TO_BOOK" || s === "REQUESTED" ? "warn" : "accent") as "sage" | "neutral" | "warn" | "accent";
 
-export function BookingsView({ tripId, canEdit, currency, bookings, tripDates, suggestedEvents, initialEvent }: { tripId: string; canEdit: boolean; currency: string; bookings: B[]; tripDates: { start: string | null; end: string | null }; suggestedEvents: SuggestedEventBooking[]; initialEvent: SuggestedEventBooking | null }) {
+export function BookingsView({ tripId, canEdit, premium, currency, bookings, tripDates, suggestedEvents, initialEvent }: { tripId: string; canEdit: boolean; premium: boolean; currency: string; bookings: B[]; tripDates: { start: string | null; end: string | null }; suggestedEvents: SuggestedEventBooking[]; initialEvent: SuggestedEventBooking | null }) {
   const { run, pending } = useAction();
   const confirm = useConfirm();
   const [editing, setEditing] = useState<B | "new" | null>(initialEvent && canEdit ? "new" : null);
@@ -75,7 +75,7 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates, s
           ))}
         </div>
         {bookings.length === 0 ? (
-          <div className="mt-4"><EmptyState title="No bookings yet" action={canEdit ? <Button variant="primary" onClick={addOwnBooking}>Add your first booking</Button> : undefined}>Add your own stays, transport, tickets and restaurant reservations, or track an event suggestion below.</EmptyState></div>
+          <div className="mt-4"><EmptyState title="No bookings yet" action={canEdit ? <Button variant="primary" onClick={addOwnBooking}>Add your first booking</Button> : undefined}>Add your own stays, transport, tickets and restaurant reservations, {premium ? "or track an event suggestion below." : "and keep reservation details together."}</EmptyState></div>
         ) : shown.length === 0 ? <p className="mt-4 text-sm text-muted">Nothing here.</p> : (
           <ul className="mt-4 space-y-2">
             {shown.map((b) => (
@@ -136,7 +136,7 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates, s
                       {canEdit && (
                         <div className="flex flex-wrap gap-2 pt-2">
                           <Button onClick={() => { setFromEvent(null); setEditing(b); }}>Edit</Button>
-                          {(b.status === "PAID" || b.status === "BOOKED") && !b.hasExpense && <Link href={`/trips/${tripId}/expenses?fromBooking=${b.id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-medium">Record payment as expense</Link>}
+                          {premium && (b.status === "PAID" || b.status === "BOOKED") && !b.hasExpense && <Link href={`/trips/${tripId}/expenses?fromBooking=${b.id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-medium">Record payment as expense</Link>}
                           <Button variant="danger" onClick={async () => { if (await confirm({ title: "Delete booking?", message: `Delete “${b.title}”? It will also disappear from the itinerary. Linked expenses are kept.`, danger: true, confirmLabel: "Delete" })) run(() => deleteBookingAction(tripId, b.id), { success: "Booking deleted" }); }}>Delete</Button>
                         </div>
                       )}
@@ -148,7 +148,7 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates, s
           </ul>
         )}
       </section>
-      <section aria-labelledby="suggested-event-bookings" className="space-y-3">
+      {premium && <section aria-labelledby="suggested-event-bookings" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="suggested-event-bookings" className="font-display text-lg font-semibold">Suggested event bookings</h2>
           <Link href={`/trips/${tripId}/events`} className="text-sm font-medium text-accent-ink underline">Explore events</Link>
@@ -183,7 +183,7 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates, s
             ))}
           </ul>
         )}
-      </section>
+      </section>}
       <BookingDialog key={editing === "new" ? fromEvent?.id ?? "new" : editing?.id ?? "none"} tripId={tripId} currency={currency} booking={editing} fromEvent={fromEvent} tripDates={tripDates} onClose={() => setEditing(null)} />
     </div>
   );

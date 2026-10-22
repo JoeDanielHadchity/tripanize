@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
+import { getTripPlan, requirePremiumAccess } from "@/server/plans/access";
 import { AppError } from "@/server/errors";
 import { aiConfigured, generateStructured } from "@/server/ai/openai";
 import { currentRuntime } from "@/server/cloudflare/runtime";
@@ -40,6 +41,7 @@ function clean(qs: PlanQuestion[]): PlanQuestion[] {
 
 export async function getPlanQuestions(userId: string, tripId: string, opts: { refresh?: boolean; poll?: boolean } = {}): Promise<PlanQuestionSet> {
   await requireTrip(tripId, userId, "view");
+  if (!(await getTripPlan(tripId)).premium) return { questions: STANDARD_QUESTIONS, source: "standard" };
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   const cached = trip.planQuestions as PlanQuestionSet | null;
   const fallback: PlanQuestionSet = cached?.questions?.length ? cached : { questions: STANDARD_QUESTIONS, source: "standard" };
@@ -56,6 +58,7 @@ export async function getPlanQuestions(userId: string, tripId: string, opts: { r
 }
 
 export async function generatePlanQuestions(tripId: string, generate = generateStructured, signal?: AbortSignal) {
+  await requirePremiumAccess(tripId, "advancedPlanning");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: { destinations: { orderBy: { position: "asc" } }, places: true } });
   const known = {
     name: trip.name, start: trip.startDate, end: trip.endDate, destinations: trip.destinations.map((d) => d.name),

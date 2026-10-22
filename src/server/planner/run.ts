@@ -8,6 +8,9 @@ import { checkProposal, type Issue } from "./checks";
 import { effectiveStop, stopInclude } from "@/server/itinerary/service";
 import type { JobParams } from "./jobs";
 import { generatePlanQuestions } from "./questions";
+import { requireTrip } from "@/server/auth/permissions";
+import { AppError } from "@/server/errors";
+import { planningScope, requirePlanDates } from "@/server/plans/planning";
 
 export type Generator = typeof generateStructured;
 export type PlanCheckpoint = { dates: string[]; completedDates: string[]; proposal: Proposal; sources: string[] };
@@ -52,6 +55,8 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
   const partialDays: PlanDay[] = [];
   let partialMeta: Pick<Proposal, "summary" | "unplacedMustSees" | "generalNotes"> = { summary: "", unplacedMustSees: [], generalNotes: [] };
   try {
+    await requireTrip(job.tripId, job.requestedById, job.kind === "assistant" ? "view" : "edit");
+    const scope = await planningScope(job.tripId, job.kind, params.dates);
     const saved = await checkpoint?.load();
     if (saved) {
       const restored = ProposalSchema.parse(saved.proposal);
@@ -72,7 +77,7 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
 
     const missing = await missingEssentials(job.tripId);
     if (missing.length) throw new AIError("INVALID_RESPONSE", `Missing essentials: ${missing.map((m) => m.question).join(" ")}`);
-    const ctx = await buildContext(job.tripId, job.kind === "days" ? params.dates ?? null : null);
+    const ctx = await buildContext(job.tripId, scope);
     if (!ctx.dates.length) throw new AIError("INVALID_RESPONSE", "None of the selected days are within the trip dates.");
     if (saved && JSON.stringify(saved.dates) !== JSON.stringify(ctx.dates)) {
       partialDays.length = 0;
@@ -90,6 +95,7 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
     for (let i = 0; i < remaining.length; i += CHUNK_DAYS) chunks.push(remaining.slice(i, i + CHUNK_DAYS));
     const allSources = new Set<string>(saved?.sources ?? []);
     for (const chunk of chunks) {
+      await requirePlanDates(job.tripId, job.kind, ctx.dates);
       if (controller.signal.aborted || (await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } })).cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
       await progress(jobId, ctx.dates.length > CHUNK_DAYS ? `Planning ${chunk[0]} – ${chunk[chunk.length - 1]} (${completedDates.size} of ${ctx.dates.length} days drafted)` : "Researching places and drafting your itinerary");
       const res = await generate({
@@ -100,6 +106,7 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
         webSearch: true,
         signal: controller.signal,
       });
+      await requirePlanDates(job.tripId, job.kind, ctx.dates);
       if (controller.signal.aborted || (await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } })).cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
       res.sources.forEach((s) => allSources.add(s));
       partialDays.push(...res.data.days.filter((d) => chunk.includes(d.date)));
@@ -127,8 +134,9 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
     });
     await progress(jobId, "Draft ready for review");
   } catch (err) {
-    const e = err instanceof AIError ? err : new AIError("UPSTREAM", "Unexpected error while planning.");
-    if (!(err instanceof AIError)) console.error("[planner] unexpected", err instanceof Error ? err.message : err);
+    const e = err instanceof AIError ? err : new AIError("UPSTREAM", err instanceof AppError ? err.message : "Unexpected error while planning.");
+    if (err instanceof AppError && err.code === "FORBIDDEN") partialDays.length = 0;
+    if (!(err instanceof AIError) && !(err instanceof AppError)) console.error("[planner] unexpected", err instanceof Error ? err.message : err);
     const cancelled = e.code === "CANCELLED";
     // Keep any completed chunks as a partial result the travelers can review.
     let partial: { proposal: Proposal; issues: Issue[] } | null = null;

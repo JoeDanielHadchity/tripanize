@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma, type Tx } from "@/server/db";
 import type { ChatMessage } from "@/generated/prisma/client";
-import { requireTrip } from "@/server/auth/permissions";
+import { requirePremiumTrip } from "@/server/plans/access";
 import { AppError } from "@/server/errors";
 import { CHAT_MAX_LENGTH, type ChatPage, type ChatMessageView, type ChatSummary } from "@/lib/chat";
 
@@ -16,7 +16,7 @@ function view(message: ChatMessage, userId: string): ChatMessageView {
 }
 
 async function access(userId: string, tripId: string) {
-  await requireTrip(tripId, userId, "view");
+  await requirePremiumTrip(tripId, userId, "chat", "view");
   return prisma.tripMembership.findUniqueOrThrow({ where: { tripId_userId: { tripId, userId } }, include: { trip: { select: { chatRevision: true, chatSeq: true, timezone: true, _count: { select: { memberships: true } } } } } });
 }
 
@@ -52,7 +52,7 @@ async function alertMembers(tx: Tx, tripId: string, actorId: string, actorName: 
 }
 
 export async function sendChatMessage(userId: string, tripId: string, input: { clientId: string; body: string }): Promise<ChatMessageView> {
-  await requireTrip(tripId, userId, "view");
+  await requirePremiumTrip(tripId, userId, "chat", "view");
   const parsed = chatCommand.safeParse({ op: "send", ...input });
   if (!parsed.success || parsed.data.op !== "send") throw new AppError("VALIDATION", `Enter a message of up to ${CHAT_MAX_LENGTH.toLocaleString("en")} characters.`);
   const { clientId, body } = parsed.data;
@@ -73,7 +73,7 @@ export async function sendChatMessage(userId: string, tripId: string, input: { c
 }
 
 export async function markChatRead(userId: string, tripId: string, seq: number): Promise<ChatSummary> {
-  await requireTrip(tripId, userId, "view");
+  await requirePremiumTrip(tripId, userId, "chat", "view");
   if (!Number.isSafeInteger(seq) || seq < 0) throw new AppError("VALIDATION", "Invalid read position.");
   await prisma.$transaction(async tx => {
     const member = await tx.tripMembership.findUnique({ where: { tripId_userId: { tripId, userId } }, include: { trip: { select: { chatSeq: true } } } });
@@ -88,7 +88,7 @@ export async function markChatRead(userId: string, tripId: string, seq: number):
 }
 
 export async function deleteChatMessage(userId: string, tripId: string, messageId: string): Promise<ChatMessageView> {
-  await requireTrip(tripId, userId, "view");
+  await requirePremiumTrip(tripId, userId, "chat", "view");
   if (typeof messageId !== "string" || messageId.length > 64) throw new AppError("VALIDATION", "Invalid message.");
   return prisma.$transaction(async tx => {
     const member = await tx.tripMembership.findUnique({ where: { tripId_userId: { tripId, userId } } });

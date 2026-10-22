@@ -1,6 +1,6 @@
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
-import { requireTrip } from "@/server/auth/permissions";
+import { requirePremiumTrip, requirePremiumAccess } from "@/server/plans/access";
 import { rateLimit } from "@/server/ratelimit";
 import { AIError, aiConfigured, generateStructured } from "@/server/ai/openai";
 import { EVENTS_INSTRUCTIONS } from "@/server/planner/prompt";
@@ -11,7 +11,7 @@ import { notifyEventChanges } from "@/server/notifications/events";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 
 export async function requestDiscovery(userId: string, tripId: string) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "events", "edit");
   if (!aiConfigured()) throw new AppError("NOT_CONFIGURED", "Event discovery uses OpenAI web search, which isn't configured on this server (OPENAI_API_KEY missing). You can still add events yourself.");
   const active = await prisma.discoveryRun.findFirst({ where: { tripId, status: { in: ["queued", "running"] } } });
   if (active) { await currentRuntime().wakeAi?.(); return active; }
@@ -27,6 +27,7 @@ export async function runDiscovery(runId: string, generate = generateStructured)
   if (!claimed.count) return;
   const run = await prisma.discoveryRun.findUniqueOrThrow({ where: { id: runId } });
   try {
+    await requirePremiumAccess(run.tripId, "events");
     const trip = await prisma.trip.findUniqueOrThrow({ where: { id: run.tripId }, include: { destinations: { orderBy: { position: "asc" } } } });
     if (!trip.startDate || !trip.endDate || !trip.destinations.length) throw new AIError("INVALID_RESPONSE", "Add trip dates and at least one destination to discover events.");
     if (trip.endDate < todayIn(trip.timezone)) throw new AIError("INVALID_RESPONSE", "This trip is in the past; no new events are searched.");
@@ -39,6 +40,7 @@ export async function runDiscovery(runId: string, generate = generateStructured)
       instruction: "Re-check known events for changes (date, venue, cancellation, sold out, booking opening, price) and add new relevant ones.",
     };
     const res = await generate({ schema: EventsSchema, name: "events", instructions: EVENTS_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(data, null, 1)}\n</trip_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 16000 });
+    await requirePremiumAccess(run.tripId, "events");
     const inWindow = res.data.events.filter((e) => {
       if (e.date && !isDateStr(e.date)) e.date = null;
       if (e.endDate && !isDateStr(e.endDate)) e.endDate = null;
@@ -60,7 +62,7 @@ export async function runDiscovery(runId: string, generate = generateStructured)
     await prisma.discoveryRun.update({ where: { id: runId }, data: { status: "succeeded", finishedAt: new Date(), found: inWindow.length, added: result.added, changed: result.changed } });
     await notifyEventChanges(trip.id, result.newEvents, result.changedEvents);
   } catch (err) {
-    const msg = err instanceof AIError ? err.message : "Unexpected error during event discovery.";
+    const msg = err instanceof AIError || err instanceof AppError ? err.message : "Unexpected error during event discovery.";
     if (!(err instanceof AIError)) console.error("[discovery]", err instanceof Error ? err.message : err);
     await prisma.discoveryRun.update({ where: { id: runId }, data: { status: "failed", finishedAt: new Date(), error: msg } });
   }

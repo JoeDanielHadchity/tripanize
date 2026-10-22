@@ -20,7 +20,7 @@ import type { MapsApp } from "@/lib/maps";
 const TripMap = dynamic(() => import("@/components/itinerary/trip-map"), { ssr: false, loading: () => <p className="text-sm text-muted">Loading map…</p> });
 
 type Props = {
-  tripId: string; canEdit: boolean; currency: string; mapsApp: MapsApp; aiReady: boolean; routingLive: boolean; timezone: string; todayDate: string;
+  tripId: string; canEdit: boolean; premium: boolean; currency: string; mapsApp: MapsApp; aiReady: boolean; routingLive: boolean; timezone: string; todayDate: string;
   days: DayView[]; ideas: StopView[]; versions: { id: string; reason: string; createdAt: string }[]; weatherNote: string | null;
 };
 
@@ -157,7 +157,7 @@ export function ItineraryView(p: Props) {
                         {(close) => (
                           <>
                             {p.canEdit && <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm hover:bg-surface-2" onClick={() => { close(); setEditing({ dayId: d.id, plan: d.activePlan, label: formatDate(d.date) }); }}>Add stop to Plan {d.activePlan}</button>}
-                            {p.canEdit && <Link className="block min-h-11 content-center rounded-lg px-3 text-sm hover:bg-surface-2" href={`/trips/${p.tripId}/plan?days=${d.date}`}>Regenerate this day with AI</Link>}
+                            {p.canEdit && p.premium && <Link className="block min-h-11 content-center rounded-lg px-3 text-sm hover:bg-surface-2" href={`/trips/${p.tripId}/plan?days=${d.date}`}>Regenerate this day with AI</Link>}
                             {p.canEdit && <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm hover:bg-surface-2" onClick={() => { close(); setNotesDay(d); }}>Edit day title & notes</button>}
                             <a className="block min-h-11 content-center rounded-lg px-3 text-sm hover:bg-surface-2" href={`/api/trips/${p.tripId}/export/pdf?date=${d.date}`}>Day PDF</a>
                           </>
@@ -245,7 +245,7 @@ export function ItineraryView(p: Props) {
 
       <StopEditor open={Boolean(editing)} onClose={() => setEditing(null)} tripId={p.tripId} currency={p.currency} stop={editing?.stop} dayId={editing?.dayId ?? null} plan={editing?.plan} dayLabel={editing?.label} />
       <MoveDialog open={Boolean(moving)} onClose={() => setMoving(null)} tripId={p.tripId} currency={p.currency} stop={moving} days={p.days.map((d) => ({ id: d.id, date: d.date, title: d.title }))} />
-      <SwapDialog open={Boolean(swapping)} onClose={() => setSwapping(null)} tripId={p.tripId} currency={p.currency} stop={swapping} aiReady={p.aiReady} />
+      <SwapDialog open={Boolean(swapping)} onClose={() => setSwapping(null)} tripId={p.tripId} currency={p.currency} stop={swapping} aiReady={p.aiReady} premium={p.premium} />
       <Dialog open={Boolean(pendingOrder)} onClose={() => setPendingOrder(null)} title="Review the new order">
         {pendingOrder && (
           <div className="space-y-4">

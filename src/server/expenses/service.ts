@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { prisma, type Tx } from "@/server/db";
 import { AppError, conflictError } from "@/server/errors";
-import { requireTrip, roleAllows } from "@/server/auth/permissions";
+import { roleAllows } from "@/server/auth/permissions";
+import { requirePremiumTrip, requirePremiumAccess } from "@/server/plans/access";
 import { recordChange } from "@/server/audit";
 import { isDateStr } from "@/lib/dates";
 import { convertMinor, parseMoney } from "@/lib/money";
@@ -14,6 +15,7 @@ async function requirePaymentEditor(tx: Tx, userId: string, tripId: string) {
   const member = await tx.tripMembership.findUnique({ where: { tripId_userId: { tripId, userId } } });
   if (!member) throw new AppError("NOT_FOUND", "Trip not found.");
   if (!roleAllows(member.role, "edit")) throw new AppError("FORBIDDEN", "You have view-only access to this trip.");
+  await requirePremiumAccess(tripId, "expenses", tx);
 }
 async function applyReceipts(tx: Tx, userId: string, tripId: string, expenseId: string, changes?: ExpenseFiles) {
   if (!changes) return [] as string[];
@@ -87,7 +89,7 @@ async function prepare(tripId: string, input: ExpenseInput) {
 }
 
 export async function createExpense(userId: string, tripId: string, input: ExpenseInput, files?: ExpenseFiles) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "expenses", "edit");
   const { d, amountMinor, shares, conv } = await prepare(tripId, input);
   return prisma.$transaction(async (tx) => {
     await requirePaymentEditor(tx, userId, tripId);
@@ -104,7 +106,7 @@ export async function createExpense(userId: string, tripId: string, input: Expen
 }
 
 export async function updateExpense(userId: string, tripId: string, expenseId: string, input: ExpenseInput, version: number, files?: ExpenseFiles) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "expenses", "edit");
   const { d, amountMinor, shares, conv } = await prepare(tripId, input);
   return prisma.$transaction(async (tx) => {
     await requirePaymentEditor(tx, userId, tripId);
@@ -129,7 +131,7 @@ export async function updateExpense(userId: string, tripId: string, expenseId: s
 
 /** Soft delete so the audit trail and history remain. */
 export async function deleteExpense(userId: string, tripId: string, expenseId: string) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "expenses", "edit");
   await prisma.$transaction(async (tx) => {
     const e = await tx.expense.findFirst({ where: { id: expenseId, tripId, deletedAt: null } });
     if (!e) throw new AppError("NOT_FOUND", "Expense not found.");
@@ -149,7 +151,7 @@ const settlementInput = z.object({
 
 /** Records a repayment between travelers. This is a ledger entry — no money is moved by Tripanize. */
 export async function recordSettlement(userId: string, tripId: string, input: z.input<typeof settlementInput>) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "expenses", "edit");
   const r = settlementInput.safeParse(input);
   if (!r.success) throw new AppError("VALIDATION", formatZodError(r.error));
   const d = r.data;
@@ -167,7 +169,7 @@ export async function recordSettlement(userId: string, tripId: string, input: z.
 }
 
 export async function deleteSettlement(userId: string, tripId: string, settlementId: string) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "expenses", "edit");
   await prisma.$transaction(async (tx) => {
     const s = await tx.settlement.findFirst({ where: { id: settlementId, tripId, deletedAt: null } });
     if (!s) throw new AppError("NOT_FOUND", "Repayment not found.");
@@ -177,7 +179,7 @@ export async function deleteSettlement(userId: string, tripId: string, settlemen
 }
 
 export async function getExpenseData(userId: string, tripId: string) {
-  const access = await requireTrip(tripId, userId, "view");
+  const access = await requirePremiumTrip(tripId, userId, "expenses", "view");
   const [trip, travelers, expenses, settlements, audit] = await Promise.all([
     prisma.trip.findUniqueOrThrow({ where: { id: tripId } }),
     prisma.traveler.findMany({ where: { tripId }, orderBy: { createdAt: "asc" } }),

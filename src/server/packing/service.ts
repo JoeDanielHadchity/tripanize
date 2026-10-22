@@ -6,6 +6,7 @@ import { daysBetween } from "@/lib/dates";
 import { PACKING_CATEGORIES } from "@/lib/constants";
 import { getTripWeather } from "@/server/weather/trip";
 import { normKey, suggestPacking } from "./suggest";
+import { requirePremiumAccess } from "@/server/plans/access";
 
 export async function getPacking(userId: string, tripId: string) {
   const access = await requireTrip(tripId, userId, "view");
@@ -23,6 +24,7 @@ export async function getPacking(userId: string, tripId: string) {
  */
 export async function refreshSuggestions(userId: string, tripId: string, opts: { laundry: boolean | null }) {
   const access = await requireTrip(tripId, userId, "view");
+  await requirePremiumAccess(tripId, "packing");
   const trip = await prisma.trip.findUniqueOrThrow({
     where: { id: tripId },
     include: { destinations: { orderBy: { position: "asc" } }, stops: { where: { status: { not: "SKIPPED" }, dayId: { not: null } }, select: { title: true, category: true } }, places: true },
@@ -54,6 +56,7 @@ export async function refreshSuggestions(userId: string, tripId: string, opts: {
   });
   const canEditShared = roleAllows(access.role, "edit");
   return prisma.$transaction(async tx => {
+    await requirePremiumAccess(tripId, "packing", tx);
     let added = 0;
     let changedShared = false;
     for (const s of suggestions) {

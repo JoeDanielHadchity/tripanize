@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Field, Input, Notice, Spinner, Textarea } from "@/components/ui";
+import { Button, Field, Input, LinkButton, Notice, Spinner, Textarea } from "@/components/ui";
 import { Dialog, useAction } from "@/components/client";
 import { replaceStopAction, startPlanAction } from "@/app/actions/itinerary";
 import { PlanStopPreview } from "@/app/trips/[tripId]/plan/panel";
@@ -19,7 +19,7 @@ function fromPlanStop(s: PlanStop): Record<string, unknown> {
   };
 }
 
-export function SwapDialog({ open, onClose, tripId, currency, stop, aiReady }: { open: boolean; onClose: () => void; tripId: string; currency: string; stop: StopView | null; aiReady: boolean }) {
+export function SwapDialog({ open, onClose, tripId, currency, stop, aiReady, premium = true }: { open: boolean; onClose: () => void; tripId: string; currency: string; stop: StopView | null; aiReady: boolean; premium?: boolean }) {
   const { run, pending } = useAction();
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -88,7 +88,9 @@ export function SwapDialog({ open, onClose, tripId, currency, stop, aiReady }: {
         <div className="space-y-6">
           <section className="space-y-3">
             <h3 className="font-semibold">Suggested alternatives</h3>
-            {!aiReady ? (
+            {!premium ? (
+              <Notice tone="accent">AI alternatives are included with Premium. You can enter a replacement manually below. <LinkButton href="/plans">See plans</LinkButton></Notice>
+            ) : !aiReady ? (
               <Notice tone="warn">AI alternatives need OpenAI, which isn't configured on this server. You can enter a replacement manually below.</Notice>
             ) : !jobId ? (
               <div className="space-y-2">

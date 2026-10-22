@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma, type Tx } from "@/server/db";
 import { AppError, conflictError } from "@/server/errors";
 import { requireTrip } from "@/server/auth/permissions";
+import { getTripPlan, requirePremiumAccess } from "@/server/plans/access";
 import { recordChange } from "@/server/audit";
 import { isDateStr, isTimeStr } from "@/lib/dates";
 import { parseMoney } from "@/lib/money";
@@ -97,17 +98,18 @@ export async function syncBookingProjection(tx: Tx, booking: Booking) {
 
 export async function listBookings(userId: string, tripId: string) {
   const access = await requireTrip(tripId, userId, "view");
+  const { premium } = await getTripPlan(tripId);
   const bookings = await prisma.booking.findMany({
     where: { tripId },
-    include: { event: { select: { id: true, title: true, cancelled: true, soldOut: true } }, attachments: { select: { id: true, fileName: true, sizeBytes: true, mimeType: true } }, expenses: { where: { deletedAt: null }, select: { id: true, amountMinor: true, currency: true } }, stop: { select: { id: true, dayId: true } } },
+    include: { event: { select: { id: true, title: true, cancelled: true, soldOut: true } }, attachments: { select: { id: true, fileName: true, sizeBytes: true, mimeType: true } }, expenses: { where: { deletedAt: null, ...(!premium ? { id: "" } : {}) }, select: { id: true, amountMinor: true, currency: true } }, stop: { select: { id: true, dayId: true } } },
     orderBy: [{ date: { sort: "asc", nulls: "last" } }, { startTime: { sort: "asc", nulls: "last" } }, { priority: "asc" }],
   });
   const suggestedEvents = await prisma.tripEvent.findMany({
-    where: { tripId, origin: "discovered", status: { not: "HIDDEN" }, cancelled: false, booking: null },
+    where: { tripId, origin: "discovered", status: { not: "HIDDEN" }, cancelled: false, booking: null, ...(!premium ? { id: "" } : {}) },
     include: { stop: { select: { startTime: true, durationMin: true, day: { select: { date: true } } } } },
     orderBy: [{ date: { sort: "asc", nulls: "last" } }, { title: "asc" }],
   });
-  return { access, bookings, suggestedEvents };
+  return { access, bookings, suggestedEvents, premium };
 }
 
 export async function createBooking(userId: string, tripId: string, input: BookingInput) {
@@ -116,6 +118,7 @@ export async function createBooking(userId: string, tripId: string, input: Booki
   return prisma.$transaction(async (tx) => {
     let eventId: string | null = null;
     if (input.eventId) {
+      await requirePremiumAccess(tripId, "events", tx);
       if (typeof input.eventId !== "string" || input.eventId.length > 100) throw new AppError("VALIDATION", "Invalid event.");
       const event = await tx.tripEvent.findFirst({ where: { id: input.eventId, tripId } });
       if (!event) throw new AppError("NOT_FOUND", "Event not found in this trip.");

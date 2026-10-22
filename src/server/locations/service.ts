@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
+import { requirePremiumTrip, requirePremiumAccess } from "@/server/plans/access";
 import { AppError } from "@/server/errors";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { LOCATION_TTL_MS, type LocationSelf, type MemberLocations } from "@/lib/member-locations";
@@ -26,14 +27,14 @@ function self(row: { version: number; sessionId: string | null; expiresAt: Date 
 }
 
 export async function getLocationSelf(userId: string, tripId: string): Promise<LocationSelf> {
-  await requireTrip(tripId, userId, "view");
+  await requirePremiumTrip(tripId, userId, "locations");
   await expireMemberLocations();
   const member = await prisma.tripMembership.findUniqueOrThrow({ where: { tripId_userId: { tripId, userId } } });
   return self(await prisma.memberLocation.findUnique({ where: { membershipId: member.id }, select: { version: true, sessionId: true, expiresAt: true } }), member.id);
 }
 
 export async function getMemberLocations(userId: string, tripId: string): Promise<MemberLocations> {
-  await requireTrip(tripId, userId, "view");
+  await requirePremiumTrip(tripId, userId, "locations");
   await expireMemberLocations();
   const members = await prisma.tripMembership.findMany({ where: { tripId }, include: { user: { select: { name: true } }, location: true }, orderBy: { createdAt: "asc" } });
   return {
@@ -52,6 +53,8 @@ export async function changeMemberLocation(userId: string, tripId: string, input
   const parsed = locationCommand.safeParse(input);
   if (!parsed.success) throw new AppError("VALIDATION", "Invalid location sharing request.");
   const command = parsed.data;
+  // Stopping sharing must remain possible after a subscription expires.
+  if (command.op !== "stop") await requirePremiumAccess(tripId, "locations");
   const now = new Date();
   if (command.op !== "stop") {
     const age = now.getTime() - new Date(command.capturedAt).getTime();
@@ -68,6 +71,7 @@ export async function changeMemberLocation(userId: string, tripId: string, input
       const clear = !command.token || previous.leaseHash === hash(command.token);
       return tx.memberLocation.update({ where: { membershipId: member.id }, data: { ...(clear ? cleared : {}), version: { increment: 1 } } });
     }
+    await requirePremiumAccess(tripId, "locations", tx);
     const data = { lat: command.lat, lng: command.lng, accuracy: command.accuracy, capturedAt: new Date(command.capturedAt), updatedAt: now, expiresAt: new Date(now.getTime() + LOCATION_TTL_MS) };
     if (command.op === "start") {
       if (command.scope !== member.id) throw new AppError("CONFLICT", "Trip membership changed. Turn location sharing on again to resume.");

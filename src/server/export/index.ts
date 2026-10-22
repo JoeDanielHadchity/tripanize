@@ -1,6 +1,7 @@
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
+import { getTripPlan } from "@/server/plans/access";
 import { effectiveStop, stopInclude } from "@/server/itinerary/service";
 import { directionsUrl, type MapsApp } from "@/lib/maps";
 import { daysBetween, formatDate, formatDateRange, formatDuration } from "@/lib/dates";
@@ -10,6 +11,7 @@ import { PDF_FONT_FILES, renderTripGuide } from "./pdf";
 /** Full-trip JSON export of everything the member can see (other members' personal packing lists excluded). */
 export async function exportTripJson(userId: string, tripId: string) {
   await requireTrip(tripId, userId, "view");
+  const { premium } = await getTripPlan(tripId);
   const trip = await prisma.trip.findUniqueOrThrow({
     where: { id: tripId },
     include: {
@@ -20,10 +22,10 @@ export async function exportTripJson(userId: string, tripId: string) {
       days: { orderBy: { date: "asc" }, include: { stops: { include: stopInclude, orderBy: { position: "asc" } } } },
       stops: { where: { dayId: null } },
       bookings: { include: { attachments: { select: { fileName: true, mimeType: true, sizeBytes: true } } } },
-      expenses: { where: { deletedAt: null }, include: { shares: true } },
-      settlements: { where: { deletedAt: null } },
+      expenses: { where: { deletedAt: null, ...(!premium ? { id: "" } : {}) }, include: { shares: true } },
+      settlements: { where: { deletedAt: null, ...(!premium ? { id: "" } : {}) } },
       tasks: true,
-      events: { include: { sources: true } },
+      events: { where: !premium ? { id: "" } : {}, include: { sources: true } },
       packingItems: { where: { dismissed: false, OR: [{ ownerId: null }, { ownerId: userId }] } },
     },
   });

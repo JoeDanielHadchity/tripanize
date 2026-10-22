@@ -6,6 +6,7 @@ import { currencyDigits } from "@/lib/money";
 import { snapshotItinerary } from "@/server/itinerary/service";
 import type { PlanStop, Proposal } from "./schema";
 import type { Prisma } from "@/generated/prisma/client";
+import { requirePlanDates } from "@/server/plans/planning";
 
 export function planStopData(s: PlanStop, currency: string, position: number, plan: "A" | "B"): Omit<Prisma.StopUncheckedCreateInput, "tripId" | "dayId"> {
   const factor = 10 ** currencyDigits(currency);
@@ -53,6 +54,7 @@ export async function applyProposal(userId: string, tripId: string, jobId: strin
   const proposal = job.proposal as unknown as Proposal;
   const chosen = proposal.days.filter((d) => dates.includes(d.date));
   if (!chosen.length) throw new AppError("VALIDATION", "Select at least one day to accept.");
+  await requirePlanDates(tripId, job.kind, chosen.map(d => d.date));
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   const factor = 10 ** currencyDigits(trip.currency);
 

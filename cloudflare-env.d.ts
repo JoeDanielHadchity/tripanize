@@ -12,5 +12,6 @@ interface CloudflareEnv {
   OPENAI_WEB_SEARCH?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  PLAN_ACCESS_ENABLED?: string;
 }
 declare module "*.sql" { const sql: string; export default sql; }

@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { AppDatabase } from "@/server/db";
 
-export type AppRuntime = { database: AppDatabase; files?: R2Bucket; assets?: Fetcher; authSecret: string; appUrl?: string; wakeAi?: () => Promise<void>; wakeNotifications?: () => Promise<void>; wakeLocationExpiry?: (at: number) => Promise<void> };
+export type AppRuntime = { database: AppDatabase; files?: R2Bucket; assets?: Fetcher; authSecret: string; appUrl?: string; planAccessEnabled?: boolean; wakeAi?: () => Promise<void>; wakeNotifications?: () => Promise<void>; wakeLocationExpiry?: (at: number) => Promise<void> };
 const key = Symbol.for("tripanize.cloudflare.runtime");
 // Framework route bundles must share the request context of their Durable Object.
 const root = globalThis as typeof globalThis & { [key]?: AsyncLocalStorage<AppRuntime> };

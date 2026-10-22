@@ -9,10 +9,11 @@ import type { ChatSummary } from "@/lib/chat";
  * Keeps shared trip data in sync across members' devices: polls the trip's revision counter while the page is
  * visible and refreshes when someone else changed something.
  */
-export function SyncWatcher({ tripId, revision, userId }: { tripId: string; revision: number; userId: string }) {
+export function SyncWatcher({ tripId, revision, userId, premium = true }: { tripId: string; revision: number; userId: string; premium?: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const known = useRef(revision);
+  const knownPlan = useRef(premium);
   useEffect(() => {
     known.current = Math.max(known.current, revision);
   }, [revision]);
@@ -23,7 +24,11 @@ export function SyncWatcher({ tripId, revision, userId }: { tripId: string; revi
       try {
         const res = await fetch(`/api/trips/${tripId}/revision`, { cache: "no-store" });
         if (!res.ok) return;
-        const r = (await res.json()) as { revision: number; changedBy: { id: string; name: string } | null; chat?: ChatSummary };
+        const r = (await res.json()) as { revision: number; changedBy: { id: string; name: string } | null; chat?: ChatSummary; premium?: boolean };
+        if (!stopped && r.premium !== undefined && r.premium !== knownPlan.current) {
+          knownPlan.current = r.premium;
+          router.refresh();
+        }
         if (!stopped && r.chat) window.dispatchEvent(new CustomEvent("tripanize:chat-unread", { detail: { tripId, ...r.chat } }));
         if (!stopped && r.revision > known.current) {
           known.current = r.revision;

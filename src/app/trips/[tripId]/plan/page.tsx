@@ -1,3 +1,4 @@
+import { getTripPlan } from "@/server/plans/access";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth/session";
 import { prisma } from "@/server/db";
@@ -19,6 +20,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
   const user = await requireUser();
   const access = await requireTrip(tripId, user.id, "view");
   const canEdit = roleAllows(access.role, "edit");
+  const { premium } = await getTripPlan(tripId);
   const [trip, missing, jobs, days] = await Promise.all([
     prisma.trip.findUniqueOrThrow({ where: { id: tripId } }),
     missingEssentials(tripId),
@@ -47,10 +49,11 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
       )}
       {!canEdit && <Notice tone="warn" className="mb-5">You have view-only access, so you can't start AI planning for this trip.</Notice>}
       <div className="mb-6">
-        <PlanQuestions tripId={tripId} canEdit={canEdit} aiReady={aiConfigured()} prefs={(trip.planPrefs as PlanPrefs | null) ?? null} />
+        <PlanQuestions tripId={tripId} canEdit={canEdit} aiReady={premium && aiConfigured()} prefs={(trip.planPrefs as PlanPrefs | null) ?? null} />
       </div>
       <PlanPanel
         tripId={tripId}
+        premium={premium}
         canEdit={canEdit}
         aiReady={aiConfigured()}
         model={aiModel()}

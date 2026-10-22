@@ -6,6 +6,8 @@ import { aiConfigured } from "@/server/ai/openai";
 import { missingEssentials } from "./context";
 import type { Prisma } from "@/generated/prisma/client";
 import { currentRuntime } from "@/server/cloudflare/runtime";
+import { planningScope } from "@/server/plans/planning";
+import { requirePremiumAccess } from "@/server/plans/access";
 
 export type JobKind = "full" | "days" | "swap";
 export type JobParams = { dates?: string[]; stopId?: string; instruction?: string | null };
@@ -16,6 +18,7 @@ export type JobParams = { dates?: string[]; stopId?: string; instruction?: strin
  */
 export async function enqueueJob(userId: string, tripId: string, kind: JobKind, params: JobParams) {
   await requireTrip(tripId, userId, "edit");
+  if (!["full", "days", "swap"].includes(kind)) throw new AppError("VALIDATION", "Choose a valid planning tool.");
   if (!aiConfigured()) {
     throw new AppError("NOT_CONFIGURED", "AI planning isn't available on this server yet: the administrator needs to set an OpenAI API key (OPENAI_API_KEY). You can still plan manually.");
   }
@@ -30,6 +33,7 @@ export async function enqueueJob(userId: string, tripId: string, kind: JobKind, 
     if (s.isFixed || s.bookingId) throw new AppError("VALIDATION", "Fixed commitments and bookings can't be swapped.");
   }
   if (kind === "days" && !params.dates?.length) throw new AppError("VALIDATION", "Choose at least one day to regenerate.");
+  const scope = await planningScope(tripId, kind, params.dates);
 
   const active = await prisma.generationJob.findFirst({
     where: { tripId, status: { in: ["QUEUED", "RUNNING"] }, kind: kind === "swap" ? "swap" : { in: ["full", "days"] }, ...(kind === "swap" ? { params: { path: "$.stopId", equals: params.stopId! } } : {}) },
@@ -38,7 +42,7 @@ export async function enqueueJob(userId: string, tripId: string, kind: JobKind, 
 
   await rateLimit(`ai:${kind === "swap" ? "swap" : "plan"}:${userId}`, kind === "swap" ? 30 : 12, 3600, "You've reached the hourly limit for AI requests. Please try again later.");
   const job = await prisma.generationJob.create({
-    data: { tripId, kind, params: { ...params, instruction: params.instruction?.slice(0, 500) ?? null } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your draft is queued and will start shortly" }] },
+    data: { tripId, kind, params: { dates: scope ?? params.dates ?? null, stopId: params.stopId ?? null, instruction: params.instruction?.slice(0, 500) ?? null } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your draft is queued and will start shortly" }] },
   });
   await currentRuntime().wakeAi?.();
   return { jobId: job.id, existing: false };
@@ -48,6 +52,7 @@ export async function getJob(userId: string, tripId: string, jobId: string) {
   await requireTrip(tripId, userId, "view");
   const job = await prisma.generationJob.findFirst({ where: { id: jobId, tripId } });
   if (!job) throw new AppError("NOT_FOUND", "Planning job not found.");
+  if (job.kind !== "full") await requirePremiumAccess(tripId, "advancedPlanning");
   if (job.kind === "assistant") {
     const { requireAssistantJob } = await import("@/server/assistant/service");
     return requireAssistantJob(userId, tripId, jobId);

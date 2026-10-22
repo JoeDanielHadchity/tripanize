@@ -1,3 +1,4 @@
+import { getTripPlan } from "@/server/plans/access";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth/session";
 import { prisma } from "@/server/db";
@@ -12,6 +13,7 @@ export default async function PackingPage({ params }: { params: Promise<{ tripId
   const { tripId } = await params;
   const user = await requireUser();
   const { access, personal, shared } = await getPacking(user.id, tripId);
+  const { premium } = await getTripPlan(tripId);
   const [tasks, travelers] = await Promise.all([
     prisma.tripTask.findMany({ where: { tripId }, orderBy: [{ done: "asc" }, { position: "asc" }] }),
     prisma.traveler.findMany({ where: { tripId, leftAt: null }, select: { id: true, name: true } }),
@@ -22,6 +24,7 @@ export default async function PackingPage({ params }: { params: Promise<{ tripId
       <PageHeader title="Packing & prep" subtitle="Your personal list is private to you. The shared list is for things the group only needs once." />
       <PackingView
         tripId={tripId}
+        premium={premium}
         canEditShared={roleAllows(access.role, "edit")}
         personal={personal.map(map)}
         shared={shared.map(map)}
