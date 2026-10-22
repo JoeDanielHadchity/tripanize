@@ -8,7 +8,7 @@ import { deleteAttachmentAction, deleteBookingAction, saveBookingAction, setBook
 import { BOOKING_CATEGORIES, BOOKING_STATUSES } from "@/lib/constants";
 import { CURRENCIES, formatMoney, minorToDecimalString } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
-import type { SuggestedEventBooking } from "@/lib/event-bookings";
+import { suggestedBookingDate, type SuggestedEventBooking } from "@/lib/event-bookings";
 
 type Status = (typeof BOOKING_STATUSES)[number][0];
 type B = {
@@ -195,7 +195,7 @@ function BookingDialog({ tripId, currency, booking, fromEvent, onClose, tripDate
   const existing = booking && booking !== "new" ? booking : null;
   const b = existing ?? (fromEvent ? {
     title: fromEvent.title, category: "EXPERIENCE", status: "TO_BOOK", currency,
-    date: fromEvent.scheduledDate ?? fromEvent.date, startTime: fromEvent.scheduledTime ?? fromEvent.startTime, endDate: null,
+    date: suggestedBookingDate(fromEvent, tripDates), startTime: fromEvent.scheduledTime ?? fromEvent.startTime, endDate: null,
     durationMin: fromEvent.durationMin, address: fromEvent.address ?? [fromEvent.venue, fromEvent.city].filter(Boolean).join(", "),
     bookingUrl: fromEvent.bookingUrl ?? fromEvent.officialUrl, whenToBook: fromEvent.bookingDeadline,
     notes: [fromEvent.priceText && `Listed price: ${fromEvent.priceText}`, !fromEvent.dateVerified && "Event date/time needs confirmation at the official source."].filter(Boolean).join("\n"),
