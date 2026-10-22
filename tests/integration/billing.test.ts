@@ -6,15 +6,27 @@ import { getTripPlan } from "@/server/plans/access";
 import { beginCheckout, billingSummary, recordVerifiedTransaction, refreshTripPayment } from "@/server/billing/service";
 import { verifyPaddleSignature, receivePaddleWebhook } from "@/server/billing/webhook";
 import type { PaddleTransaction } from "@/server/billing/paddle";
+import { checkoutAvailable } from "@/server/billing/config";
 import { transferOwnership, addTraveler } from "@/server/invitations/service";
 import { makeTrip, makeUser, resetDb } from "./helpers";
 const runtime = currentRuntime();
 const price = (n: number) => `pri_${String(n).padStart(26, "0")}`;
 const txn = (n: number) => `txn_${String(n).padStart(26, "0")}`;
-const config = { environment: "sandbox" as const, apiKey: "isolated-not-real", clientToken: "test_isolated", webhookSecret: "isolated-webhook-secret", checkoutEnabled: true, prices: Object.fromEntries([600, 900, 1000, 1500, 1600, 2500].map(n => [n, price(n)])) };
+const config = { environment: "sandbox" as const, apiKey: "isolated-not-real", clientToken: `test_${"a".repeat(27)}`, webhookSecret: "isolated-webhook-secret", checkoutEnabled: true, prices: Object.fromEntries([600, 900, 1000, 1500, 1600, 2500].map(n => [n, price(n)])) };
 beforeEach(async () => { await resetDb(); setTestRuntime({ ...runtime, planAccessEnabled: true, paddle: config }); });
 afterEach(() => { setTestRuntime(runtime); vi.unstubAllGlobals(); });
 async function setup(people = 2) { const owner = await makeUser("Owner"); const tripId = await makeTrip(owner.id, { adults: people }); return { owner, tripId }; }
+it("keeps checkout unavailable for truncated, wrong-environment or accidentally appended client tokens", () => {
+  for (const environment of ["sandbox", "live"] as const) {
+    const token = `${environment === "sandbox" ? "test" : "live"}_${"a".repeat(27)}`;
+    setTestRuntime({ ...runtime, paddle: { ...config, environment, clientToken: token } });
+    expect(checkoutAvailable()).toBe(true);
+    for (const clientToken of [token.slice(0, -1), `${token}Active`, token.replace(environment === "sandbox" ? "test_" : "live_", environment === "sandbox" ? "live_" : "test_")]) {
+      setTestRuntime({ ...runtime, paddle: { ...config, environment, clientToken } });
+      expect(checkoutAvailable()).toBe(false);
+    }
+  }
+});
 function transaction(checkoutId: string, tripId: string, amount: number, n = 1, status = "completed"): PaddleTransaction {
   return { id: txn(n), status, currency_code: "USD", subscription_id: null, discount_id: null, custom_data: { checkoutId, tripId, environment: "sandbox" }, items: [{ quantity: 1, price: { id: price(amount), billing_cycle: null, unit_price: { amount: String(amount), currency_code: "USD" } } }], details: { totals: { subtotal: String(amount), discount: "0" } }, adjustments: [] };
 }

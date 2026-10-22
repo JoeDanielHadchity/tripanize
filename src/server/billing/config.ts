@@ -12,5 +12,5 @@ export function paddleConfigFromEnv(env: CloudflareEnv): PaddleConfig | undefine
 export function billingEnvironment() { return currentRuntime().paddle?.environment ?? "live"; }
 export function checkoutAvailable() {
   const c = currentRuntime().paddle;
-  return Boolean(c?.checkoutEnabled && c.apiKey && c.webhookSecret && c.clientToken.startsWith(c.environment === "live" ? "live_" : "test_") && [600, 900, 1000, 1500, 1600, 2500].every(n => /^pri_[a-z0-9]{26}$/.test(c.prices[n] ?? "")));
+  return Boolean(c?.checkoutEnabled && c.apiKey && c.webhookSecret && /^(test|live)_[a-zA-Z0-9]{27}$/.test(c.clientToken) && c.clientToken.startsWith(c.environment === "live" ? "live_" : "test_") && [600, 900, 1000, 1500, 1600, 2500].every(n => /^pri_[a-z0-9]{26}$/.test(c.prices[n] ?? "")));
 }

@@ -18,7 +18,8 @@ export async function paddleRequest(path: string, body?: object) {
   const base = c.environment === "sandbox" ? "https://sandbox-api.paddle.com" : "https://api.paddle.com";
   let response: Response;
   try {
-    response = await fetch(`${base}${path}`, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${c.apiKey}`, "Content-Type": "application/json", "Paddle-Version": "1" }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15_000), redirect: "error" });
+    // Workers supports manual redirects; reject 3xx below without forwarding credentials.
+    response = await fetch(`${base}${path}`, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${c.apiKey}`, "Content-Type": "application/json", "Paddle-Version": "1" }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15_000), redirect: "manual" });
   } catch { throw new AppError("UPSTREAM", "Paddle could not be reached. Your payment status will be checked before another checkout is created."); }
   if (!response.ok) {
     console.error("[billing] Paddle request failed", response.status);
