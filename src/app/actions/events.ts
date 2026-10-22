@@ -25,7 +25,7 @@ export async function ackEventAction(tripId: string, eventId: string) {
   });
 }
 
-export async function addCustomEventAction(tripId: string, input: { title: string; category?: string; date?: string | null; startTime?: string | null; venue?: string | null; city?: string | null; officialUrl?: string | null; priceText?: string | null; notes?: string | null }) {
+export async function addCustomEventAction(tripId: string, input: { title: string; category?: string; date?: string | null; startTime?: string | null; venue?: string | null; city?: string | null; officialUrl?: string | null; bookingUrl?: string | null; priceText?: string | null; notes?: string | null }) {
   return runAction(async () => {
     const u = await requireUser();
     await addCustomEvent(u.id, tripId, input);

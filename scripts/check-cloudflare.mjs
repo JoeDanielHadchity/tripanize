@@ -39,6 +39,8 @@ try {
     assert.equal(result.days, 3);
     assert.deepEqual(result.interests, ["architecture"]);
     assert.equal(result.bookingProjections, 1);
+    assert.equal(result.linkedEventProjections, 1);
+    assert.equal(result.suggestionStayedUnscheduled, true);
     assert.equal(result.totalMinor, 3001);
     assert.equal(result.rolledBack, true);
     assert.equal(result.updatedRows, 1);

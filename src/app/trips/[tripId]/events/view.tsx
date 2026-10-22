@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Badge, Button, Card, EmptyState, ExternalLink, Field, Input, Notice, Select, Textarea, cx } from "@/components/ui";
 import { Dialog, useAction } from "@/components/client";
 import { ackEventAction, addCustomEventAction, discoverEventsAction, discoverySettingsAction, notificationPrefsAction, previewEventAction, scheduleEventAction, setEventStatusAction } from "@/app/actions/events";
@@ -8,12 +9,14 @@ import { formatDate, formatTimestamp } from "@/lib/dates";
 import { NOTIFY_CHANGE_TYPES } from "@/lib/constants";
 
 type Ev = {
+  booking: { id: string; status: string } | null;
   id: string; title: string; category: string; date: string | null; endDate: string | null; startTime: string | null; dateVerified: boolean; venue: string | null; city: string | null; address: string | null;
   officialUrl: string | null; bookingUrl: string | null; priceText: string | null; availability: string | null; bookingDeadline: string | null; whyFits: string | null; uncertainty: string | null;
   cancelled: boolean; soldOut: boolean; status: "NEW" | "SAVED" | "HIDDEN" | "SCHEDULED"; origin: string; lastCheckedAt: string | null; changes: { type: string; summary: string; at: string }[]; sources: { url: string; title: string | null }[]; scheduledDate: string | null;
 };
 
 type Props = {
+  initialEventId: string | null;
   tripId: string; canEdit: boolean; aiReady: boolean; emailReady: boolean; timezone: string; days: { id: string; date: string; title: string | null }[];
   settings: { autoDiscovery: boolean; everyHours: number; nextAt: string | null }; lastSuccess: string | null;
   runs: { id: string; trigger: string; status: string; error: string | null; found: number; added: number; changed: number; at: string }[];
@@ -24,7 +27,11 @@ const TABS = [["NEW", "New"], ["SAVED", "Saved"], ["SCHEDULED", "In itinerary"],
 
 export function EventsView(p: Props) {
   const { run, pending } = useAction();
-  const [tab, setTab] = useState<Ev["status"]>(p.events.some((e) => e.status === "NEW") ? "NEW" : "SAVED");
+  const [tab, setTab] = useState<Ev["status"]>(p.events.find(e => e.id === p.initialEventId)?.status ?? (p.events.some((e) => e.status === "NEW") ? "NEW" : "SAVED"));
+  useEffect(() => {
+    const target = p.events.find(e => e.id === p.initialEventId);
+    if (target) setTab(target.status);
+  }, [p.initialEventId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [scheduling, setScheduling] = useState<Ev | null>(null);
   const [adding, setAdding] = useState(false);
   const shown = p.events.filter((e) => e.status === tab);
@@ -88,7 +95,7 @@ export function EventsView(p: Props) {
           {p.events.length === 0 ? (
             <EmptyState title="No events yet">{p.aiReady ? "Run a check to find events along your route, or add one you already know about." : "Add events you already know about. Automatic discovery needs the server's OpenAI integration."}</EmptyState>
           ) : shown.length === 0 ? <p className="text-sm text-muted">Nothing in this list.</p> : shown.map((e) => (
-            <Card key={e.id}>
+            <Card key={e.id} id={`event-${e.id}`} className="scroll-mt-24">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="font-medium">{e.title}</h3>
@@ -97,6 +104,7 @@ export function EventsView(p: Props) {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {e.origin === "user" && <Badge>Added by you</Badge>}
+                  {e.booking && <Link href={`/trips/${p.tripId}/bookings#b-${e.booking.id}`} className="text-sm font-medium text-accent-ink underline">Booking: {e.booking.status === "TO_BOOK" ? "To book" : e.booking.status.toLowerCase()}</Link>}
                   {e.cancelled && <Badge tone="danger">Reported cancelled</Badge>}
                   {e.soldOut && <Badge tone="warn">Reported sold out</Badge>}
                   {e.scheduledDate && <Badge tone="sage">On {formatDate(e.scheduledDate)}</Badge>}
@@ -120,7 +128,8 @@ export function EventsView(p: Props) {
               </div>
               {p.canEdit && (
                 <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
-                  {e.status !== "SCHEDULED" && <Button variant="primary" onClick={() => setScheduling(e)} disabled={!p.days.length}>Add to a day</Button>}
+                  {e.status !== "SCHEDULED" && <Button variant="primary" onClick={() => setScheduling(e)} disabled={!p.days.length || e.booking?.status === "CANCELLED"}>Add to a day</Button>}
+                  {!e.booking && e.status !== "HIDDEN" && !e.cancelled && !e.soldOut && <Link href={`/trips/${p.tripId}/bookings?event=${e.id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-medium">Add to bookings</Link>}
                   {e.status === "NEW" && <Button onClick={() => run(() => setEventStatusAction(p.tripId, e.id, "SAVED"), { success: "Saved" })}>Save</Button>}
                   {e.status !== "HIDDEN" && e.status !== "SCHEDULED" && <Button variant="ghost" onClick={() => run(() => setEventStatusAction(p.tripId, e.id, "HIDDEN"), { success: "Hidden" })}>Hide</Button>}
                   {e.status === "HIDDEN" && <Button onClick={() => run(() => setEventStatusAction(p.tripId, e.id, "SAVED"), { success: "Restored" })}>Restore</Button>}
@@ -136,8 +145,8 @@ export function EventsView(p: Props) {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
           const s = (k: string) => String(f.get(k) || "") || null;
-          const r = await run(() => addCustomEventAction(p.tripId, { title: s("title") ?? "", category: s("category") ?? "event", date: s("date"), startTime: s("time"), venue: s("venue"), city: s("city"), officialUrl: s("url"), priceText: s("price"), notes: s("notes") }), { success: "Event added to Saved" });
-          if (r !== null) setAdding(false);
+          const r = await run(() => addCustomEventAction(p.tripId, { title: s("title") ?? "", category: s("category") ?? "event", date: s("date"), startTime: s("time"), venue: s("venue"), city: s("city"), officialUrl: s("url"), bookingUrl: s("bookingUrl"), priceText: s("price"), notes: s("notes") }), { success: "Event added to Saved" });
+          if (r !== null) { setAdding(false); setTab("SAVED"); }
         }}>
           <Field label="Title" htmlFor="ev-t" className="sm:col-span-2"><Input id="ev-t" name="title" required /></Field>
           <Field label="Date" htmlFor="ev-d"><Input id="ev-d" name="date" type="date" /></Field>
@@ -147,6 +156,7 @@ export function EventsView(p: Props) {
           <Field label="Category" htmlFor="ev-cat"><Select id="ev-cat" name="category">{["concert", "exhibition", "performance", "festival", "sports", "market", "cultural", "other"].map((c) => <option key={c}>{c}</option>)}</Select></Field>
           <Field label="Price" htmlFor="ev-p"><Input id="ev-p" name="price" /></Field>
           <Field label="Official link" htmlFor="ev-u" className="sm:col-span-2"><Input id="ev-u" name="url" type="url" placeholder="https://" /></Field>
+          <Field label="Tickets / booking link (optional)" htmlFor="ev-b" className="sm:col-span-2"><Input id="ev-b" name="bookingUrl" type="url" placeholder="https://" /></Field>
           <Field label="Notes" htmlFor="ev-n" className="sm:col-span-2"><Textarea id="ev-n" name="notes" /></Field>
           <div className="flex justify-end gap-2 sm:col-span-2"><Button onClick={() => setAdding(false)}>Cancel</Button><Button type="submit" variant="primary" disabled={pending}>Add event</Button></div>
         </form>

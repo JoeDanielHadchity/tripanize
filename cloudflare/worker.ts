@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import handler from "vinext/server/app-router-entry";
 import schema from "../prisma/migrations/202610220001_cloudflare_initial/migration.sql?raw";
+import eventBookings from "../prisma/migrations/202610220002_event_bookings/migration.sql?raw";
 import { createDatabase } from "../src/server/db";
 import { appRuntime } from "../src/server/cloudflare/runtime";
 import { DurableSqliteAdapter } from "../src/server/cloudflare/sqlite-adapter";
@@ -14,13 +15,22 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
   private database = createDatabase(new DurableSqliteAdapter(this.ctx.storage));
   private pending: Promise<unknown> = Promise.resolve();
   private secret = "";
-  private aiTasks = new AiTasks(this.ctx.storage, () => this.runtime(), (run) => this.serialize(run));
+  private aiTasks: AiTasks = new AiTasks(this.ctx.storage, () => this.runtime(), (run) => this.serialize(run));
   constructor(ctx: DurableObjectState, env: CloudflareEnv) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      if (await ctx.storage.get<number>("schemaVersion") !== 1) {
+      const version = await ctx.storage.get<number>("schemaVersion") ?? 0;
+      if (version < 1) {
         ctx.storage.transactionSync(() => ctx.storage.sql.exec(schema));
         await ctx.storage.put("schemaVersion", 1);
+      }
+      if (version < 2) {
+        // Recover safely if SQL committed before a restart interrupted the marker.
+        ctx.storage.transactionSync(() => {
+          const columns = ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray();
+          if (!columns.some(column => column.name === "eventId")) ctx.storage.sql.exec(eventBookings);
+        });
+        await ctx.storage.put("schemaVersion", 2);
       }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
@@ -33,7 +43,7 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     return result;
   }
   private runtime() {
-    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, wakeAi: () => this.aiTasks.wake() };
+    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, wakeAi: (): Promise<void> => this.aiTasks.wake() };
   }
   async alarm() { await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {

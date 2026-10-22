@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migration.sql";
+import eventBookings from "../../prisma/migrations/202610220002_event_bookings/migration.sql";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
 import { appRuntime } from "../../src/server/cloudflare/runtime";
@@ -35,6 +36,9 @@ export class AiProbe extends DurableObject<Env> {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
       if (!await ctx.storage.get("ready")) { ctx.storage.transactionSync(() => ctx.storage.sql.exec(schema)); await ctx.storage.put("ready", true); }
+      ctx.storage.transactionSync(() => {
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(column => column.name === "eventId")) ctx.storage.sql.exec(eventBookings);
+      });
     });
   }
   async alarm() { await this.tasks.alarm(); }

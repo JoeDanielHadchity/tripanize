@@ -108,7 +108,7 @@ export async function upsertDiscoveredEvents(tripId: string, events: (EventField
 export async function listEvents(userId: string, tripId: string) {
   const access = await requireTrip(tripId, userId, "view");
   const [events, runs, trip] = await Promise.all([
-    prisma.tripEvent.findMany({ where: { tripId }, include: { sources: true, stop: { select: { id: true, dayId: true, day: { select: { date: true } } } } }, orderBy: [{ date: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }] }),
+    prisma.tripEvent.findMany({ where: { tripId }, include: { booking: { select: { id: true, status: true } }, sources: true, stop: { select: { id: true, dayId: true, day: { select: { date: true } } } } }, orderBy: [{ date: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }] }),
     prisma.discoveryRun.findMany({ where: { tripId }, orderBy: { createdAt: "desc" }, take: 5 }),
     prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { autoDiscovery: true, discoveryEveryHours: true, nextDiscoveryAt: true } }),
   ]);
@@ -140,6 +140,7 @@ const customEvent = z.object({
   venue: z.string().max(160).optional().nullable(),
   city: z.string().max(120).optional().nullable(),
   officialUrl: z.string().max(500).optional().nullable(),
+  bookingUrl: z.string().max(500).optional().nullable(),
   priceText: z.string().max(80).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
 });
@@ -149,13 +150,13 @@ export async function addCustomEvent(userId: string, tripId: string, input: z.in
   const r = customEvent.safeParse(input);
   if (!r.success) throw new AppError("VALIDATION", formatZodError(r.error));
   const d = r.data;
-  if (d.officialUrl && !safeUrl(d.officialUrl)) throw new AppError("VALIDATION", "Links must start with https:// or http://");
+  if ([d.officialUrl, d.bookingUrl].some(url => url && !safeUrl(url))) throw new AppError("VALIDATION", "Links must start with https:// or http://");
   const key = eventDedupeKey(d);
   const dup = await prisma.tripEvent.findUnique({ where: { tripId_dedupeKey: { tripId, dedupeKey: key } } });
   if (dup) throw new AppError("VALIDATION", `“${dup.title}” is already in the shortlist${dup.status === "HIDDEN" ? " (hidden — restore it instead)" : ""}.`);
   return prisma.$transaction(async (tx) => {
     const e = await tx.tripEvent.create({
-      data: { tripId, dedupeKey: key, title: d.title, category: d.category, date: d.date || null, startTime: d.startTime || null, dateVerified: false, venue: d.venue || null, city: d.city || null, officialUrl: safeUrl(d.officialUrl), priceText: d.priceText || null, whyFits: d.notes || null, origin: "user", status: "SAVED" },
+      data: { tripId, dedupeKey: key, title: d.title, category: d.category, date: d.date || null, startTime: d.startTime || null, dateVerified: false, venue: d.venue || null, city: d.city || null, officialUrl: safeUrl(d.officialUrl), bookingUrl: safeUrl(d.bookingUrl), priceText: d.priceText || null, whyFits: d.notes || null, origin: "user", status: "SAVED" },
     });
     await recordChange(tx, { tripId, actorId: userId, entity: "event", entityId: e.id, action: "create" });
     return e;
@@ -183,15 +184,17 @@ export async function previewScheduleEvent(userId: string, tripId: string, event
 export async function scheduleEvent(userId: string, tripId: string, eventId: string, dayId: string, startTime: string | null, durationMin: number) {
   await requireTrip(tripId, userId, "edit");
   if (startTime && !isTimeStr(startTime)) throw new AppError("VALIDATION", "Use HH:MM for the time.");
-  const e = await prisma.tripEvent.findFirst({ where: { id: eventId, tripId }, include: { stop: true } });
+  const e = await prisma.tripEvent.findFirst({ where: { id: eventId, tripId }, include: { stop: true, booking: true } });
   if (!e) throw new AppError("NOT_FOUND", "Event not found.");
   if (e.stop) throw new AppError("CONFLICT", "This event is already on your itinerary.");
+  if (e.booking?.status === "CANCELLED") throw new AppError("VALIDATION", "Reopen the linked booking before adding this event to a day.");
   const day = await prisma.itineraryDay.findFirst({ where: { id: dayId, tripId } });
   if (!day) throw new AppError("NOT_FOUND", "Day not found.");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   return prisma.$transaction(async (tx) => {
     const stops = await tx.stop.findMany({ where: { dayId, plan: day.activePlan }, orderBy: { position: "asc" } });
     const time = startTime ?? e.startTime;
+    if (e.booking) await tx.booking.update({ where: { id: e.booking.id }, data: { date: day.date, startTime: time, durationMin: Math.max(15, Math.min(720, durationMin)), version: { increment: 1 } } });
     // Insert in chronological position among timed stops.
     let position = stops.length;
     if (time) {
@@ -202,7 +205,7 @@ export async function scheduleEvent(userId: string, tripId: string, eventId: str
     const stop = await tx.stop.create({
       data: {
         tripId, dayId, plan: day.activePlan, position, title: e.title, category: "event", locationName: e.venue, address: e.address, startTime: time, durationMin: Math.max(15, Math.min(720, durationMin)),
-        reason: e.whyFits, officialUrl: e.bookingUrl ?? e.officialUrl, sourceUrls: e.officialUrl ? [e.officialUrl] : [], status: "PLANNED", origin: "EVENT", eventId: e.id, currency: trip.currency,
+        reason: e.whyFits, officialUrl: e.bookingUrl ?? e.officialUrl, sourceUrls: e.officialUrl ? [e.officialUrl] : [], status: "PLANNED", origin: "EVENT", eventId: e.id, bookingId: e.booking?.id, currency: trip.currency,
         hoursNote: e.dateVerified ? null : "Event date/time not verified", createdById: userId,
       },
     });
