@@ -58,6 +58,27 @@
   "observability": {
     "enabled": true
   },
+  "previews": {
+    "durable_objects": {
+      "bindings": [{ "name": "APP", "class_name": "TripanizeApp" }]
+    },
+    "r2_buckets": [{ "binding": "ATTACHMENTS", "bucket_name": "tripanize-sandbox-attachments" }],
+    "vars": {
+      "APP_URL": "https://paddle-sandbox-tripanize.joedanielhadchity1.workers.dev",
+      "BETTER_AUTH_URL": "https://paddle-sandbox-tripanize.joedanielhadchity1.workers.dev",
+      "WORKERS_DEV_URL": "https://paddle-sandbox-tripanize.joedanielhadchity1.workers.dev",
+      "OPENAI_WEB_SEARCH": "false",
+      "PLAN_ACCESS_ENABLED": "true",
+      "PADDLE_ENVIRONMENT": "sandbox",
+      "PADDLE_CHECKOUT_ENABLED": "true",
+      "PADDLE_PRICE_900": "pri_01m5jc0t0n53paj8wfm4pb5zna",
+      "PADDLE_PRICE_1500": "pri_01m5jc1twzekxpn6y12naf7f0v",
+      "PADDLE_PRICE_2500": "pri_01m5jc2ch4akxsss60w7y36073",
+      "PADDLE_PRICE_600": "pri_01m5jc2zncfvtanty09dv6dq3m",
+      "PADDLE_PRICE_1000": "pri_01m5jc3yv2e39w6bb2tkdf8whs",
+      "PADDLE_PRICE_1600": "pri_01m5jc4nbx2ebya40tjefbr34c"
+    }
+  },
   "routes": [
     {
       "pattern": "tripanize.app",
