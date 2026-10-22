@@ -12,6 +12,7 @@ const SECTIONS = [
   { slug: "expenses", label: "Expenses", icon: "M4 7h16v10H4zM8 12h.01M16 12h.01M12 10a2 2 0 110 4 2 2 0 010-4z" },
   { slug: "packing", label: "Packing", icon: "M6 8h12l-1 12H7zM9 8V6a3 3 0 016 0v2" },
   { slug: "events", label: "Events", icon: "M5 5h14v14H5zM5 9h14M9 3v4m6-4v4" },
+  { slug: "members", label: "Member locations", icon: "M12 21s7-6 7-12A7 7 0 005 9c0 6 7 12 7 12zM12 6a3 3 0 100 6 3 3 0 000-6z" },
   { slug: "settings", label: "Trip settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zm7.4-3a7.4 7.4 0 00-.1-1.2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 00-2-1.2L14.5 3h-5l-.4 2.6a7.6 7.6 0 00-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 000 2.4l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 002 1.2l.4 2.6h5l.4-2.6a7.6 7.6 0 002-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" },
 ] as const;
 

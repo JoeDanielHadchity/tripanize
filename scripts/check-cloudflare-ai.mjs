@@ -60,6 +60,15 @@ try {
   assert.equal(emailed.notifications.length, 1);
   assert.equal(emailed.emailAttempts.length, 2);
   assert.equal(emailed.emailAttempts[0], emailed.emailAttempts[1]);
-  console.log(JSON.stringify({ nativeAlarms: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, externalApiCalls: 0 }));
+  await get("/locations/start");
+  assert.equal((await get("/locations/state"))[0].lat, 38.7);
+  await stop(child); child = await start();
+  const expiryDeadline = Date.now() + 15000;
+  let locationState;
+  do { locationState = await get("/locations/state"); if (locationState[0].lat === null) break; await new Promise(resolve => setTimeout(resolve, 100)); } while (Date.now() < expiryDeadline);
+  assert.equal(locationState[0].lat, null);
+  assert.equal(locationState[0].leaseHash, null);
+  assert.equal(locationState[0].expiresAt, null);
+  console.log(JSON.stringify({ nativeAlarms: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
 } catch (error) { console.error(error.stack ?? error.message); console.error(logs.replace(/sk-[A-Za-z0-9_-]+/g, "[credential hidden]")); process.exitCode = 1; }
 finally { await stop(child); }

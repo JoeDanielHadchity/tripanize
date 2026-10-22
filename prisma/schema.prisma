@@ -202,9 +202,28 @@ model TripMembership {
   travelerId String?   @unique
   traveler   Traveler? @relation(fields: [travelerId], references: [id])
   createdAt  DateTime  @default(now())
+  location   MemberLocation?
 
   @@unique([tripId, userId])
   @@index([userId])
+}
+
+// A single expiring point per member, never a location history. The version is
+// retained after stopping so late requests cannot turn sharing back on.
+model MemberLocation {
+  membershipId String @id
+  membership TripMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  version Int @default(0)
+  sessionId String?
+  leaseHash String?
+  lat Float?
+  lng Float?
+  accuracy Float?
+  capturedAt DateTime?
+  updatedAt DateTime?
+  expiresAt DateTime?
+
+  @@index([expiresAt])
 }
 
 // A traveler identity within a trip. May exist before (or without) an account,
