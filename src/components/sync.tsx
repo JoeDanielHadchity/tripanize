@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "./client";
+import type { ChatSummary } from "@/lib/chat";
 
 /**
  * Keeps shared trip data in sync across members' devices: polls the trip's revision counter while the page is
@@ -22,7 +23,8 @@ export function SyncWatcher({ tripId, revision, userId }: { tripId: string; revi
       try {
         const res = await fetch(`/api/trips/${tripId}/revision`, { cache: "no-store" });
         if (!res.ok) return;
-        const r = (await res.json()) as { revision: number; changedBy: { id: string; name: string } | null };
+        const r = (await res.json()) as { revision: number; changedBy: { id: string; name: string } | null; chat?: ChatSummary };
+        if (!stopped && r.chat) window.dispatchEvent(new CustomEvent("tripanize:chat-unread", { detail: { tripId, ...r.chat } }));
         if (!stopped && r.revision > known.current) {
           known.current = r.revision;
           if (r.changedBy && r.changedBy.id !== userId) toast({ tone: "info", message: `Updated with changes from ${r.changedBy.name}.` });

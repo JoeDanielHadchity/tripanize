@@ -45,12 +45,17 @@ try {
     assert.equal(result.rolledBack, true);
     assert.equal(result.locationVisible, true);
     assert.equal(result.locationCleared, true);
+    assert.equal(result.chatDeduplicated, true);
+    assert.equal(result.chatUnread, 1);
+    assert.equal(result.chatRead, true);
+    assert.equal(result.chatDeleted, true);
     assert.equal(result.updatedRows, 1);
     assert.equal(result.staleRows, 0);
     assert.equal(result.privateFileRoundTrip, true);
     assert.equal(result.pdfHeader, "%PDF");
     await stop(child); child = await start();
     assert.equal((await json("/count")).users, result.users);
+    assert.deepEqual(await json("/chat-count"), { messages: 1, unread: 0 });
     console.log(JSON.stringify({ mode, ...result, survivesRestart: true }));
   } else {
     const home = await fetch(origin); assert.equal(home.status, 200); const html = await home.text(); assert.match(html, /Tripanize/);
@@ -69,6 +74,9 @@ try {
     const locationUnauth = await fetch(origin + "/api/trips/does-not-exist/locations"); assert.equal(locationUnauth.status, 401); assert.equal(locationUnauth.headers.get("Cache-Control"), "private, no-store");
     const locationMissing = await fetch(origin + "/api/trips/does-not-exist/locations", { headers: { Cookie: cookie } }); assert.equal(locationMissing.status, 404);
     const locationCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/locations", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ op: "stop" }) }); assert.equal(locationCrossOrigin.status, 403);
+    const chatUnauth = await fetch(origin + "/api/trips/does-not-exist/chat"); assert.equal(chatUnauth.status, 401); assert.equal(chatUnauth.headers.get("Cache-Control"), "private, no-store");
+    const chatMissing = await fetch(origin + "/api/trips/does-not-exist/chat", { headers: { Cookie: cookie } }); assert.equal(chatMissing.status, 404);
+    const chatCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/chat", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ op: "read", seq: 1 }) }); assert.equal(chatCrossOrigin.status, 403);
     await stop(child); child = await start();
     const restored = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(restored.status, 200); assert.equal(new URL(restored.url).pathname, "/trips");
     console.log(JSON.stringify({ mode, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));

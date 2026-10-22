@@ -34,6 +34,7 @@ model User {
   deliveries       NotificationDelivery[]
   tripNotifications TripNotification[]
   travelerLinks    Traveler[]
+  chatMessages     ChatMessage[]
 
   @@map("user")
 }
@@ -155,6 +156,8 @@ model Trip {
   // Bumped on every shared change so other members' devices can sync.
   revision  Int      @default(0)
   lastChangedById String?
+  chatSeq Int @default(0)
+  chatRevision Int @default(0)
   version   Int      @default(1)
   // Event discovery settings
   autoDiscovery        Boolean   @default(false)
@@ -184,6 +187,7 @@ model Trip {
   notificationPrefs NotificationPreference[]
   deliveries   NotificationDelivery[]
   tripNotifications TripNotification[]
+  chatMessages ChatMessage[]
 }
 
 enum TripRole {
@@ -203,6 +207,7 @@ model TripMembership {
   traveler   Traveler? @relation(fields: [travelerId], references: [id])
   createdAt  DateTime  @default(now())
   location   MemberLocation?
+  chatReadSeq Int @default(0)
 
   @@unique([tripId, userId])
   @@index([userId])
@@ -224,6 +229,26 @@ model MemberLocation {
   expiresAt DateTime?
 
   @@index([expiresAt])
+}
+
+model ChatMessage {
+  id String @id @default(cuid())
+  tripId String
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  senderId String?
+  sender User? @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  senderName String
+  clientId String
+  seq Int
+  revision Int
+  body String
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  @@unique([tripId, seq])
+  @@unique([tripId, senderId, clientId])
+  @@index([tripId, revision])
+  @@index([tripId, senderId, createdAt])
 }
 
 // A traveler identity within a trip. May exist before (or without) an account,

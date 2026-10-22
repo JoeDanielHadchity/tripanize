@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
 import { noStore, withUser } from "@/server/api";
+import { getChatSummary } from "@/server/chat/service";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
@@ -9,6 +10,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ tripId:
     await requireTrip(tripId, userId, "view");
     const t = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { revision: true, lastChangedById: true } });
     const changedBy = t.lastChangedById ? await prisma.user.findUnique({ where: { id: t.lastChangedById }, select: { id: true, name: true } }) : null;
-    return NextResponse.json({ revision: t.revision, changedBy }, { headers: noStore });
+    return NextResponse.json({ revision: t.revision, changedBy, chat: await getChatSummary(userId, tripId) }, { headers: noStore });
   });
 }
