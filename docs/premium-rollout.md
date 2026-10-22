@@ -50,10 +50,16 @@ Product: `pro_01m5j53xmtqvd4nts9f7tvz954`, SaaS tax category. All six prices are
 ## Remaining launch requirements
 
 1. Merchant completes Paddle verification and payout setup. Get approval for tripanize.app and configure its default payment link to `https://tripanize.app/checkout`. This page loads Paddle.js for a known pending transaction and never grants Premium from the URL.
-2. Publish merchant-approved Terms (legal seller identity), Privacy and Refund policies. Do not invent the legal identity or refund terms.
+2. Public Terms, Privacy, Refund and Contact pages identify Joe-Daniel Hadchity as an individual operator in Lebanon, as confirmed by the owner. Legal links are available on the homepage, sign-up, pricing and Premium screens. Refund requests use Paddle and preserve mandatory rights; there is no unconditional money-back promise. Review the pages when features or legal obligations change.
 3. Create a separate sandbox account/catalog and credentials. Configure sandbox webhook and verify initial payments, all three upgrades, duplicate notifications, canceled/failed payments, refunds/chargebacks and reconciliation using Paddle test cards. Do not use real charges for QA.
 4. Configure the live key, public client token, prices and webhook signing secret as Cloudflare configuration. API keys must never be pasted into chat, repo files, browser evaluation output or logs.
 5. Confirm commercial AI allowance/duration. Existing request rate limits apply; no numerical lifetime quota or unlimited-AI promise is introduced by this change. Before enabling sales, choose and implement the advertised per-trip usage allowance based on measured costs.
 6. Enable checkout after testing and approval; enable Normal restrictions only when customers can upgrade. No automatic permanent founder grant is inserted.
 
 Validation includes isolated integration tests, production build and native Durable Object/R2 migration/restart/feature checks. No test sends real email or makes an external payment.
+
+## Public support
+
+Store the operator's private receiving address as the encrypted production secret `SUPPORT_EMAIL`; never commit it or send it to browser props. The public `/contact` form forwards plain-text messages through the existing verified Resend sender, with the visitor's validated address as Reply-To. It sends only to the fixed operator address, has no automatic reply to arbitrary senders, and only confirms success after provider acceptance. Requests use origin checks, a bounded body, a strict schema, a honeypot, provider idempotency and atomic per-IP, per-email and global rate limits. Rate-limit keys contain keyed hashes, not raw visitor addresses. Support delivery releases the application request queue while the external provider responds; complete database operations remain serialized.
+
+The contact form does not handle identity verification documents or payment credentials. Replies, privacy requests and refund issues must be reviewed by the operator; submitted messages cannot authorize account or payment changes. Resend acceptance is not a guarantee of inbox delivery. The setup verification does not send a real support email.

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Card, Notice } from "./ui";
 import { premiumPrice, type PremiumBandId } from "@/lib/plans";
@@ -61,6 +62,7 @@ export function PremiumCheckout({ tripId, initial }: { tripId: string; initial: 
     {!summary.canPurchase && <Notice>Only the trip organizer can purchase or upgrade Premium.</Notice>}
     <div className="grid gap-4 md:grid-cols-3">{summary.options.map(b => <Card key={b.id} className={summary.recommended === b.id ? "border-accent" : ""}><h3 className="font-semibold">{b.label}</h3><p className="mt-3 font-display text-3xl font-semibold">{premiumPrice(b.priceMinor)}<span className="ml-1 font-sans text-sm font-normal text-muted">/ trip</span></p><p className="mt-2 text-sm text-muted">Same Premium features for the whole group.</p><Button className="mt-4 w-full" variant={summary.recommended === b.id ? "primary" : "secondary"} disabled={busy || !summary.available || !summary.canPurchase || !b.eligible || summary.reviewRequired} onClick={() => checkout(b.id)}>{b.capacity < summary.people ? "Group too large" : b.priceMinor <= summary.creditMinor ? "Covered" : `${summary.creditMinor ? "Upgrade" : "Unlock"} · ${premiumPrice(b.dueMinor)}`}</Button></Card>)}</div>
     <p className="text-sm text-muted">One-time payment in USD. Tax, if applicable, is shown at checkout. The organizer and all travelers count, including children and people without accounts. Adding people beyond your paid limit requires an upgrade; you pay only the price difference.</p>
+    <p className="text-xs leading-5 text-muted">Premium purchases are subject to our <Link href="/terms" className="text-accent-ink underline">Terms</Link>, <Link href="/privacy" className="text-accent-ink underline">Privacy policy</Link> and <Link href="/refunds" className="text-accent-ink underline">Refund policy</Link>. Need help? <Link href="/contact?topic=billing" className="text-accent-ink underline">Contact support</Link>.</p>
     {summary.canPurchase && summary.available && <Button disabled={busy} onClick={refresh}>{busy ? "Checking…" : "Check payment status"}</Button>}
     {message && <Notice tone="sage">{message}</Notice>}{error && <Notice tone="danger">{error}</Notice>}
   </div>;

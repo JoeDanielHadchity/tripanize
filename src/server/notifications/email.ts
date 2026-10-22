@@ -9,7 +9,7 @@ export type EmailResult =
   | { status: "not_configured" }
   | { status: "failed"; error: string; retryable?: boolean; retryAfterMs?: number };
 
-type EmailMessage = { to: string; subject: string; text: string; html?: string; idempotencyKey?: string };
+type EmailMessage = { to: string; subject: string; text: string; html?: string; replyTo?: string; idempotencyKey?: string };
 
 let transporter: Transporter | null = null;
 
@@ -24,7 +24,7 @@ async function sendWithResend(msg: EmailMessage): Promise<EmailResult> {
   const res = await fetch(process.env.RESEND_API_URL ?? "https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", ...(msg.idempotencyKey ? { "Idempotency-Key": msg.idempotencyKey } : {}) },
-    body: JSON.stringify({ from: from(), to: [msg.to], subject: msg.subject, text: msg.text, html: msg.html }),
+    body: JSON.stringify({ from: from(), to: [msg.to], subject: msg.subject, text: msg.text, html: msg.html, reply_to: msg.replyTo }),
     signal: AbortSignal.timeout(15_000),
   });
   const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
@@ -59,6 +59,7 @@ export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
       subject: msg.subject,
       text: msg.text,
       html: msg.html,
+      replyTo: msg.replyTo,
     });
     // Only a provider acceptance counts as "sent".
     if (info.rejected?.length) return { status: "failed", error: "Recipient rejected by mail server" };

@@ -89,21 +89,22 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     return result;
   }
   private runtime() {
-    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, planAccessEnabled: this.env.PLAN_ACCESS_ENABLED === "true", paddle: paddleConfigFromEnv(this.env), wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
+    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, supportEmail: this.env.SUPPORT_EMAIL, planAccessEnabled: this.env.PLAN_ACCESS_ENABLED === "true", paddle: paddleConfigFromEnv(this.env), wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
   }
   async alarm() { await this.ready; await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {
     await this.ready;
-    // Let uploads stream and R2 writes complete without blocking other members.
+    // Let uploads and support delivery complete without blocking other members.
     // Each database operation and complete transaction still shares the lock.
     const payment = request.method === "POST" && /^\/api\/trips\/[^/]+\/expenses\/?$/.test(new URL(request.url).pathname);
+    const independent = payment || (request.method === "POST" && new URL(request.url).pathname === "/api/support");
     const runtime = this.runtime();
-    const context = payment ? { ...runtime, database: serializedDatabase(runtime.database, run => this.serialize(run)) } : runtime;
+    const context = independent ? { ...runtime, database: serializedDatabase(runtime.database, run => this.serialize(run)) } : runtime;
     const run = () => appRuntime.run(context, async () => {
       const response = await handler.fetch(request, this.env, { waitUntil: this.ctx.waitUntil.bind(this.ctx), passThroughOnException() {} });
       return new Response(response.body ? await response.arrayBuffer() : null, { status: response.status, statusText: response.statusText, headers: response.headers });
     });
-    return payment ? run() : this.serialize(run);
+    return independent ? run() : this.serialize(run);
   }
   async maintenance() {
     await this.ready;
