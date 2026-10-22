@@ -18,7 +18,7 @@ The app remains fully hosted on Cloudflare. The pricing and purchase code may be
 
 Paddle API requests are server-only and pinned to live or sandbox. Completed purchases require the saved intent, matching metadata, one item of quantity one, allowlisted intent price, matching USD subtotal/unit price, no discount and no recurring billing/subscription. Webhooks verify the raw-body HMAC and a five-second timestamp tolerance, then fetch the current transaction including adjustments. Current provider state makes repeated and out-of-order deliveries idempotent. No separate event grant can double-credit a transaction.
 
-Listen at `https://tripanize.app/api/billing/webhook` for `transaction.completed`, `transaction.updated`, `transaction.canceled`, `adjustment.created`, `adjustment.updated`. A webhook failure returns a retryable error. The owner can also reconcile pending purchases with Check payment status.
+Listen at `https://tripanize.app/api/billing/webhook` for `transaction.completed`, `transaction.updated`, `transaction.canceled`, `adjustment.created`, `adjustment.updated`. A webhook failure returns a retryable error. The owner can reconcile pending and completed purchases with Check payment status, including adjustments whose notifications were missed. Signed unrelated notifications and simulations without a saved purchase are acknowledged without requesting or granting access to a payment.
 
 One pending checkout is reused. A create request with an ambiguous network outcome stays blocked instead of creating another chargeable transaction. Use its saved checkout ID to find the transaction in Paddle custom data; reconcile it or cancel it in Paddle and mark it canceled only after verification. Never delete an uncertain intent blindly.
 
@@ -45,7 +45,7 @@ API key permissions: transaction read/write and adjustment read. Notification se
 
 ## Live catalog created on 22 October 2026
 
-Product: `pro_01m5j53xmtqvd4nts9f7tvz954`, SaaS tax category. All six prices are one-time, USD, tax excluded, quantity fixed to one. The public live price IDs are included in wrangler.jsonc; checkout and restrictions are explicitly false. No API key, public client token or webhook secret has been created by this change.
+Product: `pro_01m5j53xmtqvd4nts9f7tvz954`, SaaS tax category. All six prices are one-time, USD, tax excluded, quantity fixed to one. The public live price IDs are included in wrangler.jsonc; checkout and restrictions are explicitly false. The live API key (transaction read/write and adjustment read only, expires 20 January 2027), checkout token and five-event payment notification destination were created during the connection setup. Credentials are stored as encrypted Cloudflare production secrets and are not committed. The destination accepts both platform and simulation events; actual checkout remains disabled pending verification and sandbox payment testing.
 
 ## Remaining launch requirements
 
