@@ -8,9 +8,10 @@ import { TripNav } from "@/components/trip-nav";
 import { SyncWatcher } from "@/components/sync";
 import { SaveOfflineSnapshot } from "@/components/offline";
 import { Badge } from "@/components/ui";
-import { formatDateRange } from "@/lib/dates";
+import { formatDateRange, todayIn } from "@/lib/dates";
 import { LocationSharingProvider } from "@/components/location-sharing";
 import { getChatSummary } from "@/server/chat/service";
+import { TripAssistant } from "@/components/trip-assistant";
 
 export default async function TripLayout({ children, params }: { children: React.ReactNode; params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
@@ -24,6 +25,9 @@ export default async function TripLayout({ children, params }: { children: React
   }
   const { trip, access } = header;
   const chat = await getChatSummary(user.id, tripId);
+  const tripToday = todayIn(trip.timezone);
+  const destinationToday = todayIn(trip.destinations.find(d => (!d.arriveDate || d.arriveDate <= tripToday) && (!d.departDate || d.departDate >= tripToday))?.timezone ?? trip.timezone);
+  const defaultDate = trip.startDate && trip.endDate && destinationToday >= trip.startDate && destinationToday <= trip.endDate ? destinationToday : trip.startDate;
   return (
     <>
       <AppHeader user={user} />
@@ -42,6 +46,7 @@ export default async function TripLayout({ children, params }: { children: React
         </aside>
         <main id="main" className="min-w-0">{children}</main>
       </div>
+      <TripAssistant key={`assistant-${trip.id}`} tripId={trip.id} defaultDate={defaultDate} />
       </LocationSharingProvider>
     </>
   );
