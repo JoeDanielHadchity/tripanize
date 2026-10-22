@@ -35,7 +35,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
     <>
       <AppHeader user={user} current="trips" />
       <main id="main" className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <PageHeader title="My trips" subtitle={all.length ? `${all.length} trip${all.length === 1 ? "" : "s"} you own or were invited to` : "Only trips you own or were invited to appear here."} actions={<LinkButton href="/trips/new" variant="primary">+ Plan a new trip</LinkButton>} />
+        <PageHeader title="My trips" subtitle={all.length ? `${all.length} trip${all.length === 1 ? "" : "s"} you own or were invited to` : "Only trips you own or were invited to appear here."} actions={<><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Plan a new trip</LinkButton></>} />
         <PendingInvites invites={invites} />
         {all.length > 0 && (
           <form role="search" className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center" action="/trips">
@@ -112,6 +112,7 @@ function TripTile({ trip }: { trip: TripCard }) {
         <p className="mt-1 text-sm text-muted">{trip.travelers.join(", ")}</p>
         <div className="mt-auto pt-4">
           <LinkButton href={`/trips/${trip.id}/itinerary`} variant="secondary" className="w-full" aria-label={`Open ${trip.name}`}>Open trip</LinkButton>
+          <Link href={`/trips/${trip.id}/premium`} className="mt-2 flex min-h-11 items-center justify-center rounded-xl text-sm font-semibold text-accent-ink hover:bg-accent-soft" aria-label={`Premium options for ${trip.name}`}>Premium options</Link>
         </div>
       </div>
     </article>
