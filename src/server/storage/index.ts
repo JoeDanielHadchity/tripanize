@@ -6,7 +6,7 @@ import { requireTrip } from "@/server/auth/permissions";
 import { recordChange } from "@/server/audit";
 
 /** Private R2 objects are served only after checking trip membership. */
-const MAX_BYTES = 10 * 1024 * 1024;
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const ALLOWED: Record<string, string> = { "application/pdf": "pdf", "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
 
 function sniff(buf: Buffer): string | null {
@@ -17,27 +17,39 @@ function sniff(buf: Buffer): string | null {
   return null;
 }
 
-export async function saveAttachment(userId: string, tripId: string, bookingId: string, file: File) {
-  await requireTrip(tripId, userId, "edit");
-  const booking = await prisma.booking.findFirst({ where: { id: bookingId, tripId } });
-  if (!booking) throw new AppError("NOT_FOUND", "Booking not found.");
-  if (file.size > MAX_BYTES) throw new AppError("VALIDATION", "Files can be up to 10 MB.");
+export type UploadedFile = { fileName: string; mimeType: string; sizeBytes: number; storageKey: string };
+
+/** Call only after authorization; metadata is linked in the caller's transaction. */
+export async function uploadPrivateFile(tripId: string, file: File): Promise<UploadedFile> {
+  if (!file.size || file.size > MAX_ATTACHMENT_BYTES) throw new AppError("VALIDATION", "Choose a file up to 10 MB.");
   const buf = Buffer.from(await file.arrayBuffer());
   const mime = sniff(buf);
-  if (!mime || !ALLOWED[mime]) throw new AppError("VALIDATION", "Upload a PDF, PNG, JPEG or WebP file.");
+  if (!mime || !ALLOWED[mime] || (file.type && file.type !== mime && file.type !== "application/octet-stream")) throw new AppError("VALIDATION", "Upload a PDF, PNG, JPEG or WebP file that matches its format.");
   const key = `${tripId}/${randomBytes(16).toString("hex")}.${ALLOWED[mime]}`;
   const files = currentRuntime().files;
   if (!files) throw new AppError("NOT_CONFIGURED", "File storage is not configured.");
   await files.put(key, buf, { httpMetadata: { contentType: mime } });
-  const name = file.name.replace(/[^\w.\- ]/g, "_").slice(0, 120) || `ticket.${ALLOWED[mime]}`;
+  const name = file.name.replace(/[^\w.\- ]/g, "_").slice(0, 120) || `receipt.${ALLOWED[mime]}`;
+  return { fileName: name, mimeType: mime, sizeBytes: buf.length, storageKey: key };
+}
+
+export async function cleanupPrivateFiles(keys: string[]) {
+  for (const key of keys) await currentRuntime().files?.delete(key).catch(() => console.warn("[storage] An unreferenced upload needs cleanup."));
+}
+
+export async function saveAttachment(userId: string, tripId: string, bookingId: string, file: File) {
+  await requireTrip(tripId, userId, "edit");
+  const booking = await prisma.booking.findFirst({ where: { id: bookingId, tripId } });
+  if (!booking) throw new AppError("NOT_FOUND", "Booking not found.");
+  const upload = await uploadPrivateFile(tripId, file);
   try {
     return await prisma.$transaction(async (tx) => {
-      const a = await tx.attachment.create({ data: { tripId, bookingId, fileName: name, mimeType: mime, sizeBytes: buf.length, storageKey: key, uploadedById: userId } });
-      await recordChange(tx, { tripId, actorId: userId, entity: "attachment", entityId: a.id, action: "create", after: { bookingId, fileName: name } });
+      const a = await tx.attachment.create({ data: { tripId, bookingId, ...upload, uploadedById: userId } });
+      await recordChange(tx, { tripId, actorId: userId, entity: "attachment", entityId: a.id, action: "create", after: { bookingId, fileName: upload.fileName } });
       return a;
     });
   } catch (error) {
-    await files.delete(key).catch(() => console.warn("[storage] An unreferenced upload needs cleanup."));
+    await cleanupPrivateFiles([upload.storageKey]);
     throw error;
   }
 }
@@ -46,6 +58,7 @@ export async function readAttachment(userId: string, attachmentId: string) {
   const a = await prisma.attachment.findUnique({ where: { id: attachmentId } });
   if (!a) throw new AppError("NOT_FOUND", "File not found.");
   await requireTrip(a.tripId, userId, "view");
+  if (a.expenseId && !await prisma.expense.findFirst({ where: { id: a.expenseId, tripId: a.tripId, deletedAt: null }, select: { id: true } })) throw new AppError("NOT_FOUND", "Payment not found.");
   const file = await currentRuntime().files?.get(a.storageKey);
   if (!file) throw new AppError("NOT_FOUND", "File not found.");
   return { meta: a, data: Buffer.from(await file.arrayBuffer()) };

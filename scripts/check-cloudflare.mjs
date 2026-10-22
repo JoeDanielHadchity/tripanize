@@ -52,10 +52,12 @@ try {
     assert.equal(result.updatedRows, 1);
     assert.equal(result.staleRows, 0);
     assert.equal(result.privateFileRoundTrip, true);
+    assert.equal(result.expenseReceiptRoundTrip, true);
     assert.equal(result.pdfHeader, "%PDF");
     await stop(child); child = await start();
     assert.equal((await json("/count")).users, result.users);
     assert.deepEqual(await json("/chat-count"), { messages: 1, unread: 0 });
+    assert.deepEqual(await json("/expense-receipt"), { linked: true, readable: true });
     console.log(JSON.stringify({ mode, ...result, survivesRestart: true }));
   } else {
     const home = await fetch(origin); assert.equal(home.status, 200); const html = await home.text(); assert.match(html, /Tripanize/);
@@ -80,11 +82,11 @@ try {
     const assistantUnauth = await fetch(origin + "/api/trips/does-not-exist/assistant"); assert.equal(assistantUnauth.status, 401); assert.equal(assistantUnauth.headers.get("Cache-Control"), "private, no-store");
     const assistantMissing = await fetch(origin + "/api/trips/does-not-exist/assistant", { headers: { Cookie: cookie } }); assert.equal(assistantMissing.status, 404);
     const assistantCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/assistant", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ op: "apply", id: "not-a-proposal" }) }); assert.equal(assistantCrossOrigin.status, 403);
-    const receiptUnauth = await fetch(origin + "/api/trips/does-not-exist/expenses/receipt", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test" }, body: "--test--" });
+    const receiptUnauth = await fetch(origin + "/api/trips/does-not-exist/expenses", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test" }, body: "--test--" });
     assert.equal(receiptUnauth.status, 401); assert.equal(receiptUnauth.headers.get("Cache-Control"), "private, no-store");
-    const receiptCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/expenses/receipt", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" });
+    const receiptCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/expenses", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" });
     assert.equal(receiptCrossOrigin.status, 403);
-    const receiptMissingTrip = await fetch(origin + "/api/trips/does-not-exist/expenses/receipt", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" });
+    const receiptMissingTrip = await fetch(origin + "/api/trips/does-not-exist/expenses", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" });
     assert.equal(receiptMissingTrip.status, 404);
     await stop(child); child = await start();
     const restored = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(restored.status, 200); assert.equal(new URL(restored.url).pathname, "/trips");

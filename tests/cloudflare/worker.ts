@@ -4,6 +4,7 @@ import eventBookings from "../../prisma/migrations/202610220002_event_bookings/m
 import tripNotifications from "../../prisma/migrations/202610220003_trip_notifications/migration.sql";
 import memberLocations from "../../prisma/migrations/202610220004_member_locations/migration.sql";
 import tripChat from "../../prisma/migrations/202610220005_trip_chat/migration.sql";
+import expenseReceipts from "../../prisma/migrations/202610220006_expense_receipts/migration.sql";
 import { changeMemberLocation, getLocationSelf, getMemberLocations } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
@@ -11,6 +12,7 @@ import { appRuntime } from "../../src/server/cloudflare/runtime";
 import { createTrip } from "../../src/server/trips/service";
 import { createBooking } from "../../src/server/bookings/service";
 import { addCustomEvent, scheduleEvent } from "../../src/server/events/service";
+import { saveExpenseWithReceipts } from "../../src/server/expenses/receipts";
 import { createExpense } from "../../src/server/expenses/service";
 import { readAttachment, saveAttachment } from "../../src/server/storage";
 import { exportTripPdf } from "../../src/server/export";
@@ -28,6 +30,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("NotificationPreference")').toArray().some(column => column.name === "changeEmailEnabled")) ctx.storage.sql.exec(tripNotifications);
         ctx.storage.sql.exec(memberLocations);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "chatSeq")) ctx.storage.sql.exec(tripChat);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Attachment")').toArray().some(column => column.name === "expenseId")) ctx.storage.sql.exec(expenseReceipts);
       });
     });
   }
@@ -35,6 +38,12 @@ export class StorageProbe extends DurableObject<Env> {
     try {
       return await appRuntime.run({ database: this.db, files: this.env.FILES, assets: this.env.ASSETS, authSecret: "test-only-not-used-for-production" }, async () => {
         if (new URL(request.url).pathname === "/count") return Response.json({ users: await this.db.user.count() });
+        if (new URL(request.url).pathname === "/expense-receipt") {
+          const fixture = await this.ctx.storage.get<{ userId: string; expenseId: string; receiptId: string }>("expense-receipt-fixture");
+          if (!fixture) throw new Error("Missing receipt fixture");
+          const file = await readAttachment(fixture.userId, fixture.receiptId);
+          return Response.json({ linked: file.meta.expenseId === fixture.expenseId, readable: file.data.toString().includes("private fixture") });
+        }
         if (new URL(request.url).pathname === "/chat-count") { const chat = await this.ctx.storage.get<{ userId: string; tripId: string }>("chat-fixture"); return Response.json(chat ? { messages: await this.db.chatMessage.count({ where: { tripId: chat.tripId } }), unread: (await getChatSummary(chat.userId, chat.tripId)).unread } : null); }
         const id = crypto.randomUUID();
         const user = await this.db.user.create({ data: { id, email: `${id}@example.test`, name: "Cloudflare fixture" } });
@@ -72,6 +81,16 @@ export class StorageProbe extends DurableObject<Env> {
         const bytes = "%PDF-1.4\nprivate fixture";
         const file = await saveAttachment(user.id, tripId, booking.id, new File([bytes], "ticket.pdf", { type: "application/pdf" }));
         const stored = await readAttachment(user.id, file.id);
+        const multipart = new FormData();
+        multipart.append("receipts", new File([bytes], "payment-receipt.pdf", { type: "application/pdf" }));
+        const upload = new Request("https://fixture.test/payment", { method: "POST", body: multipart });
+        const parsed = await new Response(await upload.arrayBuffer(), { headers: { "Content-Type": upload.headers.get("Content-Type")! } }).formData();
+        const receiptFile = parsed.get("receipts");
+        if (!(receiptFile instanceof File)) throw new Error("Multipart receipt must be a File");
+        const receiptExpense = await saveExpenseWithReceipts(user.id, tripId, null, { description: "Receipt fixture", category: "Food & drink", amount: "12", currency: "EUR", date: "2027-05-02", payerId: trip.travelers[0].id, method: "EQUAL", participants: trip.travelers.map(t => ({ travelerId: t.id })) }, 0, [receiptFile], []);
+        const receipt = await this.db.attachment.findFirstOrThrow({ where: { expenseId: receiptExpense.id } });
+        const savedReceipt = await readAttachment(recipientId, receipt.id);
+        await this.ctx.storage.put("expense-receipt-fixture", { userId: recipientId, expenseId: receiptExpense.id, receiptId: receipt.id });
         const pdf = await exportTripPdf(user.id, tripId, {});
         return Response.json({
           days: trip.days.length, interests: trip.interests,
@@ -82,6 +101,7 @@ export class StorageProbe extends DurableObject<Env> {
           totalMinor: shares.reduce((n, s) => n + s.amountMinor, 0), rolledBack,
           updatedRows: updated.count, staleRows: stale.count,
           privateFileRoundTrip: stored.data.toString() === bytes,
+          expenseReceiptRoundTrip: savedReceipt.data.toString() === bytes && savedReceipt.meta.expenseId === receiptExpense.id,
           pdfHeader: pdf.subarray(0, 4).toString(),
           users: await this.db.user.count(),
         });

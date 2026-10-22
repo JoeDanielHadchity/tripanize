@@ -42,12 +42,10 @@ export async function generateStructured<S extends z.ZodType>(opts: {
   name: string;
   instructions: string;
   input: string;
-  attachment?: OpenAI.Responses.ResponseInputImage | OpenAI.Responses.ResponseInputFile;
   webSearch?: boolean;
   signal?: AbortSignal;
   timeoutMs?: number;
   maxOutputTokens?: number;
-  maxRetries?: number;
 }): Promise<StructuredResult<z.infer<S>>> {
   const openai = getClient();
   const model = aiModel();
@@ -59,7 +57,7 @@ export async function generateStructured<S extends z.ZodType>(opts: {
         model,
         reasoning: /^gpt-[56]/.test(model) ? { effort: "low" } : undefined,
         instructions: opts.instructions,
-        input: opts.attachment ? [{ role: "user", content: [{ type: "input_text", text: opts.input }, opts.attachment] }] : opts.input,
+        input: opts.input,
         tools: useSearch ? [{ type: "web_search" }] : undefined,
         include: useSearch ? ["web_search_call.action.sources"] : undefined,
         // Supported by the Responses API; keep compatibility with older SDK typings.
@@ -68,7 +66,7 @@ export async function generateStructured<S extends z.ZodType>(opts: {
         max_output_tokens: opts.maxOutputTokens ?? 24000,
         store: false,
       },
-      { signal: opts.signal, timeout: opts.timeoutMs ?? 6 * 60_000, maxRetries: opts.maxRetries },
+      { signal: opts.signal, timeout: opts.timeoutMs ?? 6 * 60_000 },
     );
   } catch (err) {
     throw classify(err, opts.signal);

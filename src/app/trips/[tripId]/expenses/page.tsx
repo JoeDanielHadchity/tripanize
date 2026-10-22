@@ -6,7 +6,6 @@ import { getExpenseData } from "@/server/expenses/service";
 import { computeBudget } from "@/server/expenses/budget";
 import { PageHeader } from "@/components/ui";
 import { todayIn } from "@/lib/dates";
-import { aiConfigured } from "@/server/ai/openai";
 import { ExpensesView } from "./view";
 
 export const metadata: Metadata = { title: "Expenses" };
@@ -32,7 +31,7 @@ export default async function ExpensesPage({ params, searchParams }: { params: P
   return (
     <>
       <PageHeader title="Expenses & settlements" subtitle="Shared ledger in exact amounts. Different currencies are never added together." />
-      <ExpensesView aiReady={aiConfigured()}
+      <ExpensesView
         tripId={tripId}
         canEdit={roleAllows(data.access.role, "edit")}
         tripCurrency={data.trip.currency}
@@ -40,7 +39,7 @@ export default async function ExpensesPage({ params, searchParams }: { params: P
         today={todayIn(data.trip.timezone)}
         meId={me?.id ?? null}
         travelers={data.travelers.map((t) => ({ id: t.id, name: t.name, active: !t.leftAt }))}
-        expenses={data.expenses.map((e) => ({ id: e.id, version: e.version, description: e.description, category: e.category, amountMinor: e.amountMinor, currency: e.currency, date: e.date, createdAt: e.createdAt.toISOString(), payerId: e.payerId, splitMethod: e.splitMethod, notes: e.notes, bookingId: e.bookingId, bookingTitle: e.booking?.title ?? null, shares: e.shares.map((s) => ({ travelerId: s.travelerId, amountMinor: s.amountMinor, percentBp: s.percentBp })), conversion: e.convCurrency ? { currency: e.convCurrency, rate: e.convRate!, rateDate: e.convRateDate!, amountMinor: e.convAmountMinor! } : null }))}
+        expenses={data.expenses.map((e) => ({ id: e.id, version: e.version, description: e.description, category: e.category, amountMinor: e.amountMinor, currency: e.currency, date: e.date, createdAt: e.createdAt.toISOString(), payerId: e.payerId, splitMethod: e.splitMethod, notes: e.notes, bookingId: e.bookingId, bookingTitle: e.booking?.title ?? null, receipts: e.receipts, shares: e.shares.map((s) => ({ travelerId: s.travelerId, amountMinor: s.amountMinor, percentBp: s.percentBp })), conversion: e.convCurrency ? { currency: e.convCurrency, rate: e.convRate!, rateDate: e.convRateDate!, amountMinor: e.convAmountMinor! } : null }))}
         settlements={data.settlements.map((s) => ({ id: s.id, fromId: s.fromId, toId: s.toId, amountMinor: s.amountMinor, currency: s.currency, paidAt: s.paidAt.toISOString(), note: s.note }))}
         ledger={data.ledger}
         budget={budget}
