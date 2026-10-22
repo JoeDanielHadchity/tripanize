@@ -59,6 +59,10 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
       partialMeta = { summary: restored.summary, unplacedMustSees: restored.unplacedMustSees, generalNotes: restored.generalNotes };
     }
     if (job.cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
+    if (job.kind === "assistant") {
+      const { runAssistantJob } = await import("@/server/assistant/service");
+      return await runAssistantJob(jobId, generate, controller.signal);
+    }
     if (job.kind === "questions") {
       await generatePlanQuestions(job.tripId, generate, controller.signal);
       await prisma.generationJob.update({ where: { id: jobId }, data: { status: "SUCCEEDED", finishedAt: new Date() } });

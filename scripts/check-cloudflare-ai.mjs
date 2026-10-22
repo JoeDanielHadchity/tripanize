@@ -51,6 +51,17 @@ try {
   const cancelled = await get("/cancel");
   const cancelledState = await get("/state");
   assert.equal(cancelledState.jobs.find(j => j.id === cancelled.jobId).status, "CANCELLED");
+  const assistant = await get("/assistant/start");
+  assert.equal(assistant.id, assistant.duplicateId);
+  await until(s => s.jobs.some(j => j.kind === "assistant" && j.status === "SUCCEEDED"));
+  await stop(child); child = await start();
+  const assistantDraft = await get("/assistant/state");
+  assert.equal(assistantDraft.conversation.turns[0].preview.days.length, 2);
+  assert.equal(assistantDraft.days[1].stops[0].title, "Assistant museum", "Assistant changed the trip before approval");
+  await get("/assistant/apply"); await get("/assistant/apply");
+  const assistantApplied = await get("/assistant/state");
+  assert.equal(assistantApplied.days[2].stops[0].title, "Assistant museum");
+  assert.ok(assistantApplied.conversation.turns[0].appliedAt);
   await get("/notifications/start");
   const failedEmail = await until(s => s.emailAttempts.length === 1 && s.notifications[0].attempts === 1);
   assert.equal(failedEmail.notifications[0].emailStatus, "queued");

@@ -7,7 +7,7 @@ import { snapshotItinerary } from "@/server/itinerary/service";
 import type { PlanStop, Proposal } from "./schema";
 import type { Prisma } from "@/generated/prisma/client";
 
-function stopData(s: PlanStop, currency: string, position: number, plan: "A" | "B"): Omit<Prisma.StopUncheckedCreateInput, "tripId" | "dayId"> {
+export function planStopData(s: PlanStop, currency: string, position: number, plan: "A" | "B"): Omit<Prisma.StopUncheckedCreateInput, "tripId" | "dayId"> {
   const factor = 10 ** currencyDigits(currency);
   return {
     plan,
@@ -48,7 +48,7 @@ function stopData(s: PlanStop, currency: string, position: number, plan: "A" | "
 export async function applyProposal(userId: string, tripId: string, jobId: string, dates: string[]) {
   await requireTrip(tripId, userId, "edit");
   const job = await prisma.generationJob.findFirst({ where: { id: jobId, tripId } });
-  if (!job || !job.proposal || job.kind === "swap") throw new AppError("NOT_FOUND", "There is no draft to apply.");
+  if (!job || !job.proposal || !["full", "days"].includes(job.kind)) throw new AppError("NOT_FOUND", "There is no draft to apply.");
   if (job.status !== "SUCCEEDED" && job.status !== "FAILED" && job.status !== "CANCELLED") throw new AppError("VALIDATION", "This draft is still being generated.");
   const proposal = job.proposal as unknown as Proposal;
   const chosen = proposal.days.filter((d) => dates.includes(d.date));
@@ -70,9 +70,9 @@ export async function applyProposal(userId: string, tripId: string, jobId: strin
         ].sort((a, b) => a.time.localeCompare(b.time));
         for (const [pos, item] of planA.entries()) {
           if (item.kind === "keep") await tx.stop.update({ where: { id: item.id }, data: { position: pos } });
-          else await tx.stop.create({ data: { ...stopData(d.stops[item.i], trip.currency, pos, "A"), tripId, dayId: day.id, createdById: userId } });
+          else await tx.stop.create({ data: { ...planStopData(d.stops[item.i], trip.currency, pos, "A"), tripId, dayId: day.id, createdById: userId } });
         }
-        for (const [i, s] of d.planB.entries()) await tx.stop.create({ data: { ...stopData(s, trip.currency, i, "B"), tripId, dayId: day.id, createdById: userId } });
+        for (const [i, s] of d.planB.entries()) await tx.stop.create({ data: { ...planStopData(s, trip.currency, i, "B"), tripId, dayId: day.id, createdById: userId } });
         await tx.itineraryDay.update({
           where: { id: day.id },
           data: {

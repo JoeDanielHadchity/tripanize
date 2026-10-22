@@ -48,6 +48,10 @@ export async function getJob(userId: string, tripId: string, jobId: string) {
   await requireTrip(tripId, userId, "view");
   const job = await prisma.generationJob.findFirst({ where: { id: jobId, tripId } });
   if (!job) throw new AppError("NOT_FOUND", "Planning job not found.");
+  if (job.kind === "assistant") {
+    const { requireAssistantJob } = await import("@/server/assistant/service");
+    return requireAssistantJob(userId, tripId, jobId);
+  }
   return job;
 }
 
@@ -60,6 +64,10 @@ export async function cancelJob(userId: string, tripId: string, jobId: string) {
   await requireTrip(tripId, userId, "edit");
   const job = await prisma.generationJob.findFirst({ where: { id: jobId, tripId } });
   if (!job) throw new AppError("NOT_FOUND", "Job not found.");
+  if (job.kind === "assistant") {
+    const { requireAssistantJob } = await import("@/server/assistant/service");
+    await requireAssistantJob(userId, tripId, jobId);
+  }
   if (job.status === "QUEUED") {
     await prisma.generationJob.updateMany({ where: { id: jobId, status: "QUEUED" }, data: { status: "CANCELLED", finishedAt: new Date(), cancelRequested: true } });
   } else if (job.status === "RUNNING") {

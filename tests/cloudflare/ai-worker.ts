@@ -15,6 +15,8 @@ import { getPlanQuestions, STANDARD_QUESTIONS } from "../../src/server/planner/q
 import type { Generator, PlanCheckpoint } from "../../src/server/planner/run";
 import { recordChange } from "../../src/server/audit";
 import { sendNextChangeEmail } from "../../src/server/notifications/changes";
+import { sendAssistantMessage, getAssistantConversation, applyAssistantChanges } from "../../src/server/assistant/service";
+import { addStop } from "../../src/server/itinerary/service";
 
 interface Env { PROBE: DurableObjectNamespace }
 export class AiProbe extends DurableObject<Env> {
@@ -29,10 +31,10 @@ export class AiProbe extends DurableObject<Env> {
     const data = JSON.parse(opts.input.match(/<trip_data>\n([\s\S]*)\n<\/trip_data>/)![1]);
     await this.serialize(async () => {
       const calls = await this.ctx.storage.get<string[][]>("calls") ?? [];
-      await this.ctx.storage.put("calls", [...calls, data.datesToPlan ?? ["questions"]]);
+      await this.ctx.storage.put("calls", [...calls, data.datesToPlan ?? [opts.name === "trip_assistant" ? "assistant" : "questions"]]);
     });
     await new Promise(resolve => setTimeout(resolve, 1200));
-    return { model: "isolated-stub", sources: ["https://example.test/source"], usage: null, data: opts.name === "plan_questions" ? { questions: STANDARD_QUESTIONS } : {
+    return { model: "isolated-stub", sources: ["https://example.test/source"], usage: null, data: opts.name === "trip_assistant" ? { reply: "Proposed day swap", edits: [{ type: "swap_days", date: data.trip.days[1].date, otherDate: data.trip.days[2].date }] } : opts.name === "plan_questions" ? { questions: STANDARD_QUESTIONS } : {
       summary: "Local test draft", generalNotes: [], unplacedMustSees: [],
       days: data.datesToPlan.map((date: string) => ({ date, area: "Lisbon", title: "Explore", isTravelDay: false, driveMinutes: null, stops: [], planB: [], planBNote: null, notes: [], questions: [], estCost: null })),
     } };
@@ -75,6 +77,20 @@ export class AiProbe extends DurableObject<Env> {
         }
         const fixture = await this.ctx.storage.get<{ ownerId: string; tripId: string }>("fixture");
         if (!fixture) return Response.json({ error: "Start first" }, { status: 400 });
+        if (url.pathname === "/assistant/start") {
+          const days = await this.db.itineraryDay.findMany({ where: { tripId: fixture.tripId }, orderBy: { date: "asc" } });
+          await addStop(fixture.ownerId, fixture.tripId, { dayId: days[1].id, input: { title: "Assistant museum", startTime: "10:00", durationMin: 60 } });
+          await addStop(fixture.ownerId, fixture.tripId, { dayId: days[2].id, input: { title: "Assistant park", startTime: "11:00", durationMin: 45 } });
+          const input = { clientId: crypto.randomUUID(), message: "Swap days 2 and 3", selectedDate: days[1].date };
+          const queued = await sendAssistantMessage(fixture.ownerId, fixture.tripId, input);
+          const duplicate = await sendAssistantMessage(fixture.ownerId, fixture.tripId, input);
+          return Response.json({ id: queued.id, duplicateId: duplicate.id });
+        }
+        if (url.pathname === "/assistant/state") return Response.json({ conversation: await getAssistantConversation(fixture.ownerId, fixture.tripId), days: await this.db.itineraryDay.findMany({ where: { tripId: fixture.tripId }, orderBy: { date: "asc" }, select: { date: true, stops: { select: { title: true } } } }) });
+        if (url.pathname === "/assistant/apply") {
+          const c = await getAssistantConversation(fixture.ownerId, fixture.tripId);
+          return Response.json(await applyAssistantChanges(fixture.ownerId, fixture.tripId, c.latestId!));
+        }
         if (url.pathname === "/locations/start") {
           await changeMemberLocation(fixture.ownerId, fixture.tripId, { op: "start", scope: (await getLocationSelf(fixture.ownerId, fixture.tripId)).scope, token: "isolated-location-lease-01234567890123456789", expectedVersion: 0, lat: 38.7, lng: -9.1, accuracy: 20, capturedAt: new Date().toISOString() });
           await this.db.memberLocation.updateMany({ data: { expiresAt: new Date(Date.now() + 3000) } });
