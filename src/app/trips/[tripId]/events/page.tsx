@@ -10,8 +10,9 @@ import { EventsView } from "./view";
 
 export const metadata: Metadata = { title: "Events" };
 
-export default async function EventsPage({ params }: { params: Promise<{ tripId: string }> }) {
+export default async function EventsPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ event?: string }> }) {
   const { tripId } = await params;
+  const { event: initialEventId } = await searchParams;
   const user = await requireUser();
   const { access, events, runs, lastSuccess, settings } = await listEvents(user.id, tripId);
   const [days, pref, trip, deliveries] = await Promise.all([
@@ -25,6 +26,7 @@ export default async function EventsPage({ params }: { params: Promise<{ tripId:
       <PageHeader title="Events shortlist" subtitle="Exhibitions, concerts, festivals and more that fit your route and dates. New finds land here — never directly in your plan." />
       <EventsView
         tripId={tripId}
+        initialEventId={initialEventId ?? null}
         canEdit={roleAllows(access.role, "edit")}
         aiReady={aiConfigured()}
         emailReady={emailConfigured()}
@@ -36,7 +38,7 @@ export default async function EventsPage({ params }: { params: Promise<{ tripId:
         pref={{ emailEnabled: pref?.emailEnabled ?? false, frequency: pref?.frequency ?? "immediate", changeTypes: pref?.changeTypes ?? ["date", "venue", "cancelled", "sold_out"] }}
         deliveries={deliveries.map((d) => ({ id: d.id, subject: d.subject, status: d.status, at: d.createdAt.toISOString() }))}
         events={events.map((e) => ({
-          id: e.id, title: e.title, category: e.category, date: e.date, endDate: e.endDate, startTime: e.startTime, dateVerified: e.dateVerified, venue: e.venue, city: e.city, address: e.address,
+          id: e.id, booking: e.booking, title: e.title, category: e.category, date: e.date, endDate: e.endDate, startTime: e.startTime, dateVerified: e.dateVerified, venue: e.venue, city: e.city, address: e.address,
           officialUrl: e.officialUrl, bookingUrl: e.bookingUrl, priceText: e.priceText, availability: e.availability, bookingDeadline: e.bookingDeadline, whyFits: e.whyFits, uncertainty: e.uncertainty,
           cancelled: e.cancelled, soldOut: e.soldOut, status: e.status, origin: e.origin, lastCheckedAt: e.lastCheckedAt?.toISOString() ?? null,
           changes: (e.changes as { type: string; summary: string; at: string }[] | null) ?? [], sources: e.sources.map((s) => ({ url: s.url, title: s.title })), scheduledDate: e.stop?.day?.date ?? null,

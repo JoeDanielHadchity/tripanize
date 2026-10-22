@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, EmptyState, ExternalLink, Field, Input, Notice, Select, Textarea, cx } from "@/components/ui";
 import { Dialog, useAction, useConfirm } from "@/components/client";
 import { deleteAttachmentAction, deleteBookingAction, saveBookingAction, setBookingStatusAction, uploadAttachmentAction } from "@/app/actions/bookings";
 import { BOOKING_CATEGORIES, BOOKING_STATUSES } from "@/lib/constants";
 import { CURRENCIES, formatMoney, minorToDecimalString } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
+import type { SuggestedEventBooking } from "@/lib/event-bookings";
 
 type Status = (typeof BOOKING_STATUSES)[number][0];
 type B = {
+  event: { id: string; title: string; cancelled: boolean; soldOut: boolean } | null;
   id: string; version: number; title: string; category: string; date: string | null; startTime: string | null; endDate: string | null; durationMin: number | null; guests: string | null; status: Status; priority: number;
   whenToBook: string | null; estCostMinor: number | null; finalCostMinor: number | null; currency: string; ticketType: string | null; preferences: string | null; address: string | null; bookingUrl: string | null;
   confirmationRef: string | null; notes: string | null; cancellationTerms: string | null; attachments: { id: string; fileName: string; sizeBytes: number; mimeType: string }[]; hasExpense: boolean; inItinerary: boolean; updatedAt: string;
@@ -20,13 +22,19 @@ const catLabel = Object.fromEntries(BOOKING_CATEGORIES) as Record<string, string
 const statusLabel = Object.fromEntries(BOOKING_STATUSES) as Record<string, string>;
 const statusTone = (s: string) => (s === "BOOKED" || s === "PAID" ? "sage" : s === "CANCELLED" ? "neutral" : s === "TO_BOOK" || s === "REQUESTED" ? "warn" : "accent") as "sage" | "neutral" | "warn" | "accent";
 
-export function BookingsView({ tripId, canEdit, currency, bookings, tripDates }: { tripId: string; canEdit: boolean; currency: string; bookings: B[]; tripDates: { start: string | null; end: string | null } }) {
+export function BookingsView({ tripId, canEdit, currency, bookings, tripDates, suggestedEvents, initialEvent }: { tripId: string; canEdit: boolean; currency: string; bookings: B[]; tripDates: { start: string | null; end: string | null }; suggestedEvents: SuggestedEventBooking[]; initialEvent: SuggestedEventBooking | null }) {
   const { run, pending } = useAction();
   const confirm = useConfirm();
-  const [editing, setEditing] = useState<B | "new" | null>(null);
+  const [editing, setEditing] = useState<B | "new" | null>(initialEvent && canEdit ? "new" : null);
+  const [fromEvent, setFromEvent] = useState<SuggestedEventBooking | null>(initialEvent);
+  const addOwnBooking = () => { setFromEvent(null); setEditing("new"); };
   const [filter, setFilter] = useState<"all" | "open" | "confirmed" | "cancelled">("all");
   const [open, setOpen] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const target = bookings.find(b => window.location.hash === `#b-${b.id}`);
+    if (target) { setOpen(target.id); if (target.status === "CANCELLED") setFilter("cancelled"); }
+  }, [bookings]);
 
   const anchors = bookings.filter((b) => (b.status === "IDEA" || b.status === "TO_BOOK") && (b.priority === 1 || b.category === "ACCOMMODATION" || ["FLIGHT", "TRAIN", "CAR_RENTAL"].includes(b.category)));
   const shown = bookings.filter((b) => filter === "all" ? b.status !== "CANCELLED" : filter === "open" ? ["IDEA", "TO_BOOK", "REQUESTED"].includes(b.status) : filter === "confirmed" ? ["BOOKED", "PAID"].includes(b.status) : b.status === "CANCELLED");
@@ -56,8 +64,8 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates }:
 
       <section aria-labelledby="all-b">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="all-b" className="font-display text-lg font-semibold">All bookings</h2>
-          {canEdit && <Button variant="primary" onClick={() => setEditing("new")}>+ Add booking</Button>}
+          <h2 id="all-b" className="font-display text-lg font-semibold">Your bookings</h2>
+          {canEdit && <Button variant="primary" onClick={addOwnBooking}>+ Add booking</Button>}
         </div>
         <div className="mt-3 flex gap-1 overflow-x-auto" role="group" aria-label="Filter bookings">
           {(["all", "open", "confirmed", "cancelled"] as const).map((f) => (
@@ -67,7 +75,7 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates }:
           ))}
         </div>
         {bookings.length === 0 ? (
-          <div className="mt-4"><EmptyState title="No bookings yet" action={canEdit ? <Button variant="primary" onClick={() => setEditing("new")}>Add your first booking</Button> : undefined}>Track stays, transport, tickets and restaurant reservations — whether they're ideas or already paid.</EmptyState></div>
+          <div className="mt-4"><EmptyState title="No bookings yet" action={canEdit ? <Button variant="primary" onClick={addOwnBooking}>Add your first booking</Button> : undefined}>Add your own stays, transport, tickets and restaurant reservations, or track an event suggestion below.</EmptyState></div>
         ) : shown.length === 0 ? <p className="mt-4 text-sm text-muted">Nothing here.</p> : (
           <ul className="mt-4 space-y-2">
             {shown.map((b) => (
@@ -79,7 +87,10 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates }:
                       <p className="text-sm text-muted">{catLabel[b.category]} · {b.date ? `${formatDate(b.date)}${b.startTime ? ` ${b.startTime}` : ""}${b.endDate && b.endDate !== b.date ? ` – ${formatDate(b.endDate)}` : ""}` : "Date not selected"}{b.priority === 1 ? " · High priority" : ""}</p>
                       <div className="mt-1 flex flex-wrap gap-1">
                         <Badge tone={statusTone(b.status)}>{statusLabel[b.status]}</Badge>
-                        {b.inItinerary ? <Badge>In itinerary</Badge> : b.date ? <Badge tone="warn" title="The date is outside the trip days">Not in a trip day</Badge> : <Badge>Unscheduled</Badge>}
+                        {b.event && <Link href={`/trips/${tripId}/events?event=${b.event.id}#event-${b.event.id}`} className="text-xs font-medium text-accent-ink underline">Linked event</Link>}
+                        {b.event?.cancelled && <Badge tone="danger">Event reported cancelled</Badge>}
+                        {b.event?.soldOut && <Badge tone="warn">Event reported sold out</Badge>}
+                        {b.inItinerary ? <Badge>In itinerary</Badge> : <Badge>Not scheduled</Badge>}
                         {b.finalCostMinor !== null ? <Badge>{formatMoney(b.finalCostMinor, b.currency)} final</Badge> : b.estCostMinor !== null ? <Badge>≈ {formatMoney(b.estCostMinor, b.currency)} est.</Badge> : null}
                         {b.hasExpense && <Badge tone="sage">In expenses</Badge>}
                       </div>
@@ -124,7 +135,7 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates }:
                       </div>
                       {canEdit && (
                         <div className="flex flex-wrap gap-2 pt-2">
-                          <Button onClick={() => setEditing(b)}>Edit</Button>
+                          <Button onClick={() => { setFromEvent(null); setEditing(b); }}>Edit</Button>
                           {(b.status === "PAID" || b.status === "BOOKED") && !b.hasExpense && <Link href={`/trips/${tripId}/expenses?fromBooking=${b.id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-medium">Record payment as expense</Link>}
                           <Button variant="danger" onClick={async () => { if (await confirm({ title: "Delete booking?", message: `Delete “${b.title}”? It will also disappear from the itinerary. Linked expenses are kept.`, danger: true, confirmLabel: "Delete" })) run(() => deleteBookingAction(tripId, b.id), { success: "Booking deleted" }); }}>Delete</Button>
                         </div>
@@ -137,18 +148,61 @@ export function BookingsView({ tripId, canEdit, currency, bookings, tripDates }:
           </ul>
         )}
       </section>
-      <BookingDialog key={editing === "new" ? "new" : editing?.id ?? "none"} tripId={tripId} currency={currency} booking={editing} tripDates={tripDates} onClose={() => setEditing(null)} />
+      <section aria-labelledby="suggested-event-bookings" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="suggested-event-bookings" className="font-display text-lg font-semibold">Suggested event bookings</h2>
+          <Link href={`/trips/${tripId}/events`} className="text-sm font-medium text-accent-ink underline">Explore events</Link>
+        </div>
+        <p className="text-sm text-muted">Events discovered for your trip. Check the ticket link, then add a booking to track its status, confirmation and files.</p>
+        {suggestedEvents.length === 0 ? (
+          <Card><p className="text-sm text-muted">No new suggestions right now. Find events on the Events page; events you already track are in Your bookings.</p></Card>
+        ) : (
+          <ul className="grid gap-3 lg:grid-cols-2">
+            {suggestedEvents.map(e => (
+              <li key={e.id}>
+                <Card className="h-full space-y-3">
+                  <div>
+                    <h3 className="font-semibold">{e.title}</h3>
+                    <p className="text-sm text-muted">{[e.venue, e.city].filter(Boolean).join(", ")}</p>
+                    <p className="mt-1 text-sm">{e.date ? `${formatDate(e.date)}${e.endDate && e.endDate !== e.date ? ` – ${formatDate(e.endDate)}` : ""}${e.startTime ? ` · ${e.startTime}` : ""}` : "Date to confirm"}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge tone={e.dateVerified ? "sage" : "warn"}>{e.dateVerified ? "Date checked at source" : "Date to confirm"}</Badge>
+                    {e.soldOut && <Badge tone="warn">Reported sold out</Badge>}
+                    {e.scheduledDate && <Badge>In itinerary</Badge>}
+                  </div>
+                  {(e.priceText || e.availability) && <p className="text-sm text-muted">{[e.priceText, e.availability].filter(Boolean).join(" · ")}</p>}
+                  {e.bookingDeadline && <p className="text-sm text-warn-ink">Book by: {e.bookingDeadline}</p>}
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    {e.bookingUrl ? <ExternalLink href={e.bookingUrl}>Tickets / booking site</ExternalLink> : e.officialUrl ? <ExternalLink href={e.officialUrl}>Check official event page</ExternalLink> : <span className="text-muted">Booking link not available yet</span>}
+                    <Link href={`/trips/${tripId}/events?event=${e.id}#event-${e.id}`} className="text-accent-ink underline">Event details</Link>
+                    {canEdit && <Button disabled={e.soldOut} onClick={() => { setFromEvent(e); setEditing("new"); }}>Add to bookings</Button>}
+                  </div>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <BookingDialog key={editing === "new" ? fromEvent?.id ?? "new" : editing?.id ?? "none"} tripId={tripId} currency={currency} booking={editing} fromEvent={fromEvent} tripDates={tripDates} onClose={() => setEditing(null)} />
     </div>
   );
 }
 
-function BookingDialog({ tripId, currency, booking, onClose, tripDates }: { tripId: string; currency: string; booking: B | "new" | null; onClose: () => void; tripDates: { start: string | null; end: string | null } }) {
+function BookingDialog({ tripId, currency, booking, fromEvent, onClose, tripDates }: { tripId: string; currency: string; booking: B | "new" | null; fromEvent: SuggestedEventBooking | null; onClose: () => void; tripDates: { start: string | null; end: string | null } }) {
   const { run, pending } = useAction();
   const [error, setError] = useState<string | null>(null);
-  const b = booking && booking !== "new" ? booking : null;
+  const existing = booking && booking !== "new" ? booking : null;
+  const b = existing ?? (fromEvent ? {
+    title: fromEvent.title, category: "EXPERIENCE", status: "TO_BOOK", currency,
+    date: fromEvent.scheduledDate ?? fromEvent.date, startTime: fromEvent.scheduledTime ?? fromEvent.startTime, endDate: null,
+    durationMin: fromEvent.durationMin, address: fromEvent.address ?? [fromEvent.venue, fromEvent.city].filter(Boolean).join(", "),
+    bookingUrl: fromEvent.bookingUrl ?? fromEvent.officialUrl, whenToBook: fromEvent.bookingDeadline,
+    notes: [fromEvent.priceText && `Listed price: ${fromEvent.priceText}`, !fromEvent.dateVerified && "Event date/time needs confirmation at the official source."].filter(Boolean).join("\n"),
+  } : null) as Partial<B> | null;
   const cur = b?.currency ?? currency;
   return (
-    <Dialog open={Boolean(booking)} onClose={onClose} title={b ? `Edit “${b.title}”` : "Add a booking"} wide>
+    <Dialog open={Boolean(booking)} onClose={onClose} title={existing ? `Edit “${existing.title}”` : fromEvent ? "Add event booking" : "Add a booking"} wide>
       <form
         className="grid gap-3 sm:grid-cols-2"
         onSubmit={async (e) => {
@@ -157,12 +211,14 @@ function BookingDialog({ tripId, currency, booking, onClose, tripDates }: { trip
           const s = (k: string) => String(f.get(k) ?? "").trim() || null;
           setError(null);
           const r = await run(() => saveBookingAction(tripId, b?.id ?? null, {
+            eventId: existing?.event?.id ?? fromEvent?.id ?? null,
             title: s("title") ?? "", category: s("category") as never, status: s("status") as never, currency: s("currency") ?? currency, date: s("date"), startTime: s("startTime"), endDate: s("endDate"), durationMin: s("durationMin"), guests: s("guests"), priority: s("priority") ?? "2",
             whenToBook: s("whenToBook"), estCost: s("estCost"), finalCost: s("finalCost"), ticketType: s("ticketType"), preferences: s("preferences"), address: s("address"), bookingUrl: s("bookingUrl"), confirmationRef: s("confirmationRef"), notes: s("notes"), cancellationTerms: s("cancellationTerms"),
-          }, b?.version ?? 0), { success: b ? "Booking saved" : "Booking added", onError: (r) => setError(r.error) });
+          }, b?.version ?? 0), { success: existing ? "Booking saved" : "Booking added", onError: (r) => setError(r.error) });
           if (r) onClose();
         }}
       >
+        {fromEvent && <Notice className="sm:col-span-2">Linked to “{fromEvent.title}”. Review the date, time and ticket details before saving. A “To book” entry stays off your itinerary until you schedule the event or mark the booking Booked or Paid.</Notice>}
         <Field label="Title" htmlFor="b-title" className="sm:col-span-2"><Input id="b-title" name="title" required defaultValue={b?.title} maxLength={160} /></Field>
         <Field label="Category" htmlFor="b-cat"><Select id="b-cat" name="category" defaultValue={b?.category ?? "ATTRACTION"}>{BOOKING_CATEGORIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select></Field>
         <Field label="Status" htmlFor="b-status"><Select id="b-status" name="status" defaultValue={b?.status ?? "IDEA"}>{BOOKING_STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select></Field>

@@ -452,8 +452,12 @@ export async function restoreVersion(userId: string, tripId: string, versionId: 
       if (day) await tx.itineraryDay.update({ where: { id: day.id }, data: { title: d.title, area: d.area, notes: d.notes, questions: d.questions, isTravelDay: d.isTravelDay, driveMinutes: d.driveMinutes, activePlan: d.activePlan, planBNote: d.planBNote, estCostMinor: d.estCostMinor, version: { increment: 1 } } });
     }
     const liveEvents = new Set((await tx.tripEvent.findMany({ where: { tripId }, select: { id: true } })).map((e) => e.id));
+    const bookedEvents = new Set((await tx.booking.findMany({ where: { tripId, eventId: { not: null } }, select: { eventId: true } })).map(b => b.eventId));
     for (const s of snap.stops) {
       const { date, ...rest } = s;
+      // An event may have gained a canonical booking since this snapshot. That
+      // reservation is not rolled back or duplicated by itinerary history.
+      if (rest.eventId && bookedEvents.has(rest.eventId)) continue;
       const day = date ? byDate.get(date) : undefined;
       await tx.stop.create({ data: { ...rest, eventId: rest.eventId && liveEvents.has(rest.eventId) ? rest.eventId : null, tripId, dayId: day?.id ?? null } });
     }
