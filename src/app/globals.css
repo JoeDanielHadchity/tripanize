@@ -15,11 +15,11 @@
   --ink: #1b273b;
   --muted: #5b6372;
   --line: #dfe3eb;
-  --accent: #2457c5;
-  --accent-ink: #1e479e;
-  --accent-soft: #e7eeff;
+  --accent: #0e8388;
+  --accent-ink: #09666b;
+  --accent-soft: #ddf1ef;
   --on-accent: #ffffff;
-  /* Legacy "sage" tokens hold Mediterranean burnt orange. */
+  /* Legacy "sage" tokens hold the burnt orange secondary color. */
   --sage: #bc5633;
   --sage-ink: #9f3f1f;
   --sage-soft: #fae6dc;
@@ -27,8 +27,8 @@
   --warn-soft: #fbefd5;
   --danger: #a3261c;
   --danger-soft: #f9e0dc;
-  --focus: #2457c5;
-  --brand-gradient: linear-gradient(150deg, #2457c5 0%, #315fa8 55%, #9f3f1f 100%);
+  --focus: #0e8388;
+  --brand-gradient: linear-gradient(150deg, #09666b 0%, #0c7177 55%, #9f3f1f 100%);
   color-scheme: light;
 }
 
@@ -41,10 +41,10 @@
     --ink: #f2f3f7;
     --muted: #b1bbce;
     --line: #35415a;
-    --accent: #8eafff;
-    --accent-ink: #b5cafff;
-    --accent-soft: #202f53;
-    --on-accent: #111c36;
+    --accent: #55bec1;
+    --accent-ink: #93d9da;
+    --accent-soft: #173f46;
+    --on-accent: #092629;
     --sage: #efa580;
     --sage-ink: #f6b99c;
     --sage-soft: #3b2925;
@@ -52,7 +52,7 @@
     --warn-soft: #3a2f17;
     --danger: #f08a7e;
     --danger-soft: #3d201c;
-    --focus: #9cbcff;
+    --focus: #74cccf;
     color-scheme: dark;
   }
 }
@@ -64,10 +64,10 @@
   --ink: #f2f3f7;
   --muted: #b1bbce;
   --line: #35415a;
-  --accent: #8eafff;
-  --accent-ink: #b5cafff;
-  --accent-soft: #202f53;
-  --on-accent: #111c36;
+  --accent: #55bec1;
+  --accent-ink: #93d9da;
+  --accent-soft: #173f46;
+  --on-accent: #092629;
   --sage: #efa580;
   --sage-ink: #f6b99c;
   --sage-soft: #3b2925;
@@ -75,7 +75,7 @@
   --warn-soft: #3a2f17;
   --danger: #f08a7e;
   --danger-soft: #3d201c;
-  --focus: #9cbcff;
+  --focus: #74cccf;
   color-scheme: dark;
 }
 

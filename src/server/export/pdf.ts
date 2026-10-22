@@ -12,7 +12,7 @@ export type TripGuide = { name: string; dates: string; destinations: string; day
 
 const W = 595.28, H = 841.89, M = 44, RIGHT = W - M, CW = W - M * 2, BOTTOM = 776;
 const hex = (v: string) => rgb(parseInt(v.slice(0, 2), 16) / 255, parseInt(v.slice(2, 4), 16) / 255, parseInt(v.slice(4, 6), 16) / 255);
-const C = { ink: hex("1b273b"), muted: hex("5b6372"), primary: hex("2457c5"), primaryInk: hex("1e479e"), primarySoft: hex("e7eeff"), paper: hex("faf7f1"), line: hex("dfe3eb"), secondary: hex("bc5633"), secondarySoft: hex("fae6dc"), white: rgb(1, 1, 1) };
+const C = { ink: hex("1b273b"), muted: hex("5b6372"), primary: hex("0e8388"), primaryInk: hex("09666b"), primarySoft: hex("ddf1ef"), paper: hex("faf7f1"), line: hex("dfe3eb"), secondary: hex("bc5633"), secondarySoft: hex("fae6dc"), white: rgb(1, 1, 1) };
 type Face = "body" | "bold" | "display";
 type Line = { text: string; face: Face; size: number; color: RGB; leading: number; links?: GuideLink[] };
 
@@ -181,7 +181,7 @@ export async function renderTripGuide(guide: TripGuide, fontBytes: readonly Uint
     rect(page, 0, 0, W, H, C.paper);
     rect(page, W - 18, 0, 18, H, C.primary);
     brand(page, 44, true);
-    text(page, "YOUR TRAVEL GUIDE", M, 130, 9, "bold", C.primary);
+    text(page, "YOUR TRAVEL GUIDE", M, 130, 9, "bold", C.primaryInk);
     let titleSize = 45;
     while (titleSize > 22 && wrap(guide.name, CW - 15, titleSize, "display").length > 4) titleSize -= 1;
     y = 162;
@@ -300,7 +300,7 @@ export async function renderTripGuide(guide: TripGuide, fontBytes: readonly Uint
     rule(p, 795);
     text(p, `TRIPANIZE  /  Exported ${exported}`, M, 808, 7, "bold", C.muted);
     const folio = `${String(i + 1).padStart(2, "0")} / ${String(pages.length).padStart(2, "0")}`;
-    text(p, folio, RIGHT - measure(folio, 7, "bold"), 808, 7, "bold", C.primary);
+    text(p, folio, RIGHT - measure(folio, 7, "bold"), 808, 7, "bold", C.primaryInk);
     if (i > 0 || guide.singleDay) text(p, "Times are local. Costs, travel times and hours are estimates unless verified.", M, 780, 6.5, "body", C.muted);
     urlLink(p, "https://tripanize.app", M, 805, 55, 14);
   });
