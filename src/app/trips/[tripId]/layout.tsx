@@ -9,6 +9,7 @@ import { SyncWatcher } from "@/components/sync";
 import { SaveOfflineSnapshot } from "@/components/offline";
 import { Badge } from "@/components/ui";
 import { formatDateRange } from "@/lib/dates";
+import { LocationSharingProvider } from "@/components/location-sharing";
 
 export default async function TripLayout({ children, params }: { children: React.ReactNode; params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
@@ -26,6 +27,7 @@ export default async function TripLayout({ children, params }: { children: React
       <AppHeader user={user} />
       <SyncWatcher tripId={trip.id} revision={trip.revision} userId={user.id} />
       <SaveOfflineSnapshot tripId={trip.id} />
+      <LocationSharingProvider key={trip.id} tripId={trip.id}>
       <div className="mx-auto max-w-6xl px-4 pb-28 pt-4 lg:grid lg:grid-cols-[13rem_1fr] lg:gap-8 lg:pb-12">
         <aside className="lg:pt-1">
           <div className="mb-3 lg:mb-6">
@@ -38,6 +40,7 @@ export default async function TripLayout({ children, params }: { children: React
         </aside>
         <main id="main" className="min-w-0">{children}</main>
       </div>
+      </LocationSharingProvider>
     </>
   );
 }

@@ -2,6 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migration.sql";
 import eventBookings from "../../prisma/migrations/202610220002_event_bookings/migration.sql";
 import tripNotifications from "../../prisma/migrations/202610220003_trip_notifications/migration.sql";
+import memberLocations from "../../prisma/migrations/202610220004_member_locations/migration.sql";
+import { changeMemberLocation, getLocationSelf, getMemberLocations } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
 import { appRuntime } from "../../src/server/cloudflare/runtime";
@@ -22,6 +24,7 @@ export class StorageProbe extends DurableObject<Env> {
       ctx.storage.transactionSync(() => {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(column => column.name === "eventId")) ctx.storage.sql.exec(eventBookings);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("NotificationPreference")').toArray().some(column => column.name === "changeEmailEnabled")) ctx.storage.sql.exec(tripNotifications);
+        ctx.storage.sql.exec(memberLocations);
       });
     });
   }
@@ -33,6 +36,10 @@ export class StorageProbe extends DurableObject<Env> {
         const user = await this.db.user.create({ data: { id, email: `${id}@example.test`, name: "Cloudflare fixture" } });
         const tripId = await createTrip(user.id, { name: "Cloudflare migration check", startDate: "2027-05-01", endDate: "2027-05-03", timezone: "Europe/Paris", currency: "EUR", destinations: [{ name: "Paris" }], travelers: [{ name: "Companion", isChild: false }], interests: ["architecture"] });
         const trip = await this.db.trip.findUniqueOrThrow({ where: { id: tripId }, include: { days: true, travelers: true } });
+        const location = await changeMemberLocation(user.id, tripId, { op: "start", scope: (await getLocationSelf(user.id, tripId)).scope, token: "isolated-location-lease-01234567890123456789", expectedVersion: 0, lat: 48.85, lng: 2.35, accuracy: 25, capturedAt: new Date().toISOString() });
+        const locationVisible = (await getMemberLocations(user.id, tripId)).locations.length === 1;
+        await changeMemberLocation(user.id, tripId, { op: "stop" });
+        const locationCleared = (await getMemberLocations(user.id, tripId)).locations.length === 0 && (await this.db.memberLocation.findFirstOrThrow({ where: { sessionId: null } })).lat === null;
         const booking = await createBooking(user.id, tripId, { title: "Museum booking", category: "ATTRACTION", status: "BOOKED", currency: "EUR", date: "2027-05-02", startTime: "10:00", durationMin: 90 });
         const event = await addCustomEvent(user.id, tripId, { title: "Concert fixture", date: "2027-05-02", bookingUrl: "https://example.test/tickets" });
         const eventBooking = await createBooking(user.id, tripId, { eventId: event.id, title: event.title, category: "EXPERIENCE", status: "TO_BOOK", currency: "EUR", date: "2027-05-02" });
@@ -51,6 +58,7 @@ export class StorageProbe extends DurableObject<Env> {
         const pdf = await exportTripPdf(user.id, tripId, {});
         return Response.json({
           days: trip.days.length, interests: trip.interests,
+          locationVisible: Boolean(location.sessionId) && locationVisible, locationCleared,
           bookingProjections: await this.db.stop.count({ where: { bookingId: booking.id } }),
           linkedEventProjections: await this.db.stop.count({ where: { bookingId: eventBooking.id, eventId: event.id } }), suggestionStayedUnscheduled,
           totalMinor: shares.reduce((n, s) => n + s.amountMinor, 0), rolledBack,

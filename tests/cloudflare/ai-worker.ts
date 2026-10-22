@@ -2,6 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migration.sql";
 import eventBookings from "../../prisma/migrations/202610220002_event_bookings/migration.sql";
 import tripNotifications from "../../prisma/migrations/202610220003_trip_notifications/migration.sql";
+import memberLocations from "../../prisma/migrations/202610220004_member_locations/migration.sql";
+import { changeMemberLocation, getLocationSelf } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
 import { appRuntime } from "../../src/server/cloudflare/runtime";
@@ -49,6 +51,7 @@ export class AiProbe extends DurableObject<Env> {
       ctx.storage.transactionSync(() => {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(column => column.name === "eventId")) ctx.storage.sql.exec(eventBookings);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("NotificationPreference")').toArray().some(column => column.name === "changeEmailEnabled")) ctx.storage.sql.exec(tripNotifications);
+        ctx.storage.sql.exec(memberLocations);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });
@@ -70,6 +73,13 @@ export class AiProbe extends DurableObject<Env> {
         }
         const fixture = await this.ctx.storage.get<{ ownerId: string; tripId: string }>("fixture");
         if (!fixture) return Response.json({ error: "Start first" }, { status: 400 });
+        if (url.pathname === "/locations/start") {
+          await changeMemberLocation(fixture.ownerId, fixture.tripId, { op: "start", scope: (await getLocationSelf(fixture.ownerId, fixture.tripId)).scope, token: "isolated-location-lease-01234567890123456789", expectedVersion: 0, lat: 38.7, lng: -9.1, accuracy: 20, capturedAt: new Date().toISOString() });
+          await this.db.memberLocation.updateMany({ data: { expiresAt: new Date(Date.now() + 3000) } });
+          await this.tasks.wake();
+          return Response.json({ shared: true });
+        }
+        if (url.pathname === "/locations/state") return Response.json(await this.db.memberLocation.findMany({ select: { lat: true, leaseHash: true, expiresAt: true } }));
         if (url.pathname === "/notifications/start") {
           const id = crypto.randomUUID();
           await this.db.user.create({ data: { id, name: "Notification recipient", email: `${id}@example.test`, emailVerified: true } });
