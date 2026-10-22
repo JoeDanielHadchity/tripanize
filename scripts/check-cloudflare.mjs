@@ -68,6 +68,13 @@ try {
   } else {
     const home = await fetch(origin); assert.equal(home.status, 200); const html = await home.text(); assert.match(html, /Tripanize/);
     const plansPage = await fetch(origin + "/plans"); assert.equal(plansPage.status, 200); assert.match(await plansPage.text(), /First 3 days per trip/);
+    for (const path of ["/terms", "/privacy", "/refunds", "/contact"]) {
+      assert.match(html, new RegExp(`href="${path}"`));
+      const policy = await fetch(origin + path); assert.equal(policy.status, 200, path); assert.equal(new URL(policy.url).pathname, path);
+      assert.match(await policy.text(), /Joe-Daniel Hadchity/);
+    }
+    const unsupported = await fetch(origin + "/api/support", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ name: "Isolated test", email: "test@example.test", topic: "general", message: "An isolated test. No email should be sent.", website: "", requestId: crypto.randomUUID() }) });
+    assert.equal(unsupported.status, 503); assert.equal((await unsupported.json()).sent, undefined);
     const assets = [...new Set([...html.matchAll(/(?:src|href)="([^\"]+)"/g)].map((m) => m[1]).filter((v) => v.startsWith("/_next/static/") && /\.(js|css)$/.test(v)))];
     assert.ok(assets.length);
     for (const path of assets.slice(0, 5)) assert.equal((await fetch(origin + path)).status, 200, path);

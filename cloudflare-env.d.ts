@@ -12,6 +12,7 @@ interface CloudflareEnv {
   OPENAI_WEB_SEARCH?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  SUPPORT_EMAIL?: string;
   PLAN_ACCESS_ENABLED?: string;
   PADDLE_ENVIRONMENT?: "sandbox" | "live";
   PADDLE_API_KEY?: string;

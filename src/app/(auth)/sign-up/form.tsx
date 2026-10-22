@@ -39,6 +39,7 @@ export function SignUpForm({ next }: { next: string }) {
         <Field label="Password" htmlFor="password" hint="At least 10 characters.">
           <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={10} />
         </Field>
+        <p className="text-xs leading-5 text-muted">By creating an account, you agree to our <Link href="/terms" className="text-accent-ink underline">Terms of service</Link>. Read our <Link href="/privacy" className="text-accent-ink underline">Privacy policy</Link> to understand how your information is used.</p>
         <Button type="submit" variant="primary" className="w-full" disabled={pending}>
           {pending ? "Creating account…" : "Create account"}
         </Button>
