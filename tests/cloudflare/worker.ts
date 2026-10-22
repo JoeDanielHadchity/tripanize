@@ -22,6 +22,7 @@ import { exportTripPdf } from "../../src/server/export";
 import { deleteChatMessage, getChatPage, getChatSummary, markChatRead, sendChatMessage } from "../../src/server/chat/service";
 import { getTripPlan } from "../../src/server/plans/access";
 import { planningScope } from "../../src/server/plans/planning";
+import { paddleRequest } from "../../src/server/billing/paddle";
 
 interface Env { PROBE: DurableObjectNamespace; FILES: R2Bucket; ASSETS: Fetcher }
 export class StorageProbe extends DurableObject<Env> {
@@ -45,6 +46,27 @@ export class StorageProbe extends DurableObject<Env> {
     try {
       return await appRuntime.run({ database: this.db, files: this.env.FILES, assets: this.env.ASSETS, authSecret: "test-only-not-used-for-production" }, async () => {
         if (new URL(request.url).pathname === "/count") return Response.json({ users: await this.db.user.count() });
+        if (new URL(request.url).pathname === "/billing-request") {
+          return appRuntime.run({ database: this.db, authSecret: "isolated-billing-fixture", paddle: { environment: "sandbox", apiKey: "isolated-native-fixture", clientToken: "test_fixture", webhookSecret: "fixture", prices: {}, checkoutEnabled: true } }, async () => {
+            const originalFetch = globalThis.fetch;
+            let nativeRequests = 0, rejectedRedirects = 0, pinnedHost = true;
+            globalThis.fetch = async (input, init) => {
+              // Construct a real workerd Request: Node fetch mocks missed its redirect restriction.
+              const outgoing = new Request(input, init);
+              nativeRequests++;
+              pinnedHost &&= new URL(outgoing.url).hostname === "sandbox-api.paddle.com";
+              if (outgoing.redirect !== "manual") throw new Error("Billing must not follow redirects");
+              return Response.redirect("https://outside.example.test", 302);
+            };
+            try {
+              for (const body of [undefined, { items: [] }]) {
+                try { await paddleRequest("/transactions", body); }
+                catch (error) { if ((error as { code?: string }).code === "UPSTREAM") rejectedRedirects++; else throw error; }
+              }
+            } finally { globalThis.fetch = originalFetch; }
+            return Response.json({ nativeRequests, rejectedRedirects, pinnedHost });
+          });
+        }
         if (new URL(request.url).pathname === "/plans") {
           return appRuntime.run({ database: this.db, planAccessEnabled: true, authSecret: "isolated-tier-fixture" }, async () => {
             const id = crypto.randomUUID();
