@@ -3,10 +3,10 @@ import { requireUser } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 import { roleAllows } from "@/server/auth/permissions";
 import { listBookings } from "@/server/bookings/service";
-import { PageHeader } from "@/components/ui";
+import { EventsBookingsSection } from "@/components/events-bookings-section";
 import { BookingsView } from "./view";
 
-export const metadata: Metadata = { title: "Bookings" };
+export const metadata: Metadata = { title: "Bookings · Events & bookings" };
 
 export default async function BookingsPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ event?: string }> }) {
   const { tripId } = await params;
@@ -22,8 +22,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
   });
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { currency: true, startDate: true, endDate: true } });
   return (
-    <>
-      <PageHeader title="Booking tracker" subtitle="Your reservations and booking suggestions from the events found for your trip." />
+    <EventsBookingsSection tripId={tripId} selected="bookings">
       <BookingsView
         tripId={tripId}
         canEdit={roleAllows(access.role, "edit")}
@@ -37,6 +36,6 @@ export default async function BookingsPage({ params, searchParams }: { params: P
           confirmationRef: b.confirmationRef, notes: b.notes, cancellationTerms: b.cancellationTerms, attachments: b.attachments, hasExpense: b.expenses.length > 0, inItinerary: Boolean(b.stop?.dayId), updatedAt: b.updatedAt.toISOString(),
         }))}
       />
-    </>
+    </EventsBookingsSection>
   );
 }

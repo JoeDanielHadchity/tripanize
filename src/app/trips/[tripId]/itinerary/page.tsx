@@ -10,7 +10,7 @@ import { routingConfigured } from "@/server/routing";
 import { getProfile } from "@/server/profile";
 import { LinkButton, PageHeader } from "@/components/ui";
 import { ItineraryView } from "./view";
-import { tripLength } from "@/lib/dates";
+import { todayIn, tripLength } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Itinerary" };
 
@@ -27,6 +27,8 @@ export default async function ItineraryPage({ params }: { params: Promise<{ trip
   }
   const canEdit = roleAllows(access.role, "edit");
   const len = tripLength(trip.startDate, trip.endDate);
+  const tripToday = todayIn(trip.timezone);
+  const todayDate = todayIn(days.find(d => d.date === tripToday)?.destination?.timezone ?? trip.timezone);
   return (
     <>
       <PageHeader
@@ -55,6 +57,7 @@ export default async function ItineraryPage({ params }: { params: Promise<{ trip
         ideas={ideas.map(toStopView)}
         versions={versions.map((v) => ({ id: v.id, reason: v.reason, createdAt: v.createdAt.toISOString() }))}
         timezone={trip.timezone}
+        todayDate={todayDate}
         weatherNote={weather?.unavailable.length ? `Weather unavailable for ${weather.unavailable.join(", ")} right now.` : null}
       />
     </>

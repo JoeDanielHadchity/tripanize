@@ -19,7 +19,7 @@ import type { MapsApp } from "@/lib/maps";
 const TripMap = dynamic(() => import("@/components/itinerary/trip-map"), { ssr: false, loading: () => <p className="text-sm text-muted">Loading map…</p> });
 
 type Props = {
-  tripId: string; canEdit: boolean; currency: string; mapsApp: MapsApp; aiReady: boolean; routingLive: boolean; timezone: string;
+  tripId: string; canEdit: boolean; currency: string; mapsApp: MapsApp; aiReady: boolean; routingLive: boolean; timezone: string; todayDate: string;
   days: DayView[]; ideas: StopView[]; versions: { id: string; reason: string; createdAt: string }[]; weatherNote: string | null;
 };
 
@@ -35,18 +35,19 @@ export function ItineraryView(p: Props) {
   const [showVersions, setShowVersions] = useState(false);
   const [drag, setDrag] = useState<{ dayId: string; id: string } | null>(null);
   const [notesDay, setNotesDay] = useState<DayView | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(p.days[0]?.date ?? null);
+  const defaultDate = p.days.find(d => d.date === p.todayDate)?.date ?? p.days[0]?.date ?? null;
+  const [selectedDate, setSelectedDate] = useState<string | null>(defaultDate);
   const selectedDay = p.days.find(d => d.date === selectedDate) ?? p.days[0];
 
   useEffect(() => {
     const syncDay = () => {
       const requested = window.location.hash.replace(/^#day-/, "");
-      setSelectedDate(p.days.some(d => d.date === requested) ? requested : p.days[0]?.date ?? null);
+      setSelectedDate(p.days.some(d => d.date === requested) ? requested : defaultDate);
     };
     syncDay();
     window.addEventListener("hashchange", syncDay);
     return () => window.removeEventListener("hashchange", syncDay);
-  }, [p.days, p.tripId]);
+  }, [p.days, p.tripId, defaultDate]);
 
   function selectDay(date: string) {
     setSelectedDate(date);
@@ -91,6 +92,7 @@ export function ItineraryView(p: Props) {
           ))}
         </div>
         <div className="flex gap-2 sm:ml-auto">
+          {p.days.some(d => d.date === p.todayDate) && <Button onClick={() => selectDay(p.todayDate)}>Go to today</Button>}
           {p.canEdit && <Button onClick={() => setEditing({ dayId: null })}>+ Idea</Button>}
           <Button onClick={() => setShowVersions(true)}>Versions{p.versions.length ? ` (${p.versions.length})` : ""}</Button>
         </div>
@@ -115,7 +117,7 @@ export function ItineraryView(p: Props) {
         <TripMap days={p.days} ideas={p.ideas} />
       ) : (
         <>
-        <DayStrip days={p.days} active={selectedDay?.date ?? null} onSelect={selectDay} />
+        <DayStrip days={p.days} active={selectedDay?.date ?? null} todayDate={p.todayDate} onSelect={selectDay} />
         <ol aria-label="Selected itinerary day">
           {p.days.filter(d => d.id === selectedDay?.id).map((d) => {
             const stops = d.stops.filter((s) => s.plan === d.activePlan);
@@ -129,6 +131,7 @@ export function ItineraryView(p: Props) {
                       <p className="text-sm font-medium text-accent-ink">{formatDate(d.date, { weekday: "long", day: "numeric", month: "long" })}</p>
                       <h3 id={`h-${d.id}`} className="font-display text-xl font-semibold leading-tight">{d.title || d.area || "Not planned yet"}</h3>
                       <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                        {d.date === p.todayDate && <Badge tone="accent">Today</Badge>}
                         {d.destination && <Badge>{d.destination.name}{d.destination.accommodationName ? ` · ${d.destination.accommodationName}` : ""}</Badge>}
                         {d.isTravelDay && <Badge tone="warn">Travel day{d.driveMinutes ? ` · ~${formatDuration(d.driveMinutes)} driving (est.)` : ""}</Badge>}
                         {d.weather && (
@@ -156,7 +159,6 @@ export function ItineraryView(p: Props) {
                             {p.canEdit && <Link className="block min-h-11 content-center rounded-lg px-3 text-sm hover:bg-surface-2" href={`/trips/${p.tripId}/plan?days=${d.date}`}>Regenerate this day with AI</Link>}
                             {p.canEdit && <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm hover:bg-surface-2" onClick={() => { close(); setNotesDay(d); }}>Edit day title & notes</button>}
                             <a className="block min-h-11 content-center rounded-lg px-3 text-sm hover:bg-surface-2" href={`/api/trips/${p.tripId}/export/pdf?date=${d.date}`}>Day PDF</a>
-                            <Link className="block min-h-11 content-center rounded-lg px-3 text-sm hover:bg-surface-2" href={`/trips/${p.tripId}/today?date=${d.date}`}>Open in Today view</Link>
                           </>
                         )}
                       </MenuButton>
@@ -231,7 +233,7 @@ export function ItineraryView(p: Props) {
             <h2 id="ideas-h" className="font-display text-lg font-semibold">Unscheduled ideas</h2>
             {p.canEdit && <Button onClick={() => setEditing({ dayId: null })}>+ Add idea</Button>}
           </div>
-          <p className="text-sm text-muted">Ideas without a date never appear in Today or the daily plan until you move them onto a day.</p>
+          <p className="text-sm text-muted">Ideas without a date stay here until you move them onto a day in your itinerary.</p>
           {p.ideas.length === 0 ? <p className="mt-3 text-sm text-muted">No ideas saved yet.</p> : (
             <ul className="mt-3 space-y-2">
               {p.ideas.map((s) => <StopCard key={s.id} s={s} tripId={p.tripId} currency={p.currency} mapsApp={p.mapsApp} canEdit={p.canEdit} handlers={{ onEdit: handlers.onEdit, onMove: handlers.onMove }} />)}
@@ -297,7 +299,7 @@ export function ItineraryView(p: Props) {
 }
 
 // Day cards switch the visible day; horizontal scrolling keeps long trips compact.
-function DayStrip({ days, active, onSelect }: { days: DayView[]; active: string | null; onSelect: (date: string) => void }) {
+function DayStrip({ days, active, todayDate, onSelect }: { days: DayView[]; active: string | null; todayDate: string; onSelect: (date: string) => void }) {
   const stripRef = useRef<HTMLOListElement>(null);
   useEffect(() => {
     const strip = stripRef.current;
@@ -319,7 +321,7 @@ function DayStrip({ days, active, onSelect }: { days: DayView[]; active: string 
             <li key={d.id} className="snap-start">
               <a id={`strip-${d.date}`} href={`#day-${d.date}`} aria-current={on ? "true" : undefined} onClick={e => { e.preventDefault(); onSelect(d.date); }}
                 className={cx("block min-h-11 w-36 rounded-2xl border px-3 py-2.5 transition-colors", on ? "border-accent bg-accent text-on-accent shadow-sm" : "border-line bg-surface hover:bg-surface-2")}>
-                <span className={cx("block text-[11px] font-semibold uppercase tracking-wider", on ? "opacity-90" : "text-muted")}>Day {i + 1}</span>
+                <span className={cx("block text-[11px] font-semibold uppercase tracking-wider", on ? "opacity-90" : "text-muted")}>Day {i + 1}{d.date === todayDate ? " · Today" : ""}</span>
                 <span className="block font-semibold">{formatDate(d.date, { weekday: "short", day: "numeric", month: "short" })}</span>
                 <span className={cx("block text-xs", on ? "opacity-90" : "text-muted")}>{n} stop{n === 1 ? "" : "s"}{d.isTravelDay ? " · travel" : ""}</span>
               </a>
