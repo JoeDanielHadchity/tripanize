@@ -7,7 +7,7 @@ import { AppHeader } from "@/components/shell";
 import { TripNav } from "@/components/trip-nav";
 import { SyncWatcher } from "@/components/sync";
 import { SaveOfflineSnapshot } from "@/components/offline";
-import { Badge } from "@/components/ui";
+import { Badge, LinkButton } from "@/components/ui";
 import { formatDateRange, todayIn } from "@/lib/dates";
 import { LocationSharingProvider } from "@/components/location-sharing";
 import { getChatSummary } from "@/server/chat/service";
@@ -42,7 +42,10 @@ export default async function TripLayout({ children, params }: { children: React
             <Link href="/trips" className="text-sm text-muted hover:text-ink">← All trips</Link>
             <p className="mt-1 font-display text-lg font-semibold leading-tight">{trip.name}</p>
             <p className="text-sm text-muted">{formatDateRange(trip.startDate, trip.endDate)}</p>
-            <Link href={`/trips/${trip.id}/premium`} className="mt-2 inline-block text-xs font-semibold text-accent-ink underline">{plan.preview ? "Premium preview" : plan.premium ? "Premium trip" : "Normal trip"}</Link>
+            <div className="mt-2"><Badge tone={plan.premium ? "accent" : "neutral"}>{plan.preview ? "Premium preview" : plan.premium ? "Premium trip" : "Normal trip"}</Badge></div>
+            <LinkButton href={`/trips/${trip.id}/premium`} variant={access.role === "OWNER" ? "primary" : "secondary"} className="mt-3 w-full sm:w-auto lg:w-full">
+              {access.role !== "OWNER" ? "View Premium options" : plan.capacity >= plan.people ? "Manage Premium" : "Upgrade to Premium"}
+            </LinkButton>
             {access.role !== "OWNER" && <Badge tone={access.role === "VIEWER" ? "warn" : "sage"} className="mt-1">{access.role === "VIEWER" ? "View only" : "Collaborator"}</Badge>}
           </div>
           <TripNav tripId={trip.id} initialChat={chat} premium={plan.premium} />

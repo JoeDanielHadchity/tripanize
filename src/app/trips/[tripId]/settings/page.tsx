@@ -8,6 +8,7 @@ import { Card, LinkButton, PageHeader } from "@/components/ui";
 import { TripForm } from "@/components/trip-form";
 import { SharingPanel } from "./sharing";
 import { TripChangeAlerts } from "@/components/notifications";
+import { getTripPlan } from "@/server/plans/access";
 
 export const metadata: Metadata = { title: "Trip settings" };
 
@@ -26,6 +27,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ tripI
     },
   });
   const isOwner = roleAllows(access.role, "manage");
+  const plan = await getTripPlan(tripId);
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const pref = await prisma.notificationPreference.findUnique({ where: { userId_tripId: { userId: user.id, tripId } } });
   const account = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { emailVerified: true } });
@@ -33,7 +35,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ tripI
     <>
       <PageHeader title="Trip settings & travelers" />
       <div className="space-y-10">
-        <Card><h2 className="font-display text-xl font-semibold">Premium for this trip</h2><p className="mt-2 text-sm text-muted">One payment for your group. See your people count, pricing and upgrade options.</p><LinkButton href={`/trips/${tripId}/premium`} className="mt-3">View Premium options</LinkButton></Card>
+        <Card className="border-accent/30 bg-accent-soft/30"><h2 className="font-display text-xl font-semibold">Premium for this trip</h2><p className="mt-2 text-sm text-muted">One payment for your group. See your people count, pricing and upgrade options.</p><LinkButton href={`/trips/${tripId}/premium`} variant={isOwner ? "primary" : "secondary"} className="mt-3">{!isOwner ? "View Premium options" : plan.capacity >= plan.people ? "Manage Premium" : "Upgrade to Premium"}</LinkButton></Card>
         <TripChangeAlerts tripId={tripId} enabled={pref?.changeEmailEnabled ?? false} emailReady={emailConfigured()} email={user.email} verified={account.emailVerified} />
         <section id="details" aria-labelledby="details-h" className="scroll-mt-20">
           <h2 id="details-h" className="mb-3 font-display text-xl font-semibold">Trip details</h2>
