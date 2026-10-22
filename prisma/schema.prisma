@@ -201,6 +201,26 @@ model Trip {
   deliveries   NotificationDelivery[]
   tripNotifications TripNotification[]
   chatMessages ChatMessage[]
+  premiumCheckouts PremiumCheckout[]
+}
+
+// One purchase unlocks one trip. Server-created intents fix the USD amount and
+// Paddle price before checkout; browser callbacks never grant access.
+model PremiumCheckout {
+  id String @id @default(cuid())
+  tripId String
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  buyerId String
+  environment String
+  priceId String
+  amountMinor Int
+  targetCapacity Int
+  status String @default("CREATING")
+  transactionId String? @unique
+  reviewRequired Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tripId, environment, status])
 }
 
 enum TripRole {

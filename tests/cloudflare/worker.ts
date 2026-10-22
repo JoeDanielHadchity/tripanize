@@ -5,6 +5,7 @@ import tripNotifications from "../../prisma/migrations/202610220003_trip_notific
 import memberLocations from "../../prisma/migrations/202610220004_member_locations/migration.sql";
 import tripChat from "../../prisma/migrations/202610220005_trip_chat/migration.sql";
 import expenseReceipts from "../../prisma/migrations/202610220006_expense_receipts/migration.sql";
+import tripPurchases from "../../prisma/migrations/202610220008_trip_purchases/migration.sql";
 import planAccess from "../../prisma/migrations/202610220007_plan_access/migration.sql";
 import { changeMemberLocation, getLocationSelf, getMemberLocations } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
@@ -36,6 +37,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "chatSeq")) ctx.storage.sql.exec(tripChat);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Attachment")').toArray().some(column => column.name === "expenseId")) ctx.storage.sql.exec(expenseReceipts);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "normalAiDates")) ctx.storage.sql.exec(planAccess);
+        ctx.storage.sql.exec(tripPurchases);
       });
     });
   }
@@ -51,9 +53,9 @@ export class StorageProbe extends DurableObject<Env> {
             const dates = await planningScope(tripId, "full");
             let normalDenied = false;
             try { await getChatPage(id, tripId); } catch (e) { normalDenied = (e as { code?: string }).code === "FORBIDDEN"; }
-            await this.db.premiumEntitlement.create({ data: { userId: id, source: "isolated-fixture", validUntil: new Date(Date.now() + 86400_000) } });
+            await this.db.premiumCheckout.create({ data: { tripId, buyerId: id, environment: "live", priceId: "isolated-fixture", amountMinor: 900, targetCapacity: 2, status: "COMPLETED" } });
             const premiumUnlocked = (await getTripPlan(tripId)).premium && (await getChatPage(id, tripId)).messages.length === 0;
-            await this.db.premiumEntitlement.update({ where: { userId: id }, data: { validUntil: new Date(Date.now() - 1000) } });
+            await this.db.premiumCheckout.updateMany({ where: { tripId }, data: { reviewRequired: true } });
             return Response.json({ normalDenied, aiDates: dates, premiumUnlocked, expiryEnforced: !(await getTripPlan(tripId)).premium });
           });
         }

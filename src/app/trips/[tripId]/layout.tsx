@@ -42,7 +42,7 @@ export default async function TripLayout({ children, params }: { children: React
             <Link href="/trips" className="text-sm text-muted hover:text-ink">← All trips</Link>
             <p className="mt-1 font-display text-lg font-semibold leading-tight">{trip.name}</p>
             <p className="text-sm text-muted">{formatDateRange(trip.startDate, trip.endDate)}</p>
-            <Link href="/plans" className="mt-2 inline-block text-xs font-semibold text-accent-ink underline">{plan.preview ? "Premium preview" : plan.premium ? "Premium trip" : "Normal trip"}</Link>
+            <Link href={`/trips/${trip.id}/premium`} className="mt-2 inline-block text-xs font-semibold text-accent-ink underline">{plan.preview ? "Premium preview" : plan.premium ? "Premium trip" : "Normal trip"}</Link>
             {access.role !== "OWNER" && <Badge tone={access.role === "VIEWER" ? "warn" : "sage"} className="mt-1">{access.role === "VIEWER" ? "View only" : "Collaborator"}</Badge>}
           </div>
           <TripNav tripId={trip.id} initialChat={chat} premium={plan.premium} />

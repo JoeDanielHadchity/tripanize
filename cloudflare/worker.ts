@@ -6,9 +6,11 @@ import tripNotifications from "../prisma/migrations/202610220003_trip_notificati
 import memberLocations from "../prisma/migrations/202610220004_member_locations/migration.sql?raw";
 import tripChat from "../prisma/migrations/202610220005_trip_chat/migration.sql?raw";
 import expenseReceipts from "../prisma/migrations/202610220006_expense_receipts/migration.sql?raw";
+import tripPurchases from "../prisma/migrations/202610220008_trip_purchases/migration.sql?raw";
 import planAccess from "../prisma/migrations/202610220007_plan_access/migration.sql?raw";
 import { expireMemberLocations } from "../src/server/locations/service";
 import { createDatabase } from "../src/server/db";
+import { paddleConfigFromEnv } from "../src/server/billing/config";
 import { appRuntime } from "../src/server/cloudflare/runtime";
 import { DurableSqliteAdapter } from "../src/server/cloudflare/sqlite-adapter";
 import { AiTasks } from "../src/server/cloudflare/ai-tasks";
@@ -72,6 +74,10 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
         });
         await ctx.storage.put("schemaVersion", 7);
       }
+      if (version < 8) {
+        ctx.storage.transactionSync(() => ctx.storage.sql.exec(tripPurchases));
+        await ctx.storage.put("schemaVersion", 8);
+      }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
       if (await this.aiTasks.pending()) await this.aiTasks.wake();
@@ -83,7 +89,7 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     return result;
   }
   private runtime() {
-    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, planAccessEnabled: this.env.PLAN_ACCESS_ENABLED === "true", wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
+    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, planAccessEnabled: this.env.PLAN_ACCESS_ENABLED === "true", paddle: paddleConfigFromEnv(this.env), wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
   }
   async alarm() { await this.ready; await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {
