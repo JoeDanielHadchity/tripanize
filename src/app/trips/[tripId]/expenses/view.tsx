@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, Card, EmptyState, Field, Input, Notice, Select, Textarea, cx } from "@/components/ui";
-import { ReceiptImport } from "@/components/receipt-import";
-import type { ReceiptDraft } from "@/server/expenses/receipt";
+import { ExpenseReceipts, type ExpenseReceipt } from "@/components/expense-receipts";
 import { Dialog, useAction, useConfirm } from "@/components/client";
-import { deleteExpenseAction, deleteSettlementAction, recordSettlementAction, saveExpenseAction } from "@/app/actions/expenses";
+import { deleteExpenseAction, deleteSettlementAction, recordSettlementAction } from "@/app/actions/expenses";
 import { arrangeExpenses, type GroupKey, type SortKey } from "@/lib/expense-view";
 import { allocate, CURRENCIES, formatMoney, minorToDecimalString, parseMoney } from "@/lib/money";
 import { formatDate, formatTimestamp, zonedToUtc } from "@/lib/dates";
@@ -18,13 +17,14 @@ type Traveler = { id: string; name: string; active: boolean };
 type Expense = {
   id: string; version: number; description: string; category: string; amountMinor: number; currency: string; date: string; createdAt: string; payerId: string; splitMethod: "EQUAL" | "PERCENT" | "AMOUNT" | "SINGLE";
   notes: string | null; bookingId: string | null; bookingTitle: string | null; shares: { travelerId: string; amountMinor: number; percentBp: number | null }[];
+  receipts: ExpenseReceipt[];
   conversion: { currency: string; rate: string; rateDate: string; amountMinor: number } | null;
 };
 type Settlement = { id: string; fromId: string; toId: string; amountMinor: number; currency: string; paidAt: string; note: string | null };
 type Prefill = { bookingId: string; description: string; amountMinor: number | null; currency: string; category: string; date: string | null };
 
 type Props = {
-  tripId: string; canEdit: boolean; aiReady: boolean; tripCurrency: string; timezone: string; today: string; meId: string | null; travelers: Traveler[]; expenses: Expense[]; settlements: Settlement[];
+  tripId: string; canEdit: boolean; tripCurrency: string; timezone: string; today: string; meId: string | null; travelers: Traveler[]; expenses: Expense[]; settlements: Settlement[];
   ledger: CurrencyLedger[]; budget: BudgetSummary; audit: { id: string; at: string; actor: string | null; entity: string; action: string; before: unknown; after: unknown }[];
   bookings: { id: string; title: string; hasExpense: boolean }[]; prefill: Prefill | null;
 };
@@ -36,9 +36,6 @@ export function ExpensesView(p: Props) {
   const [sort, setSort] = useState<SortKey>("created_desc");
   const [group, setGroup] = useState<GroupKey>("day");
   const [editing, setEditing] = useState<Expense | "new" | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [receipt, setReceipt] = useState<ReceiptDraft | null>(null);
-  const [receiptKey, setReceiptKey] = useState(0);
   const [settle, setSettle] = useState<{ fromId?: string; toId?: string; amountMinor?: number; currency?: string } | null>(null);
 
   useEffect(() => {
@@ -65,15 +62,14 @@ export function ExpensesView(p: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="actual-spending-h" className="font-display text-xl font-semibold">Actual spending</h2>
         <div className="flex flex-wrap gap-2">
-        {p.canEdit && <Button variant="primary" onClick={() => { setReceipt(null); setEditing("new"); }}>+ Add expense</Button>}
-        {p.canEdit && p.aiReady && <Button onClick={() => setImporting(true)}>Import receipt</Button>}
+        {p.canEdit && <Button variant="primary" onClick={() => setEditing("new")}>+ Add expense</Button>}
         {p.canEdit && <Button variant={anyBalance ? "sage" : "secondary"} className="font-semibold" onClick={() => setSettle({})}>Settle up</Button>}
         </div>
       </div>
       {p.budget.committedBookingsMinor > 0 && <Notice>Booked items awaiting an expense: {formatMoney(p.budget.committedBookingsMinor, p.tripCurrency)}. <Link href={`/trips/${p.tripId}/bookings`} className="font-medium underline">Record their payments</Link> to include them in actual spending.</Notice>}
 
       {p.ledger.length === 0 ? (
-        <EmptyState title="No expenses yet" action={p.canEdit ? <Button variant="primary" onClick={() => { setReceipt(null); setEditing("new"); }}>Add the first expense</Button> : undefined}>Record who paid and who it was for. Tripanize works out who owes whom — exactly, to the cent.</EmptyState>
+        <EmptyState title="No expenses yet" action={p.canEdit ? <Button variant="primary" onClick={() => setEditing("new")}>Add the first expense</Button> : undefined}>Record who paid and who it was for. Tripanize works out who owes whom — exactly, to the cent.</EmptyState>
       ) : (
         p.ledger.map((l) => (
           <section key={l.currency} aria-labelledby={`led-${l.currency}`} className="space-y-3">
@@ -193,6 +189,12 @@ export function ExpensesView(p: Props) {
                       <p className="text-xs text-muted">Entered {formatTimestamp(e.createdAt, p.timezone)}</p>
                       {e.conversion && <p className="text-xs text-muted">Counted as {formatMoney(e.conversion.amountMinor, e.conversion.currency)} at {e.conversion.rate} ({e.conversion.rateDate}, your rate)</p>}
                       {e.notes && <p className="text-xs">{e.notes}</p>}
+                      {e.receipts.length > 0 && <ul className="mt-2 space-y-1 text-xs" aria-label={`Receipts for ${e.description}`}>
+                        {e.receipts.map(file => <li key={file.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <a href={`/api/attachments/${file.id}`} target="_blank" rel="noopener noreferrer" className="break-all font-medium text-accent-ink underline">📎 {file.fileName}</a>
+                          <a href={`/api/attachments/${file.id}?download=1`} className="min-h-9 content-center text-muted underline" aria-label={`Download receipt ${file.fileName}`}>Download</a>
+                        </li>)}
+                      </ul>}
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="mr-2 font-semibold tabular-nums">{formatMoney(e.amountMinor, e.currency)}</span>
@@ -237,8 +239,7 @@ export function ExpensesView(p: Props) {
         </details>
       )}
 
-      {importing && <ReceiptImport tripId={p.tripId} open onClose={() => setImporting(false)} onRead={draft => { setImporting(false); setReceipt(draft); setReceiptKey(k => k + 1); setEditing("new"); }} />}
-      <ExpenseDialog {...p} receipt={editing === "new" ? receipt : null} key={editing === "new" ? `new-${receiptKey}` : editing?.id ?? "exp-none"} open={Boolean(editing)} expense={editing === "new" ? null : editing} prefill={editing === "new" ? p.prefill : null} onClose={() => { setEditing(null); setReceipt(null); }} />
+      <ExpenseDialog {...p} key={editing === "new" ? "new" : editing?.id ?? "exp-none"} open={Boolean(editing)} expense={editing === "new" ? null : editing} prefill={editing === "new" ? p.prefill : null} onClose={() => setEditing(null)} />
       <SettleDialog {...p} key={settle ? JSON.stringify(settle) : "settle-none"} open={Boolean(settle)} initial={settle ?? {}} onClose={() => setSettle(null)} />
     </div>
   );
@@ -304,11 +305,11 @@ function PlannedSpendingCard({ b }: { b: BudgetSummary }) {
   );
 }
 
-function ExpenseDialog({ open, expense, prefill, receipt, onClose, tripId, travelers, tripCurrency, today, meId, bookings }: Props & { open: boolean; receipt: ReceiptDraft | null; expense: Expense | null; onClose: () => void; prefill: Prefill | null }) {
+function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tripCurrency, today, meId, bookings }: Props & { open: boolean; expense: Expense | null; onClose: () => void; prefill: Prefill | null }) {
   const { run, pending } = useAction();
   const active = travelers.filter((t) => t.active || expense?.shares.some((s) => s.travelerId === t.id) || expense?.payerId === t.id);
-  const [currency, setCurrency] = useState(expense?.currency ?? receipt?.currency ?? prefill?.currency ?? tripCurrency);
-  const [amount, setAmount] = useState(expense ? minorToDecimalString(expense.amountMinor, expense.currency) : receipt ? receipt.amount : prefill?.amountMinor ? minorToDecimalString(prefill.amountMinor, prefill.currency) : "");
+  const [currency, setCurrency] = useState(expense?.currency ?? prefill?.currency ?? tripCurrency);
+  const [amount, setAmount] = useState(expense ? minorToDecimalString(expense.amountMinor, expense.currency) : prefill?.amountMinor ? minorToDecimalString(prefill.amountMinor, prefill.currency) : "");
   const [method, setMethod] = useState<Expense["splitMethod"]>(expense?.splitMethod ?? "EQUAL");
   const [selected, setSelected] = useState<string[]>(expense ? expense.shares.map((s) => s.travelerId) : active.filter((t) => t.active).map((t) => t.id));
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries((expense?.shares ?? []).map((s) => [s.travelerId, s.percentBp !== null ? (s.percentBp / 100).toString() : minorToDecimalString(s.amountMinor, expense!.currency)])));
@@ -316,6 +317,8 @@ function ExpenseDialog({ open, expense, prefill, receipt, onClose, tripId, trave
   const [convOn, setConvOn] = useState(Boolean(expense?.conversion));
   const [error, setError] = useState<string | null>(null);
 
+  const [files, setFiles] = useState<File[]>([]);
+  const [removeIds, setRemoveIds] = useState<string[]>([]);
   const total = parseMoney(amount, currency);
   const preview = useMemo(() => {
     if (!total) return null;
@@ -335,7 +338,7 @@ function ExpenseDialog({ open, expense, prefill, receipt, onClose, tripId, trave
   }, [total, method, selected, values, currency, active]);
 
   return (
-    <Dialog open={open} onClose={onClose} title={expense ? "Edit expense" : receipt ? "Review receipt expense" : "Add expense"} wide>
+    <Dialog open={open} onClose={onClose} title={expense ? "Edit expense" : "Add expense"} wide>
       <form
         className="space-y-4"
         onSubmit={async (e) => {
@@ -343,23 +346,29 @@ function ExpenseDialog({ open, expense, prefill, receipt, onClose, tripId, trave
           const f = new FormData(e.currentTarget);
           setError(null);
           const participants = method === "SINGLE" ? [{ travelerId: single! }] : selected.map((id) => ({ travelerId: id, value: method === "EQUAL" ? undefined : values[id] ?? "" }));
-          const r = await run(() => saveExpenseAction(tripId, expense?.id ?? null, {
+          const input = {
             description: String(f.get("description")), category: String(f.get("category")), amount, currency, date: String(f.get("date")), payerId: String(f.get("payer")), method, participants,
             notes: String(f.get("notes") || "") || null, bookingId: String(f.get("bookingId") || "") || null,
             conversion: convOn ? { currency: String(f.get("convCurrency")), rate: String(f.get("convRate")), rateDate: String(f.get("convDate")) } : null,
-          }, expense?.version ?? 0), { success: expense ? "Expense updated" : "Expense added", onError: (r) => setError(r.error) });
+          };
+          const body = new FormData();
+          body.set("command", JSON.stringify({ id: expense?.id ?? null, version: expense?.version ?? 0, input, removeIds }));
+          for (const file of files) body.append("receipts", file);
+          const r = await run(async () => {
+            const response = await fetch(`/api/trips/${tripId}/expenses`, { method: "POST", body });
+            const data = await response.json() as { ok?: boolean; data?: { id: string }; code?: string; error?: string };
+            if (response.ok && data.ok && data.data) return { ok: true as const, data: data.data };
+            return { ok: false as const, code: data.code ?? (response.status === 409 ? "CONFLICT" : "UPSTREAM"), error: data.error ?? "Couldn't save this payment. Please try again." };
+          }, { success: expense ? "Expense updated" : "Expense added", onError: (r) => setError(r.error) });
           if (r !== null) onClose();
         }}
       >
-        {receipt && <Notice tone="accent"><strong>Review before saving.</strong> Check the total, currency and date, then confirm who paid and everyone’s share. Nothing has been added to your spending yet.
-          {receipt.warnings.length > 0 && <ul className="mt-2 list-disc pl-5">{receipt.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
-        </Notice>}
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Description" htmlFor="e-desc" className="sm:col-span-2"><Input id="e-desc" name="description" required defaultValue={expense?.description ?? receipt?.description ?? prefill?.description ?? ""} maxLength={160} /></Field>
+          <Field label="Description" htmlFor="e-desc" className="sm:col-span-2"><Input id="e-desc" name="description" required defaultValue={expense?.description ?? prefill?.description ?? ""} maxLength={160} /></Field>
           <Field label="Amount" htmlFor="e-amount"><Input id="e-amount" inputMode="decimal" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></Field>
           <Field label="Currency" htmlFor="e-cur"><Select id="e-cur" required value={currency} onChange={(e) => setCurrency(e.target.value)}><option value="" disabled>Confirm currency</option>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
-          <Field label="Category" htmlFor="e-cat"><Select id="e-cat" name="category" defaultValue={expense?.category ?? receipt?.category ?? prefill?.category ?? "Food & drink"}>{EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
-          <Field label="Expense date" htmlFor="e-date"><Input id="e-date" name="date" type="date" required defaultValue={expense?.date ?? receipt?.date ?? prefill?.date ?? today} /></Field>
+          <Field label="Category" htmlFor="e-cat"><Select id="e-cat" name="category" defaultValue={expense?.category ?? prefill?.category ?? "Food & drink"}>{EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
+          <Field label="Expense date" htmlFor="e-date"><Input id="e-date" name="date" type="date" required defaultValue={expense?.date ?? prefill?.date ?? today} /></Field>
           <Field label="Paid by" htmlFor="e-payer"><Select id="e-payer" name="payer" defaultValue={expense?.payerId ?? meId ?? active[0]?.id}>{active.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
           <Field label="Linked booking (optional)" htmlFor="e-book" hint="Connect this payment to its reservation. The booking estimate stays in planned spending."><Select id="e-book" name="bookingId" defaultValue={expense?.bookingId ?? prefill?.bookingId ?? ""}><option value="">None</option>{bookings.filter((b) => !b.hasExpense || b.id === expense?.bookingId || b.id === prefill?.bookingId).map((b) => <option key={b.id} value={b.id}>{b.title}</option>)}</Select></Field>
         </div>
@@ -406,11 +415,12 @@ function ExpenseDialog({ open, expense, prefill, receipt, onClose, tripId, trave
             <Field label="Rate date" htmlFor="c-date"><Input id="c-date" name="convDate" type="date" defaultValue={expense?.conversion?.rateDate ?? today} required={convOn} /></Field>
           </div>
         </details>
+        <ExpenseReceipts existing={expense?.receipts ?? []} files={files} removeIds={removeIds} onFiles={setFiles} onRemoveIds={setRemoveIds} disabled={pending} />
         <Field label="Notes" htmlFor="e-notes"><Textarea id="e-notes" name="notes" defaultValue={expense?.notes ?? ""} /></Field>
         {error && <Notice tone="danger">{error}</Notice>}
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={pending}>{pending ? "Saving…" : "Save expense"}</Button>
+          <Button type="submit" variant="primary" disabled={pending}>{pending ? "Saving payment & receipts…" : "Save expense"}</Button>
         </div>
       </form>
     </Dialog>

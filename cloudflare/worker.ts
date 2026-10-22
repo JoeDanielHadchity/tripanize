@@ -5,6 +5,7 @@ import eventBookings from "../prisma/migrations/202610220002_event_bookings/migr
 import tripNotifications from "../prisma/migrations/202610220003_trip_notifications/migration.sql?raw";
 import memberLocations from "../prisma/migrations/202610220004_member_locations/migration.sql?raw";
 import tripChat from "../prisma/migrations/202610220005_trip_chat/migration.sql?raw";
+import expenseReceipts from "../prisma/migrations/202610220006_expense_receipts/migration.sql?raw";
 import { expireMemberLocations } from "../src/server/locations/service";
 import { createDatabase } from "../src/server/db";
 import { appRuntime } from "../src/server/cloudflare/runtime";
@@ -20,10 +21,11 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
   private database = createDatabase(new DurableSqliteAdapter(this.ctx.storage));
   private pending: Promise<unknown> = Promise.resolve();
   private secret = "";
+  private ready: Promise<void>;
   private aiTasks: AiTasks = new AiTasks(this.ctx.storage, () => this.runtime(), (run) => this.serialize(run));
   constructor(ctx: DurableObjectState, env: CloudflareEnv) {
     super(ctx, env);
-    ctx.blockConcurrencyWhile(async () => {
+    this.ready = ctx.blockConcurrencyWhile(async () => {
       const version = await ctx.storage.get<number>("schemaVersion") ?? 0;
       if (version < 1) {
         ctx.storage.transactionSync(() => ctx.storage.sql.exec(schema));
@@ -55,6 +57,13 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
         });
         await ctx.storage.put("schemaVersion", 5);
       }
+      if (version < 6) {
+        ctx.storage.transactionSync(() => {
+          const columns = ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Attachment")').toArray();
+          if (!columns.some(column => column.name === "expenseId")) ctx.storage.sql.exec(expenseReceipts);
+        });
+        await ctx.storage.put("schemaVersion", 6);
+      }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
       if (await this.aiTasks.pending()) await this.aiTasks.wake();
@@ -68,20 +77,22 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
   private runtime() {
     return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
   }
-  async alarm() { await this.aiTasks.alarm(); }
+  async alarm() { await this.ready; await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {
-    // Receipt extraction has no application writes besides rate-limit hits. Queue
-    // its individual database operations, not the long upstream vision request.
-    const receipt = request.method === "POST" && /^\/api\/trips\/[^/]+\/expenses\/receipt\/?$/.test(new URL(request.url).pathname);
+    await this.ready;
+    // Let uploads stream and R2 writes complete without blocking other members.
+    // Each database operation and complete transaction still shares the lock.
+    const payment = request.method === "POST" && /^\/api\/trips\/[^/]+\/expenses\/?$/.test(new URL(request.url).pathname);
     const runtime = this.runtime();
-    const context = receipt ? { ...runtime, database: serializedDatabase(runtime.database, run => this.serialize(run)) } : runtime;
+    const context = payment ? { ...runtime, database: serializedDatabase(runtime.database, run => this.serialize(run)) } : runtime;
     const run = () => appRuntime.run(context, async () => {
       const response = await handler.fetch(request, this.env, { waitUntil: this.ctx.waitUntil.bind(this.ctx), passThroughOnException() {} });
       return new Response(response.body ? await response.arrayBuffer() : null, { status: response.status, statusText: response.statusText, headers: response.headers });
     });
-    return receipt ? run() : this.serialize(run);
+    return payment ? run() : this.serialize(run);
   }
   async maintenance() {
+    await this.ready;
     return this.serialize(() => appRuntime.run(this.runtime(), async () => {
       await this.database.verification.deleteMany({ where: { expiresAt: { lt: new Date() } } });
       await this.database.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });

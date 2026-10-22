@@ -1,12 +1,30 @@
 import { z } from "zod";
-import { prisma } from "@/server/db";
+import { prisma, type Tx } from "@/server/db";
 import { AppError, conflictError } from "@/server/errors";
-import { requireTrip } from "@/server/auth/permissions";
+import { requireTrip, roleAllows } from "@/server/auth/permissions";
 import { recordChange } from "@/server/audit";
 import { isDateStr } from "@/lib/dates";
 import { convertMinor, parseMoney } from "@/lib/money";
 import { formatZodError } from "@/server/trips/schemas";
 import { buildLedger, computeShares, SplitError, type SplitMethod } from "./ledger";
+import type { UploadedFile } from "@/server/storage";
+
+export type ExpenseFiles = { add: UploadedFile[]; removeIds: string[] };
+async function requirePaymentEditor(tx: Tx, userId: string, tripId: string) {
+  const member = await tx.tripMembership.findUnique({ where: { tripId_userId: { tripId, userId } } });
+  if (!member) throw new AppError("NOT_FOUND", "Trip not found.");
+  if (!roleAllows(member.role, "edit")) throw new AppError("FORBIDDEN", "You have view-only access to this trip.");
+}
+async function applyReceipts(tx: Tx, userId: string, tripId: string, expenseId: string, changes?: ExpenseFiles) {
+  if (!changes) return [] as string[];
+  const existing = await tx.attachment.findMany({ where: { tripId, expenseId } });
+  const ids = new Set(changes.removeIds);
+  if (ids.size !== changes.removeIds.length || changes.removeIds.some(id => !existing.some(a => a.id === id))) throw new AppError("CONFLICT", "A receipt changed since you opened this payment. Review it and try again.");
+  if (existing.length - ids.size + changes.add.length > 5) throw new AppError("VALIDATION", "Keep up to 5 receipts per payment.");
+  if (ids.size) await tx.attachment.deleteMany({ where: { tripId, expenseId, id: { in: [...ids] } } });
+  for (const file of changes.add) await tx.attachment.create({ data: { tripId, expenseId, uploadedById: userId, ...file } });
+  return existing.filter(a => ids.has(a.id)).map(a => a.storageKey);
+}
 
 export const expenseInput = z.object({
   description: z.string().trim().min(1, "Add a description").max(160),
@@ -68,25 +86,28 @@ async function prepare(tripId: string, input: ExpenseInput) {
   return { d, amountMinor, shares, conv };
 }
 
-export async function createExpense(userId: string, tripId: string, input: ExpenseInput) {
+export async function createExpense(userId: string, tripId: string, input: ExpenseInput, files?: ExpenseFiles) {
   await requireTrip(tripId, userId, "edit");
   const { d, amountMinor, shares, conv } = await prepare(tripId, input);
   return prisma.$transaction(async (tx) => {
+    await requirePaymentEditor(tx, userId, tripId);
     const e = await tx.expense.create({
       data: {
         tripId, description: d.description, category: d.category, amountMinor, currency: d.currency, date: d.date, payerId: d.payerId, splitMethod: d.method, notes: d.notes || null, bookingId: d.bookingId || null, createdById: userId, ...conv,
         shares: { create: shares.map((s) => ({ travelerId: s.travelerId, amountMinor: s.amountMinor, percentBp: s.percentBp })) },
       },
     });
-    await recordChange(tx, { tripId, actorId: userId, entity: "expense", entityId: e.id, action: "create", after: { description: e.description, amountMinor, currency: d.currency, payerId: d.payerId, shares } });
+    await applyReceipts(tx, userId, tripId, e.id, files);
+    await recordChange(tx, { tripId, actorId: userId, entity: "expense", entityId: e.id, action: "create", after: { description: e.description, amountMinor, currency: d.currency, payerId: d.payerId, shares, receiptsAdded: files?.add.length ?? 0 } });
     return e;
   });
 }
 
-export async function updateExpense(userId: string, tripId: string, expenseId: string, input: ExpenseInput, version: number) {
+export async function updateExpense(userId: string, tripId: string, expenseId: string, input: ExpenseInput, version: number, files?: ExpenseFiles) {
   await requireTrip(tripId, userId, "edit");
   const { d, amountMinor, shares, conv } = await prepare(tripId, input);
   return prisma.$transaction(async (tx) => {
+    await requirePaymentEditor(tx, userId, tripId);
     const before = await tx.expense.findFirst({ where: { id: expenseId, tripId, deletedAt: null }, include: { shares: true } });
     if (!before) throw new AppError("NOT_FOUND", "Expense not found. It may have been deleted.");
     const res = await tx.expense.updateMany({
@@ -96,11 +117,13 @@ export async function updateExpense(userId: string, tripId: string, expenseId: s
     if (!res.count) throw conflictError(`The expense “${before.description}”`);
     await tx.expenseShare.deleteMany({ where: { expenseId } });
     await tx.expenseShare.createMany({ data: shares.map((s) => ({ expenseId, travelerId: s.travelerId, amountMinor: s.amountMinor, percentBp: s.percentBp })) });
+    const removedKeys = await applyReceipts(tx, userId, tripId, expenseId, files);
     await recordChange(tx, {
       tripId, actorId: userId, entity: "expense", entityId: expenseId, action: "update",
       before: { description: before.description, amountMinor: before.amountMinor, currency: before.currency, payerId: before.payerId, shares: before.shares.map((s) => ({ travelerId: s.travelerId, amountMinor: s.amountMinor })) },
-      after: { description: d.description, amountMinor, currency: d.currency, payerId: d.payerId, shares },
+      after: { description: d.description, amountMinor, currency: d.currency, payerId: d.payerId, shares, receiptsAdded: files?.add.length ?? 0, receiptsRemoved: files?.removeIds.length ?? 0 },
     });
+    return removedKeys;
   });
 }
 
@@ -158,7 +181,7 @@ export async function getExpenseData(userId: string, tripId: string) {
   const [trip, travelers, expenses, settlements, audit] = await Promise.all([
     prisma.trip.findUniqueOrThrow({ where: { id: tripId } }),
     prisma.traveler.findMany({ where: { tripId }, orderBy: { createdAt: "asc" } }),
-    prisma.expense.findMany({ where: { tripId, deletedAt: null }, include: { shares: true, booking: { select: { id: true, title: true } } } }),
+    prisma.expense.findMany({ where: { tripId, deletedAt: null }, include: { shares: true, booking: { select: { id: true, title: true } }, receipts: { select: { id: true, fileName: true, mimeType: true, sizeBytes: true }, orderBy: { createdAt: "asc" } } } }),
     prisma.settlement.findMany({ where: { tripId, deletedAt: null }, orderBy: { paidAt: "desc" } }),
     prisma.auditLog.findMany({ where: { tripId, entity: { in: ["expense", "settlement"] } }, orderBy: { createdAt: "desc" }, take: 50 }),
   ]);

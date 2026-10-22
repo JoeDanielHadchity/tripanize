@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, EmptyState, Input, Notice, Select, cx } from "@/components/ui";
+import { Badge, Button, EmptyState, Input, Notice, cx } from "@/components/ui";
 import { Dialog, MenuButton, useAction, useConfirm } from "@/components/client";
 import { PlanningText } from "@/components/planning-text";
 import { StopCard } from "@/components/itinerary/stop-card";
@@ -317,11 +317,7 @@ function DayStrip({ days, active, todayDate, onSelect }: { days: DayView[]; acti
     <nav aria-label="Days" className="sticky top-0 z-10 -mx-4 mb-4 bg-bg/95 px-4 py-2 backdrop-blur sm:mx-0 sm:px-0">
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <Button disabled={index <= 0} onClick={() => onSelect(days[index - 1].date)}>← Previous</Button>
-        <label className="min-w-0 flex-1 text-xs font-medium text-muted">Jump to day
-          <Select aria-label="Jump to day" className="mt-1 text-ink" value={active ?? days[0].date} onChange={e => onSelect(e.target.value)}>
-            {days.map((d, i) => <option key={d.id} value={d.date}>Day {i + 1} · {formatDate(d.date)}{d.title ? ` — ${d.title}` : ""}</option>)}
-          </Select>
-        </label>
+        <p className="min-w-0 flex-1 self-center text-center text-sm text-muted">Day {index + 1} of {days.length}</p>
         <Button disabled={index < 0 || index >= days.length - 1} onClick={() => onSelect(days[index + 1].date)}>Next →</Button>
       </div>
       <ol ref={stripRef} className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]">
