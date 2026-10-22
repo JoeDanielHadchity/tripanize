@@ -76,14 +76,14 @@ export function TripAssistant({ tripId, defaultDate }: { tripId: string; default
       <span aria-hidden>✦</span> AI assistant
       {active && <span className="h-2 w-2 animate-pulse rounded-full bg-current" aria-label="Preparing a reply" />}
     </button>
-    <Dialog open={open} onClose={() => setOpen(false)} title="AI trip assistant" wide>
-      <div className="space-y-3">
-        <p className="text-xs text-muted">Your conversation is private to you. The assistant uses your trip details and itinerary. Changes are shared with the trip only after you apply them.</p>
+    <Dialog open={open} onClose={() => setOpen(false)} title="AI trip assistant" wide tall>
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <p className="shrink-0 text-xs text-muted">Your conversation is private to you. The assistant uses your trip details and itinerary. Changes are shared with the trip only after you apply them.</p>
         {!online && <Notice tone="warn">You’re offline. Reconnect to use the assistant.</Notice>}
         {error && <Notice tone="warn">{error} {!blocked && <button type="button" className="font-semibold underline" onClick={() => setRefresh(n => n + 1)}>Retry</button>}</Notice>}
         {conversation && !conversation.aiReady && <Notice tone="warn">The AI assistant is not configured yet.</Notice>}
         {conversation && !conversation.canEdit && <Notice>You have view-only access. You can ask about the trip; itinerary changes need an owner or collaborator.</Notice>}
-        <div ref={feed} role="log" aria-label="Conversation with AI trip assistant" aria-live="polite" onScroll={() => { const el = feed.current; if (el) nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90; }} className="max-h-[45dvh] min-h-40 space-y-5 overflow-y-auto overscroll-contain pr-1">
+        <div ref={feed} role="log" aria-label="Conversation with AI trip assistant" aria-live="polite" onScroll={() => { const el = feed.current; if (el) nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90; }} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-1">
           {!conversation && !error && <p className="py-8 text-center text-sm text-muted">Loading your assistant…</p>}
           {conversation && !turns.length && <div className="rounded-2xl bg-surface-2 p-4">
             <p className="font-display text-xl font-semibold">What would you like to change?</p>
@@ -107,7 +107,7 @@ export function TripAssistant({ tripId, defaultDate }: { tripId: string; default
             </div>
           </article>)}
         </div>
-        <form className="space-y-2 border-t border-line pt-3" onSubmit={e => { e.preventDefault(); void send(); }}>
+        <form className="shrink-0 space-y-2 border-t border-line pt-3" onSubmit={e => { e.preventDefault(); void send(); }}>
           <label htmlFor={`assistant-message-${tripId}`} className="text-sm font-medium">Ask about this trip</label>
           <Textarea id={`assistant-message-${tripId}`} value={draft} onChange={e => setDraft(e.target.value)} maxLength={ASSISTANT_MAX_MESSAGE} rows={2} placeholder="Move the museum to day 4, or suggest a more relaxed afternoon…" disabled={blocked || !online || conversation?.aiReady === false} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
           <div className="flex items-center justify-between gap-2"><p className="text-[11px] text-muted">{draft.length} / {ASSISTANT_MAX_MESSAGE.toLocaleString()} · Enter to send</p><Button variant="primary" type="submit" disabled={!draft.trim() || Boolean(pending) || Boolean(active) || !online || !conversation?.aiReady || blocked}>{pending === "send" ? "Sending…" : "Ask assistant"}</Button></div>
