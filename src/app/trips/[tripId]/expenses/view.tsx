@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button, Card, EmptyState, Field, Input, Notice, Select, Textarea, cx } from "@/components/ui";
 import { Dialog, useAction, useConfirm } from "@/components/client";
 import { deleteExpenseAction, deleteSettlementAction, recordSettlementAction, saveExpenseAction } from "@/app/actions/expenses";
@@ -53,10 +54,17 @@ export function ExpensesView(p: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
+      <BudgetCard b={p.budget} tripId={p.tripId} canEdit={p.canEdit} />
+
+      <section aria-labelledby="actual-spending-h" className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="actual-spending-h" className="font-display text-xl font-semibold">Actual spending</h2>
+        <div className="flex flex-wrap gap-2">
         {p.canEdit && <Button variant="primary" onClick={() => setEditing("new")}>+ Add expense</Button>}
         {p.canEdit && <Button variant={anyBalance ? "sage" : "secondary"} className="font-semibold" onClick={() => setSettle({})}>Settle up</Button>}
+        </div>
       </div>
+      {p.budget.committedBookingsMinor > 0 && <Notice>Booked items awaiting an expense: {formatMoney(p.budget.committedBookingsMinor, p.tripCurrency)}. <Link href={`/trips/${p.tripId}/bookings`} className="font-medium underline">Record their payments</Link> to include them in actual spending.</Notice>}
 
       {p.ledger.length === 0 ? (
         <EmptyState title="No expenses yet" action={p.canEdit ? <Button variant="primary" onClick={() => setEditing("new")}>Add the first expense</Button> : undefined}>Record who paid and who it was for. Tripanize works out who owes whom — exactly, to the cent.</EmptyState>
@@ -132,8 +140,6 @@ export function ExpensesView(p: Props) {
         ))
       )}
 
-      <BudgetCard b={p.budget} />
-
       {p.expenses.length > 0 && (
         <section aria-labelledby="exp-list" className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -190,6 +196,9 @@ export function ExpensesView(p: Props) {
           ))}
         </section>
       )}
+      </section>
+
+      <PlannedSpendingCard b={p.budget} />
 
       <section aria-labelledby="rep" className="space-y-2">
         <h2 id="rep" className="font-display text-lg font-semibold">Repayments</h2>
@@ -239,27 +248,46 @@ function splitSummary(e: Expense, name: (id: string) => string) {
   return e.shares.map((s) => `${name(s.travelerId)} ${formatMoney(s.amountMinor, e.currency)}`).join(", ");
 }
 
-function BudgetCard({ b }: { b: BudgetSummary }) {
+function BudgetCard({ b, tripId, canEdit }: { b: BudgetSummary; tripId: string; canEdit: boolean }) {
+  const over = b.remainingMinor !== null && b.remainingMinor < 0;
+  const used = b.budgetMinor && b.budgetMinor > 0 ? Math.min(100, Math.max(0, b.actualMinor / b.budgetMinor * 100)) : null;
+  const unconverted = b.otherCurrencies.filter(o => o.actualMinor > 0);
+  return (
+    <section aria-labelledby="budget-h" className="rounded-3xl border-2 border-accent bg-accent-soft p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="budget-h" className="font-display text-xl font-semibold">Trip budget</h2>
+        {canEdit && <Link href={`/trips/${tripId}/settings#details`} className="text-sm font-medium text-accent-ink underline">{b.budgetMinor === null ? "Set budget" : "Edit budget"}</Link>}
+      </div>
+      <dl className="mt-5 grid gap-5 sm:grid-cols-3">
+        <div><dt className="text-sm text-muted">Overall budget · {b.currency}</dt><dd className="mt-1 font-display text-3xl font-semibold tabular-nums">{b.budgetMinor === null ? "Not set" : formatMoney(b.budgetMinor, b.currency)}</dd></div>
+        <div><dt className="text-sm text-muted">Actually spent</dt><dd className="mt-1 font-display text-3xl font-semibold tabular-nums">{formatMoney(b.actualMinor, b.currency)}</dd></div>
+        <div><dt className="text-sm font-medium">{over ? "Over budget" : "Budget remaining"}</dt><dd className={cx("mt-1 font-display text-3xl font-semibold tabular-nums", over ? "text-danger" : "text-sage-ink")}>{b.remainingMinor === null ? "—" : formatMoney(Math.abs(b.remainingMinor), b.currency)}</dd></div>
+      </dl>
+      {used !== null && <div role="progressbar" aria-label="Trip budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(used)} aria-valuetext={`${formatMoney(b.actualMinor, b.currency)} spent of ${formatMoney(b.budgetMinor!, b.currency)}`} className="mt-5 h-2.5 overflow-hidden rounded-full bg-surface"><div className={cx("h-full rounded-full transition-all", over ? "bg-danger" : "bg-accent")} style={{ width: `${used}%` }} /></div>}
+      <p className="mt-3 text-sm text-muted">{b.budgetMinor === null ? "Set an overall budget to track what remains as you record expenses." : "Budget remaining = overall budget − actual expenses."}</p>
+      {unconverted.length > 0 && <Notice tone="warn" className="mt-3">{unconverted.map(o => formatMoney(o.actualMinor, o.currency)).join(" · ")} in other currencies is not yet deducted. Edit those expenses and add a {b.currency} conversion to include them in this balance.</Notice>}
+    </section>
+  );
+}
+
+function PlannedSpendingCard({ b }: { b: BudgetSummary }) {
   const rows: [string, number, string][] = [
-    ["Actual spending", b.actualMinor, "Recorded expenses"],
-    ["Booked, not yet in expenses", b.committedBookingsMinor, "Booked/paid bookings with no linked expense"],
-    ["Bookings still to make", b.plannedBookingsMinor, "Estimates"],
+    ["Bookings already made", b.estimatedBookingsMinor - b.plannedBookingsMinor, "Estimates for booked or paid reservations"],
+    ["Bookings still to make", b.plannedBookingsMinor, "Estimates for planned reservations"],
     ["Planned activities (Plan A)", b.plannedActivitiesMinor, "Estimates; excludes bookings, Plan B and skipped stops"],
   ];
   return (
-    <section aria-labelledby="budget-h">
+    <section aria-labelledby="planned-spending-h">
       <Card>
-        <h2 id="budget-h" className="font-display text-lg font-semibold">Budget — {b.currency}</h2>
+        <h2 id="planned-spending-h" className="font-display text-lg font-semibold">Planned spending (estimates)</h2>
+        <p className="mt-1 text-sm text-muted">The cost estimates from your itinerary and bookings. Adding or editing an expense leaves these estimates unchanged.</p>
         <dl className="mt-3 space-y-1.5 text-sm">
-          {b.budgetMinor !== null && <div className="flex justify-between"><dt>Overall budget</dt><dd className="font-semibold tabular-nums">{formatMoney(b.budgetMinor, b.currency)}</dd></div>}
           {rows.map(([k, v, hint]) => (
             <div key={k} className="flex justify-between gap-3"><dt>{k}<span className="block text-xs text-muted">{hint}</span></dt><dd className="tabular-nums">{formatMoney(v, b.currency)}</dd></div>
           ))}
-          <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>Projected total</dt><dd className="tabular-nums">{formatMoney(b.projectedMinor, b.currency)}</dd></div>
-          {b.remainingMinor !== null && <div className={cx("flex justify-between font-semibold", b.remainingMinor < 0 ? "text-danger" : "text-sage-ink")}><dt>{b.remainingMinor < 0 ? "Over budget (projected)" : "Remaining (projected)"}</dt><dd className="tabular-nums">{formatMoney(Math.abs(b.remainingMinor), b.currency)}</dd></div>}
+          <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>Estimated plan total · {b.currency}</dt><dd className="tabular-nums">{formatMoney(b.projectedMinor, b.currency)}</dd></div>
         </dl>
-        {b.budgetMinor === null && <p className="mt-2 text-xs text-muted">Set an overall budget in trip settings to see what's left.</p>}
-        {b.otherCurrencies.length > 0 && <p className="mt-2 text-xs text-muted">Not included (other currencies, no conversion chosen): {b.otherCurrencies.map((o) => `${formatMoney(o.actualMinor, o.currency)} spent, ${formatMoney(o.estimatedMinor, o.currency)} estimated`).join("; ")}.</p>}
+        {b.otherCurrencies.some(o => o.estimatedMinor > 0) && <p className="mt-2 text-xs text-muted">Other-currency estimates, shown separately: {b.otherCurrencies.filter(o => o.estimatedMinor > 0).map(o => formatMoney(o.estimatedMinor, o.currency)).join(" · ")}.</p>}
       </Card>
     </section>
   );
@@ -319,7 +347,7 @@ function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tri
           <Field label="Category" htmlFor="e-cat"><Select id="e-cat" name="category" defaultValue={expense?.category ?? prefill?.category ?? "Food & drink"}>{EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
           <Field label="Expense date" htmlFor="e-date"><Input id="e-date" name="date" type="date" required defaultValue={expense?.date ?? prefill?.date ?? today} /></Field>
           <Field label="Paid by" htmlFor="e-payer"><Select id="e-payer" name="payer" defaultValue={expense?.payerId ?? meId ?? active[0]?.id}>{active.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
-          <Field label="Linked booking (optional)" htmlFor="e-book" hint="Linking prevents counting a paid booking twice in the budget."><Select id="e-book" name="bookingId" defaultValue={expense?.bookingId ?? prefill?.bookingId ?? ""}><option value="">None</option>{bookings.filter((b) => !b.hasExpense || b.id === expense?.bookingId || b.id === prefill?.bookingId).map((b) => <option key={b.id} value={b.id}>{b.title}</option>)}</Select></Field>
+          <Field label="Linked booking (optional)" htmlFor="e-book" hint="Connect this payment to its reservation. The booking estimate stays in planned spending."><Select id="e-book" name="bookingId" defaultValue={expense?.bookingId ?? prefill?.bookingId ?? ""}><option value="">None</option>{bookings.filter((b) => !b.hasExpense || b.id === expense?.bookingId || b.id === prefill?.bookingId).map((b) => <option key={b.id} value={b.id}>{b.title}</option>)}</Select></Field>
         </div>
 
         <fieldset className="space-y-3 rounded-xl border border-line p-3">
@@ -354,8 +382,9 @@ function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tri
           {preview && <p className={cx("text-sm", preview.ok ? "text-muted" : "text-danger")}>{preview.text}</p>}
         </fieldset>
 
+        {currency !== tripCurrency && <Notice>Add a {tripCurrency} conversion below to deduct this {currency} expense from the trip budget.</Notice>}
         <details open={convOn} onToggle={(e) => setConvOn((e.target as HTMLDetailsElement).open)} className="rounded-xl border border-line p-3">
-          <summary className="cursor-pointer text-sm font-medium">Convert to another currency for balances (optional)</summary>
+          <summary className="cursor-pointer text-sm font-medium">Convert for balances and budget (optional)</summary>
           <p className="mt-2 text-xs text-muted">Only if your group agrees on a rate. The original amount and currency are always kept.</p>
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
             <Field label="Convert to" htmlFor="c-cur"><Select id="c-cur" name="convCurrency" defaultValue={expense?.conversion?.currency ?? tripCurrency}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>

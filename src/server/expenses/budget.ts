@@ -1,6 +1,7 @@
 /**
- * Budget overview. Rules that prevent double counting:
- *  - A booking with a linked expense counts once, as actual spending (the expense), never again as a booking.
+ * Actual spending and the plan's estimates are independent totals:
+ *  - Only recorded expenses reduce the remaining budget.
+ *  - Booking estimates stay in the plan even after their payments are recorded.
  *  - Settlements are repayments, never spending.
  *  - A booking projected into the itinerary is counted as a booking, not as an itinerary stop.
  *  - Only the Plan A of each day counts; Plan B alternatives are excluded. Skipped stops are excluded.
@@ -18,6 +19,7 @@ export type BudgetSummary = {
   currency: string;
   budgetMinor: number | null;
   actualMinor: number;
+  estimatedBookingsMinor: number;
   committedBookingsMinor: number;
   plannedBookingsMinor: number;
   plannedActivitiesMinor: number;
@@ -50,17 +52,18 @@ export function computeBudget(input: BudgetInput): BudgetSummary {
 
   let committed = 0;
   let plannedBookings = 0;
+  let estimatedBookings = 0;
   for (const b of input.bookings) {
-    if (b.status === "CANCELLED" || b.hasExpense) continue;
+    if (b.status === "CANCELLED") continue;
     const confirmed = b.status === "BOOKED" || b.status === "PAID";
-    const value = confirmed ? (b.finalCostMinor ?? b.estCostMinor) : b.estCostMinor;
-    if (!value) continue;
+    const estimate = b.estCostMinor ?? 0;
     if (b.currency !== cur) {
-      addOther(b.currency, "estimatedMinor", value);
+      if (estimate) addOther(b.currency, "estimatedMinor", estimate);
       continue;
     }
-    if (confirmed) committed += value;
-    else plannedBookings += value;
+    estimatedBookings += estimate;
+    if (confirmed && !b.hasExpense) committed += b.finalCostMinor ?? estimate;
+    if (!confirmed) plannedBookings += estimate;
   }
 
   let plannedActivities = 0;
@@ -73,16 +76,17 @@ export function computeBudget(input: BudgetInput): BudgetSummary {
     plannedActivities += s.estCostMinor;
   }
 
-  const projected = actual + committed + plannedBookings + plannedActivities;
+  const projected = estimatedBookings + plannedActivities;
   return {
     currency: cur,
     budgetMinor: input.budgetMinor,
     actualMinor: actual,
+    estimatedBookingsMinor: estimatedBookings,
     committedBookingsMinor: committed,
     plannedBookingsMinor: plannedBookings,
     plannedActivitiesMinor: plannedActivities,
     projectedMinor: projected,
-    remainingMinor: input.budgetMinor === null ? null : input.budgetMinor - projected,
+    remainingMinor: input.budgetMinor === null ? null : input.budgetMinor - actual,
     actualByCategory: byCat,
     otherCurrencies: [...other.entries()].map(([currency, v]) => ({ currency, ...v })),
   };
