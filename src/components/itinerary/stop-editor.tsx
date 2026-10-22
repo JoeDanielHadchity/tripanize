@@ -75,7 +75,7 @@ export function StopEditor({ open, onClose, tripId, currency, stop, dayId = null
         </div>
       ) : (
         <form onSubmit={onSubmit} className="space-y-3">
-          {isBooking && <p className="rounded-lg bg-sage-soft px-3 py-2 text-sm text-sage-ink">This stop shows a booking. Title and time are saved on the booking itself, so the booking tracker, Today and this itinerary stay in sync.</p>}
+          {isBooking && <p className="rounded-lg bg-sage-soft px-3 py-2 text-sm text-sage-ink">This stop shows a booking. Title and time are saved on the booking itself, so your bookings and itinerary stay in sync.</p>}
           {stop?.isFixed && <p className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn-ink">Fixed commitment — changing its time will ask for confirmation.</p>}
           <Field label="Title" htmlFor="s-title"><Input id="s-title" name="title" required defaultValue={stop?.title ?? ""} maxLength={160} /></Field>
           <div className="grid grid-cols-2 gap-3">

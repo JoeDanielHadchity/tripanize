@@ -5,10 +5,10 @@ import { roleAllows } from "@/server/auth/permissions";
 import { listEvents } from "@/server/events/service";
 import { aiConfigured } from "@/server/ai/openai";
 import { emailConfigured } from "@/server/notifications/email";
-import { PageHeader } from "@/components/ui";
+import { EventsBookingsSection } from "@/components/events-bookings-section";
 import { EventsView } from "./view";
 
-export const metadata: Metadata = { title: "Events" };
+export const metadata: Metadata = { title: "Events & bookings" };
 
 export default async function EventsPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ event?: string }> }) {
   const { tripId } = await params;
@@ -22,8 +22,8 @@ export default async function EventsPage({ params, searchParams }: { params: Pro
     prisma.notificationDelivery.findMany({ where: { userId: user.id, tripId }, orderBy: { createdAt: "desc" }, take: 5 }),
   ]);
   return (
-    <>
-      <PageHeader title="Events shortlist" subtitle="Exhibitions, concerts, festivals and more that fit your route and dates. New finds land here — never directly in your plan." />
+    <EventsBookingsSection tripId={tripId} selected="events">
+      <p className="mb-4 text-sm text-muted">Exhibitions, concerts, festivals and more that fit your route and dates. New finds land here — never directly in your plan.</p>
       <EventsView
         tripId={tripId}
         initialEventId={initialEventId ?? null}
@@ -44,6 +44,6 @@ export default async function EventsPage({ params, searchParams }: { params: Pro
           changes: (e.changes as { type: string; summary: string; at: string }[] | null) ?? [], sources: e.sources.map((s) => ({ url: s.url, title: s.title })), scheduledDate: e.stop?.day?.date ?? null,
         }))}
       />
-    </>
+    </EventsBookingsSection>
   );
 }

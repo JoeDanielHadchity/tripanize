@@ -258,7 +258,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
               <Field label="Return time" htmlFor="cra"><Input id="cra" type="datetime-local" value={t.carReturnAt ?? ""} onChange={(e) => set("carReturnAt", e.target.value)} /></Field>
             </div>
           )}
-          <Field label="Time zone" htmlFor="tz" hint="Leave blank to detect it from your first destination. Used for “Today” and timestamps."><Input id="tz" value={t.timezone ?? ""} onChange={(e) => set("timezone", e.target.value)} placeholder="e.g. Europe/Lisbon" /></Field>
+          <Field label="Time zone" htmlFor="tz" hint="Leave blank to detect it from your first destination. Used for the current itinerary day and timestamps."><Input id="tz" value={t.timezone ?? ""} onChange={(e) => set("timezone", e.target.value)} placeholder="e.g. Europe/Lisbon" /></Field>
         </Section>
 
         <Section title="Places & commitments" hint="Must-sees are never silently dropped by the planner.">
