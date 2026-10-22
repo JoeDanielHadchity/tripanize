@@ -70,4 +70,6 @@ Branch `paddle-sandbox` uses native Cloudflare Worker Previews, deployed with `n
 
 Sandbox product: `pro_01m5jby0srz38114az53p46sv7`. The six sandbox prices match the live USD amounts, one-time billing, tax excluded and quantity fixed at one. Store the sandbox API key, public client token and webhook secret only in this specific preview, never in production or Previews Base. No production AI, email or support credentials are copied to the preview. The preview visibly identifies itself as a payment test environment.
 
+Worker URL Preview hosting must be enabled in Cloudflare Domains for the test address to serve traffic; `preview_urls=true` records that setting in this branch. This controls preview hosting only and does not enable live payments. Keep the test preview limited to synthetic data.
+
 The live domain is now approved for checkout and Apple Pay. The live default payment link was saved as `https://tripanize.app/checkout`. The last observed live account status still requested identity checks; an account-setup submission alone does not confirm final verification. Full provider checkout, upgrade and refund tests remain outstanding until sandbox credentials are connected and the checkout flow is exercised. Use only synthetic trips and test cards in the preview; do not alter production trips for QA.
