@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { requireTrip } from "@/server/auth/permissions";
+import { requirePremiumAccess } from "@/server/plans/access";
 import { isValidTimeZone } from "@/lib/dates";
 import { formatZodError } from "@/server/trips/schemas";
 
@@ -35,6 +36,7 @@ export async function updateProfile(userId: string, input: z.input<typeof profil
 
 export async function updateNotificationPrefs(userId: string, tripId: string, input: { emailEnabled: boolean; frequency: string; changeTypes: string[] }) {
   await requireTrip(tripId, userId, "view");
+  if (input.emailEnabled) await requirePremiumAccess(tripId, "events");
   const frequency = input.frequency === "daily" ? "daily" : "immediate";
   const allowed = ["new", "date", "venue", "cancelled", "sold_out", "booking_open", "price"];
   const changeTypes = input.changeTypes.filter((c) => allowed.includes(c));

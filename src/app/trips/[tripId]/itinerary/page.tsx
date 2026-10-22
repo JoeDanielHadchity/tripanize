@@ -1,3 +1,4 @@
+import { getTripPlan } from "@/server/plans/access";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth/session";
 import { prisma } from "@/server/db";
@@ -27,6 +28,7 @@ export default async function ItineraryPage({ params }: { params: Promise<{ trip
     weather = null;
   }
   const canEdit = roleAllows(access.role, "edit");
+  const { premium } = await getTripPlan(tripId);
   const len = tripLength(trip.startDate, trip.endDate);
   const tripToday = todayIn(trip.timezone);
   const todayDate = todayIn(days.find(d => d.date === tripToday)?.destination?.timezone ?? trip.timezone);
@@ -42,7 +44,7 @@ export default async function ItineraryPage({ params }: { params: Promise<{ trip
         subtitle={len ? `${len} day${len === 1 ? "" : "s"} · times are local · costs and travel times are estimates` : "Add trip dates in settings to create your days."}
         actions={
           <>
-            {canEdit && <LinkButton href={`/trips/${tripId}/plan`} variant="primary">✨ Plan with AI</LinkButton>}
+            {canEdit && <LinkButton href={`/trips/${tripId}/plan`} variant="primary">✨ {premium ? "Plan with AI" : "AI itinerary · 3 days"}</LinkButton>}
             <a href={`/api/trips/${tripId}/export/pdf`} className="inline-flex min-h-11 items-center rounded-xl border border-line bg-surface px-4 text-[15px] font-medium hover:bg-surface-2">Trip PDF</a>
           </>
         }
@@ -51,16 +53,17 @@ export default async function ItineraryPage({ params }: { params: Promise<{ trip
         { label: "Daily plans", done: days.length > 0 && planned === days.length, detail: `${planned} of ${days.length} days have stops planned`, href: `${base}/itinerary` },
         { label: "Stay details", done: trip.destinations.length > 0 && stays === trip.destinations.length, detail: `${stays} of ${trip.destinations.length} destinations have accommodation details`, href: `${base}/settings#details` },
         { label: "Arrival & departure", done: arrivalReady, detail: arrivalReady ? "Locations and times added" : "Review your arrival and departure locations and times", href: `${base}/settings#details` },
-        { label: "Trip budget", done: trip.budgetMinor !== null, detail: trip.budgetMinor !== null ? "Budget set · track actual spending in Expenses" : "Set a budget to track what remains", href: `${base}/expenses` },
+        { label: "Trip budget", done: trip.budgetMinor !== null, detail: trip.budgetMinor !== null ? (premium ? "Budget set · track actual spending in Expenses" : "Budget set in trip details") : (premium ? "Set a budget to track what remains" : "Set a budget in trip details"), href: premium ? `${base}/expenses` : `${base}/settings#details` },
         { label: "Booking follow-ups", done: openBookings === 0 && trip.bookings.some(b => ["BOOKED", "PAID"].includes(b.status)), detail: openBookings ? `${openBookings} reservations still need confirmation` : trip.bookings.length ? "Review reservations and any booking-needed stops" : "Review what needs booking or add your reservations", href: `${base}/bookings` },
-        { label: "Travelers", done: trip.travelers.length > 0, detail: `${trip.travelers.length} traveler${trip.travelers.length === 1 ? "" : "s"} listed · review everyone before splitting costs`, href: `${base}/settings#travelers` },
+        { label: "Travelers", done: trip.travelers.length > 0, detail: `${trip.travelers.length} traveler${trip.travelers.length === 1 ? "" : "s"} listed${premium ? " · review everyone before splitting costs" : ""}`, href: `${base}/settings#travelers` },
       ]} />
       <ItineraryView
         tripId={tripId}
         canEdit={canEdit}
         currency={trip.currency}
         mapsApp={profile.mapsApp}
-        aiReady={aiConfigured()}
+        premium={premium}
+        aiReady={premium && aiConfigured()}
         routingLive={routingConfigured()}
         days={days.map((d) => ({
           id: d.id, date: d.date, title: d.title, area: d.area, notes: d.notes, questions: d.questions, isTravelDay: d.isTravelDay, driveMinutes: d.driveMinutes, activePlan: d.activePlan as "A" | "B", planBNote: d.planBNote, version: d.version, estCostMinor: d.estCostMinor,

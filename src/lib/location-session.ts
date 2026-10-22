@@ -101,7 +101,7 @@ export class LocationSession {
     } catch (error) {
       if (this.disposed || gen !== this.generation) return;
       const code = (error as { code?: string }).code;
-      if (["UNAUTHENTICATED", "NOT_FOUND", "CONFLICT", "LOCATION_DENIED"].includes(code ?? "")) {
+      if (["UNAUTHENTICATED", "NOT_FOUND", "FORBIDDEN", "CONFLICT", "LOCATION_DENIED"].includes(code ?? "")) {
         const old = this.token;
         this.token = null; this.sessionId = null;
         if (old) this.api.leave(old);

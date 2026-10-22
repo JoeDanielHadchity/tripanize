@@ -87,13 +87,13 @@ function List({ tripId, title, items, shared, editable, emptyText }: { tripId: s
   );
 }
 
-export function PackingView({ tripId, canEditShared, personal, shared, tasks, travelers }: { tripId: string; canEditShared: boolean; personal: Item[]; shared: Item[]; tasks: Task[]; travelers: { id: string; name: string }[] }) {
+export function PackingView({ tripId, canEditShared, premium, personal, shared, tasks, travelers }: { tripId: string; canEditShared: boolean; premium: boolean; personal: Item[]; shared: Item[]; tasks: Task[]; travelers: { id: string; name: string }[] }) {
   const { run, pending } = useAction();
   const [laundry, setLaundry] = useState<"" | "yes" | "no">("");
   const [result, setResult] = useState<string | null>(null);
   return (
     <div className="space-y-6">
-      <Card className="bg-sage-soft/40">
+      {premium && <Card className="bg-sage-soft/40">
         <h2 className="font-display text-lg font-semibold">Suggestions</h2>
         <p className="mt-1 text-sm text-muted">Based on your destinations, dates and season, trip length, weather (live forecast within 14 days, otherwise typical conditions — always labeled), planned activities, road-trip and accommodation changes, and preferences you've shared. Refreshing keeps your own items and checkmarks, never re-adds items you removed, and doesn't create duplicates.</p>
         <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -104,7 +104,7 @@ export function PackingView({ tripId, canEditShared, personal, shared, tasks, tr
           }}>{pending ? "Working…" : personal.length || shared.length ? "Refresh suggestions" : "Suggest a packing list"}</Button>
         </div>
         {result && <Notice tone="accent" className="mt-3">{result}</Notice>}
-      </Card>
+      </Card>}
       <div className="grid gap-6 lg:grid-cols-2">
         <List tripId={tripId} title="My packing list" items={personal} shared={false} editable emptyText="Only you can see this list." />
         <List tripId={tripId} title="Shared group list" items={shared} shared editable={canEditShared} emptyText="Things the group needs once, like a first-aid kit or adapters." />

@@ -3,6 +3,7 @@ import { currentRuntime } from "@/server/cloudflare/runtime";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { requireTrip } from "@/server/auth/permissions";
+import { requirePremiumAccess } from "@/server/plans/access";
 import { recordChange } from "@/server/audit";
 
 /** Private R2 objects are served only after checking trip membership. */
@@ -58,6 +59,7 @@ export async function readAttachment(userId: string, attachmentId: string) {
   const a = await prisma.attachment.findUnique({ where: { id: attachmentId } });
   if (!a) throw new AppError("NOT_FOUND", "File not found.");
   await requireTrip(a.tripId, userId, "view");
+  if (a.expenseId) await requirePremiumAccess(a.tripId, "expenses");
   if (a.expenseId && !await prisma.expense.findFirst({ where: { id: a.expenseId, tripId: a.tripId, deletedAt: null }, select: { id: true } })) throw new AppError("NOT_FOUND", "Payment not found.");
   const file = await currentRuntime().files?.get(a.storageKey);
   if (!file) throw new AppError("NOT_FOUND", "File not found.");
@@ -69,6 +71,7 @@ export async function deleteAttachment(userId: string, tripId: string, attachmen
   const a = await prisma.attachment.findFirst({ where: { id: attachmentId, tripId } });
   if (!a) throw new AppError("NOT_FOUND", "File not found.");
   await prisma.$transaction(async (tx) => {
+    if (a.expenseId) await requirePremiumAccess(tripId, "expenses", tx);
     await tx.attachment.delete({ where: { id: a.id } });
     await recordChange(tx, { tripId, actorId: userId, entity: "attachment", entityId: a.id, action: "delete" });
   });

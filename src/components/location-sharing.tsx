@@ -28,10 +28,11 @@ function currentPosition(): Promise<MemberPosition> {
   });
 }
 
-export function LocationSharingProvider({ tripId, children }: { tripId: string; children: React.ReactNode }) {
+export function LocationSharingProvider({ tripId, children, enabled = true }: { tripId: string; children: React.ReactNode; enabled?: boolean }) {
   const ref = useRef<LocationSession | null>(null);
   const [state, setState] = useState<SharingState>(emptySharing);
   useEffect(() => {
+    if (!enabled) return;
     const endpoint = `/api/trips/${tripId}/locations`;
     const request = async (body?: object) => {
       if (!navigator.onLine) throw new Error("You’re offline.");
@@ -59,7 +60,7 @@ export function LocationSharingProvider({ tripId, children }: { tripId: string; 
       clearInterval(interval); document.removeEventListener("visibilitychange", visible); window.removeEventListener("pagehide", leave); window.removeEventListener("pageshow", resume); window.removeEventListener("online", visible);
       session.dispose(); ref.current = null;
     };
-  }, [tripId]);
+  }, [tripId, enabled]);
   const active = Boolean(state.self.sessionId) || ["starting", "sharing", "paused", "stopping"].includes(state.phase);
   return <Context.Provider value={{ ...state, start: () => { void ref.current?.start(); }, stop: () => { void ref.current?.stop(); } }}>
     {active && <div className="mx-auto max-w-6xl px-4 pt-3"><Notice tone="sage"><div className="flex flex-wrap items-center justify-between gap-2"><p><Link href={`/trips/${tripId}/members`} className="font-semibold underline underline-offset-2">Member locations</Link> · {state.phase === "starting" ? "Getting your location…" : state.phase === "stopping" ? "Turning sharing off…" : state.phase === "paused" ? "Your location updates are paused" : state.phase === "sharing" ? "You’re sharing your location" : "You’re sharing from another tab or device"}</p><Button variant="ghost" disabled={state.phase === "stopping"} onClick={() => { void ref.current?.stop(); }}>Turn location off</Button></div></Notice></div>}

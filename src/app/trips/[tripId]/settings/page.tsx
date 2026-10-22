@@ -4,7 +4,7 @@ import { prisma } from "@/server/db";
 import { roleAllows, requireTrip } from "@/server/auth/permissions";
 import { emailConfigured } from "@/server/notifications/email";
 import { minorToDecimalString } from "@/lib/money";
-import { PageHeader } from "@/components/ui";
+import { Card, LinkButton, PageHeader } from "@/components/ui";
 import { TripForm } from "@/components/trip-form";
 import { SharingPanel } from "./sharing";
 import { TripChangeAlerts } from "@/components/notifications";
@@ -33,6 +33,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ tripI
     <>
       <PageHeader title="Trip settings & travelers" />
       <div className="space-y-10">
+        <Card><h2 className="font-display text-xl font-semibold">Premium for this trip</h2><p className="mt-2 text-sm text-muted">One payment for your group. See your people count, pricing and upgrade options.</p><LinkButton href={`/trips/${tripId}/premium`} className="mt-3">View Premium options</LinkButton></Card>
         <TripChangeAlerts tripId={tripId} enabled={pref?.changeEmailEnabled ?? false} emailReady={emailConfigured()} email={user.email} verified={account.emailVerified} />
         <section id="details" aria-labelledby="details-h" className="scroll-mt-20">
           <h2 id="details-h" className="mb-3 font-display text-xl font-semibold">Trip details</h2>

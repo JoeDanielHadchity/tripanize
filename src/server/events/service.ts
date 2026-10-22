@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
-import { requireTrip } from "@/server/auth/permissions";
+import { requirePremiumTrip } from "@/server/plans/access";
 import { recordChange } from "@/server/audit";
 import { isDateStr, isTimeStr } from "@/lib/dates";
 import { safeUrl } from "@/lib/maps";
@@ -106,7 +106,7 @@ export async function upsertDiscoveredEvents(tripId: string, events: (EventField
 }
 
 export async function listEvents(userId: string, tripId: string) {
-  const access = await requireTrip(tripId, userId, "view");
+  const access = await requirePremiumTrip(tripId, userId, "events", "view");
   const [events, runs, trip] = await Promise.all([
     prisma.tripEvent.findMany({ where: { tripId }, include: { booking: { select: { id: true, status: true } }, sources: true, stop: { select: { id: true, dayId: true, day: { select: { date: true } } } } }, orderBy: [{ date: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }] }),
     prisma.discoveryRun.findMany({ where: { tripId }, orderBy: { createdAt: "desc" }, take: 5 }),
@@ -117,7 +117,7 @@ export async function listEvents(userId: string, tripId: string) {
 }
 
 export async function setEventStatus(userId: string, tripId: string, eventId: string, status: "SAVED" | "HIDDEN" | "NEW", expectedStatus?: "NEW" | "SAVED" | "HIDDEN" | "SCHEDULED") {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "events", "edit");
   const e = await prisma.tripEvent.findFirst({ where: { id: eventId, tripId }, include: { stop: true } });
   if (!e) throw new AppError("NOT_FOUND", "Event not found.");
   if (!["SAVED", "HIDDEN", "NEW"].includes(status)) throw new AppError("VALIDATION", "Invalid event status.");
@@ -130,7 +130,7 @@ export async function setEventStatus(userId: string, tripId: string, eventId: st
 }
 
 export async function acknowledgeEventChanges(userId: string, tripId: string, eventId: string) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "events", "edit");
   await prisma.$transaction(async tx => {
     const updated = await tx.tripEvent.updateMany({ where: { id: eventId, tripId }, data: { changes: [] as unknown as Prisma.InputJsonValue } });
     if (updated.count) await recordChange(tx, { tripId, actorId: userId, entity: "event", entityId: eventId, action: "update" });
@@ -151,7 +151,7 @@ const customEvent = z.object({
 });
 
 export async function addCustomEvent(userId: string, tripId: string, input: z.input<typeof customEvent>) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "events", "edit");
   const r = customEvent.safeParse(input);
   if (!r.success) throw new AppError("VALIDATION", formatZodError(r.error));
   const d = r.data;
@@ -170,7 +170,7 @@ export async function addCustomEvent(userId: string, tripId: string, input: z.in
 
 /** Previews adding an event to a day: returns overlaps with existing stops (fixed ones flagged as conflicts). */
 export async function previewScheduleEvent(userId: string, tripId: string, eventId: string, dayId: string, startTime: string | null, durationMin: number) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "events", "edit");
   const [e, day] = await Promise.all([prisma.tripEvent.findFirst({ where: { id: eventId, tripId } }), prisma.itineraryDay.findFirst({ where: { id: dayId, tripId } })]);
   if (!e || !day) throw new AppError("NOT_FOUND", "Event or day not found.");
   const stops = await prisma.stop.findMany({ where: { dayId, plan: day.activePlan }, include: stopInclude });
@@ -187,7 +187,7 @@ export async function previewScheduleEvent(userId: string, tripId: string, event
 }
 
 export async function scheduleEvent(userId: string, tripId: string, eventId: string, dayId: string, startTime: string | null, durationMin: number) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "events", "edit");
   if (startTime && !isTimeStr(startTime)) throw new AppError("VALIDATION", "Use HH:MM for the time.");
   const e = await prisma.tripEvent.findFirst({ where: { id: eventId, tripId }, include: { stop: true, booking: true } });
   if (!e) throw new AppError("NOT_FOUND", "Event not found.");
@@ -221,7 +221,7 @@ export async function scheduleEvent(userId: string, tripId: string, eventId: str
 }
 
 export async function updateDiscoverySettings(userId: string, tripId: string, input: { autoDiscovery: boolean; everyHours: number }) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "events", "edit");
   const every = [6, 12, 24, 72, 168].includes(input.everyHours) ? input.everyHours : 24;
   await prisma.$transaction(async tx => {
     await tx.trip.update({ where: { id: tripId }, data: { autoDiscovery: input.autoDiscovery, discoveryEveryHours: every, nextDiscoveryAt: input.autoDiscovery ? new Date(Date.now() + 60_000) : null } });

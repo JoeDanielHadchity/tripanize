@@ -24,7 +24,7 @@ function Icon({ d }: { d: string }) {
 }
 
 /** One navigation per breakpoint: a sidebar on desktop, a bottom bar (with "More") on phones. */
-export function TripNav({ tripId, initialChat }: { tripId: string; initialChat: ChatSummary }) {
+export function TripNav({ tripId, initialChat, premium = true }: { tripId: string; initialChat: ChatSummary; premium?: boolean }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
   const [chat, setChat] = useState(initialChat);
@@ -38,7 +38,9 @@ export function TripNav({ tripId, initialChat }: { tripId: string; initialChat: 
     window.addEventListener("tripanize:chat-unread", changed);
     return () => window.removeEventListener("tripanize:chat-unread", changed);
   }, [tripId]);
-  const unreadBadge = chat.unread > 0 ? <span aria-label={`${chat.unread} unread chat messages`} className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-on-accent">{chat.unread > 99 ? "99+" : chat.unread}</span> : null;
+  const unreadBadge = premium && chat.unread > 0 ? <span aria-label={`${chat.unread} unread chat messages`} className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-on-accent">{chat.unread > 99 ? "99+" : chat.unread}</span> : null;
+  const destination = (slug: string) => `/trips/${tripId}/${slug === "events" && !premium ? "bookings" : slug}`;
+  const label = (slug: string, text: string) => slug === "events" && !premium ? "Bookings" : text;
   const active = (slug: string) => path.startsWith(`/trips/${tripId}/${slug}`)
     || (slug === "itinerary" && ["plan", "today"].some(s => path.startsWith(`/trips/${tripId}/${s}`)))
     || (slug === "chat" && path.startsWith(`/trips/${tripId}/members`))
@@ -51,9 +53,10 @@ export function TripNav({ tripId, initialChat }: { tripId: string; initialChat: 
         <ul className="sticky top-20 space-y-1">
           {SECTIONS.map((s) => (
             <li key={s.slug}>
-              <Link href={`/trips/${tripId}/${s.slug}`} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium", active(s.slug) ? "bg-accent-soft text-accent-ink" : "text-muted hover:bg-surface-2 hover:text-ink")}>
+              <Link href={destination(s.slug)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium", active(s.slug) ? "bg-accent-soft text-accent-ink" : "text-muted hover:bg-surface-2 hover:text-ink")}>
                 <Icon d={s.icon} />
-                {s.label}
+                {label(s.slug, s.label)}
+                {!premium && ["expenses", "chat"].includes(s.slug) && <span className="ml-auto text-[10px]">Premium</span>}
                 {s.slug === "chat" && <span className="ml-auto">{unreadBadge}</span>}
               </Link>
             </li>
@@ -65,9 +68,9 @@ export function TripNav({ tripId, initialChat }: { tripId: string; initialChat: 
           <ul className={cx("grid gap-1 border-b border-line px-2 py-2", rest.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
             {rest.map((s) => (
               <li key={s.slug}>
-                <Link href={`/trips/${tripId}/${s.slug}`} onClick={() => setMore(false)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-center text-xs font-medium", active(s.slug) ? "bg-accent-soft text-accent-ink" : "text-muted")}>
+                <Link href={destination(s.slug)} onClick={() => setMore(false)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-center text-xs font-medium", active(s.slug) ? "bg-accent-soft text-accent-ink" : "text-muted")}>
                   <Icon d={s.icon} />
-                  {s.label}
+                  {label(s.slug, s.label)}
                 </Link>
               </li>
             ))}
@@ -76,9 +79,9 @@ export function TripNav({ tripId, initialChat }: { tripId: string; initialChat: 
         <ul className="grid grid-cols-5">
           {primary.map((s) => (
             <li key={s.slug}>
-              <Link href={`/trips/${tripId}/${s.slug}`} onClick={() => setMore(false)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-center text-[11px] font-medium", active(s.slug) ? "text-accent-ink" : "text-muted")}>
+              <Link href={destination(s.slug)} onClick={() => setMore(false)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-center text-[11px] font-medium", active(s.slug) ? "text-accent-ink" : "text-muted")}>
                 <span className="relative"><Icon d={s.icon} />{s.slug === "chat" && unreadBadge && <span className="absolute -right-4 -top-1">{unreadBadge}</span>}</span>
-                {s.label}
+                {label(s.slug, s.label)}
               </Link>
             </li>
           ))}

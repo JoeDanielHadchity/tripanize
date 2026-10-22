@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/server/db";
 import type { Prisma } from "@/generated/prisma/client";
-import { requireTrip, roleAllows } from "@/server/auth/permissions";
+import { roleAllows } from "@/server/auth/permissions";
+import { requirePremiumTrip, requirePremiumAccess } from "@/server/plans/access";
 import { AppError } from "@/server/errors";
 import { AIError, aiConfigured } from "@/server/ai/openai";
 import { currentRuntime } from "@/server/cloudflare/runtime";
@@ -18,7 +19,7 @@ import { assistantCommand, AssistantResponseSchema, type AssistantParams, type A
 type Review = { baseHash: string; preview: AssistantPreview; sources: string[]; dismissedAt?: string; versionId?: string };
 const json = (value: unknown) => value as Prisma.InputJsonValue;
 async function membership(userId: string, tripId: string) {
-  await requireTrip(tripId, userId, "view");
+  await requirePremiumTrip(tripId, userId, "assistant", "view");
   return prisma.tripMembership.findUniqueOrThrow({ where: { tripId_userId: { tripId, userId } } });
 }
 const scoped = (tripId: string, userId: string, membershipId: string) => ({ tripId, requestedById: userId, kind: "assistant", params: { path: "$.membershipId", equals: membershipId } });
@@ -93,6 +94,7 @@ function contextForModel(state: AssistantState) {
 /** Executed through the existing durable AI queue, outside the HTTP database lock. */
 export async function runAssistantJob(jobId: string, generate: Generator, signal: AbortSignal) {
   const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } });
+  await requirePremiumAccess(job.tripId, "assistant");
   const params = job.params as AssistantParams;
   const m = await prisma.tripMembership.findFirst({ where: { id: params.membershipId, tripId: job.tripId, userId: job.requestedById } });
   if (!m) throw new AIError("CANCELLED", "This assistant conversation is no longer available.");
@@ -100,6 +102,7 @@ export async function runAssistantJob(jobId: string, generate: Generator, signal
   const history = await prisma.generationJob.findMany({ where: { ...scoped(job.tripId, job.requestedById, m.id), createdAt: { lt: job.createdAt } }, orderBy: newest, take: 8 });
   const input = { canEdit: roleAllows(m.role, "edit"), selectedDate: params.selectedDate, trip: contextForModel(state), history: history.reverse().map(j => ({ request: (j.params as AssistantParams).message, reply: (j.proposal as AssistantResponse | null)?.reply?.slice(0, 3000), proposedChanges: (j.checks as Review | null)?.preview.changes, appliedAt: j.appliedAt?.toISOString() ?? null, dismissed: Boolean((j.checks as Review | null)?.dismissedAt) })), latestRequest: params.message };
   const result = await generate({ schema: AssistantResponseSchema, name: "trip_assistant", instructions: ASSISTANT_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(input)}\n</trip_data>`, webSearch: true, signal, timeoutMs: 180_000, maxOutputTokens: 12000 });
+  await requirePremiumAccess(job.tripId, "assistant");
   const freshJob = await prisma.generationJob.findUnique({ where: { id: jobId } });
   const stillMember = await prisma.tripMembership.findFirst({ where: { id: m.id, tripId: job.tripId, userId: job.requestedById } });
   if (signal.aborted || freshJob?.cancelRequested || !stillMember) throw new AIError("CANCELLED", "Reply cancelled. Your itinerary was not changed.");
@@ -116,9 +119,10 @@ export async function runAssistantJob(jobId: string, generate: Generator, signal
 }
 
 export async function applyAssistantChanges(userId: string, tripId: string, id: string) {
-  await requireTrip(tripId, userId, "edit");
+  await requirePremiumTrip(tripId, userId, "assistant", "edit");
   await requireAssistantJob(userId, tripId, id);
   return prisma.$transaction(async tx => {
+    await requirePremiumAccess(tripId, "assistant", tx);
     const job = await tx.generationJob.findUniqueOrThrow({ where: { id } });
     if (job.appliedAt) return { applied: true }; // Idempotent retries never apply twice.
     const params = job.params as AssistantParams;

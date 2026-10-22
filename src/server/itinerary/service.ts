@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma, type Tx } from "@/server/db";
 import { AppError, conflictError } from "@/server/errors";
 import { requireTrip } from "@/server/auth/permissions";
+import { requirePremiumAccess } from "@/server/plans/access";
 import { recordChange } from "@/server/audit";
 import { isTimeStr } from "@/lib/dates";
 import { parseMoney } from "@/lib/money";
@@ -378,6 +379,7 @@ export async function updateDay(userId: string, tripId: string, dayId: string, p
 /** Replaces a flexible stop with a chosen alternative, keeping its slot in the day. */
 export async function replaceStop(userId: string, tripId: string, stopId: string, input: StopInput, opts: { version: number; dryRun?: boolean; origin?: "AI" | "MANUAL" }) {
   await requireTrip(tripId, userId, "edit");
+  if (opts.origin === "AI") await requirePremiumAccess(tripId, "advancedPlanning");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   const stop = await loadStop(tripId, stopId);
   if (stop.version !== opts.version) throw conflictError(`“${stop.title}”`);

@@ -18,6 +18,7 @@ export default async function Home() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <Logo />
         <nav aria-label="Account" className="flex gap-2">
+          <LinkButton href="/plans" variant="ghost">Pricing</LinkButton>
           <SettingsLink />
           <LinkButton href="/sign-in" variant="ghost">Sign in</LinkButton>
           <LinkButton href="/sign-up" variant="primary">Get started</LinkButton>

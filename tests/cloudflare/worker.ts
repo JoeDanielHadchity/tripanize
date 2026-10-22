@@ -5,6 +5,8 @@ import tripNotifications from "../../prisma/migrations/202610220003_trip_notific
 import memberLocations from "../../prisma/migrations/202610220004_member_locations/migration.sql";
 import tripChat from "../../prisma/migrations/202610220005_trip_chat/migration.sql";
 import expenseReceipts from "../../prisma/migrations/202610220006_expense_receipts/migration.sql";
+import tripPurchases from "../../prisma/migrations/202610220008_trip_purchases/migration.sql";
+import planAccess from "../../prisma/migrations/202610220007_plan_access/migration.sql";
 import { changeMemberLocation, getLocationSelf, getMemberLocations } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
@@ -18,6 +20,8 @@ import { createExpense } from "../../src/server/expenses/service";
 import { readAttachment, saveAttachment } from "../../src/server/storage";
 import { exportTripPdf } from "../../src/server/export";
 import { deleteChatMessage, getChatPage, getChatSummary, markChatRead, sendChatMessage } from "../../src/server/chat/service";
+import { getTripPlan } from "../../src/server/plans/access";
+import { planningScope } from "../../src/server/plans/planning";
 
 interface Env { PROBE: DurableObjectNamespace; FILES: R2Bucket; ASSETS: Fetcher }
 export class StorageProbe extends DurableObject<Env> {
@@ -32,6 +36,8 @@ export class StorageProbe extends DurableObject<Env> {
         ctx.storage.sql.exec(memberLocations);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "chatSeq")) ctx.storage.sql.exec(tripChat);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Attachment")').toArray().some(column => column.name === "expenseId")) ctx.storage.sql.exec(expenseReceipts);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "normalAiDates")) ctx.storage.sql.exec(planAccess);
+        ctx.storage.sql.exec(tripPurchases);
       });
     });
   }
@@ -39,6 +45,20 @@ export class StorageProbe extends DurableObject<Env> {
     try {
       return await appRuntime.run({ database: this.db, files: this.env.FILES, assets: this.env.ASSETS, authSecret: "test-only-not-used-for-production" }, async () => {
         if (new URL(request.url).pathname === "/count") return Response.json({ users: await this.db.user.count() });
+        if (new URL(request.url).pathname === "/plans") {
+          return appRuntime.run({ database: this.db, planAccessEnabled: true, authSecret: "isolated-tier-fixture" }, async () => {
+            const id = crypto.randomUUID();
+            await this.db.user.create({ data: { id, email: `${id}@example.test`, name: "Tier fixture" } });
+            const tripId = await createTrip(id, { name: "Tier fixture", startDate: "2027-05-01", endDate: "2027-05-08", destinations: [{ name: "Lisbon" }], currency: "EUR", timezone: "Europe/Lisbon" });
+            const dates = await planningScope(tripId, "full");
+            let normalDenied = false;
+            try { await getChatPage(id, tripId); } catch (e) { normalDenied = (e as { code?: string }).code === "FORBIDDEN"; }
+            await this.db.premiumCheckout.create({ data: { tripId, buyerId: id, environment: "live", priceId: "isolated-fixture", amountMinor: 900, targetCapacity: 2, status: "COMPLETED" } });
+            const premiumUnlocked = (await getTripPlan(tripId)).premium && (await getChatPage(id, tripId)).messages.length === 0;
+            await this.db.premiumCheckout.updateMany({ where: { tripId }, data: { reviewRequired: true } });
+            return Response.json({ normalDenied, aiDates: dates, premiumUnlocked, expiryEnforced: !(await getTripPlan(tripId)).premium });
+          });
+        }
         if (new URL(request.url).pathname === "/expense-receipt") {
           const fixture = await this.ctx.storage.get<{ userId: string; expenseId: string; receiptId: string }>("expense-receipt-fixture");
           if (!fixture) throw new Error("Missing receipt fixture");

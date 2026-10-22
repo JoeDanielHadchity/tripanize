@@ -73,13 +73,13 @@ function DayReview({ d, existingStops, checked, onToggle, issues, applied }: { d
   );
 }
 
-export function PlanPanel(props: { tripId: string; canEdit: boolean; aiReady: boolean; model: string; webSearch: boolean; missing: { field: string; question: string }[]; days: { date: string; title: string | null; stops: number }[]; hasPlan: boolean; initialJobId: string | null; preselectDays: string[] }) {
+export function PlanPanel(props: { tripId: string; premium: boolean; canEdit: boolean; aiReady: boolean; model: string; webSearch: boolean; missing: { field: string; question: string }[]; days: { date: string; title: string | null; stops: number }[]; hasPlan: boolean; initialJobId: string | null; preselectDays: string[] }) {
   const { tripId } = props;
   const router = useRouter();
   const { run, pending } = useAction();
   const [jobId, setJobId] = useState<string | null>(props.initialJobId);
   const [job, setJob] = useState<Job | null>(null);
-  const [scope, setScope] = useState<"full" | "days">(props.preselectDays.length ? "days" : "full");
+  const [scope, setScope] = useState<"full" | "days">(props.premium && props.preselectDays.length ? "days" : "full");
   const [selDays, setSelDays] = useState<string[]>(props.preselectDays);
   const [instruction, setInstruction] = useState("");
   const [accept, setAccept] = useState<string[]>([]);
@@ -130,9 +130,10 @@ export function PlanPanel(props: { tripId: string; canEdit: boolean; aiReady: bo
 
   return (
     <div className="space-y-6">
+      {!props.premium && <Notice tone="accent">Normal includes an AI draft for the first 3 days per trip. Add the remaining days manually. <Link href="/plans" className="font-semibold underline">Premium</Link> unlocks longer AI plans, selected-day regeneration and the AI assistant.</Notice>}
       {props.canEdit && !running && (
         <Card id="plan-form">
-          <h2 className="font-display text-xl font-semibold">{props.hasPlan ? "Regenerate with AI" : "Draft my itinerary"}</h2>
+          <h2 className="font-display text-xl font-semibold">{!props.premium ? "Draft your first 3 days" : props.hasPlan ? "Regenerate with AI" : "Draft my itinerary"}</h2>
           {blocking ? (
             <Notice tone="warn" title="A few essentials are needed first" className="mt-3">
               <ul className="list-disc pl-5">{props.missing.map((m) => <li key={m.field}>{m.question}</li>)}</ul>
@@ -142,10 +143,10 @@ export function PlanPanel(props: { tripId: string; canEdit: boolean; aiReady: bo
             <div className="mt-3 space-y-4">
               <fieldset className="flex flex-wrap gap-2">
                 <legend className="sr-only">What to plan</legend>
-                {(["full", "days"] as const).map((s) => (
+                {(props.premium ? (["full", "days"] as const) : (["full"] as const)).map((s) => (
                   <label key={s} className={cx("flex min-h-11 cursor-pointer items-center rounded-xl border px-4 text-sm font-medium", scope === s ? "border-accent bg-accent-soft text-accent-ink" : "border-line")}>
                     <input type="radio" name="scope" className="sr-only" checked={scope === s} onChange={() => setScope(s)} />
-                    {s === "full" ? "Whole trip" : "Selected days only"}
+                    {s === "full" ? props.premium ? "Whole trip" : "First 3 days" : "Selected days only"}
                   </label>
                 ))}
               </fieldset>

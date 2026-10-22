@@ -11,9 +11,9 @@ export const metadata: Metadata = { title: "Bookings · Events & bookings" };
 export default async function BookingsPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ event?: string }> }) {
   const { tripId } = await params;
   const user = await requireUser();
-  const { access, bookings, suggestedEvents } = await listBookings(user.id, tripId);
+  const { access, bookings, suggestedEvents, premium } = await listBookings(user.id, tripId);
   const { event: eventId } = await searchParams;
-  const initialEvent = eventId ? await prisma.tripEvent.findFirst({ where: { id: eventId, tripId, booking: null }, include: { stop: { select: { startTime: true, durationMin: true, day: { select: { date: true } } } } } }) : null;
+  const initialEvent = premium && eventId ? await prisma.tripEvent.findFirst({ where: { id: eventId, tripId, booking: null }, include: { stop: { select: { startTime: true, durationMin: true, day: { select: { date: true } } } } } }) : null;
   const eventView = (e: (typeof suggestedEvents)[number]) => ({
     id: e.id, title: e.title, category: e.category, date: e.date, endDate: e.endDate, startTime: e.startTime, dateVerified: e.dateVerified,
     venue: e.venue, city: e.city, address: e.address, officialUrl: e.officialUrl, bookingUrl: e.bookingUrl, priceText: e.priceText,
@@ -22,10 +22,11 @@ export default async function BookingsPage({ params, searchParams }: { params: P
   });
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { currency: true, startDate: true, endDate: true } });
   return (
-    <EventsBookingsSection tripId={tripId} selected="bookings">
+    <EventsBookingsSection tripId={tripId} selected="bookings" premium={premium}>
       <BookingsView
         tripId={tripId}
         canEdit={roleAllows(access.role, "edit")}
+        premium={premium}
         currency={trip.currency}
         tripDates={{ start: trip.startDate, end: trip.endDate }}
         suggestedEvents={suggestedEvents.map(eventView)}

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { noStore, withUser } from "@/server/api";
-import { requireTrip } from "@/server/auth/permissions";
+import { requirePremiumTrip } from "@/server/plans/access";
 import { AppError } from "@/server/errors";
 import { expenseInput } from "@/server/expenses/service";
 import { saveExpenseWithReceipts } from "@/server/expenses/receipts";
@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
   if (Number(request.headers.get("Content-Length") ?? 0) > limit) return json({ error: "Attach up to 10 MB of new receipts at a time." }, 413);
   const { tripId } = await params;
   const result = await withUser(async userId => {
-    await requireTrip(tripId, userId, "edit");
+    await requirePremiumTrip(tripId, userId, "expenses", "edit");
     const reader = request.body?.getReader();
     if (!reader) throw new AppError("VALIDATION", "Submit the payment form.");
     const chunks: Uint8Array[] = [];

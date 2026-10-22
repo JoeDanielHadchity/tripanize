@@ -1,12 +1,14 @@
 import { prisma } from "@/server/db";
 import { sendEmail } from "./email";
 import type { EventChange } from "@/server/events/service";
+import { getTripPlan } from "@/server/plans/access";
 
 /**
  * Event-change notifications. Opt-in per member and trip; only selected change types; each change is delivered
  * at most once per user (dedupe key), and a delivery is recorded as "sent" only when the email provider accepted it.
  */
 export async function notifyEventChanges(tripId: string, newEvents: { id: string; title: string }[], changed: { id: string; title: string; changes: EventChange[] }[]) {
+  if (!(await getTripPlan(tripId)).premium) return;
   const prefs = await prisma.notificationPreference.findMany({ where: { tripId, emailEnabled: true }, include: { user: true } });
   if (!prefs.length) return;
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { name: true } });
@@ -29,6 +31,7 @@ export async function notifyEventChanges(tripId: string, newEvents: { id: string
 }
 
 async function deliver(userId: string, email: string, tripId: string, tripName: string, lines: { key: string; text: string }[]) {
+  if (!(await getTripPlan(tripId)).premium) return;
   const already = await prisma.notificationDelivery.findMany({ where: { userId, dedupeKey: { in: lines.map((l) => l.key) }, status: "sent" }, select: { dedupeKey: true } });
   const fresh = lines.filter((l) => !already.some((a) => a.dedupeKey === l.key));
   if (!fresh.length) return;

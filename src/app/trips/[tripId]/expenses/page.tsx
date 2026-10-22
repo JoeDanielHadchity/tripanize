@@ -1,3 +1,5 @@
+import { getMemberTripPlan } from "@/server/plans/access";
+import { PremiumRequired } from "@/components/premium-required";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth/session";
 import { prisma } from "@/server/db";
@@ -14,6 +16,7 @@ export default async function ExpensesPage({ params, searchParams }: { params: P
   const { tripId } = await params;
   const { fromBooking } = await searchParams;
   const user = await requireUser();
+  if (!(await getMemberTripPlan(tripId, user.id)).premium) return <PremiumRequired feature="expenses" />;
   const data = await getExpenseData(user.id, tripId);
   const [stops, bookings] = await Promise.all([
     prisma.stop.findMany({ where: { tripId, dayId: { not: null } }, select: { plan: true, status: true, bookingId: true, estCostMinor: true, currency: true, day: { select: { activePlan: true } } } }),

@@ -35,6 +35,7 @@ model User {
   tripNotifications TripNotification[]
   travelerLinks    Traveler[]
   chatMessages     ChatMessage[]
+  premiumEntitlement PremiumEntitlement?
 
   @@map("user")
 }
@@ -84,6 +85,17 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// Written only by a trusted billing integration or an explicit administrative grant.
+// No profile form, trip action, or client-provided plan can create entitlement.
+model PremiumEntitlement {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source String
+  validUntil DateTime
+  revokedAt DateTime?
+  updatedAt DateTime @updatedAt
 }
 
 // ───────────────────────── Profile ─────────────────────────
@@ -153,6 +165,7 @@ model Trip {
   // Pre-planning questions (AI-written multiple choice) and the travelers' answers, used by the planner.
   planQuestions Json?
   planPrefs     Json?
+  normalAiDates Json?
   // Bumped on every shared change so other members' devices can sync.
   revision  Int      @default(0)
   lastChangedById String?
@@ -188,6 +201,26 @@ model Trip {
   deliveries   NotificationDelivery[]
   tripNotifications TripNotification[]
   chatMessages ChatMessage[]
+  premiumCheckouts PremiumCheckout[]
+}
+
+// One purchase unlocks one trip. Server-created intents fix the USD amount and
+// Paddle price before checkout; browser callbacks never grant access.
+model PremiumCheckout {
+  id String @id @default(cuid())
+  tripId String
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  buyerId String
+  environment String
+  priceId String
+  amountMinor Int
+  targetCapacity Int
+  status String @default("CREATING")
+  transactionId String? @unique
+  reviewRequired Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tripId, environment, status])
 }
 
 enum TripRole {
