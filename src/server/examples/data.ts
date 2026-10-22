@@ -18,7 +18,7 @@ export const EXAMPLES: Example[] = [
     nights: 5,
     currency: "EUR",
     budget: 1800,
-    image: "linear-gradient(150deg,#0f766e 0%,#2a9d8f 50%,#e0795a 100%)",
+    image: "var(--brand-gradient)",
     destinations: [
       { name: "Lisbon", country: "Portugal", fromOffset: 0, toOffset: 3, neighborhood: "Baixa / Chiado" },
       { name: "Porto", country: "Portugal", fromOffset: 3, toOffset: 5, neighborhood: "Ribeira" },

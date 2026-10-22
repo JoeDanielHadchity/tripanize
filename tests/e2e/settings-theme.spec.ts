@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 // Settings → Appearance: System / Light / Dark, applied instantly, remembered on the device, no flash on reload.
 const bg = (page: import("@playwright/test").Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-const LIGHT = "rgb(241, 247, 246)";
-const DARK = "rgb(15, 23, 22)";
+const LIGHT = "rgb(250, 247, 241)";
+const DARK = "rgb(18, 26, 43)";
 
 test("appearance setting switches and remembers light/dark mode", async ({ browser }, info) => {
   const mobile = Boolean(info.project.use.isMobile);

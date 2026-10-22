@@ -11,7 +11,7 @@ export function Logo({ small }: { small?: boolean }) {
         <path d="M8 21c3-7 6-10 8-10s3 3 8-2" stroke="var(--on-accent)" strokeWidth="2.4" fill="none" strokeLinecap="round" />
         <circle cx="23.5" cy="9.5" r="2.2" fill="var(--on-accent)" />
       </svg>
-      <span className={`${small ? "hidden sm:inline " : ""}font-display text-xl font-semibold tracking-tight`}>Tripanize</span>
+      <span className={`${small ? "hidden sm:inline " : ""}font-display text-xl font-semibold tracking-tight text-accent-ink`}>Tripanize</span>
     </span>
   );
 }
