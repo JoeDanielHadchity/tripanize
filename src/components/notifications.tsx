@@ -102,7 +102,7 @@ export function TripChangeAlerts({ tripId, enabled, emailReady, email, verified 
       <h2 id={`notifications-${tripId}`} className="font-display text-xl font-semibold">My trip change alerts</h2>
       <p className="mt-1 text-sm text-muted">The bell shows changes other members make to your itinerary, bookings, expenses, events and other shared trip details. Your own edits and personal packing stay quiet.</p>
       <form className="mt-3 space-y-3" onSubmit={e => { e.preventDefault(); void run(() => changeEmailPreferenceAction(tripId, checked), { success: "Trip change email preferences saved", refresh: false }); }}>
-        <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="h-5 w-5 shrink-0" checked={checked} onChange={e => setChecked(e.target.checked)} disabled={!emailReady || !verified} /> Also email me after each shared change</label>
+        <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="h-5 w-5 shrink-0" checked={checked} onChange={e => setChecked(e.target.checked)} disabled={!enabled && (!emailReady || !verified)} /> Also email me after each shared change</label>
         <p className="text-xs text-muted">Emails go to {email}. This setting only affects your account and future changes; you can turn it off anytime.</p>
         {!emailReady && <Notice tone="warn">Email delivery is unavailable. In-app alerts are still on.</Notice>}
         {!verified && <Notice tone="warn">Sign in with an email code to verify your address before enabling emails.</Notice>}
