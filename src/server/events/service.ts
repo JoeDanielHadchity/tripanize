@@ -129,7 +129,10 @@ export async function setEventStatus(userId: string, tripId: string, eventId: st
 
 export async function acknowledgeEventChanges(userId: string, tripId: string, eventId: string) {
   await requireTrip(tripId, userId, "edit");
-  await prisma.tripEvent.updateMany({ where: { id: eventId, tripId }, data: { changes: [] as unknown as Prisma.InputJsonValue } });
+  await prisma.$transaction(async tx => {
+    const updated = await tx.tripEvent.updateMany({ where: { id: eventId, tripId }, data: { changes: [] as unknown as Prisma.InputJsonValue } });
+    if (updated.count) await recordChange(tx, { tripId, actorId: userId, entity: "event", entityId: eventId, action: "update" });
+  });
 }
 
 const customEvent = z.object({
@@ -218,5 +221,8 @@ export async function scheduleEvent(userId: string, tripId: string, eventId: str
 export async function updateDiscoverySettings(userId: string, tripId: string, input: { autoDiscovery: boolean; everyHours: number }) {
   await requireTrip(tripId, userId, "edit");
   const every = [6, 12, 24, 72, 168].includes(input.everyHours) ? input.everyHours : 24;
-  await prisma.trip.update({ where: { id: tripId }, data: { autoDiscovery: input.autoDiscovery, discoveryEveryHours: every, nextDiscoveryAt: input.autoDiscovery ? new Date(Date.now() + 60_000) : null } });
+  await prisma.$transaction(async tx => {
+    await tx.trip.update({ where: { id: tripId }, data: { autoDiscovery: input.autoDiscovery, discoveryEveryHours: every, nextDiscoveryAt: input.autoDiscovery ? new Date(Date.now() + 60_000) : null } });
+    await recordChange(tx, { tripId, actorId: userId, entity: "discovery", entityId: tripId, action: "update" });
+  });
 }

@@ -31,6 +31,7 @@ export default async function SettingsPage() {
             <h2 className="font-display text-xl font-semibold">Account</h2>
             <p className="mt-1 text-sm text-muted">Signed in as {user.email}</p>
             <ul className="mt-3 divide-y divide-line">
+              <li><Link href="/notifications" className="flex min-h-12 items-center justify-between py-2 font-medium hover:text-accent-ink">Notifications & email alerts <span aria-hidden>›</span></Link></li>
               <li><Link href="/account" className="flex min-h-12 items-center justify-between py-2 font-medium hover:text-accent-ink">Profile & travel preferences <span aria-hidden>›</span></Link></li>
               <li className="flex min-h-12 items-center justify-between py-2"><span className="font-medium">Sign out of this device</span><SignOutButton className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-medium hover:bg-surface-2" /></li>
             </ul>

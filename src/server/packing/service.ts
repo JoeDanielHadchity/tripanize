@@ -53,22 +53,28 @@ export async function refreshSuggestions(userId: string, tripId: string, opts: {
     international: countries.size > 1 || !profile?.homeCity || ![...countries].some((c) => profile.homeCity?.toLowerCase().includes(String(c).toLowerCase())),
   });
   const canEditShared = roleAllows(access.role, "edit");
-  let added = 0;
-  for (const s of suggestions) {
-    if (s.shared && !canEditShared) continue;
-    const listKey = s.shared ? "shared" : userId;
-    const key = normKey(s.label);
-    const existing = await prisma.packingItem.findUnique({ where: { tripId_listKey_normKey: { tripId, listKey, normKey: key } } });
-    if (existing) {
-      if (existing.source === "suggested" && !existing.dismissed && existing.reason !== s.reason) {
-        await prisma.packingItem.update({ where: { id: existing.id }, data: { reason: s.reason } });
+  return prisma.$transaction(async tx => {
+    let added = 0;
+    let changedShared = false;
+    for (const s of suggestions) {
+      if (s.shared && !canEditShared) continue;
+      const listKey = s.shared ? "shared" : userId;
+      const key = normKey(s.label);
+      const existing = await tx.packingItem.findUnique({ where: { tripId_listKey_normKey: { tripId, listKey, normKey: key } } });
+      if (existing) {
+        if (existing.source === "suggested" && !existing.dismissed && existing.reason !== s.reason) {
+          await tx.packingItem.update({ where: { id: existing.id }, data: { reason: s.reason } });
+          changedShared ||= s.shared;
+        }
+        continue;
       }
-      continue;
+      await tx.packingItem.create({ data: { tripId, ownerId: s.shared ? null : userId, listKey, label: s.label, normKey: key, category: s.category, quantity: s.quantity ?? 1, source: "suggested", reason: s.reason } });
+      changedShared ||= s.shared;
+      added++;
     }
-    await prisma.packingItem.create({ data: { tripId, ownerId: s.shared ? null : userId, listKey, label: s.label, normKey: key, category: s.category, quantity: s.quantity ?? 1, source: "suggested", reason: s.reason } });
-    added++;
-  }
-  return { added, weatherUsed: weatherDays.length > 0, weatherUnavailable: weather?.unavailable ?? [] };
+    if (changedShared) await recordChange(tx, { tripId, actorId: userId, entity: "packing", entityId: tripId, action: "update" });
+    return { added, weatherUsed: weatherDays.length > 0, weatherUnavailable: weather?.unavailable ?? [] };
+  });
 }
 
 export async function addPackingItem(userId: string, tripId: string, input: { label: string; category: string; quantity?: number; shared: boolean }) {
@@ -81,12 +87,13 @@ export async function addPackingItem(userId: string, tripId: string, input: { la
   const key = normKey(label) || label.toLowerCase();
   const existing = await prisma.packingItem.findUnique({ where: { tripId_listKey_normKey: { tripId, listKey, normKey: key } } });
   if (existing && !existing.dismissed) throw new AppError("VALIDATION", `“${existing.label}” is already on this list.`);
-  if (existing) {
-    return prisma.packingItem.update({ where: { id: existing.id }, data: { dismissed: false, label, category, packed: false, source: "user", quantity: input.quantity ?? 1, version: { increment: 1 } } });
-  }
-  const item = await prisma.packingItem.create({ data: { tripId, ownerId: input.shared ? null : userId, listKey, label, normKey: key, category, quantity: Math.max(1, Math.min(99, input.quantity ?? 1)), source: "user" } });
-  if (input.shared) await prisma.$transaction((tx) => recordChange(tx, { tripId, actorId: userId, entity: "packing", entityId: item.id, action: "create" }));
-  return item;
+  return prisma.$transaction(async tx => {
+    const item = existing
+      ? await tx.packingItem.update({ where: { id: existing.id }, data: { dismissed: false, label, category, packed: false, source: "user", quantity: Math.max(1, Math.min(99, input.quantity ?? 1)), version: { increment: 1 } } })
+      : await tx.packingItem.create({ data: { tripId, ownerId: input.shared ? null : userId, listKey, label, normKey: key, category, quantity: Math.max(1, Math.min(99, input.quantity ?? 1)), source: "user" } });
+    if (input.shared) await recordChange(tx, { tripId, actorId: userId, entity: "packing", entityId: item.id, action: "create" });
+    return item;
+  });
 }
 
 async function loadItem(userId: string, tripId: string, itemId: string) {
@@ -109,15 +116,19 @@ export async function updatePackingItem(userId: string, tripId: string, itemId: 
   if (patch.category !== undefined) data.category = (PACKING_CATEGORIES as readonly string[]).includes(patch.category) ? patch.category : "Misc";
   if (patch.quantity !== undefined) data.quantity = Math.max(1, Math.min(99, Math.round(patch.quantity)));
   if (patch.packed !== undefined) data.packed = patch.packed;
-  const res = await prisma.packingItem.updateMany({ where: { id: item.id, version }, data: { ...data, version: { increment: 1 } } });
-  if (!res.count) throw conflictError(`“${item.label}”`);
-  if (item.ownerId === null) await prisma.$transaction((tx) => recordChange(tx, { tripId, actorId: userId, entity: "packing", entityId: item.id, action: "update" }));
+  await prisma.$transaction(async tx => {
+    const res = await tx.packingItem.updateMany({ where: { id: item.id, version }, data: { ...data, version: { increment: 1 } } });
+    if (!res.count) throw conflictError(`“${item.label}”`);
+    if (item.ownerId === null) await recordChange(tx, { tripId, actorId: userId, entity: "packing", entityId: item.id, action: "update" });
+  });
 }
 
 export async function removePackingItem(userId: string, tripId: string, itemId: string) {
   const item = await loadItem(userId, tripId, itemId);
   // Removed suggestions are remembered so a refresh doesn't add them back.
-  if (item.source === "suggested") await prisma.packingItem.update({ where: { id: item.id }, data: { dismissed: true, packed: false } });
-  else await prisma.packingItem.delete({ where: { id: item.id } });
-  if (item.ownerId === null) await prisma.$transaction((tx) => recordChange(tx, { tripId, actorId: userId, entity: "packing", entityId: item.id, action: "delete" }));
+  await prisma.$transaction(async tx => {
+    if (item.source === "suggested") await tx.packingItem.update({ where: { id: item.id }, data: { dismissed: true, packed: false } });
+    else await tx.packingItem.delete({ where: { id: item.id } });
+    if (item.ownerId === null) await recordChange(tx, { tripId, actorId: userId, entity: "packing", entityId: item.id, action: "delete" });
+  });
 }

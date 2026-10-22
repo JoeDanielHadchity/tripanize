@@ -32,6 +32,7 @@ model User {
   packingItems     PackingItem[]            @relation("PackingOwner")
   notificationPrefs NotificationPreference[]
   deliveries       NotificationDelivery[]
+  tripNotifications TripNotification[]
   travelerLinks    Traveler[]
 
   @@map("user")
@@ -182,6 +183,7 @@ model Trip {
   attachments  Attachment[]
   notificationPrefs NotificationPreference[]
   deliveries   NotificationDelivery[]
+  tripNotifications TripNotification[]
 }
 
 enum TripRole {
@@ -704,6 +706,8 @@ model NotificationPreference {
   tripId    String
   trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   emailEnabled Boolean @default(false)
+  // Shared edits by other trip members; separate from event discovery alerts.
+  changeEmailEnabled Boolean @default(false)
   frequency String   @default("immediate") // immediate | daily
   // Which event changes matter: new, date, venue, cancelled, sold_out, booking_open, price
   changeTypes Json @default("[]")
@@ -742,8 +746,39 @@ model AuditLog {
   before    Json?
   after     Json?
   createdAt DateTime @default(now())
+  notifications TripNotification[]
 
   @@index([tripId, entity, entityId])
+}
+
+// In-app inbox and transactional email outbox, created with the shared edit.
+model TripNotification {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tripId String
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  auditId String
+  audit AuditLog @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  tripName String
+  summary String
+  href String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  // Immutable payload keeps provider idempotency keys safe across retries.
+  emailTo String?
+  emailSubject String?
+  emailText String?
+  emailStatus String @default("disabled") // disabled | queued | sent | cancelled | failed
+  attempts Int @default(0)
+  nextAttemptAt DateTime?
+  firstAttemptAt DateTime?
+  providerId String?
+  error String?
+
+  @@unique([userId, auditId])
+  @@index([userId, createdAt, id])
+  @@index([emailStatus, nextAttemptAt])
 }
 
 model ExternalCache {

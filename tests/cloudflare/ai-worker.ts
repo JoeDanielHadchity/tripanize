@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migration.sql";
 import eventBookings from "../../prisma/migrations/202610220002_event_bookings/migration.sql";
+import tripNotifications from "../../prisma/migrations/202610220003_trip_notifications/migration.sql";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
 import { appRuntime } from "../../src/server/cloudflare/runtime";
@@ -9,6 +10,8 @@ import { createTrip } from "../../src/server/trips/service";
 import { enqueueJob, cancelJob } from "../../src/server/planner/jobs";
 import { getPlanQuestions, STANDARD_QUESTIONS } from "../../src/server/planner/questions";
 import type { Generator, PlanCheckpoint } from "../../src/server/planner/run";
+import { recordChange } from "../../src/server/audit";
+import { sendNextChangeEmail } from "../../src/server/notifications/changes";
 
 interface Env { PROBE: DurableObjectNamespace }
 export class AiProbe extends DurableObject<Env> {
@@ -31,19 +34,28 @@ export class AiProbe extends DurableObject<Env> {
       days: data.datesToPlan.map((date: string) => ({ date, area: "Lisbon", title: "Explore", isTravelDay: false, driveMinutes: null, stops: [], planB: [], planBNote: null, notes: [], questions: [], estCost: null })),
     } };
   }) as Generator;
-  private tasks: AiTasks = new AiTasks(this.ctx.storage, () => ({ database: this.db, authSecret: "isolated-ai-test", wakeAi: (): Promise<void> => this.tasks.wake() }), run => this.serialize(run), this.generate);
+  private tasks: AiTasks = new AiTasks(this.ctx.storage, () => ({ database: this.db, authSecret: "isolated-ai-test", wakeAi: (): Promise<void> => this.tasks.wake(), wakeNotifications: (): Promise<void> => this.tasks.wake() }), run => this.serialize(run), this.generate, () => sendNextChangeEmail(async msg => {
+    const attempt = await this.serialize(async () => {
+      const attempts = await this.ctx.storage.get<string[]>("emailAttempts") ?? [];
+      await this.ctx.storage.put("emailAttempts", [...attempts, msg.idempotencyKey!]);
+      return attempts.length + 1;
+    });
+    return attempt === 1 ? { status: "failed", error: "Synthetic transient failure", retryable: true } : { status: "sent", providerId: "synthetic-provider-id" };
+  }));
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
       if (!await ctx.storage.get("ready")) { ctx.storage.transactionSync(() => ctx.storage.sql.exec(schema)); await ctx.storage.put("ready", true); }
       ctx.storage.transactionSync(() => {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(column => column.name === "eventId")) ctx.storage.sql.exec(eventBookings);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("NotificationPreference")').toArray().some(column => column.name === "changeEmailEnabled")) ctx.storage.sql.exec(tripNotifications);
       });
+      if (await this.tasks.pending()) await this.tasks.wake();
     });
   }
   async alarm() { await this.tasks.alarm(); }
   async fetch(request: Request) {
-    return this.serialize(() => appRuntime.run({ database: this.db, authSecret: "isolated-ai-test", wakeAi: () => this.tasks.wake() }, async () => {
+    return this.serialize(() => appRuntime.run({ database: this.db, authSecret: "isolated-ai-test", wakeAi: () => this.tasks.wake(), wakeNotifications: () => this.tasks.wake() }, async () => {
       try {
         const url = new URL(request.url);
         if (url.pathname === "/start") {
@@ -58,6 +70,19 @@ export class AiProbe extends DurableObject<Env> {
         }
         const fixture = await this.ctx.storage.get<{ ownerId: string; tripId: string }>("fixture");
         if (!fixture) return Response.json({ error: "Start first" }, { status: 400 });
+        if (url.pathname === "/notifications/start") {
+          const id = crypto.randomUUID();
+          await this.db.user.create({ data: { id, name: "Notification recipient", email: `${id}@example.test`, emailVerified: true } });
+          await this.db.tripMembership.create({ data: { tripId: fixture.tripId, userId: id, role: "VIEWER" } });
+          await this.db.notificationPreference.create({ data: { tripId: fixture.tripId, userId: id, changeEmailEnabled: true } });
+          await this.db.$transaction(tx => recordChange(tx, { tripId: fixture.tripId, actorId: fixture.ownerId, entity: "trip", entityId: fixture.tripId, action: "update" }));
+          return Response.json({ queued: true });
+        }
+        if (url.pathname === "/notifications/retry") {
+          await this.db.tripNotification.updateMany({ where: { emailStatus: "queued" }, data: { nextAttemptAt: new Date(Date.now() + 3000) } });
+          await this.tasks.wake();
+          return Response.json({ retryReady: true });
+        }
         if (url.pathname === "/questions") return Response.json(await getPlanQuestions(fixture.ownerId, fixture.tripId, { poll: url.searchParams.has("poll") }));
         if (url.pathname === "/cancel") {
           const job = await enqueueJob(fixture.ownerId, fixture.tripId, "full", {});
@@ -69,7 +94,7 @@ export class AiProbe extends DurableObject<Env> {
         }
         const jobs = await this.db.generationJob.findMany({ where: { tripId: fixture.tripId }, orderBy: { createdAt: "asc" } });
         const checkpoints = await this.ctx.storage.list<PlanCheckpoint>({ prefix: "ai-checkpoint:" });
-        return Response.json({ jobs: jobs.map(job => ({ id: job.id, status: job.status, kind: job.kind, days: (job.proposal as unknown as { days?: unknown[] })?.days?.length ?? 0 })), calls: await this.ctx.storage.get("calls") ?? [], checkpointDays: [...checkpoints.values()][0]?.completedDates.length ?? 0, name: (await this.db.trip.findUniqueOrThrow({ where: { id: fixture.tripId } })).name, itineraryStops: await this.db.stop.count({ where: { tripId: fixture.tripId } }) });
+        return Response.json({ jobs: jobs.map(job => ({ id: job.id, status: job.status, kind: job.kind, days: (job.proposal as unknown as { days?: unknown[] })?.days?.length ?? 0 })), calls: await this.ctx.storage.get("calls") ?? [], checkpointDays: [...checkpoints.values()][0]?.completedDates.length ?? 0, name: (await this.db.trip.findUniqueOrThrow({ where: { id: fixture.tripId } })).name, itineraryStops: await this.db.stop.count({ where: { tripId: fixture.tripId } }), notifications: await this.db.tripNotification.findMany({ select: { emailStatus: true, attempts: true } }), emailAttempts: await this.ctx.storage.get("emailAttempts") ?? [] });
       } catch (error) { return Response.json({ error: error instanceof Error ? error.message : "Test failed" }, { status: 500 }); }
     }));
   }

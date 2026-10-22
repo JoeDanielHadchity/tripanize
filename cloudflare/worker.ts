@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import handler from "vinext/server/app-router-entry";
 import schema from "../prisma/migrations/202610220001_cloudflare_initial/migration.sql?raw";
 import eventBookings from "../prisma/migrations/202610220002_event_bookings/migration.sql?raw";
+import tripNotifications from "../prisma/migrations/202610220003_trip_notifications/migration.sql?raw";
 import { createDatabase } from "../src/server/db";
 import { appRuntime } from "../src/server/cloudflare/runtime";
 import { DurableSqliteAdapter } from "../src/server/cloudflare/sqlite-adapter";
@@ -32,6 +33,13 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
         });
         await ctx.storage.put("schemaVersion", 2);
       }
+      if (version < 3) {
+        ctx.storage.transactionSync(() => {
+          const columns = ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("NotificationPreference")').toArray();
+          if (!columns.some(column => column.name === "changeEmailEnabled")) ctx.storage.sql.exec(tripNotifications);
+        });
+        await ctx.storage.put("schemaVersion", 3);
+      }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
       if (await this.aiTasks.pending()) await this.aiTasks.wake();
@@ -43,7 +51,7 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     return result;
   }
   private runtime() {
-    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, wakeAi: (): Promise<void> => this.aiTasks.wake() };
+    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake() };
   }
   async alarm() { await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {

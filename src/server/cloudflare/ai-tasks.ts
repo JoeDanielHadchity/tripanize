@@ -3,23 +3,30 @@ import { serializedDatabase, type Serialize } from "./serialized-db";
 import { claimJob, runJob, type Generator, type PlanCheckpoint } from "@/server/planner/run";
 import { generateStructured } from "@/server/ai/openai";
 import { runDiscovery } from "@/server/events/discovery";
+import { nextChangeEmailAt, sendNextChangeEmail } from "@/server/notifications/changes";
 
 /** Native durable alarms keep work alive after the user's request disconnects.
  * One planning section runs per alarm, below the 15-minute invocation limit.
  */
 export class AiTasks {
   private running = false;
-  constructor(private storage: DurableObjectStorage, private context: () => AppRuntime, private serialize: Serialize, private generate: Generator = generateStructured) {}
+  constructor(private storage: DurableObjectStorage, private context: () => AppRuntime, private serialize: Serialize, private generate: Generator = generateStructured, private sendChanges: () => Promise<void> = sendNextChangeEmail) {}
 
   // Called from an HTTP request/maintenance operation that already owns the lock.
   async wake() {
-    if (await this.storage.getAlarm() === null) await this.storage.setAlarm(Date.now() + 1000);
+    const next = Date.now() + 1000;
+    const alarm = await this.storage.getAlarm();
+    if (alarm === null || alarm > next) await this.storage.setAlarm(next);
   }
 
-  async pending() {
+  private async pendingAi() {
     const db = this.context().database;
     return await db.generationJob.count({ where: { status: { in: ["QUEUED", "RUNNING"] } } }) > 0 ||
       await db.discoveryRun.count({ where: { status: { in: ["queued", "running"] } } }) > 0;
+  }
+
+  async pending() {
+    return await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: "queued" } }) > 0;
   }
 
   async alarm() {
@@ -30,7 +37,10 @@ export class AiTasks {
       // Recovery wake-up also survives a runtime restart during an upstream call.
       await this.serialize(() => this.storage.setAlarm(Date.now() + 12 * 60_000));
       const runtime = this.context();
-      await appRuntime.run({ ...runtime, database: serializedDatabase(runtime.database, this.serialize), wakeAi: undefined }, async () => {
+      await appRuntime.run({ ...runtime, database: serializedDatabase(runtime.database, this.serialize), wakeAi: undefined, wakeNotifications: undefined }, async () => {
+        await this.sendChanges();
+        const nextEmail = await nextChangeEmailAt();
+        if (nextEmail && nextEmail.getTime() <= Date.now()) return;
         const db = appRuntime.getStore()!.database;
         const job = await db.generationJob.findFirst({ where: { status: { in: ["QUEUED", "RUNNING"] } }, orderBy: { createdAt: "asc" } });
         if (job) {
@@ -56,7 +66,9 @@ export class AiTasks {
             const job = await this.context().database.generationJob.findUnique({ where: { id: jobId }, select: { status: true } });
             if (!job || !["QUEUED", "RUNNING"].includes(job.status)) await this.storage.delete(`ai-checkpoint:${jobId}`);
           }
-          if (await this.pending()) await this.storage.setAlarm(Date.now() + 1000);
+          const nextEmail = await this.context().database.tripNotification.findFirst({ where: { emailStatus: "queued" }, orderBy: { nextAttemptAt: "asc" }, select: { nextAttemptAt: true } });
+          const next = await this.pendingAi() ? Date.now() + 1000 : nextEmail?.nextAttemptAt?.getTime();
+          if (next !== undefined) await this.storage.setAlarm(Math.max(Date.now() + 1000, next));
           else await this.storage.deleteAlarm();
         });
       } finally { this.running = false; }
