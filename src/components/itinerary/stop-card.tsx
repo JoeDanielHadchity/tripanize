@@ -1,7 +1,8 @@
 "use client";
 
 import { Badge, ExternalLink, cx } from "@/components/ui";
-import { useAction, useConfirm } from "@/components/client";
+import { MenuButton, useAction, useConfirm } from "@/components/client";
+import { PlanningText } from "@/components/planning-text";
 import { deleteStopAction, setStopStatusAction } from "@/app/actions/itinerary";
 import { directionsUrl, type MapsApp } from "@/lib/maps";
 import { formatDuration } from "@/lib/dates";
@@ -42,7 +43,7 @@ export function StopCard({ s, tripId, currency, mapsApp, canEdit, handlers, next
   const confirm = useConfirm();
   const dir = directionsUrl(s, mapsApp, travelMode(s.travelMode));
   const skipped = s.status === "SKIPPED";
-  const actionCls = "min-h-10 rounded-lg px-2.5 text-sm font-medium text-muted hover:bg-surface-2 hover:text-ink disabled:opacity-40";
+  const actionCls = "block min-h-11 w-full rounded-lg px-3 text-left text-sm font-medium hover:bg-surface-2 disabled:opacity-40";
   return (
     <li {...reorder?.dragProps} className={cx("group relative rounded-2xl border bg-surface p-3 sm:p-4", highlight === "now" ? "border-accent ring-2 ring-accent/30" : highlight === "next" ? "border-sage" : "border-line", skipped && "opacity-60")}>
       <div className="flex gap-3">
@@ -55,20 +56,28 @@ export function StopCard({ s, tripId, currency, mapsApp, canEdit, handlers, next
           <h4 className={cx("font-medium leading-snug", skipped && "line-through")}>{s.title}</h4>
           <div className="mt-1 flex flex-wrap gap-1"><StopBadges s={s} /></div>
           {(s.address || s.locationName) && <p className="mt-1 text-sm text-muted">{[s.locationName !== s.title ? s.locationName : null, s.address].filter(Boolean).join(", ")}</p>}
-          {s.reason && <p className="mt-1 text-sm">{s.reason}</p>}
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
             {s.estCostMinor ? <span>≈ {formatMoney(s.estCostMinor, s.currency ?? currency)} {s.booking ? "" : "(estimate)"}</span> : null}
-            {s.hoursNote && <span className="text-warn-ink">{s.hoursNote}</span>}
-            {s.bookingNote && !s.booking && <span>Booking advice: {s.bookingNote}</span>}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             {dir && <ExternalLink href={dir}>Directions</ExternalLink>}
             {s.officialUrl && <ExternalLink href={s.officialUrl}>{s.booking ? "Booking link" : "Official site"}</ExternalLink>}
             {s.booking && <a href={`/trips/${tripId}/bookings#b-${s.booking.id}`} className="text-accent-ink underline underline-offset-2">Booking details</a>}
           </div>
+          {(s.reason || s.hoursNote || s.bookingNote || s.notes || s.travelNote) && <details className="mt-2 text-sm">
+            <summary className="min-h-9 cursor-pointer content-center font-medium text-muted">Details & advice</summary>
+            <div className="mt-1 space-y-2 whitespace-pre-line">
+              {s.reason && <p><PlanningText text={s.reason} /></p>}
+              {s.hoursNote && <p className="text-warn-ink"><PlanningText text={s.hoursNote} /></p>}
+              {s.bookingNote && !s.booking && <p>Booking advice: <PlanningText text={s.bookingNote} /></p>}
+              {s.notes && <p className="text-muted"><PlanningText text={s.notes} /></p>}
+              {s.travelNote && <p className="text-muted"><PlanningText text={s.travelNote} /></p>}
+            </div>
+          </details>}
           {canEdit && (
             <div className="mt-2 flex flex-wrap gap-1 border-t border-line pt-2" role="group" aria-label={`Actions for ${s.title}`}>
-              {handlers.onEdit && <button type="button" className={actionCls} onClick={() => handlers.onEdit!(s)}>Edit</button>}
+              {handlers.onEdit && <button type="button" className="min-h-11 rounded-xl border border-line px-4 text-sm font-medium hover:bg-surface-2" onClick={() => handlers.onEdit!(s)}>Edit</button>}
+              <MenuButton label="More">{close => <div onClick={close}>
               {!s.booking && !s.isFixed && (
                 <button type="button" className={actionCls} disabled={pending} onClick={() => run(() => setStopStatusAction(tripId, s.id, skipped ? "PLANNED" : "SKIPPED", s.version), { success: skipped ? "Restored" : "Skipped" })}>
                   {skipped ? "Unskip" : "Skip"}
@@ -76,8 +85,8 @@ export function StopCard({ s, tripId, currency, mapsApp, canEdit, handlers, next
               )}
               {handlers.onSwap && !s.booking && !s.isFixed && <button type="button" className={actionCls} onClick={() => handlers.onSwap!(s)}>Swap</button>}
               {handlers.onMove && <button type="button" className={actionCls} onClick={() => handlers.onMove!(s)}>Move</button>}
-              {reorder?.up && <button type="button" className={actionCls} onClick={reorder.up} aria-label={`Move ${s.title} earlier`}>↑</button>}
-              {reorder?.down && <button type="button" className={actionCls} onClick={reorder.down} aria-label={`Move ${s.title} later`}>↓</button>}
+              {reorder?.up && <button type="button" className={actionCls} onClick={reorder.up} aria-label={`Move ${s.title} earlier`}>Move earlier ↑</button>}
+              {reorder?.down && <button type="button" className={actionCls} onClick={reorder.down} aria-label={`Move ${s.title} later`}>Move later ↓</button>}
               {!s.booking && (
                 <button type="button" className={cx(actionCls, "text-danger")} disabled={pending} onClick={async () => {
                     const ok = await confirm({ title: "Remove stop?", message: s.isFixed ? `“${s.title}” is a fixed commitment. Remove it from the plan?` : `Remove “${s.title}” from the plan?`, confirmLabel: "Remove", danger: true });
@@ -86,13 +95,14 @@ export function StopCard({ s, tripId, currency, mapsApp, canEdit, handlers, next
                   Remove
                 </button>
               )}
+              </div>}</MenuButton>
             </div>
           )}
         </div>
         {reorder?.dragProps?.draggable && <span aria-hidden className="hidden cursor-grab select-none self-center px-1 text-muted sm:block" title="Drag to reorder">⋮⋮</span>}
       </div>
       {next && s.travelToNextMin ? (
-        <p className="mt-2 pl-[4.25rem] text-xs text-muted">↓ ~{s.travelToNextMin} min {s.travelMode ?? nextTravelMode ?? ""} to {next.title} (estimate){s.travelNote ? ` · ${s.travelNote}` : ""}</p>
+        <p className="mt-2 pl-[4.25rem] text-xs text-muted">↓ ~{s.travelToNextMin} min {s.travelMode ?? nextTravelMode ?? ""} to {next.title} (estimate)</p>
       ) : null}
     </li>
   );

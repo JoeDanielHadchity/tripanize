@@ -9,6 +9,7 @@ import { aiConfigured } from "@/server/ai/openai";
 import { routingConfigured } from "@/server/routing";
 import { getProfile } from "@/server/profile";
 import { LinkButton, PageHeader } from "@/components/ui";
+import { TripReadiness } from "@/components/trip-readiness";
 import { ItineraryView } from "./view";
 import { todayIn, tripLength } from "@/lib/dates";
 
@@ -18,7 +19,7 @@ export default async function ItineraryPage({ params }: { params: Promise<{ trip
   const { tripId } = await params;
   const user = await requireUser();
   const { access, days, ideas } = await getItinerary(user.id, tripId);
-  const [trip, versions, { profile }] = await Promise.all([prisma.trip.findUniqueOrThrow({ where: { id: tripId } }), listVersions(user.id, tripId), getProfile(user.id)]);
+  const [trip, versions, { profile }] = await Promise.all([prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: { destinations: true, travelers: { where: { leftAt: null } }, bookings: { select: { status: true } } } }), listVersions(user.id, tripId), getProfile(user.id)]);
   let weather: Awaited<ReturnType<typeof getTripWeather>> | null = null;
   try {
     weather = await getTripWeather(tripId);
@@ -29,6 +30,11 @@ export default async function ItineraryPage({ params }: { params: Promise<{ trip
   const len = tripLength(trip.startDate, trip.endDate);
   const tripToday = todayIn(trip.timezone);
   const todayDate = todayIn(days.find(d => d.date === tripToday)?.destination?.timezone ?? trip.timezone);
+  const base = `/trips/${tripId}`;
+  const planned = days.filter(d => d.stops.some(s => s.plan === d.activePlan && s.status !== "SKIPPED")).length;
+  const openBookings = trip.bookings.filter(b => ["TO_BOOK", "REQUESTED"].includes(b.status)).length;
+  const stays = trip.destinations.filter(d => d.accommodationName || d.accommodationAddress).length;
+  const arrivalReady = Boolean(trip.arrivalLocation && trip.arrivalAt && trip.departureLocation && trip.departureAt);
   return (
     <>
       <PageHeader
@@ -41,6 +47,14 @@ export default async function ItineraryPage({ params }: { params: Promise<{ trip
           </>
         }
       />
+      <TripReadiness items={[
+        { label: "Daily plans", done: days.length > 0 && planned === days.length, detail: `${planned} of ${days.length} days have stops planned`, href: `${base}/itinerary` },
+        { label: "Stay details", done: trip.destinations.length > 0 && stays === trip.destinations.length, detail: `${stays} of ${trip.destinations.length} destinations have accommodation details`, href: `${base}/settings#details` },
+        { label: "Arrival & departure", done: arrivalReady, detail: arrivalReady ? "Locations and times added" : "Review your arrival and departure locations and times", href: `${base}/settings#details` },
+        { label: "Trip budget", done: trip.budgetMinor !== null, detail: trip.budgetMinor !== null ? "Budget set · track actual spending in Expenses" : "Set a budget to track what remains", href: `${base}/expenses` },
+        { label: "Booking follow-ups", done: openBookings === 0 && trip.bookings.some(b => ["BOOKED", "PAID"].includes(b.status)), detail: openBookings ? `${openBookings} reservations still need confirmation` : trip.bookings.length ? "Review reservations and any booking-needed stops" : "Review what needs booking or add your reservations", href: `${base}/bookings` },
+        { label: "Travelers", done: trip.travelers.length > 0, detail: `${trip.travelers.length} traveler${trip.travelers.length === 1 ? "" : "s"} listed · review everyone before splitting costs`, href: `${base}/settings#travelers` },
+      ]} />
       <ItineraryView
         tripId={tripId}
         canEdit={canEdit}

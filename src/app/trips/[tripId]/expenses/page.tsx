@@ -6,6 +6,7 @@ import { getExpenseData } from "@/server/expenses/service";
 import { computeBudget } from "@/server/expenses/budget";
 import { PageHeader } from "@/components/ui";
 import { todayIn } from "@/lib/dates";
+import { aiConfigured } from "@/server/ai/openai";
 import { ExpensesView } from "./view";
 
 export const metadata: Metadata = { title: "Expenses" };
@@ -31,7 +32,7 @@ export default async function ExpensesPage({ params, searchParams }: { params: P
   return (
     <>
       <PageHeader title="Expenses & settlements" subtitle="Shared ledger in exact amounts. Different currencies are never added together." />
-      <ExpensesView
+      <ExpensesView aiReady={aiConfigured()}
         tripId={tripId}
         canEdit={roleAllows(data.access.role, "edit")}
         tripCurrency={data.trip.currency}

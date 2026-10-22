@@ -116,13 +116,15 @@ export async function listEvents(userId: string, tripId: string) {
   return { access, events, runs, lastSuccess, settings: trip };
 }
 
-export async function setEventStatus(userId: string, tripId: string, eventId: string, status: "SAVED" | "HIDDEN" | "NEW") {
+export async function setEventStatus(userId: string, tripId: string, eventId: string, status: "SAVED" | "HIDDEN" | "NEW", expectedStatus?: "NEW" | "SAVED" | "HIDDEN" | "SCHEDULED") {
   await requireTrip(tripId, userId, "edit");
   const e = await prisma.tripEvent.findFirst({ where: { id: eventId, tripId }, include: { stop: true } });
   if (!e) throw new AppError("NOT_FOUND", "Event not found.");
-  if (e.stop && status === "HIDDEN") throw new AppError("VALIDATION", "This event is on your itinerary. Remove it from the day first.");
+  if (!["SAVED", "HIDDEN", "NEW"].includes(status)) throw new AppError("VALIDATION", "Invalid event status.");
+  if (e.stop) throw new AppError("CONFLICT", "This event is on your itinerary. Remove it from the day first.");
   await prisma.$transaction(async (tx) => {
-    await tx.tripEvent.update({ where: { id: eventId }, data: { status } });
+    const result = await tx.tripEvent.updateMany({ where: { id: eventId, tripId, status: expectedStatus ?? e.status }, data: { status } });
+    if (!result.count) throw new AppError("CONFLICT", "This event changed since your action. Review its current status before trying again.");
     await recordChange(tx, { tripId, actorId: userId, entity: "event", entityId: eventId, action: status.toLowerCase() });
   });
 }

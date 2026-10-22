@@ -34,12 +34,28 @@ export function EventsView(p: Props) {
   }, [p.initialEventId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [scheduling, setScheduling] = useState<Ev | null>(null);
   const [adding, setAdding] = useState(false);
+  const [settingsFirst, setSettingsFirst] = useState(false);
+  const [undo, setUndo] = useState<{ id: string; title: string; before: "NEW" | "SAVED" | "HIDDEN"; after: "NEW" | "SAVED" | "HIDDEN" } | null>(null);
+  useEffect(() => { try { setSettingsFirst(localStorage.getItem("tripanize:event-settings-first") === "true"); } catch { /* optional preference */ } }, []);
+  function changeLayout(first: boolean) {
+    setSettingsFirst(first);
+    try { localStorage.setItem("tripanize:event-settings-first", String(first)); } catch { /* optional preference */ }
+  }
+  async function changeStatus(e: Ev, status: "NEW" | "SAVED" | "HIDDEN") {
+    if (e.status === "SCHEDULED") return;
+    const result = await run(() => setEventStatusAction(p.tripId, e.id, status, e.status), { success: status === "HIDDEN" ? "Event hidden" : "Event saved" });
+    if (result !== null) setUndo({ id: e.id, title: e.title, before: e.status, after: status });
+  }
   const shown = p.events.filter((e) => e.status === tab);
   const lastRun = p.runs[0];
   const running = lastRun && (lastRun.status === "queued" || lastRun.status === "running");
 
-  return (
-    <div className="space-y-6">
+  const settingsPanel = (
+      <div>
+      <details className="rounded-2xl border border-line bg-surface p-4" open={settingsFirst || undefined}>
+        <summary className="min-h-11 cursor-pointer content-center font-medium">Discovery & alert settings</summary>
+        <Button variant="ghost" className="my-2" onClick={() => changeLayout(!settingsFirst)}>{settingsFirst ? "Show events first" : "Undo layout change · settings first"}</Button>
+        <div className="space-y-4">
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -80,7 +96,23 @@ export function EventsView(p: Props) {
         )}
       </Card>
 
-      <section aria-labelledby="sl">
+        </div>
+      </details>
+      </div>
+  );
+  const eventsPanel = (
+      <section aria-labelledby="sl" className="space-y-3">
+        {undo && <div role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent bg-accent-soft p-3 text-sm">
+          <span>“{undo.title}” {undo.after === "HIDDEN" ? "hidden" : "saved"}.</span>
+          <Button disabled={pending} onClick={async () => {
+            const r = await run(() => setEventStatusAction(p.tripId, undo.id, undo.before, undo.after), { success: "Event change undone" });
+            if (r !== null) { setTab(undo.before); setUndo(null); }
+          }}>Undo</Button>
+        </div>}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+          <p className="text-muted">Last checked: {p.lastSuccess ? formatTimestamp(p.lastSuccess, p.timezone) : "never"}{running ? " · Check in progress…" : ""}</p>
+          {p.canEdit && <Button disabled={!p.aiReady || pending || Boolean(running)} onClick={() => run(() => discoverEventsAction(p.tripId), { success: "Check started. Results will appear in New." })}>Find events</Button>}
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="sl" className="font-display text-lg font-semibold">Shortlist</h2>
           {p.canEdit && <Button onClick={() => setAdding(true)}>+ Add your own event</Button>}
@@ -130,15 +162,21 @@ export function EventsView(p: Props) {
                 <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                   {e.status !== "SCHEDULED" && <Button variant="primary" onClick={() => setScheduling(e)} disabled={!p.days.length || e.booking?.status === "CANCELLED"}>Add to a day</Button>}
                   {!e.booking && e.status !== "HIDDEN" && !e.cancelled && !e.soldOut && <Link href={`/trips/${p.tripId}/bookings?event=${e.id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-medium">Add to bookings</Link>}
-                  {e.status === "NEW" && <Button onClick={() => run(() => setEventStatusAction(p.tripId, e.id, "SAVED"), { success: "Saved" })}>Save</Button>}
-                  {e.status !== "HIDDEN" && e.status !== "SCHEDULED" && <Button variant="ghost" onClick={() => run(() => setEventStatusAction(p.tripId, e.id, "HIDDEN"), { success: "Hidden" })}>Hide</Button>}
-                  {e.status === "HIDDEN" && <Button onClick={() => run(() => setEventStatusAction(p.tripId, e.id, "SAVED"), { success: "Restored" })}>Restore</Button>}
+                  {e.status === "NEW" && <Button disabled={pending} onClick={() => changeStatus(e, "SAVED")}>Save</Button>}
+                  {e.status !== "HIDDEN" && e.status !== "SCHEDULED" && <Button variant="ghost" disabled={pending} onClick={() => changeStatus(e, "HIDDEN")}>Hide</Button>}
+                  {e.status === "HIDDEN" && <Button disabled={pending} onClick={() => changeStatus(e, "SAVED")}>Restore</Button>}
                 </div>
               )}
             </Card>
           ))}
         </div>
       </section>
+  );
+  return (
+    <div className="flex flex-col gap-6">
+      {settingsFirst && settingsPanel}
+      {eventsPanel}
+      {!settingsFirst && settingsPanel}
       <ScheduleDialog key={scheduling?.id ?? "none"} ev={scheduling} onClose={() => setScheduling(null)} {...p} />
       <Dialog open={adding} onClose={() => setAdding(false)} title="Add your own event">
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={async (e) => {
