@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { prisma } from "@/server/db";
 import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
 import { getTripPlan } from "@/server/plans/access";
-import { beginCheckout, billingSummary, recordVerifiedTransaction } from "@/server/billing/service";
+import { beginCheckout, billingSummary, recordVerifiedTransaction, refreshTripPayment } from "@/server/billing/service";
 import { verifyPaddleSignature, receivePaddleWebhook } from "@/server/billing/webhook";
 import type { PaddleTransaction } from "@/server/billing/paddle";
 import { transferOwnership, addTraveler } from "@/server/invitations/service";
@@ -104,4 +104,35 @@ it("keeps an ambiguous create failure blocked so retries cannot create duplicate
   await expect(beginCheckout(owner.id, tripId, "small")).rejects.toMatchObject({ code: "UPSTREAM" });
   await expect(beginCheckout(owner.id, tripId, "small")).rejects.toMatchObject({ code: "CONFLICT" });
   expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it("acknowledges signed simulations and unrelated payments without a provider request or granting access", async () => {
+  const { owner, tripId } = await setup();
+  const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
+  for (const environment of ["sandbox", "live"]) {
+    setTestRuntime({ ...runtime, planAccessEnabled: true, paddle: { ...config, environment: environment as "sandbox" | "live" } });
+    const raw = JSON.stringify({ event_id: "evt_simulation", event_type: "transaction.completed", data: { id: txn(99), custom_data: { checkoutId: "unrelated-purchase" } } });
+    const ts = Math.floor(Date.now() / 1000);
+    const signature = `ts=${ts};h1=${createHmac("sha256", config.webhookSecret).update(`${ts}:${raw}`).digest("hex")}`;
+    await receivePaddleWebhook(raw, signature);
+    expect((await getTripPlan(tripId)).premium).toBe(false);
+  }
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(await prisma.premiumCheckout.count()).toBe(0);
+});
+it("recovers an interrupted checkout create only after matching the authoritative provider transaction", async () => {
+  const { owner, tripId } = await setup();
+  const row = await prisma.premiumCheckout.create({ data: { tripId, buyerId: owner.id, environment: "sandbox", priceId: price(900), amountMinor: 900, targetCapacity: 2 } });
+  const data = transaction(row.id, tripId, 900);
+  const raw = JSON.stringify({ event_id: "evt_recovery", event_type: "transaction.completed", data: { id: data.id, custom_data: data.custom_data } });
+  const ts = Math.floor(Date.now() / 1000); const signature = `ts=${ts};h1=${createHmac("sha256", config.webhookSecret).update(`${ts}:${raw}`).digest("hex")}`;
+  const fetchMock = vi.fn(async () => Response.json({ data })); vi.stubGlobal("fetch", fetchMock);
+  await receivePaddleWebhook(raw, signature);
+  expect((await getTripPlan(tripId)).creditMinor).toBe(900);
+  expect((await prisma.premiumCheckout.findUniqueOrThrow({ where: { id: row.id } })).transactionId).toBe(data.id);
+});
+it("manual status checks reconcile completed purchases too, catching an adjustment whose webhook was missed", async () => {
+  const { owner, tripId } = await setup(); const data = await paid(tripId, owner.id, 900);
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ data: { ...data, adjustments: [{ action: "refund", status: "approved" }] } })));
+  expect(await refreshTripPayment(owner.id, tripId)).toMatchObject({ premium: false, reviewRequired: true, creditMinor: 0 });
 });
