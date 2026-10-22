@@ -4,6 +4,7 @@ import schema from "../prisma/migrations/202610220001_cloudflare_initial/migrati
 import eventBookings from "../prisma/migrations/202610220002_event_bookings/migration.sql?raw";
 import tripNotifications from "../prisma/migrations/202610220003_trip_notifications/migration.sql?raw";
 import memberLocations from "../prisma/migrations/202610220004_member_locations/migration.sql?raw";
+import tripChat from "../prisma/migrations/202610220005_trip_chat/migration.sql?raw";
 import { expireMemberLocations } from "../src/server/locations/service";
 import { createDatabase } from "../src/server/db";
 import { appRuntime } from "../src/server/cloudflare/runtime";
@@ -45,6 +46,13 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
       if (version < 4) {
         ctx.storage.transactionSync(() => ctx.storage.sql.exec(memberLocations));
         await ctx.storage.put("schemaVersion", 4);
+      }
+      if (version < 5) {
+        ctx.storage.transactionSync(() => {
+          const columns = ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray();
+          if (!columns.some(column => column.name === "chatSeq")) ctx.storage.sql.exec(tripChat);
+        });
+        await ctx.storage.put("schemaVersion", 5);
       }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }

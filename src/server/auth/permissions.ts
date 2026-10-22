@@ -9,6 +9,7 @@ import type { TripRole } from "@/generated/prisma/enums";
  *  - manage:  owner — invitations, roles, removing members, deleting the trip.
  * Personal packing lists are a separate permission: only the list's owner may read or change it,
  * regardless of trip role (a viewer still controls their own list).
+ * All current members may participate in trip chat and control their own location sharing.
  */
 export type Capability = "view" | "edit" | "manage";
 

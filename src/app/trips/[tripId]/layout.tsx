@@ -10,6 +10,7 @@ import { SaveOfflineSnapshot } from "@/components/offline";
 import { Badge } from "@/components/ui";
 import { formatDateRange } from "@/lib/dates";
 import { LocationSharingProvider } from "@/components/location-sharing";
+import { getChatSummary } from "@/server/chat/service";
 
 export default async function TripLayout({ children, params }: { children: React.ReactNode; params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
@@ -22,6 +23,7 @@ export default async function TripLayout({ children, params }: { children: React
     throw e;
   }
   const { trip, access } = header;
+  const chat = await getChatSummary(user.id, tripId);
   return (
     <>
       <AppHeader user={user} />
@@ -36,7 +38,7 @@ export default async function TripLayout({ children, params }: { children: React
             <p className="text-sm text-muted">{formatDateRange(trip.startDate, trip.endDate)}</p>
             {access.role !== "OWNER" && <Badge tone={access.role === "VIEWER" ? "warn" : "sage"} className="mt-1">{access.role === "VIEWER" ? "View only" : "Collaborator"}</Badge>}
           </div>
-          <TripNav tripId={trip.id} />
+          <TripNav tripId={trip.id} initialChat={chat} />
         </aside>
         <main id="main" className="min-w-0">{children}</main>
       </div>

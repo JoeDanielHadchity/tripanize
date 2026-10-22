@@ -3,6 +3,7 @@ import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migr
 import eventBookings from "../../prisma/migrations/202610220002_event_bookings/migration.sql";
 import tripNotifications from "../../prisma/migrations/202610220003_trip_notifications/migration.sql";
 import memberLocations from "../../prisma/migrations/202610220004_member_locations/migration.sql";
+import tripChat from "../../prisma/migrations/202610220005_trip_chat/migration.sql";
 import { changeMemberLocation, getLocationSelf } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
@@ -52,6 +53,7 @@ export class AiProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(column => column.name === "eventId")) ctx.storage.sql.exec(eventBookings);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("NotificationPreference")').toArray().some(column => column.name === "changeEmailEnabled")) ctx.storage.sql.exec(tripNotifications);
         ctx.storage.sql.exec(memberLocations);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "chatSeq")) ctx.storage.sql.exec(tripChat);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });
