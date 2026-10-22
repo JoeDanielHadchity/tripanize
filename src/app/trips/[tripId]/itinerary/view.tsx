@@ -3,8 +3,9 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, EmptyState, Input, Notice, cx } from "@/components/ui";
+import { Badge, Button, EmptyState, Input, Notice, Select, cx } from "@/components/ui";
 import { Dialog, MenuButton, useAction, useConfirm } from "@/components/client";
+import { PlanningText } from "@/components/planning-text";
 import { StopCard } from "@/components/itinerary/stop-card";
 import { StopEditor } from "@/components/itinerary/stop-editor";
 import { MoveDialog } from "@/components/itinerary/move-dialog";
@@ -165,7 +166,7 @@ export function ItineraryView(p: Props) {
                     </div>
                   </header>
                   {d.activePlan === "B" && <p className="mb-2 rounded-lg bg-sage-soft px-3 py-2 text-sm text-sage-ink">Showing Plan B{d.planBNote ? ` — ${d.planBNote}` : ""}. Plan B costs aren't added to the budget.</p>}
-                  {d.notes && <p className="mb-3 whitespace-pre-line text-sm text-muted">{d.notes}</p>}
+                  {d.notes && <p className="mb-3 whitespace-pre-line text-sm text-muted"><PlanningText text={d.notes} /></p>}
                   {stops.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
                       {d.activePlan === "B" ? "No Plan B yet." : "Nothing planned — that's allowed."}
@@ -311,8 +312,18 @@ function DayStrip({ days, active, todayDate, onSelect }: { days: DayView[]; acti
     if (delta) strip.scrollBy({ left: delta, behavior: "smooth" });
   }, [active]);
   if (days.length < 2) return null;
+  const index = days.findIndex(d => d.date === active);
   return (
     <nav aria-label="Days" className="sticky top-0 z-10 -mx-4 mb-4 bg-bg/95 px-4 py-2 backdrop-blur sm:mx-0 sm:px-0">
+      <div className="mb-3 flex flex-wrap items-end gap-2">
+        <Button disabled={index <= 0} onClick={() => onSelect(days[index - 1].date)}>← Previous</Button>
+        <label className="min-w-0 flex-1 text-xs font-medium text-muted">Jump to day
+          <Select aria-label="Jump to day" className="mt-1 text-ink" value={active ?? days[0].date} onChange={e => onSelect(e.target.value)}>
+            {days.map((d, i) => <option key={d.id} value={d.date}>Day {i + 1} · {formatDate(d.date)}{d.title ? ` — ${d.title}` : ""}</option>)}
+          </Select>
+        </label>
+        <Button disabled={index < 0 || index >= days.length - 1} onClick={() => onSelect(days[index + 1].date)}>Next →</Button>
+      </div>
       <ol ref={stripRef} className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]">
         {days.map((d, i) => {
           const n = d.stops.filter((s) => s.plan === d.activePlan && s.status !== "SKIPPED").length;

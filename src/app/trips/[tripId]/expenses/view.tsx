@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, Card, EmptyState, Field, Input, Notice, Select, Textarea, cx } from "@/components/ui";
+import { ReceiptImport } from "@/components/receipt-import";
+import type { ReceiptDraft } from "@/server/expenses/receipt";
 import { Dialog, useAction, useConfirm } from "@/components/client";
 import { deleteExpenseAction, deleteSettlementAction, recordSettlementAction, saveExpenseAction } from "@/app/actions/expenses";
 import { arrangeExpenses, type GroupKey, type SortKey } from "@/lib/expense-view";
@@ -22,7 +24,7 @@ type Settlement = { id: string; fromId: string; toId: string; amountMinor: numbe
 type Prefill = { bookingId: string; description: string; amountMinor: number | null; currency: string; category: string; date: string | null };
 
 type Props = {
-  tripId: string; canEdit: boolean; tripCurrency: string; timezone: string; today: string; meId: string | null; travelers: Traveler[]; expenses: Expense[]; settlements: Settlement[];
+  tripId: string; canEdit: boolean; aiReady: boolean; tripCurrency: string; timezone: string; today: string; meId: string | null; travelers: Traveler[]; expenses: Expense[]; settlements: Settlement[];
   ledger: CurrencyLedger[]; budget: BudgetSummary; audit: { id: string; at: string; actor: string | null; entity: string; action: string; before: unknown; after: unknown }[];
   bookings: { id: string; title: string; hasExpense: boolean }[]; prefill: Prefill | null;
 };
@@ -34,6 +36,9 @@ export function ExpensesView(p: Props) {
   const [sort, setSort] = useState<SortKey>("created_desc");
   const [group, setGroup] = useState<GroupKey>("day");
   const [editing, setEditing] = useState<Expense | "new" | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [receipt, setReceipt] = useState<ReceiptDraft | null>(null);
+  const [receiptKey, setReceiptKey] = useState(0);
   const [settle, setSettle] = useState<{ fromId?: string; toId?: string; amountMinor?: number; currency?: string } | null>(null);
 
   useEffect(() => {
@@ -60,14 +65,15 @@ export function ExpensesView(p: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="actual-spending-h" className="font-display text-xl font-semibold">Actual spending</h2>
         <div className="flex flex-wrap gap-2">
-        {p.canEdit && <Button variant="primary" onClick={() => setEditing("new")}>+ Add expense</Button>}
+        {p.canEdit && <Button variant="primary" onClick={() => { setReceipt(null); setEditing("new"); }}>+ Add expense</Button>}
+        {p.canEdit && p.aiReady && <Button onClick={() => setImporting(true)}>Import receipt</Button>}
         {p.canEdit && <Button variant={anyBalance ? "sage" : "secondary"} className="font-semibold" onClick={() => setSettle({})}>Settle up</Button>}
         </div>
       </div>
       {p.budget.committedBookingsMinor > 0 && <Notice>Booked items awaiting an expense: {formatMoney(p.budget.committedBookingsMinor, p.tripCurrency)}. <Link href={`/trips/${p.tripId}/bookings`} className="font-medium underline">Record their payments</Link> to include them in actual spending.</Notice>}
 
       {p.ledger.length === 0 ? (
-        <EmptyState title="No expenses yet" action={p.canEdit ? <Button variant="primary" onClick={() => setEditing("new")}>Add the first expense</Button> : undefined}>Record who paid and who it was for. Tripanize works out who owes whom — exactly, to the cent.</EmptyState>
+        <EmptyState title="No expenses yet" action={p.canEdit ? <Button variant="primary" onClick={() => { setReceipt(null); setEditing("new"); }}>Add the first expense</Button> : undefined}>Record who paid and who it was for. Tripanize works out who owes whom — exactly, to the cent.</EmptyState>
       ) : (
         p.ledger.map((l) => (
           <section key={l.currency} aria-labelledby={`led-${l.currency}`} className="space-y-3">
@@ -75,6 +81,22 @@ export function ExpensesView(p: Props) {
               <h2 id={`led-${l.currency}`} className="font-display text-lg font-semibold">{l.currency} balances</h2>
               <p className="text-sm">Total trip spending: <strong>{formatMoney(l.totalSpent, l.currency)}</strong> <span className="text-muted">(repayments not included)</span></p>
             </div>
+            {l.suggestions.length > 0 ? (
+              <Card className="bg-sage-soft/50">
+                <h3 className="text-sm font-semibold">Who owes whom</h3>
+                <p className="mt-1 text-xs text-muted">A simple way to settle the group’s balances. Record a repayment after it has been paid.</p>
+                <ul className="mt-2 space-y-2">
+                  {l.suggestions.map((s, i) => (
+                    <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span><strong>{name(s.fromId)}</strong> owes <strong>{name(s.toId)}</strong> <strong>{formatMoney(s.amountMinor, l.currency)}</strong></span>
+                      {p.canEdit && <Button className="min-h-10" onClick={() => setSettle({ fromId: s.fromId, toId: s.toId, amountMinor: s.amountMinor, currency: l.currency })}>Record repayment</Button>}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            ) : <p className="text-sm text-sage-ink">✓ Everyone is settled up in {l.currency}.</p>}
+            <details>
+              <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-muted">Detailed contributions & balances</summary>
             <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
               <table className="w-full min-w-[40rem] text-sm">
                 <caption className="sr-only">Contributions and balances in {l.currency}</caption>
@@ -109,19 +131,7 @@ export function ExpensesView(p: Props) {
               </table>
             </div>
             <p className="text-xs text-muted"><strong>Originally paid</strong> is what someone paid at the till. <strong>Final contribution</strong> is what they've actually put in after repayments. When everyone is settled, final contribution equals their share.</p>
-            {l.suggestions.length > 0 ? (
-              <Card className="bg-sage-soft/50">
-                <h3 className="text-sm font-semibold">Suggested settlements</h3>
-                <ul className="mt-2 space-y-2">
-                  {l.suggestions.map((s, i) => (
-                    <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                      <span><strong>{name(s.fromId)}</strong> pays <strong>{name(s.toId)}</strong> {formatMoney(s.amountMinor, l.currency)}</span>
-                      {p.canEdit && <Button className="min-h-10" onClick={() => setSettle({ fromId: s.fromId, toId: s.toId, amountMinor: s.amountMinor, currency: l.currency })}>Record repayment</Button>}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            ) : <p className="text-sm text-sage-ink">✓ Everyone is settled up in {l.currency}.</p>}
+            </details>
             {Object.keys(l.byCategory).length > 0 && (
               <details className="text-sm">
                 <summary className="cursor-pointer text-muted">Spending by category</summary>
@@ -227,7 +237,8 @@ export function ExpensesView(p: Props) {
         </details>
       )}
 
-      <ExpenseDialog {...p} key={editing === "new" ? "new" : editing?.id ?? "exp-none"} open={Boolean(editing)} expense={editing === "new" ? null : editing} prefill={editing === "new" ? p.prefill : null} onClose={() => setEditing(null)} />
+      {importing && <ReceiptImport tripId={p.tripId} open onClose={() => setImporting(false)} onRead={draft => { setImporting(false); setReceipt(draft); setReceiptKey(k => k + 1); setEditing("new"); }} />}
+      <ExpenseDialog {...p} receipt={editing === "new" ? receipt : null} key={editing === "new" ? `new-${receiptKey}` : editing?.id ?? "exp-none"} open={Boolean(editing)} expense={editing === "new" ? null : editing} prefill={editing === "new" ? p.prefill : null} onClose={() => { setEditing(null); setReceipt(null); }} />
       <SettleDialog {...p} key={settle ? JSON.stringify(settle) : "settle-none"} open={Boolean(settle)} initial={settle ?? {}} onClose={() => setSettle(null)} />
     </div>
   );
@@ -293,11 +304,11 @@ function PlannedSpendingCard({ b }: { b: BudgetSummary }) {
   );
 }
 
-function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tripCurrency, today, meId, bookings }: Props & { open: boolean; expense: Expense | null; onClose: () => void; prefill: Prefill | null }) {
+function ExpenseDialog({ open, expense, prefill, receipt, onClose, tripId, travelers, tripCurrency, today, meId, bookings }: Props & { open: boolean; receipt: ReceiptDraft | null; expense: Expense | null; onClose: () => void; prefill: Prefill | null }) {
   const { run, pending } = useAction();
   const active = travelers.filter((t) => t.active || expense?.shares.some((s) => s.travelerId === t.id) || expense?.payerId === t.id);
-  const [currency, setCurrency] = useState(expense?.currency ?? prefill?.currency ?? tripCurrency);
-  const [amount, setAmount] = useState(expense ? minorToDecimalString(expense.amountMinor, expense.currency) : prefill?.amountMinor ? minorToDecimalString(prefill.amountMinor, prefill.currency) : "");
+  const [currency, setCurrency] = useState(expense?.currency ?? receipt?.currency ?? prefill?.currency ?? tripCurrency);
+  const [amount, setAmount] = useState(expense ? minorToDecimalString(expense.amountMinor, expense.currency) : receipt ? receipt.amount : prefill?.amountMinor ? minorToDecimalString(prefill.amountMinor, prefill.currency) : "");
   const [method, setMethod] = useState<Expense["splitMethod"]>(expense?.splitMethod ?? "EQUAL");
   const [selected, setSelected] = useState<string[]>(expense ? expense.shares.map((s) => s.travelerId) : active.filter((t) => t.active).map((t) => t.id));
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries((expense?.shares ?? []).map((s) => [s.travelerId, s.percentBp !== null ? (s.percentBp / 100).toString() : minorToDecimalString(s.amountMinor, expense!.currency)])));
@@ -324,7 +335,7 @@ function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tri
   }, [total, method, selected, values, currency, active]);
 
   return (
-    <Dialog open={open} onClose={onClose} title={expense ? "Edit expense" : "Add expense"} wide>
+    <Dialog open={open} onClose={onClose} title={expense ? "Edit expense" : receipt ? "Review receipt expense" : "Add expense"} wide>
       <form
         className="space-y-4"
         onSubmit={async (e) => {
@@ -340,12 +351,15 @@ function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tri
           if (r !== null) onClose();
         }}
       >
+        {receipt && <Notice tone="accent"><strong>Review before saving.</strong> Check the total, currency and date, then confirm who paid and everyone’s share. Nothing has been added to your spending yet.
+          {receipt.warnings.length > 0 && <ul className="mt-2 list-disc pl-5">{receipt.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+        </Notice>}
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Description" htmlFor="e-desc" className="sm:col-span-2"><Input id="e-desc" name="description" required defaultValue={expense?.description ?? prefill?.description ?? ""} maxLength={160} /></Field>
+          <Field label="Description" htmlFor="e-desc" className="sm:col-span-2"><Input id="e-desc" name="description" required defaultValue={expense?.description ?? receipt?.description ?? prefill?.description ?? ""} maxLength={160} /></Field>
           <Field label="Amount" htmlFor="e-amount"><Input id="e-amount" inputMode="decimal" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></Field>
-          <Field label="Currency" htmlFor="e-cur"><Select id="e-cur" value={currency} onChange={(e) => setCurrency(e.target.value)}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
-          <Field label="Category" htmlFor="e-cat"><Select id="e-cat" name="category" defaultValue={expense?.category ?? prefill?.category ?? "Food & drink"}>{EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
-          <Field label="Expense date" htmlFor="e-date"><Input id="e-date" name="date" type="date" required defaultValue={expense?.date ?? prefill?.date ?? today} /></Field>
+          <Field label="Currency" htmlFor="e-cur"><Select id="e-cur" required value={currency} onChange={(e) => setCurrency(e.target.value)}><option value="" disabled>Confirm currency</option>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
+          <Field label="Category" htmlFor="e-cat"><Select id="e-cat" name="category" defaultValue={expense?.category ?? receipt?.category ?? prefill?.category ?? "Food & drink"}>{EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
+          <Field label="Expense date" htmlFor="e-date"><Input id="e-date" name="date" type="date" required defaultValue={expense?.date ?? receipt?.date ?? prefill?.date ?? today} /></Field>
           <Field label="Paid by" htmlFor="e-payer"><Select id="e-payer" name="payer" defaultValue={expense?.payerId ?? meId ?? active[0]?.id}>{active.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
           <Field label="Linked booking (optional)" htmlFor="e-book" hint="Connect this payment to its reservation. The booking estimate stays in planned spending."><Select id="e-book" name="bookingId" defaultValue={expense?.bookingId ?? prefill?.bookingId ?? ""}><option value="">None</option>{bookings.filter((b) => !b.hasExpense || b.id === expense?.bookingId || b.id === prefill?.bookingId).map((b) => <option key={b.id} value={b.id}>{b.title}</option>)}</Select></Field>
         </div>
@@ -382,7 +396,7 @@ function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tri
           {preview && <p className={cx("text-sm", preview.ok ? "text-muted" : "text-danger")}>{preview.text}</p>}
         </fieldset>
 
-        {currency !== tripCurrency && <Notice>Add a {tripCurrency} conversion below to deduct this {currency} expense from the trip budget.</Notice>}
+        {currency && currency !== tripCurrency && <Notice>Add a {tripCurrency} conversion below to deduct this {currency} expense from the trip budget.</Notice>}
         <details open={convOn} onToggle={(e) => setConvOn((e.target as HTMLDetailsElement).open)} className="rounded-xl border border-line p-3">
           <summary className="cursor-pointer text-sm font-medium">Convert for balances and budget (optional)</summary>
           <p className="mt-2 text-xs text-muted">Only if your group agrees on a rate. The original amount and currency are always kept.</p>

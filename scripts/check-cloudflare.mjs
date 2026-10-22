@@ -80,6 +80,12 @@ try {
     const assistantUnauth = await fetch(origin + "/api/trips/does-not-exist/assistant"); assert.equal(assistantUnauth.status, 401); assert.equal(assistantUnauth.headers.get("Cache-Control"), "private, no-store");
     const assistantMissing = await fetch(origin + "/api/trips/does-not-exist/assistant", { headers: { Cookie: cookie } }); assert.equal(assistantMissing.status, 404);
     const assistantCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/assistant", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ op: "apply", id: "not-a-proposal" }) }); assert.equal(assistantCrossOrigin.status, 403);
+    const receiptUnauth = await fetch(origin + "/api/trips/does-not-exist/expenses/receipt", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test" }, body: "--test--" });
+    assert.equal(receiptUnauth.status, 401); assert.equal(receiptUnauth.headers.get("Cache-Control"), "private, no-store");
+    const receiptCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/expenses/receipt", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" });
+    assert.equal(receiptCrossOrigin.status, 403);
+    const receiptMissingTrip = await fetch(origin + "/api/trips/does-not-exist/expenses/receipt", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" });
+    assert.equal(receiptMissingTrip.status, 404);
     await stop(child); child = await start();
     const restored = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(restored.status, 200); assert.equal(new URL(restored.url).pathname, "/trips");
     console.log(JSON.stringify({ mode, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));

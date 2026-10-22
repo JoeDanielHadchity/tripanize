@@ -10,6 +10,7 @@ import { createDatabase } from "../src/server/db";
 import { appRuntime } from "../src/server/cloudflare/runtime";
 import { DurableSqliteAdapter } from "../src/server/cloudflare/sqlite-adapter";
 import { AiTasks } from "../src/server/cloudflare/ai-tasks";
+import { serializedDatabase } from "../src/server/cloudflare/serialized-db";
 
 /** Serialize application requests so relational transactions remain isolated.
  * Buffer each response before releasing the queue: streamed server components
@@ -69,10 +70,16 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
   }
   async alarm() { await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {
-    return this.serialize(() => appRuntime.run(this.runtime(), async () => {
+    // Receipt extraction has no application writes besides rate-limit hits. Queue
+    // its individual database operations, not the long upstream vision request.
+    const receipt = request.method === "POST" && /^\/api\/trips\/[^/]+\/expenses\/receipt\/?$/.test(new URL(request.url).pathname);
+    const runtime = this.runtime();
+    const context = receipt ? { ...runtime, database: serializedDatabase(runtime.database, run => this.serialize(run)) } : runtime;
+    const run = () => appRuntime.run(context, async () => {
       const response = await handler.fetch(request, this.env, { waitUntil: this.ctx.waitUntil.bind(this.ctx), passThroughOnException() {} });
       return new Response(response.body ? await response.arrayBuffer() : null, { status: response.status, statusText: response.statusText, headers: response.headers });
-    }));
+    });
+    return receipt ? run() : this.serialize(run);
   }
   async maintenance() {
     return this.serialize(() => appRuntime.run(this.runtime(), async () => {
