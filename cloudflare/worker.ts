@@ -21,10 +21,11 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
   private database = createDatabase(new DurableSqliteAdapter(this.ctx.storage));
   private pending: Promise<unknown> = Promise.resolve();
   private secret = "";
+  private ready: Promise<void>;
   private aiTasks: AiTasks = new AiTasks(this.ctx.storage, () => this.runtime(), (run) => this.serialize(run));
   constructor(ctx: DurableObjectState, env: CloudflareEnv) {
     super(ctx, env);
-    ctx.blockConcurrencyWhile(async () => {
+    this.ready = ctx.blockConcurrencyWhile(async () => {
       const version = await ctx.storage.get<number>("schemaVersion") ?? 0;
       if (version < 1) {
         ctx.storage.transactionSync(() => ctx.storage.sql.exec(schema));
@@ -76,8 +77,9 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
   private runtime() {
     return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
   }
-  async alarm() { await this.aiTasks.alarm(); }
+  async alarm() { await this.ready; await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {
+    await this.ready;
     // Let uploads stream and R2 writes complete without blocking other members.
     // Each database operation and complete transaction still shares the lock.
     const payment = request.method === "POST" && /^\/api\/trips\/[^/]+\/expenses\/?$/.test(new URL(request.url).pathname);
@@ -90,6 +92,7 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     return payment ? run() : this.serialize(run);
   }
   async maintenance() {
+    await this.ready;
     return this.serialize(() => appRuntime.run(this.runtime(), async () => {
       await this.database.verification.deleteMany({ where: { expiresAt: { lt: new Date() } } });
       await this.database.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });

@@ -11,6 +11,7 @@ import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter
 import { appRuntime } from "../../src/server/cloudflare/runtime";
 import { createTrip } from "../../src/server/trips/service";
 import { createBooking } from "../../src/server/bookings/service";
+import { getItinerary } from "../../src/server/itinerary/service";
 import { addCustomEvent, scheduleEvent } from "../../src/server/events/service";
 import { saveExpenseWithReceipts } from "../../src/server/expenses/receipts";
 import { createExpense } from "../../src/server/expenses/service";
@@ -92,6 +93,9 @@ export class StorageProbe extends DurableObject<Env> {
         const savedReceipt = await readAttachment(recipientId, receipt.id);
         await this.ctx.storage.put("expense-receipt-fixture", { userId: recipientId, expenseId: receiptExpense.id, receiptId: receipt.id });
         const pdf = await exportTripPdf(user.id, tripId, {});
+        await this.db.stop.createMany({ data: Array.from({ length: 220 }, (_, i) => ({ tripId, dayId: trip.days[0].id, title: `Batch fixture ${i}`, position: i + 10 })) });
+        const largeItinerary = await getItinerary(user.id, tripId);
+        const expenseStops = await this.db.stop.findMany({ where: { tripId, dayId: { not: null } }, select: { id: true, day: { select: { activePlan: true } } } });
         return Response.json({
           days: trip.days.length, interests: trip.interests,
           locationVisible: Boolean(location.sessionId) && locationVisible, locationCleared,
@@ -102,6 +106,7 @@ export class StorageProbe extends DurableObject<Env> {
           updatedRows: updated.count, staleRows: stale.count,
           privateFileRoundTrip: stored.data.toString() === bytes,
           expenseReceiptRoundTrip: savedReceipt.data.toString() === bytes && savedReceipt.meta.expenseId === receiptExpense.id,
+          largeRelationQueries: largeItinerary.days.flatMap(day => day.stops).filter(stop => stop.title.startsWith("Batch fixture ")).length === 220 && expenseStops.length >= 220,
           pdfHeader: pdf.subarray(0, 4).toString(),
           users: await this.db.user.count(),
         });

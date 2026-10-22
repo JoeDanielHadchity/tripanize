@@ -53,6 +53,7 @@ try {
     assert.equal(result.staleRows, 0);
     assert.equal(result.privateFileRoundTrip, true);
     assert.equal(result.expenseReceiptRoundTrip, true);
+    assert.equal(result.largeRelationQueries, true);
     assert.equal(result.pdfHeader, "%PDF");
     await stop(child); child = await start();
     assert.equal((await json("/count")).users, result.users);

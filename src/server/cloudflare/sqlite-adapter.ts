@@ -26,9 +26,19 @@ function databaseError(error: unknown): never {
 class DurableSqliteDriver implements SqlDriverAdapter {
   readonly provider = "sqlite" as const;
   readonly adapterName = "tripanize/durable-sqlite";
-  private active = false;
+  private pending: Promise<void> = Promise.resolve();
   constructor(private readonly storage: SqlStorageHost) {}
-  async queryRaw(query: SqlQuery): Promise<SqlResultSet> {
+  // Durable Object SQLite accepts at most 100 bound parameters per statement.
+  // Tell Prisma to batch relation lookups and bulk writes at the actual limit.
+  getConnectionInfo() { return { maxBindValues: 100, supportsRelationJoins: false }; }
+  private async lock() {
+    const previous = this.pending;
+    let release!: () => void;
+    this.pending = new Promise<void>(resolve => { release = resolve; });
+    await previous;
+    return release;
+  }
+  private query(query: SqlQuery): SqlResultSet {
     try {
       const cursor = this.storage.sql.exec(query.sql, ...query.args.map((v, i) => argument(v, query.argTypes[i])));
       const columnNames = [...cursor.columnNames];
@@ -43,7 +53,7 @@ class DurableSqliteDriver implements SqlDriverAdapter {
       return { columnNames, columnTypes, rows };
     } catch (error) { return databaseError(error); }
   }
-  async executeRaw(query: SqlQuery): Promise<number> {
+  private execute(query: SqlQuery): number {
     try {
       const cursor = this.storage.sql.exec(query.sql, ...query.args.map((v, i) => argument(v, query.argTypes[i])));
       [...cursor];
@@ -52,12 +62,24 @@ class DurableSqliteDriver implements SqlDriverAdapter {
       return Number(this.storage.sql.exec("SELECT changes() AS count").one().count);
     } catch (error) { return databaseError(error); }
   }
-  async executeScript(script: string) { this.storage.sql.exec(script); }
+  async queryRaw(query: SqlQuery): Promise<SqlResultSet> {
+    const release = await this.lock();
+    try { return this.query(query); } finally { release(); }
+  }
+  async executeRaw(query: SqlQuery): Promise<number> {
+    const release = await this.lock();
+    try { return this.execute(query); } finally { release(); }
+  }
+  async executeScript(script: string) {
+    const release = await this.lock();
+    try { this.storage.sql.exec(script); } finally { release(); }
+  }
   async dispose() {}
   async startTransaction(level?: IsolationLevel): Promise<Transaction> {
     if (level && level !== "SERIALIZABLE") throw new DriverAdapterError({ kind: "InvalidIsolationLevel", level });
-    if (this.active) throw new Error("Overlapping database transactions are not permitted.");
-    this.active = true;
+    // Prisma can request implicit transactions concurrently when it batches
+    // large relation queries. Keep those groups isolated on this connection.
+    const release = await this.lock();
     let ready!: () => void;
     let finish!: (commit: boolean) => void;
     const started = new Promise<void>((resolve) => { ready = resolve; });
@@ -67,11 +89,11 @@ class DurableSqliteDriver implements SqlDriverAdapter {
     const completed = transaction.then(() => undefined, (error) => { if (error !== rolledBack) throw error; });
     void completed.catch(() => undefined);
     try { await Promise.race([started, completed]); }
-    catch (error) { this.active = false; throw error; }
-    const close = async (commit: boolean) => { finish(commit); try { await completed; } finally { this.active = false; } };
+    catch (error) { release(); throw error; }
+    const close = async (commit: boolean) => { finish(commit); try { await completed; } finally { release(); } };
     return {
       provider: this.provider, adapterName: this.adapterName, options: { usePhantomQuery: true },
-      queryRaw: this.queryRaw.bind(this), executeRaw: this.executeRaw.bind(this),
+      queryRaw: async query => this.query(query), executeRaw: async query => this.execute(query),
       commit: () => close(true), rollback: () => close(false),
     };
   }
