@@ -1,0 +1,1 @@
+ALTER TABLE "session" ADD COLUMN "normalMode" BOOLEAN NOT NULL DEFAULT false;

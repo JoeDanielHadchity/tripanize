@@ -36,6 +36,8 @@ let child;
 try {
   child = await start();
   if (mode === "storage") {
+    const accountMode = await json("/mode-check");
+    for (const [check, passed] of Object.entries(accountMode)) assert.equal(passed, true, `account mode: ${check}`);
     const travelTools = await json("/travel-tools");
     for (const [check, passed] of Object.entries(travelTools)) assert.equal(passed, true, `travel tools: ${check}`);
     const administration = await json("/admin-check");
@@ -63,6 +65,7 @@ try {
     assert.equal(result.largeRelationQueries, true);
     assert.equal(result.pdfHeader, "%PDF");
     await stop(child); child = await start();
+    assert.equal((await json("/mode-state")).persisted, true);
     const restoredTools = await json("/travel-tools-state");
     for (const [check, passed] of Object.entries(restoredTools)) assert.equal(passed, true, `restored travel tools: ${check}`);
     assert.equal((await json("/count")).users, result.users);
@@ -74,7 +77,7 @@ try {
     assert.deepEqual(plans.aiDates, ["2027-05-01", "2027-05-02"]);
     assert.equal(plans.premiumUnlocked, true);
     assert.equal(plans.expiryEnforced, true);
-    console.log(JSON.stringify({ mode, ...result, survivesRestart: true, plans, billing, administration, travelTools }));
+    console.log(JSON.stringify({ mode, ...result, survivesRestart: true, plans, billing, administration, travelTools, accountMode }));
   } else {
     const home = await fetch(origin); assert.equal(home.status, 200); const html = await home.text(); assert.match(html, /Tripanize/);
     const plansPage = await fetch(origin + "/plans"); assert.equal(plansPage.status, 200); assert.match(await plansPage.text(), /First 2 days per trip/);
@@ -128,6 +131,11 @@ try {
     const assistantUnauth = await fetch(origin + "/api/trips/does-not-exist/assistant"); assert.equal(assistantUnauth.status, 401); assert.equal(assistantUnauth.headers.get("Cache-Control"), "private, no-store");
     const assistantMissing = await fetch(origin + "/api/trips/does-not-exist/assistant", { headers: { Cookie: cookie } }); assert.equal(assistantMissing.status, 404);
     const assistantCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/assistant", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ op: "apply", id: "not-a-proposal" }) }); assert.equal(assistantCrossOrigin.status, 403);
+    const modeCrossOrigin = await fetch(origin + "/api/account/mode", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ mode: "NORMAL" }) }); assert.equal(modeCrossOrigin.status, 403);
+    const modeUnauth = await fetch(origin + "/api/account/mode", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ mode: "ADMIN" }) }); assert.equal(modeUnauth.status, 401);
+    const ordinaryMode = await fetch(origin + "/api/account/mode", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ mode: "ADMIN" }) }); assert.equal(ordinaryMode.status, 403);
+    const unverifiedMode = await fetch(origin + "/api/account/mode", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json", Cookie: companyCookie }, body: JSON.stringify({ mode: "NORMAL" }) }); assert.equal(unverifiedMode.status, 403);
+    const ordinaryAccount = await (await fetch(origin + "/account", { headers: { Cookie: cookie } })).text(); assert.doesNotMatch(ordinaryAccount, /Switching mode|Account mode|Normal mode/);
     const receiptUnauth = await fetch(origin + "/api/trips/does-not-exist/expenses", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test" }, body: "--test--" });
     assert.equal(receiptUnauth.status, 401); assert.equal(receiptUnauth.headers.get("Cache-Control"), "private, no-store");
     const receiptCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/expenses", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" });

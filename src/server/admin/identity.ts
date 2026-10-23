@@ -1,7 +1,7 @@
 import { OPERATOR_NAME } from "@/lib/legal";
 import { prisma, type Tx } from "@/server/db";
 import { AppError } from "@/server/errors";
-import { currentRuntime } from "@/server/cloudflare/runtime";
+import { currentRuntime, normalUserMode } from "@/server/cloudflare/runtime";
 
 // Private server configuration. Profile fields and invitation recipients cannot assign this role.
 function companyEmail() { return currentRuntime().companyAdminEmail?.trim().toLowerCase() || null; }
@@ -9,10 +9,11 @@ export function isCompanyIdentity(user: { email: string }) { const email = compa
 export function isCompanyAccount(user: { email: string; emailVerified: boolean }) { return user.emailVerified && isCompanyIdentity(user); }
 export function accountDisplayName(user: { email: string; name: string }) { return isCompanyIdentity(user) ? OPERATOR_NAME : user.name; }
 export async function companyAccount(userId: string, db: Pick<Tx, "user"> = prisma) {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } });
-  return Boolean(user && isCompanyAccount(user));
+  const user = await db.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true, suspendedAt: true } });
+  return Boolean(user && !user.suspendedAt && isCompanyAccount(user));
 }
 export async function requireCompanyAdmin(userId: string, db: Pick<Tx, "user"> = prisma) {
+  if (normalUserMode(userId)) throw new AppError("FORBIDDEN", "Switch back to Admin mode in Account to use administrator features.");
   if (!await companyAccount(userId, db)) throw new AppError("FORBIDDEN", `Only the ${OPERATOR_NAME} administrator account can manage trial invitations.`);
 }
 

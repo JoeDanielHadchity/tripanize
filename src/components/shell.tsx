@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { SessionUser } from "@/server/auth/session";
 import { SignOutButton } from "./signout";
+import { AccountModeSync } from "./account-mode";
 import { NotificationBell } from "./notifications";
 
 export function Logo({ small }: { small?: boolean }) {
@@ -20,6 +21,7 @@ export function AppHeader({ user, current }: { user: SessionUser; current?: "tri
   );
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
+      {user.companyAdminEligible && <AccountModeSync />}
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
         <Link href="/start" aria-label="Tripanize home">
           <Logo small />
@@ -27,12 +29,13 @@ export function AppHeader({ user, current }: { user: SessionUser; current?: "tri
         <nav aria-label="Account" className="flex items-center gap-1">
           {link("/trips", "My trips", current === "trips")}
           {user.companyAdmin && link("/company", "Admin", current === "admin")}
-          {link("/account", user.companyAdmin ? "Account" : user.name.split(" ")[0] || "Account", current === "account")}
+          {link("/account", (user.companyAdminEligible || user.companyAdmin) ? "Account" : user.name.split(" ")[0] || "Account", current === "account")}
           <NotificationBell />
           <SettingsLink active={current === "settings"} />
           <SignOutButton />
         </nav>
       </div>
+      {user.normalMode && <div className="border-t border-line bg-accent-soft px-4 py-1.5 text-center text-xs text-accent-ink">Normal mode · Regular user access <Link href="/account" className="ml-2 font-semibold underline">Switch mode in Account</Link></div>}
     </header>
   );
 }
