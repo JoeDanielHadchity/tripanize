@@ -11,7 +11,7 @@ function createAuth() { return betterAuth({
   appName: "Tripanize",
   baseURL: currentRuntime().appUrl ?? process.env.BETTER_AUTH_URL,
   secret: currentRuntime().authSecret,
-  // Trust only the configured app domains and the explicit production Worker URL.
+  // Trust only the configured branded app domains.
   trustedOrigins: (() => {
     const base = currentRuntime().appUrl ?? process.env.APP_URL ?? process.env.BETTER_AUTH_URL;
     if (!base) return [];
@@ -19,8 +19,6 @@ function createAuth() { return betterAuth({
       const u = new URL(base);
       const alt = u.hostname.startsWith("www.") ? u.hostname.slice(4) : `www.${u.hostname}`;
       const origins = [u.origin, `${u.protocol}//${alt}`];
-      const workerUrl = process.env.WORKERS_DEV_URL;
-      if (workerUrl) origins.push(new URL(workerUrl).origin);
       return origins;
     } catch {
       return [];

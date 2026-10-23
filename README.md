@@ -41,7 +41,7 @@ New matches and meaningful changes create in-app alerts for every current trip m
 
 Event emails remain opt-in for verified addresses, respect each member's event categories and immediate/daily preference, and use a durable immutable outbox with bounded retries and stable Resend idempotency keys. Daily batches coalesce per member/trip. Removed members, disabled alerts and lost Premium access cancel pending delivery. Saving event-email preferences cancels older pending batches so outdated selections cannot be sent.
 
-Both `tripanize.app` and `www.tripanize.app` are configured as custom domains. The production Worker URL is also enabled as an alternate entry point. Authentication trusts that exact configured URL; it does not trust other Workers or branch previews. Email links continue to use the canonical `APP_URL`.
+Both `tripanize.app` and `www.tripanize.app` are configured as custom domains. Personal Workers subdomains are disabled; authentication trusts only the branded app domains. Branch previews use the branded tripanize.app domain. Email links continue to use the canonical `APP_URL`.
 
 ## Company access and one-trip trials
 
