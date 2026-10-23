@@ -64,13 +64,13 @@ try {
     assert.deepEqual(await json("/expense-receipt"), { linked: true, readable: true });
     const plans = await json("/plans");
     assert.equal(plans.normalDenied, true);
-    assert.deepEqual(plans.aiDates, ["2027-05-01", "2027-05-02", "2027-05-03"]);
+    assert.deepEqual(plans.aiDates, ["2027-05-01", "2027-05-02"]);
     assert.equal(plans.premiumUnlocked, true);
     assert.equal(plans.expiryEnforced, true);
     console.log(JSON.stringify({ mode, ...result, survivesRestart: true, plans, billing }));
   } else {
     const home = await fetch(origin); assert.equal(home.status, 200); const html = await home.text(); assert.match(html, /Tripanize/);
-    const plansPage = await fetch(origin + "/plans"); assert.equal(plansPage.status, 200); assert.match(await plansPage.text(), /First 3 days per trip/);
+    const plansPage = await fetch(origin + "/plans"); assert.equal(plansPage.status, 200); assert.match(await plansPage.text(), /First 2 days per trip/);
     for (const path of ["/terms", "/privacy", "/refunds", "/contact"]) {
       assert.match(html, new RegExp(`href="${path}"`));
       const policy = await fetch(origin + path); assert.equal(policy.status, 200, path); assert.equal(new URL(policy.url).pathname, path);

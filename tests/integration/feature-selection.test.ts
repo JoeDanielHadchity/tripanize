@@ -43,29 +43,11 @@ it("restricts shared feature selection to the organizer and rejects invalid inpu
   expect((await billingSummary(owner.id, tripId)).selectedFeatures).toEqual([]);
 });
 
-it("charges once for the package, accounts for group size and paid credit, and keeps Normal free", () => {
-  for (const [people, price] of [[1, 900], [2, 900], [3, 1500], [6, 1500], [7, 2500], [12, 2500]]) {
-    expect(tripCheckoutQuote(["chat"], people, 0).dueMinor).toBe(price);
-    expect(tripCheckoutQuote(PREMIUM_FEATURE_KEYS, people, 0).dueMinor).toBe(price);
+it("quotes one $15 package, keeps Normal free and grandfathers verified credit for every group size", () => {
+  for (const people of [1, 2, 3, 6, 7, 12, 13, 50, 100]) {
+    expect(tripCheckoutQuote(["chat"], people, 0).dueMinor).toBe(1500);
+    expect(tripCheckoutQuote(PREMIUM_FEATURE_KEYS, people, 0).dueMinor).toBe(1500);
     expect(tripCheckoutQuote([], people, 0).dueMinor).toBe(0);
+    expect(tripCheckoutQuote(["chat"], people, 900).dueMinor).toBe(0);
   }
-  expect(tripCheckoutQuote(["expenses"], 4, 900).dueMinor).toBe(600);
-  expect(tripCheckoutQuote(PREMIUM_FEATURE_KEYS, 8, 1500).dueMinor).toBe(1000);
-  expect(tripCheckoutQuote(["chat"], 4, 2500).dueMinor).toBe(0);
-  expect(tripCheckoutQuote(["chat"], 13, 0).dueMinor).toBeNull();
-  expect(tripCheckoutQuote([], 13, 0).dueMinor).toBe(0);
-});
-
-it("retains a verified purchase when selections change and lets an upgraded group pay only the difference", async () => {
-  const owner = await makeUser("Owner");
-  const tripId = await makeTrip(owner.id);
-  await prisma.premiumCheckout.create({ data: { tripId, buyerId: owner.id, environment: "live", priceId: "isolated-fixture", amountMinor: 900, targetCapacity: 2, status: "COMPLETED" } });
-  await saveTripFeatures(owner.id, tripId, []);
-  expect((await getTripPlan(tripId)).premium).toBe(true);
-  await prisma.trip.update({ where: { id: tripId }, data: { adults: 5 } });
-  await saveTripFeatures(owner.id, tripId, ["chat", "packing"]);
-  const summary = await billingSummary(owner.id, tripId);
-  expect(summary).toMatchObject({ premium: false, creditMinor: 900, people: 5 });
-  expect(tripCheckoutQuote(summary.selectedFeatures, summary.people, summary.creditMinor).dueMinor).toBe(600);
-  expect(await prisma.premiumCheckout.count()).toBe(1);
 });

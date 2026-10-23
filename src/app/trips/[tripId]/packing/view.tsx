@@ -96,7 +96,7 @@ export function PackingView({ tripId, canEditShared, premium, personal, shared, 
     <div className="space-y-6">
       {premium && <Card className="bg-sage-soft/40">
         <h2 className="flex items-center gap-2 font-display text-lg font-semibold">Packing suggestions <PremiumStar /></h2>
-        <p className="mt-1 text-sm text-muted">Based on your destinations, dates and season, trip length, weather (live forecast within 14 days, otherwise typical conditions — always labeled), planned activities, road-trip and accommodation changes, and preferences you've shared. Refreshing keeps your own items and checkmarks, never re-adds items you removed, and doesn't create duplicates.</p>
+        <p className="mt-1 text-sm text-muted">Customized for your destinations, local customs, events, travel preferences, dates and season, trip length, weather (live forecast within 14 days, otherwise typical conditions — always labeled), planned activities, road-trip and accommodation changes, and preferences you've shared. Refreshing keeps your own items and checkmarks, never re-adds items you removed, and doesn't create duplicates.</p>
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <Field label="Laundry during the trip?" htmlFor="laundry"><Select id="laundry" value={laundry} onChange={(e) => setLaundry(e.target.value as "" | "yes" | "no")} className="w-auto"><option value="">Not sure</option><option value="yes">Yes</option><option value="no">No</option></Select></Field>
           <Button variant="primary" disabled={pending} onClick={async () => {

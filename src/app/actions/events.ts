@@ -9,7 +9,7 @@ import { updateNotificationPrefs } from "@/server/profile";
 
 const rv = (tripId: string) => revalidatePath(`/trips/${tripId}`, "layout");
 
-export async function setEventStatusAction(tripId: string, eventId: string, status: "SAVED" | "HIDDEN" | "NEW", expectedStatus?: "NEW" | "SAVED" | "HIDDEN" | "SCHEDULED") {
+export async function setEventStatusAction(tripId: string, eventId: string, status: "SAVED" | "HIDDEN" | "NEW" | "SCHEDULED", expectedStatus?: "NEW" | "SAVED" | "HIDDEN" | "SCHEDULED") {
   return runAction(async () => {
     const u = await requireUser();
     await setEventStatus(u.id, tripId, eventId, status, expectedStatus);

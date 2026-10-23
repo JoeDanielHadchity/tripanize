@@ -15,8 +15,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
     if (Number(request.headers.get("content-length")) > 1024) throw new AppError("VALIDATION", "Invalid purchase request.");
     const data = await request.json() as { bandId?: unknown; refresh?: unknown };
     if (data.refresh === true) return NextResponse.json(await refreshTripPayment(userId, tripId), { headers: noStore });
-    const band = PREMIUM_BANDS.find(b => b.id === data.bandId);
-    if (!band) throw new AppError("VALIDATION", "Choose a Premium group size.");
+    const band = ["premium", "small", "medium", "large"].includes(String(data.bandId)) ? PREMIUM_BANDS[0] : undefined;
+    if (!band) throw new AppError("VALIDATION", "Choose Premium for this trip.");
     return NextResponse.json(await beginCheckout(userId, tripId, band.id), { headers: noStore });
   });
 }

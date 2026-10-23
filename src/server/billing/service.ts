@@ -12,9 +12,9 @@ export async function billingSummary(userId: string, tripId: string) {
   const access = await requireTrip(tripId, userId);
   const plan = await getTripPlan(tripId);
   const recommended = premiumBandForPeople(plan.people);
-  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { selectedPremiumFeatures: true } });
-  return { ...plan, selectedFeatures: selectedPremiumFeatures(trip.selectedPremiumFeatures), canPurchase: access.role === "OWNER", available: checkoutAvailable(), environment: billingEnvironment(), recommended: recommended?.id ?? null,
-    options: PREMIUM_BANDS.map(b => ({ ...b, eligible: b.capacity >= plan.people && b.priceMinor > plan.creditMinor, dueMinor: Math.max(0, b.priceMinor - plan.creditMinor) })) };
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { selectedPremiumFeatures: true, onboardingStage: true } });
+  return { ...plan, onboardingStage: trip.onboardingStage, selectedFeatures: selectedPremiumFeatures(trip.selectedPremiumFeatures), canPurchase: access.role === "OWNER", available: checkoutAvailable(), environment: billingEnvironment(), recommended: recommended?.id ?? null,
+    options: PREMIUM_BANDS.map(b => ({ ...b, eligible: !plan.premium, dueMinor: plan.premium ? 0 : b.priceMinor })) };
 }
 
 /** Re-read Paddle's current transaction, rather than trusting delivery order or browser callbacks. */
@@ -36,6 +36,7 @@ export async function recordVerifiedTransaction(tx: PaddleTransaction) {
     const reviewRequired = (tx.adjustments ?? []).some(a => a.status === "approved" && ["refund", "credit", "chargeback", "chargeback_warning"].includes(a.action));
     const status = tx.status === "completed" ? "COMPLETED" : tx.status === "canceled" ? "CANCELED" : "PENDING";
     await db.premiumCheckout.update({ where: { id: intent.id }, data: { transactionId: tx.id, status, reviewRequired } });
+    if (status === "COMPLETED" && !reviewRequired) await db.trip.updateMany({ where: { id: intent.tripId, onboardingStage: "PLAN" }, data: { onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" } });
     return intent.tripId;
   });
 }
@@ -46,11 +47,13 @@ export async function beginCheckout(userId: string, tripId: string, bandId: Prem
   await rateLimit(`checkout:${tripId}:${userId}`, 12, 3600);
   const environment = billingEnvironment();
   const c = currentRuntime().paddle!;
+  if ((await getTripPlan(tripId)).premium) throw new AppError("CONFLICT", "Premium is already active for this trip. Please refresh.");
   const existing = await prisma.premiumCheckout.findFirst({ where: { tripId, environment, status: { in: ["CREATING", "PENDING"] } }, orderBy: { createdAt: "desc" } });
   if (existing) {
     if (!existing.transactionId) throw new AppError("CONFLICT", "A checkout is awaiting confirmation. Please contact the organizer before trying another payment.");
     await reconcilePayment(existing.transactionId);
     const refreshed = await prisma.premiumCheckout.findUniqueOrThrow({ where: { id: existing.id } });
+    if (refreshed.status === "PENDING" && existing.amountMinor !== 1500) throw new AppError("CONFLICT", "An older checkout is still pending. Contact support to replace it with the $15 trip price before paying.");
     if (refreshed.status === "PENDING") return { transactionId: existing.transactionId, clientToken: c.clientToken, environment, reused: true, amountMinor: existing.amountMinor, capacity: existing.targetCapacity };
   }
   const intent = await prisma.$transaction(async db => {
@@ -61,12 +64,12 @@ export async function beginCheckout(userId: string, tripId: string, bandId: Prem
     const plan = await getTripPlan(tripId, db);
     if (plan.reviewRequired) throw new AppError("CONFLICT", "A payment adjustment needs review before another purchase. Please check your Paddle receipt and payment status.");
     const band = PREMIUM_BANDS.find(b => b.id === bandId);
-    if (!band || band.capacity < plan.people) throw new AppError("VALIDATION", "Choose a Premium option that covers everyone in this trip.");
-    const amountMinor = band.priceMinor - plan.creditMinor;
-    if (amountMinor <= 0) throw new AppError("CONFLICT", "This group size is already covered. Please refresh your trip.");
+    if (!band) throw new AppError("VALIDATION", "Choose Premium for this trip.");
+    if (plan.premium) throw new AppError("CONFLICT", "Premium is already active for this trip. Please refresh.");
+    const amountMinor = band.priceMinor;
     const priceId = c.prices[amountMinor];
     if (!priceId) throw new AppError("NOT_CONFIGURED", "This upgrade is not available yet.");
-    return db.premiumCheckout.create({ data: { tripId, buyerId: userId, environment, priceId, amountMinor, targetCapacity: band.capacity } });
+    return db.premiumCheckout.create({ data: { tripId, buyerId: userId, environment, priceId, amountMinor, targetCapacity: 0 } });
   });
   // No automatic retry on create: an ambiguous network failure must never make
   // a second chargeable transaction. The saved intent can recover via webhook.

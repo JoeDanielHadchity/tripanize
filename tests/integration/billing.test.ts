@@ -34,24 +34,19 @@ async function paid(tripId: string, ownerId: string, amount: number, n = 1) {
   const row = await prisma.premiumCheckout.create({ data: { tripId, buyerId: ownerId, environment: "sandbox", priceId: price(amount), amountMinor: amount, targetCapacity: amount === 900 ? 2 : amount === 1500 ? 6 : 12 } });
   const data = transaction(row.id, tripId, amount, n); await recordVerifiedTransaction(data); return data;
 }
-it("prices boundaries, counts organizer/planned children/non-account travelers, and quotes only the upgrade difference", async () => {
-  const { owner, tripId } = await setup();
-  expect((await billingSummary(owner.id, tripId)).recommended).toBe("small");
+it("uses one $15 price for any group and preserves earlier paid trips as the group grows", async () => {
+  const { owner, tripId } = await setup(1);
+  for (const people of [1, 2, 3, 6, 7, 12, 25, 50]) {
+    await prisma.trip.update({ where: { id: tripId }, data: { adults: people } });
+    const summary = await billingSummary(owner.id, tripId);
+    expect(summary.recommended).toBe("premium");
+    expect(summary.options).toHaveLength(1);
+    expect(summary.options[0].dueMinor).toBe(1500);
+  }
   await paid(tripId, owner.id, 900);
-  await addTraveler(owner.id, tripId, "Third traveler", true);
-  let summary = await billingSummary(owner.id, tripId);
-  expect(summary).toMatchObject({ people: 3, premium: false, creditMinor: 900, recommended: "medium" });
-  expect(summary.options.find(b => b.id === "medium")?.dueMinor).toBe(600);
-  await paid(tripId, owner.id, 600, 2);
-  expect(await getTripPlan(tripId)).toMatchObject({ premium: true, capacity: 6, creditMinor: 1500 });
-  await prisma.trip.update({ where: { id: tripId }, data: { adults: 6, children: 1 } });
-  summary = await billingSummary(owner.id, tripId);
-  expect(summary).toMatchObject({ people: 7, recommended: "large", premium: false });
-  expect(summary.options.find(b => b.id === "large")?.dueMinor).toBe(1000);
-  await prisma.trip.update({ where: { id: tripId }, data: { adults: 12, children: 0 } });
-  expect((await billingSummary(owner.id, tripId)).recommended).toBe("large");
-  await prisma.trip.update({ where: { id: tripId }, data: { adults: 13 } });
-  expect((await billingSummary(owner.id, tripId)).recommended).toBeNull();
+  await addTraveler(owner.id, tripId, "Another traveler", true);
+  expect(await getTripPlan(tripId)).toMatchObject({ premium: true, creditMinor: 900 });
+  expect((await billingSummary(owner.id, tripId)).options[0].dueMinor).toBe(0);
 });
 it("keeps purchases on one trip, survives ownership transfer, and isolates sandbox from live", async () => {
   const { owner, tripId } = await setup(); const otherTrip = await makeTrip(owner.id); const member = await makeUser("Member");
@@ -60,11 +55,11 @@ it("keeps purchases on one trip, survives ownership transfer, and isolates sandb
   expect((await getTripPlan(otherTrip)).premium).toBe(false);
   await transferOwnership(owner.id, tripId, member.id);
   expect((await getTripPlan(tripId)).premium).toBe(true);
-  await expect(beginCheckout(owner.id, tripId, "large")).rejects.toMatchObject({ code: "FORBIDDEN" });
+  await expect(beginCheckout(owner.id, tripId, "premium")).rejects.toMatchObject({ code: "FORBIDDEN" });
   setTestRuntime({ ...runtime, planAccessEnabled: true, paddle: { ...config, environment: "live" } });
   expect((await getTripPlan(tripId)).premium).toBe(false);
 });
-it("reuses pending checkout, sends the server's fixed price, denies under-sized purchases and requires owner", async () => {
+it("reuses pending checkout, sends the server's fixed price, supports any group and requires owner", async () => {
   const { owner, tripId } = await setup(3); const outsider = await makeUser("Outsider");
   const fetchMock = vi.fn(async (_url: string, opts?: RequestInit) => {
     const input = opts?.body ? JSON.parse(String(opts.body)) : null;
@@ -72,11 +67,10 @@ it("reuses pending checkout, sends the server's fixed price, denies under-sized 
     if (input) { expect(input.items).toEqual([{ price_id: price(1500), quantity: 1 }]); expect(input.custom_data.checkoutId).toBe(row.id); }
     return Response.json({ data: transaction(row.id, tripId, 1500, 1, "ready") });
   }); vi.stubGlobal("fetch", fetchMock);
-  await expect(beginCheckout(outsider.id, tripId, "medium")).rejects.toMatchObject({ code: "NOT_FOUND" });
-  await expect(beginCheckout(owner.id, tripId, "small")).rejects.toMatchObject({ code: "VALIDATION" });
+  await expect(beginCheckout(outsider.id, tripId, "premium")).rejects.toMatchObject({ code: "NOT_FOUND" });
   expect(fetchMock).not.toHaveBeenCalled();
-  const first = await beginCheckout(owner.id, tripId, "medium");
-  const next = await beginCheckout(owner.id, tripId, "large");
+  const first = await beginCheckout(owner.id, tripId, "premium");
+  const next = await beginCheckout(owner.id, tripId, "premium");
   expect(first.transactionId).toBe(next.transactionId);
   expect(fetchMock.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
   expect((await getTripPlan(tripId)).premium).toBe(false);
@@ -93,7 +87,7 @@ it("revokes adjusted credit while keeping the trip and blocks accidental repurch
   const { owner, tripId } = await setup(); const data = await paid(tripId, owner.id, 900);
   await recordVerifiedTransaction({ ...data, adjustments: [{ action: "refund", status: "approved" }] });
   expect(await getTripPlan(tripId)).toMatchObject({ premium: false, reviewRequired: true });
-  await expect(beginCheckout(owner.id, tripId, "small")).rejects.toMatchObject({ code: "CONFLICT" });
+  await expect(beginCheckout(owner.id, tripId, "premium")).rejects.toMatchObject({ code: "CONFLICT" });
   expect(await prisma.trip.count()).toBe(1);
   await recordVerifiedTransaction({ ...data, adjustments: [{ action: "refund", status: "reversed" }] });
   expect((await getTripPlan(tripId)).premium).toBe(true);
@@ -113,8 +107,8 @@ it("verifies raw-body HMAC, rejects stale/future/modified signatures, and retrie
 });
 it("keeps an ambiguous create failure blocked so retries cannot create duplicate transactions", async () => {
   const { owner, tripId } = await setup(); const fetchMock = vi.fn(async () => { throw new Error("network interrupted"); }); vi.stubGlobal("fetch", fetchMock);
-  await expect(beginCheckout(owner.id, tripId, "small")).rejects.toMatchObject({ code: "UPSTREAM" });
-  await expect(beginCheckout(owner.id, tripId, "small")).rejects.toMatchObject({ code: "CONFLICT" });
+  await expect(beginCheckout(owner.id, tripId, "premium")).rejects.toMatchObject({ code: "UPSTREAM" });
+  await expect(beginCheckout(owner.id, tripId, "premium")).rejects.toMatchObject({ code: "CONFLICT" });
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
