@@ -3,7 +3,7 @@ import adminNormalMode from "../../prisma/migrations/202610230017_admin_normal_m
 import remindersVotes from "../../prisma/migrations/202610230016_reminders_votes/migration.sql";
 import adminDashboard from "../../prisma/migrations/202610230015_admin_dashboard/migration.sql";
 import destinationSearches from "../../prisma/migrations/202610230014_destination_searches/migration.sql";
-import { createTrialInvitation, acceptTrialInvitation, revokeTrialInvitation, sendNextTrialEmail } from "../../src/server/admin/trials";
+import { createTrialInvitation, acceptTrialInvitation, revokeTrialInvitation, sendNextTrialEmail, userTrialAccess } from "../../src/server/admin/trials";
 import { getTripPlan } from "../../src/server/plans/access";
 import companyTrials from "../../prisma/migrations/202610230013_company_trials/migration.sql";
 import { queueDueDiscoveries } from "../../src/server/events/schedule";
@@ -141,13 +141,14 @@ export class AiProbe extends DurableObject<Env> {
             await this.tasks.wake(); return Response.json({ retry: true });
           }
           if (url.pathname === "/trials/accept") {
-            const first = await acceptTrialInvitation(trial.recipientId, { invitationId: trial.invitationId, name: "Native trial trip" });
+            const draft = await createTripDraft(trial.recipientId, "Native trial trip", trial.invitationId);
+            const first = { tripId: draft.id };
             const repeated = await acceptTrialInvitation(trial.recipientId, { invitationId: trial.invitationId, name: "Must not create another trip" });
-            return Response.json({ first, repeated });
+            return Response.json({ first, repeated, draft });
           }
           if (url.pathname === "/trials/revoke") { await appRuntime.run({ ...currentRuntime(), accountMode: { userId: trial.adminId, sessionId: trial.adminSessionId, normal: false } }, () => revokeTrialInvitation(trial.adminId, trial.invitationId)); return Response.json({ revoked: true }); }
           const inv = await this.db.trialInvitation.findUniqueOrThrow({ where: { id: trial.invitationId } });
-          return Response.json({ emailStatus: inv.emailStatus, attempts: inv.emailAttempts, keys: await this.ctx.storage.get("trialEmailAttempts") ?? [], plan: inv.tripId ? await getTripPlan(inv.tripId) : null, otherPlan: await getTripPlan(trial.otherTripId), recipientTrips: await this.db.trip.count({ where: { ownerId: trial.recipientId } }), payments: await this.db.premiumCheckout.count({ where: { buyerId: trial.recipientId } }) });
+          return Response.json({ emailStatus: inv.emailStatus, attempts: inv.emailAttempts, keys: await this.ctx.storage.get("trialEmailAttempts") ?? [], access: await userTrialAccess(trial.recipientId), trialDurationMs: inv.trialEndsAt && inv.acceptedAt ? inv.trialEndsAt.getTime() - inv.acceptedAt.getTime() : null, plan: inv.tripId ? await getTripPlan(inv.tripId) : null, otherPlan: await getTripPlan(trial.otherTripId), recipientTrips: await this.db.trip.count({ where: { ownerId: trial.recipientId } }), payments: await this.db.premiumCheckout.count({ where: { buyerId: trial.recipientId } }) });
         }
         if (url.pathname === "/events/start") {
           process.env.OPENAI_API_KEY = "isolated-native-fixture-key"; process.env.OPENAI_WEB_SEARCH = "true";

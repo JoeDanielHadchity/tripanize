@@ -77,8 +77,38 @@ export async function previewTrialInvitation(token: string) {
 
 export async function pendingTrialInvitations(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  if (!user.emailVerified) return [];
-  return prisma.trialInvitation.findMany({ where: { email: user.email.toLowerCase(), ...invitationOpen, expiresAt: { gt: new Date() } }, select: { id: true }, take: 10 });
+  if (!user.emailVerified || user.suspendedAt) return [];
+  return prisma.trialInvitation.findMany({ where: { email: user.email.toLowerCase(), ...invitationOpen, expiresAt: { gt: new Date() } }, select: { id: true, durationDays: true, expiresAt: true }, orderBy: { createdAt: "desc" }, take: 10 });
+}
+
+export type UserTrialAccess =
+  | { status: "none" | "verify" }
+  | { status: "available"; invitationId: string; durationDays: number | null; acceptBy: string }
+  | { status: "active"; invitationId: string; tripId: string; tripName: string; endsAt: string | null };
+
+/** Discover a recipient's own trial on every normal entry point. Never expose an
+ * invitation ID to an unverified address, or another member's private trip name.
+ */
+export async function userTrialAccess(userId: string): Promise<UserTrialAccess> {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true, emailVerified: true, suspendedAt: true } });
+  if (user.suspendedAt) return { status: "none" };
+  if (!user.emailVerified) return { status: "verify" };
+  const pending = await prisma.trialInvitation.findFirst({ where: { email: user.email.toLowerCase(), ...invitationOpen, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "desc" }, select: { id: true, durationDays: true, expiresAt: true } });
+  if (pending) return { status: "available", invitationId: pending.id, durationDays: pending.durationDays, acceptBy: pending.expiresAt.toISOString() };
+  const active = await prisma.trialInvitation.findFirst({ where: { acceptedById: userId, acceptedAt: { not: null }, revokedAt: null, OR: [{ trialEndsAt: null }, { trialEndsAt: { gt: new Date() } }], trip: { memberships: { some: { userId } } } }, select: { id: true, tripId: true, trialEndsAt: true, trip: { select: { id: true, name: true } } } });
+  if (active?.trip && (await getTripPlan(active.trip.id)).source === "trial") return { status: "active", invitationId: active.id, tripId: active.trip.id, tripName: active.trip.name, endsAt: active.trialEndsAt?.toISOString() ?? null };
+  return { status: "none" };
+}
+
+/** A redeemed email link should reopen the recipient's trial, not an unavailable
+ * invitation page. This resolves only their own, verified, still-accessible trip.
+ */
+export async function redeemedTrialTrip(userId: string, token?: string, invitationId?: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { emailVerified: true, suspendedAt: true } });
+  if (!user.emailVerified || user.suspendedAt || (!token && !invitationId)) return null;
+  if (token && !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
+  const invitation = await prisma.trialInvitation.findFirst({ where: { ...(token ? { tokenHash: tokenHash(token) } : { id: invitationId }), acceptedById: userId, acceptedAt: { not: null }, trip: { memberships: { some: { userId } } } }, select: { tripId: true } });
+  return invitation?.tripId ?? null;
 }
 
 export async function trialTripChoices(userId: string) {
@@ -98,12 +128,16 @@ export async function acceptTrialInvitation(userId: string, input: z.input<typeo
   await rateLimit(`trial-accept:${userId}`, 20, 3600);
   return prisma.$transaction(async tx => {
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.suspendedAt) throw new AppError("FORBIDDEN", "This account cannot activate a trial.");
     if (!user.emailVerified) throw new AppError("FORBIDDEN", "Verify your email by signing in with an email code before accepting a trial.");
     const inv = await tx.trialInvitation.findUnique({ where: { id: invitationId } });
     if (!inv || inv.email !== user.email.toLowerCase()) throw new AppError("NOT_FOUND", "This invitation is not available for your account.");
     if (inv.revokedAt || (!inv.acceptedAt && inv.expiresAt <= new Date())) throw new AppError("CONFLICT", "This trial invitation has expired or was revoked.");
     if (inv.acceptedAt) {
-      if (inv.acceptedById === userId && inv.tripId && await tx.trip.findFirst({ where: { id: inv.tripId, ownerId: userId } })) return { tripId: inv.tripId };
+      if (inv.acceptedById === userId && inv.tripId && await tx.trip.findFirst({ where: { id: inv.tripId, memberships: { some: { userId } } } })) {
+        if (chosen && chosen !== inv.tripId) throw new AppError("CONFLICT", "Your trial is already active on another trip. Open that trip from your trial banner.");
+        return { tripId: inv.tripId };
+      }
       throw new AppError("CONFLICT", "This invitation has already been used.");
     }
     if (await tx.trialInvitation.findFirst({ where: { acceptedById: userId, acceptedAt: { not: null }, revokedAt: null, OR: [{ trialEndsAt: null }, { trialEndsAt: { gt: new Date() } }] } })) throw new AppError("CONFLICT", "You already have an active trial for one trip.");

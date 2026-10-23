@@ -8,6 +8,7 @@ import { billingEnvironment, checkoutAvailable } from "./config";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { rateLimit } from "@/server/ratelimit";
 import { fetchTransaction, paddleRequest, paddleTransaction, type PaddleTransaction } from "./paddle";
+import { pendingTrialInvitations } from "@/server/admin/trials";
 
 export async function billingSummary(userId: string, tripId: string) {
   const access = await requireTrip(tripId, userId);
@@ -44,6 +45,7 @@ export async function recordVerifiedTransaction(tx: PaddleTransaction) {
 
 export async function beginCheckout(userId: string, tripId: string, bandId: PremiumBandId) {
   await requireTrip(tripId, userId, "manage");
+  if ((await pendingTrialInvitations(userId)).length && !(await getTripPlan(tripId)).premium) throw new AppError("CONFLICT", "You have a Premium trial invitation. Activate your free trial for this trip from the Premium page; no payment is needed.");
   if (!checkoutAvailable()) throw new AppError("NOT_CONFIGURED", "Premium checkout is being set up. Your trip is still available.");
   await rateLimit(`checkout:${tripId}:${userId}`, 12, 3600);
   const environment = billingEnvironment();

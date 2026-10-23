@@ -3,11 +3,15 @@ import { getSessionUser } from "@/server/auth/session";
 import { AppHeader, Logo } from "@/components/shell";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { PlanComparison } from "@/components/plan-comparison";
+import { userTrialAccess } from "@/server/admin/trials";
+import { TrialAccessBanner } from "@/components/trial-access";
 export const metadata: Metadata = { title: "Normal or Premium — $15 per trip" };
 export default async function PlansPage() {
   const user = await getSessionUser(); const create = user ? "/trips/new" : "/sign-up";
+  const trial = user ? await userTrialAccess(user.id) : null;
   return <>{user ? <AppHeader user={user} /> : <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4"><Logo /><LinkButton href="/sign-in">Sign in</LinkButton></header>}
     <main id="main" className="mx-auto max-w-5xl space-y-6 px-4 pb-16 pt-8">
+      {trial && <TrialAccessBanner access={trial} />}
       <PageHeader title="One trip. One simple choice." subtitle="Start with Normal for free, or get a complete Premium trip for $15. Any group size." />
       <div className="grid gap-4 sm:grid-cols-2"><Card><Badge>Normal · Free</Badge><h2 className="mt-4 font-display text-3xl font-semibold">A little help to begin</h2><p className="mt-3 text-sm text-muted">An AI itinerary for the first 2 days per trip. Plan the remaining days manually, add your own bookings and build a packing checklist.</p><LinkButton href={create} className="mt-5">Create a trip</LinkButton></Card><Card className="border-accent bg-accent-soft/30"><Badge tone="accent">Premium</Badge><h2 className="mt-4 font-display text-4xl font-semibold">$15 <span className="font-sans text-sm font-normal text-muted">USD / trip</span></h2><p className="mt-3 text-sm text-muted">Pay once for your whole group. Get tailored questions, a full itinerary, researched events with booking links, customized packing, expenses, chat, optional locations and the AI assistant.</p><LinkButton href={create} variant="primary" className="mt-5">Create a trip & choose your plan</LinkButton></Card></div>
       <PlanComparison />

@@ -26,8 +26,10 @@ export async function getTripPlan(tripId: string, db: Database = prisma) {
   const preview = !planAccessEnabled() && !normalUserMode();
   const trip = await db.trip.findUniqueOrThrow({ where: { id: tripId }, select: { ownerId: true, owner: { select: { email: true, emailVerified: true } }, memberships: { select: { user: { select: { email: true, emailVerified: true } } } } } });
   const company = !normalUserMode() && (isCompanyAccount(trip.owner) || trip.memberships.some(m => isCompanyAccount(m.user)));
-  const trial = await db.trialInvitation.findUnique({ where: { tripId }, select: { acceptedAt: true, acceptedById: true, revokedAt: true, trialEndsAt: true } });
-  const hasTrial = Boolean(trial?.acceptedAt && !trial.revokedAt && trial.acceptedById === trip.ownerId && (!trial.trialEndsAt || trial.trialEndsAt > new Date()));
+  const trial = await db.trialInvitation.findUnique({ where: { tripId }, select: { acceptedAt: true, revokedAt: true, trialEndsAt: true } });
+  // A redeemed invitation covers its one bound trip for the entire trial. A
+  // legitimate organizer transfer does not silently revoke access for members.
+  const hasTrial = Boolean(trial?.acceptedAt && !trial.revokedAt && (!trial.trialEndsAt || trial.trialEndsAt > new Date()));
   const source = hasPurchase ? "purchase" : company ? "company" : hasTrial ? "trial" : null;
   return { premium: preview || Boolean(source), preview, source, validUntil: source === "trial" ? trial?.trialEndsAt?.toISOString() ?? null : null, people, creditMinor, capacity: band?.capacity ?? 0, bandId: band?.id ?? null, reviewRequired: purchases.some(p => p.reviewRequired) };
 }
