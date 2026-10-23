@@ -1,3 +1,8 @@
+import { createPoll, castVote, decidePoll, listPolls } from "../../src/server/voting/service";
+import { queueDueBookingReminders, nextBookingReminderAt } from "../../src/server/bookings/reminders";
+import { scanExpenseReceipt } from "../../src/server/expenses/scan";
+import type { generateStructured } from "../../src/server/ai/openai";
+import remindersVotes from "../../prisma/migrations/202610230016_reminders_votes/migration.sql";
 import { requireTrip } from "../../src/server/auth/permissions";
 import { executeAdminCommand, adminOverview, adminUsers, adminTrips, adminAi, adminSupport, adminPayments, adminHealth, adminActivity, activeAnnouncements, adminAnnouncements } from "../../src/server/admin/operations";
 import { reserveAiUsage, captureAiUsage, finishAiUsage } from "../../src/server/admin/ai-usage";
@@ -57,6 +62,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TrialInvitation")').toArray().length) ctx.storage.sql.exec(companyTrials);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("DestinationSearch")').toArray().some(c => c.name === "number")) ctx.storage.sql.exec(destinationSearches);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("user")').toArray().some(c => c.name === "suspendedAt")) ctx.storage.sql.exec(adminDashboard);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(c => c.name === "bookByAt")) ctx.storage.sql.exec(remindersVotes);
       });
     });
   }
@@ -91,6 +97,31 @@ export class StorageProbe extends DurableObject<Env> {
             const overview = await adminOverview(admin.id), ai = await adminAi(admin.id), support = await adminSupport(admin.id, 0), payments = await adminPayments(admin.id, 0), health = await adminHealth(admin.id), audit = await adminActivity(admin.id, 0);
             return Response.json({ guard, suspended, restored: (await requireTrip(tripId, traveler.id)).role === "OWNER", users: users.total === 1, trips: trips.total === 1, announcements: published, usage: ai.rows.some(r => r.id === usage.id && r.estimatedCostMicros === 300), support: support.total > 0, payments: Array.isArray(payments.rows), health: Array.isArray(health.webhooks), audit: audit.total >= 5, overview: overview.users >= 2 });
           });
+        }
+        if (new URL(request.url).pathname === "/travel-tools") {
+          const user = await this.db.user.create({ data: { id: crypto.randomUUID(), name: "Native trip tools", email: `tools-${crypto.randomUUID()}@example.test` } });
+          const tripId = await createTrip(user.id, { name: "Native travel tools", timezone: "UTC" });
+          const deadline = new Date(Date.now() + 12 * 3600_000).toISOString().slice(0, 16);
+          const booking = await createBooking(user.id, tripId, { title: "Native booking deadline", category: "ATTRACTION", status: "TO_BOOK", currency: "EUR", bookByAt: deadline });
+          const queued = await queueDueBookingReminders();
+          const noRepeat = await queueDueBookingReminders() === 0;
+          const reminders = await this.db.tripNotification.count({ where: { tripId, kind: "booking_reminder" } });
+          const next = await nextBookingReminderAt();
+          const poll = await createPoll(user.id, tripId, { question: "Which activity?", kind: "ACTIVITY", options: ["Museum", "Walk"] });
+          const p = (await listPolls(user.id, tripId)).polls[0];
+          await castVote(user.id, tripId, poll.id, p.options[1].id, p.version);
+          await decidePoll(user.id, tripId, poll.id, "DECIDE", p.options[1].id, "Native fixture", p.version);
+          const decided = (await listPolls(user.id, tripId)).polls[0];
+          const mockGenerate = (async () => ({ data: { readable: true, merchant: "Native Cafe", amount: "12.50", currency: "EUR", date: "2027-05-01", category: "Food & drink", uncertain: false }, model: "fixture", sources: [], usage: null })) as unknown as typeof generateStructured;
+          const scan = await scanExpenseReceipt(user.id, tripId, new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "receipt.jpg", { type: "image/jpeg" }), mockGenerate);
+          await this.ctx.storage.put("travelTools", { tripId, userId: user.id, bookingId: booking.id, pollId: poll.id });
+          return Response.json({ reminders: queued > 0 && reminders === 1 && noRepeat && next !== null, votes: decided.status === "DECIDED" && decided.totalVotes === 1, scan: scan.amount === "12.50" && await this.db.expense.count({ where: { tripId } }) === 0 });
+        }
+        if (new URL(request.url).pathname === "/travel-tools-state") {
+          const state = await this.ctx.storage.get<{ tripId: string; userId: string; bookingId: string; pollId: string }>("travelTools");
+          if (!state) throw new Error("Native travel tools fixture missing");
+          const p = (await listPolls(state.userId, state.tripId)).polls[0];
+          return Response.json({ reminders: await this.db.tripNotification.count({ where: { tripId: state.tripId, kind: "booking_reminder" } }) === 1, votes: p.status === "DECIDED" && p.totalVotes === 1, booking: Boolean((await this.db.booking.findUnique({ where: { id: state.bookingId } }))?.bookByAt) });
         }
         if (new URL(request.url).pathname === "/count") return Response.json({ users: await this.db.user.count() });
         if (new URL(request.url).pathname === "/billing-request") {

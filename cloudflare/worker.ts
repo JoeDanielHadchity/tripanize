@@ -1,3 +1,5 @@
+import { queueDueBookingReminders } from "../src/server/bookings/reminders";
+import remindersVotes from "../prisma/migrations/202610230016_reminders_votes/migration.sql?raw";
 import adminDashboard from "../prisma/migrations/202610230015_admin_dashboard/migration.sql?raw";
 import { OPERATOR_NAME } from "../src/lib/legal";
 import destinationSearches from "../prisma/migrations/202610230014_destination_searches/migration.sql?raw";
@@ -127,6 +129,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
         });
         await ctx.storage.put("schemaVersion", 15);
       }
+      if (version < 16) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(c => c.name === "bookByAt")) ctx.storage.sql.exec(remindersVotes);
+        });
+        await ctx.storage.put("schemaVersion", 16);
+      }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
       if (this.env.COMPANY_ADMIN_EMAIL && await ctx.storage.get("companyIdentity15") !== `${this.env.COMPANY_ADMIN_EMAIL}:${OPERATOR_NAME}`) {
@@ -150,7 +158,8 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     // Let uploads and support delivery complete without blocking other members.
     // Each database operation and complete transaction still shares the lock.
     const payment = request.method === "POST" && /^\/api\/trips\/[^/]+\/expenses\/?$/.test(new URL(request.url).pathname);
-    const independent = payment || (request.method === "POST" && new URL(request.url).pathname === "/api/support");
+    const receiptScan = request.method === "POST" && /^\/api\/trips\/[^/]+\/receipts\/scan\/?$/.test(new URL(request.url).pathname);
+    const independent = receiptScan || payment || (request.method === "POST" && new URL(request.url).pathname === "/api/support");
     const runtime = this.runtime();
     const context = independent ? { ...runtime, database: serializedDatabase(runtime.database, run => this.serialize(run)) } : runtime;
     const run = () => appRuntime.run(context, async () => {
@@ -165,6 +174,7 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
       await this.database.verification.deleteMany({ where: { expiresAt: { lt: new Date() } } });
       await this.database.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
       await expireMemberLocations();
+      await queueDueBookingReminders();
       await queueDueDiscoveries();
       if (await this.aiTasks.pending()) await this.aiTasks.wake();
     }));

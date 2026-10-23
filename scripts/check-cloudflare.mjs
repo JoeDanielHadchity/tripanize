@@ -36,6 +36,8 @@ let child;
 try {
   child = await start();
   if (mode === "storage") {
+    const travelTools = await json("/travel-tools");
+    for (const [check, passed] of Object.entries(travelTools)) assert.equal(passed, true, `travel tools: ${check}`);
     const administration = await json("/admin-check");
     for (const [check, passed] of Object.entries(administration)) assert.equal(passed, true, `admin: ${check}`);
     const billing = await json("/billing-request");
@@ -61,6 +63,8 @@ try {
     assert.equal(result.largeRelationQueries, true);
     assert.equal(result.pdfHeader, "%PDF");
     await stop(child); child = await start();
+    const restoredTools = await json("/travel-tools-state");
+    for (const [check, passed] of Object.entries(restoredTools)) assert.equal(passed, true, `restored travel tools: ${check}`);
     assert.equal((await json("/count")).users, result.users);
     assert.deepEqual(await json("/chat-count"), { messages: 1, unread: 0 });
     assert.deepEqual(await json("/feature-selection"), { features: ["expenses", "chat"] });
@@ -70,7 +74,7 @@ try {
     assert.deepEqual(plans.aiDates, ["2027-05-01", "2027-05-02"]);
     assert.equal(plans.premiumUnlocked, true);
     assert.equal(plans.expiryEnforced, true);
-    console.log(JSON.stringify({ mode, ...result, survivesRestart: true, plans, billing, administration }));
+    console.log(JSON.stringify({ mode, ...result, survivesRestart: true, plans, billing, administration, travelTools }));
   } else {
     const home = await fetch(origin); assert.equal(home.status, 200); const html = await home.text(); assert.match(html, /Tripanize/);
     const plansPage = await fetch(origin + "/plans"); assert.equal(plansPage.status, 200); assert.match(await plansPage.text(), /First 2 days per trip/);
@@ -130,6 +134,10 @@ try {
     assert.equal(receiptCrossOrigin.status, 403);
     const receiptMissingTrip = await fetch(origin + "/api/trips/does-not-exist/expenses", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" });
     assert.equal(receiptMissingTrip.status, 404);
+    const scanCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/receipts/scan", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" }); assert.equal(scanCrossOrigin.status, 403);
+    const scanUnauth = await fetch(origin + "/api/trips/does-not-exist/receipts/scan", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test" }, body: "--test--" }); assert.equal(scanUnauth.status, 401); assert.equal(scanUnauth.headers.get("Cache-Control"), "private, no-store");
+    const scanMissing = await fetch(origin + "/api/trips/does-not-exist/receipts/scan", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test", Cookie: cookie }, body: "--test--" }); assert.equal(scanMissing.status, 404);
+    const votesMissing = await fetch(origin + "/trips/does-not-exist/votes", { headers: { Cookie: cookie } }); assert.equal(votesMissing.status, 404);
     await stop(child); child = await start();
     const restored = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(restored.status, 200); assert.equal(new URL(restored.url).pathname, "/trips");
     console.log(JSON.stringify({ mode, companyAdminGuard: true, companyNamePrivate: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));

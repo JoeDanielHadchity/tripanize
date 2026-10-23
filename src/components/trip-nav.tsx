@@ -41,11 +41,11 @@ export function TripNav({ tripId, initialChat, premium = true }: { tripId: strin
   }, [tripId]);
   const unreadBadge = premium && chat.unread > 0 ? <span aria-label={`${chat.unread} unread chat messages`} className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-on-accent">{chat.unread > 99 ? "99+" : chat.unread}</span> : null;
   const destination = (slug: string) => `/trips/${tripId}/${slug === "events" && !premium ? "bookings" : slug}`;
-  const label = (slug: string, text: string) => <span className="inline-flex items-center justify-center gap-1">{slug === "events" && !premium ? "Bookings" : text}{(["expenses", "chat"].includes(slug) || (slug === "events" && premium)) && <PremiumStar />}</span>;
+  const label = (slug: string, text: string) => <span className="inline-flex items-center justify-center gap-1">{slug === "events" && !premium ? "Bookings & votes" : text}{(["expenses", "chat"].includes(slug) || (slug === "events" && premium)) && <PremiumStar />}</span>;
   const active = (slug: string) => path.startsWith(`/trips/${tripId}/${slug}`)
     || (slug === "itinerary" && ["plan", "today"].some(s => path.startsWith(`/trips/${tripId}/${s}`)))
     || (slug === "chat" && path.startsWith(`/trips/${tripId}/members`))
-    || (slug === "events" && path.startsWith(`/trips/${tripId}/bookings`));
+    || (slug === "events" && ["bookings", "votes"].some(view => path.startsWith(`/trips/${tripId}/${view}`)));
   const primary = SECTIONS.slice(0, 4);
   const rest = SECTIONS.slice(4);
   return (

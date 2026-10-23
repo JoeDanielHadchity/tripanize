@@ -43,6 +43,7 @@ type StructuredOptions<S extends z.ZodType> = {
   name: string;
   instructions: string;
   input: string;
+  content?: OpenAI.Responses.ResponseInput;
   webSearch?: boolean;
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -73,7 +74,7 @@ async function requestStructured<S extends z.ZodType>(opts: StructuredOptions<S>
         model,
         reasoning: /^gpt-[56]/.test(model) ? { effort: "low" } : undefined,
         instructions: opts.instructions,
-        input: opts.input,
+        input: opts.content ?? opts.input,
         tools: useSearch ? [{ type: "web_search" }] : undefined,
         include: useSearch ? ["web_search_call.action.sources"] : undefined,
         // Supported by the Responses API; keep compatibility with older SDK typings.

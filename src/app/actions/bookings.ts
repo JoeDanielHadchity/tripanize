@@ -7,6 +7,8 @@ import { createBooking, deleteBooking, setBookingStatus, updateBooking, type Boo
 import { deleteAttachment, saveAttachment } from "@/server/storage";
 import { AppError } from "@/server/errors";
 
+import { setBookingReminderPreference } from "@/server/bookings/reminders";
+
 const rv = (tripId: string) => revalidatePath(`/trips/${tripId}`, "layout");
 
 export async function saveBookingAction(tripId: string, bookingId: string | null, input: BookingInput, version: number) {
@@ -48,6 +50,14 @@ export async function deleteAttachmentAction(tripId: string, attachmentId: strin
   return runAction(async () => {
     const u = await requireUser();
     await deleteAttachment(u.id, tripId, attachmentId);
+    rv(tripId);
+  });
+}
+
+export async function bookingReminderPreferenceAction(tripId: string, enabled: boolean) {
+  return runAction(async () => {
+    const user = await requireUser();
+    await setBookingReminderPreference(user.id, tripId, enabled);
     rv(tripId);
   });
 }

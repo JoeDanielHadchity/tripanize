@@ -21,7 +21,7 @@ export const PREMIUM_FEATURES: Record<PremiumFeature, string> = {
 export const PREMIUM_FEATURE_KEYS = ["advancedPlanning", "expenses", "chat", "locations", "events", "packing", "assistant"] as const satisfies readonly PremiumFeature[];
 export const PREMIUM_FEATURE_DETAILS: Record<PremiumFeature, string> = {
   advancedPlanning: "AI plans beyond 2 days, day regeneration and stop alternatives.",
-  expenses: "Track payments, attach receipts, split costs and see who owes whom.",
+  expenses: "Track payments, scan receipts with AI, split costs and see who owes whom.",
   chat: "Keep the group conversation inside your trip.",
   locations: "See members who choose to share their location. Sharing stays optional.",
   events: "Find events along your route and turn suggestions into bookings.",
@@ -42,6 +42,9 @@ export const PLAN_COMPARISON = [
   { feature: "Group size", normal: "Any group size", premium: "Any group size · one $15 payment" },
   { feature: "Manual itinerary changes", normal: "All days", premium: "All days" },
   { feature: "Bookings", normal: "Add manually", premium: "Linked event suggestions and manual bookings" },
+  { feature: "Booking deadline reminders", normal: "Included", premium: "Included" },
+  { feature: "Group voting", normal: "Included", premium: "Included" },
+  { feature: "AI receipt scanning", normal: "—", premium: "Review and autofill expense details" },
   { feature: "Packing", normal: "Add items manually", premium: "Customized for weather, season, preferences and events" },
   { feature: "Expenses and settlements", normal: "—", premium: "Included" },
   { feature: "Chat and member locations", normal: "—", premium: "Included" },
