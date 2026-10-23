@@ -151,7 +151,7 @@ async function acceptWhere(userId: string, where: { tokenHash: string } | { id: 
     await tx.tripMembership.create({ data: { tripId: inv.tripId, userId, role: inv.role, travelerId } });
     await tx.notificationPreference.upsert({
       where: { userId_tripId: { userId, tripId: inv.tripId } },
-      create: { userId, tripId: inv.tripId, emailEnabled: false, changeTypes: ["date", "venue", "cancelled", "sold_out"] },
+      create: { userId, tripId: inv.tripId, emailEnabled: false, changeTypes: ["new", "date", "venue", "cancelled", "sold_out"] },
       update: {},
     });
     await recordChange(tx, { tripId: inv.tripId, actorId: userId, entity: "membership", entityId: userId, action: "join", after: { role: inv.role } });

@@ -1,3 +1,5 @@
+import { queueDueDiscoveries } from "../src/server/events/schedule";
+import eventAlerts from "../prisma/migrations/202610230012_event_alerts/migration.sql?raw";
 import destinationSearch from "../prisma/migrations/202610230011_destination_search/migration.sql?raw";
 import { DurableObject } from "cloudflare:workers";
 import handler from "vinext/server/app-router-entry";
@@ -98,6 +100,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
         ctx.storage.transactionSync(() => ctx.storage.sql.exec(destinationSearch));
         await ctx.storage.put("schemaVersion", 11);
       }
+      if (version < 12) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TripNotification")').toArray().some(c => c.name === "kind")) ctx.storage.sql.exec(eventAlerts);
+        });
+        await ctx.storage.put("schemaVersion", 12);
+      }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
       if (await this.aiTasks.pending()) await this.aiTasks.wake();
@@ -132,6 +140,7 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
       await this.database.verification.deleteMany({ where: { expiresAt: { lt: new Date() } } });
       await this.database.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
       await expireMemberLocations();
+      await queueDueDiscoveries();
       if (await this.aiTasks.pending()) await this.aiTasks.wake();
     }));
   }

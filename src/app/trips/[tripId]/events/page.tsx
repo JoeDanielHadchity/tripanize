@@ -18,11 +18,12 @@ export default async function EventsPage({ params, searchParams }: { params: Pro
   const user = await requireUser();
   if (!(await getMemberTripPlan(tripId, user.id)).premium) return <PremiumRequired tripId={tripId} feature="events" />;
   const { access, events, runs, lastSuccess, settings } = await listEvents(user.id, tripId);
-  const [days, pref, trip, deliveries] = await Promise.all([
+  const [days, pref, trip, deliveries, eventEmails] = await Promise.all([
     prisma.itineraryDay.findMany({ where: { tripId }, orderBy: { date: "asc" }, select: { id: true, date: true, title: true } }),
     prisma.notificationPreference.findUnique({ where: { userId_tripId: { userId: user.id, tripId } } }),
     prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { timezone: true } }),
     prisma.notificationDelivery.findMany({ where: { userId: user.id, tripId }, orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.tripNotification.findMany({ where: { userId: user.id, tripId, kind: "event_email", emailStatus: { not: "batched" } }, orderBy: { createdAt: "desc" }, take: 5 }),
   ]);
   return (
     <EventsBookingsSection tripId={tripId} selected="events">
@@ -35,11 +36,11 @@ export default async function EventsPage({ params, searchParams }: { params: Pro
         emailReady={emailConfigured()}
         timezone={trip.timezone}
         days={days}
-        settings={{ autoDiscovery: settings.autoDiscovery, everyHours: settings.discoveryEveryHours, nextAt: settings.nextDiscoveryAt?.toISOString() ?? null }}
+        settings={{ autoDiscovery: settings.autoDiscovery, cadence: settings.cadence, nextAt: settings.nextDiscoveryAt?.toISOString() ?? null }}
         lastSuccess={lastSuccess?.finishedAt?.toISOString() ?? null}
         runs={runs.map((r) => ({ id: r.id, trigger: r.trigger, status: r.status, error: r.error, found: r.found, added: r.added, changed: r.changed, at: (r.finishedAt ?? r.createdAt).toISOString() }))}
-        pref={{ emailEnabled: pref?.emailEnabled ?? false, frequency: pref?.frequency ?? "immediate", changeTypes: pref?.changeTypes ?? ["date", "venue", "cancelled", "sold_out"] }}
-        deliveries={deliveries.map((d) => ({ id: d.id, subject: d.subject, status: d.status, at: d.createdAt.toISOString() }))}
+        pref={{ emailEnabled: pref?.emailEnabled ?? false, frequency: pref?.frequency ?? "immediate", changeTypes: pref?.changeTypes ?? ["new", "date", "venue", "cancelled", "sold_out"] }}
+        deliveries={[...deliveries.map(d => ({ id: d.id, subject: d.subject, status: d.status, at: d.createdAt.toISOString() })), ...eventEmails.map(n => ({ id: n.id, subject: n.emailSubject ?? "Event update", status: n.emailStatus, at: n.createdAt.toISOString() }))].sort((a,b) => b.at.localeCompare(a.at)).slice(0,5)}
         events={events.map((e) => ({
           id: e.id, booking: e.booking, title: e.title, category: e.category, date: e.date, endDate: e.endDate, startTime: e.startTime, dateVerified: e.dateVerified, venue: e.venue, city: e.city, address: e.address,
           officialUrl: e.officialUrl, bookingUrl: e.bookingUrl, priceText: e.priceText, availability: e.availability, bookingDeadline: e.bookingDeadline, whyFits: e.whyFits, uncertainty: e.uncertainty,

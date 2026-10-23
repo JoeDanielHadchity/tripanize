@@ -102,6 +102,19 @@ try {
   const selected = await get("/destinations/choose");
   assert.ok(selected.next.includes("/premium?created=1"));
   assert.equal((await get("/destinations/choose")).id, selected.id);
-  console.log(JSON.stringify({ destinationIdeasAfterRestart: true, chosenDestinationContinuesToPlans: true, nativeAlarms: true, guidedTripAfterRestart: true, personalizedPacking: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
+  const eventStart = await get("/events/start"); assert.equal(eventStart.queued, 1); assert.equal(eventStart.duplicate, 0);
+  await stop(child); child = await start();
+  const untilEvents = async predicate => {
+    const deadline = Date.now() + 20000;
+    while (Date.now() < deadline) { const state = await get("/events/state"); assert.ok(!state.runs.some(r => r.status === "failed"), JSON.stringify(state)); if (predicate(state)) return state; await new Promise(resolve => setTimeout(resolve, 100)); }
+    throw new Error("Scheduled events timed out");
+  };
+  const eventDone = await untilEvents(s => s.runs[0]?.status === "succeeded" && s.notices.some(n => n.kind === "event_email" && n.emailStatus === "sent"));
+  assert.equal(eventDone.notices.filter(n => n.kind === "event").length, 1); assert.equal(eventDone.stops, 0);
+  await get("/events/again");
+  const rechecked = await untilEvents(s => s.runs.length === 2 && s.runs.every(r => r.status === "succeeded"));
+  assert.equal(rechecked.notices.filter(n => n.kind === "event").length, 1);
+  assert.equal(rechecked.notices.filter(n => n.kind === "event_email").length, 1);
+  console.log(JSON.stringify({ scheduledEventsAfterRestart: true, eventAlertsDeduplicated: true, eventEmailOutbox: true, destinationIdeasAfterRestart: true, chosenDestinationContinuesToPlans: true, nativeAlarms: true, guidedTripAfterRestart: true, personalizedPacking: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
 } catch (error) { console.error(error.stack ?? error.message); console.error(logs.replace(/sk-[A-Za-z0-9_-]+/g, "[credential hidden]")); process.exitCode = 1; }
 finally { await stop(child); }

@@ -57,7 +57,7 @@ export async function discoverEventsAction(tripId: string) {
   });
 }
 
-export async function discoverySettingsAction(tripId: string, input: { autoDiscovery: boolean; everyHours: number }) {
+export async function discoverySettingsAction(tripId: string, input: { autoDiscovery: boolean; everyHours?: number }) {
   return runAction(async () => {
     const u = await requireUser();
     await updateDiscoverySettings(u.id, tripId, input);

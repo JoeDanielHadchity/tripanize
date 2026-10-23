@@ -1,59 +1,90 @@
-import { prisma } from "@/server/db";
-import { sendEmail } from "./email";
-import type { EventChange } from "@/server/events/service";
+import { createHash } from "node:crypto";
+import { prisma, type Tx } from "@/server/db";
+import { currentRuntime } from "@/server/cloudflare/runtime";
 import { getTripPlan } from "@/server/plans/access";
+import { addDays, todayIn, zonedToUtc } from "@/lib/dates";
+import type { EventChange } from "@/server/events/service";
 
-/**
- * Event-change notifications. Opt-in per member and trip; only selected change types; each change is delivered
- * at most once per user (dedupe key), and a delivery is recorded as "sent" only when the email provider accepted it.
+const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 40);
+type Line = { key: string; type: string; text: string; eventId: string };
+const origin = () => (currentRuntime().appUrl ?? process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const emailBody = (name: string, lines: string[], tripId: string) => `Event matches for ${name}\n\n${lines.map(l => `• ${l}`).join("\n\n")}\n\nView events and booking links:\n${origin()}/trips/${tripId}/events\n\nYou enabled event emails for this trip. Manage your alerts:\n${origin()}/trips/${tripId}/events`;
+function nextDigest(timezone: string, now: Date) {
+  const today = todayIn(timezone, now), at = zonedToUtc(`${today}T09:00`, timezone);
+  return at > now ? at : zonedToUtc(`${addDays(today, 1)}T09:00`, timezone);
+}
+
+/** Runs in the SAME transaction as event upserts: a saved match cannot lose its
+ * notification to a restart. Email is an immutable outbox item, not a network call.
  */
-export async function notifyEventChanges(tripId: string, newEvents: { id: string; title: string }[], changed: { id: string; title: string; changes: EventChange[] }[]) {
-  if (!(await getTripPlan(tripId)).premium) return;
-  const prefs = await prisma.notificationPreference.findMany({ where: { tripId, emailEnabled: true }, include: { user: true } });
-  if (!prefs.length) return;
-  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { name: true } });
-  for (const p of prefs) {
-    const member = await prisma.tripMembership.findUnique({ where: { tripId_userId: { tripId, userId: p.userId } } });
-    if (!member) continue;
-    const lines: { key: string; text: string }[] = [];
-    if (p.changeTypes.includes("new")) for (const e of newEvents) lines.push({ key: `new:${e.id}`, text: `New event: ${e.title}` });
-    for (const c of changed) for (const ch of c.changes) if (p.changeTypes.includes(ch.type)) lines.push({ key: `${ch.type}:${c.id}:${ch.summary}`, text: `${c.title}: ${ch.summary}` });
-    if (!lines.length) continue;
-    if (p.frequency === "daily") {
-      // Daily digests are assembled by the worker from pending changes; record them as queued.
-      for (const l of lines) {
-        await prisma.notificationDelivery.upsert({ where: { userId_dedupeKey: { userId: p.userId, dedupeKey: l.key } }, create: { userId: p.userId, tripId, channel: "email", subject: l.text.slice(0, 200), dedupeKey: l.key, status: "queued" }, update: {} });
-      }
-      continue;
+export async function queueEventNotifications(tx: Tx, tripId: string, runId: string, newEvents: { id: string; title: string }[], changed: { id: string; title: string; changes: EventChange[] }[], now = new Date()) {
+  if (!(await getTripPlan(tripId, tx)).premium) return;
+  const trip = await tx.trip.findUniqueOrThrow({ where: { id: tripId }, select: { name: true, timezone: true } });
+  const events = await tx.tripEvent.findMany({ where: { tripId, id: { in: [...newEvents.map(e => e.id), ...changed.map(e => e.id)] }, status: { not: "HIDDEN" } } });
+  const today = todayIn(trip.timezone, now);
+  const lines: Line[] = [];
+  for (const event of events) {
+    if (newEvents.some(e => e.id === event.id) && !event.cancelled && !event.soldOut && (!event.date || (event.endDate ?? event.date) >= today)) {
+      lines.push({ key: `new:${event.id}`, type: "new", eventId: event.id, text: `New event: ${event.title}${event.date ? ` · ${event.date}` : " · date to confirm"}${event.city ? ` · ${event.city}` : ""}${event.whyFits ? `. ${event.whyFits}` : ""}`.slice(0, 750) });
     }
-    await deliver(p.userId, p.user.email, tripId, trip.name, lines);
+    const change = changed.find(e => e.id === event.id);
+    if (change) for (const c of change.changes) lines.push({ key: `${event.id}:${c.type}:${c.summary}:${c.at}`, type: c.type, eventId: event.id, text: `${event.title}: ${c.summary}`.slice(0, 750) });
   }
+  if (!lines.length) return;
+  const members = await tx.tripMembership.findMany({ where: { tripId }, include: { user: { select: { email: true, emailVerified: true } } } });
+  const prefs = await tx.notificationPreference.findMany({ where: { tripId } });
+  for (const line of lines) {
+    const auditId = `event:${hash([tripId, line.key])}`;
+    await tx.auditLog.upsert({ where: { id: auditId }, create: { id: auditId, tripId, entity: "event_discovery", entityId: line.eventId, action: line.type, after: { summary: line.text } }, update: {} });
+    for (const member of members) await tx.tripNotification.upsert({ where: { userId_auditId: { userId: member.userId, auditId } }, create: { userId: member.userId, tripId, auditId, kind: "event", tripName: trip.name, summary: line.text, href: `/trips/${tripId}/events?event=${encodeURIComponent(line.eventId)}` }, update: {} });
+  }
+  for (const member of members) {
+    const pref = prefs.find(p => p.userId === member.userId);
+    if (!pref?.emailEnabled || !member.user.emailVerified) continue;
+    const selected = lines.filter(l => pref.changeTypes.includes(l.type));
+    if (!selected.length) continue;
+    const emailLines = selected.map(l => l.text);
+    const auditId = `event-email:${hash([runId, member.userId, selected.map(l => l.key)])}`;
+    await tx.auditLog.upsert({ where: { id: auditId }, create: { id: auditId, tripId, entity: "event_email", entityId: runId, action: "queue", after: { lines: emailLines } }, update: {} });
+    await tx.tripNotification.upsert({ where: { userId_auditId: { userId: member.userId, auditId } }, create: {
+      userId: member.userId, tripId, auditId, kind: "event_email", tripName: trip.name, summary: `${emailLines.length} event update(s)`, href: `/trips/${tripId}/events`,
+      emailTo: member.user.email, emailSubject: `Tripanize: ${emailLines.length} event update${emailLines.length === 1 ? "" : "s"} for ${trip.name.replace(/[\r\n]+/g, " ").slice(0, 90)}`,
+      emailText: emailBody(trip.name, emailLines, tripId), emailStatus: pref.frequency === "daily" ? "digest" : "queued", nextAttemptAt: pref.frequency === "daily" ? nextDigest(trip.timezone, now) : now,
+    }, update: {} });
+  }
+  await tx.trip.update({ where: { id: tripId }, data: { revision: { increment: 1 }, lastChangedById: null } });
+  await currentRuntime().wakeNotifications?.();
 }
 
-async function deliver(userId: string, email: string, tripId: string, tripName: string, lines: { key: string; text: string }[]) {
-  if (!(await getTripPlan(tripId)).premium) return;
-  const already = await prisma.notificationDelivery.findMany({ where: { userId, dedupeKey: { in: lines.map((l) => l.key) }, status: "sent" }, select: { dedupeKey: true } });
-  const fresh = lines.filter((l) => !already.some((a) => a.dedupeKey === l.key));
-  if (!fresh.length) return;
-  const url = `${process.env.APP_URL ?? "http://localhost:3000"}/trips/${tripId}/events`;
-  const res = await sendEmail({ to: email, subject: `Event updates for “${tripName}”`, text: `${fresh.map((l) => `• ${l.text}`).join("\n")}\n\nReview them in Tripanize: ${url}\n\nYou receive this because you turned on event alerts for this trip.` });
-  const status = res.status === "sent" ? "sent" : res.status === "not_configured" ? "not_configured" : "failed";
-  for (const l of fresh) {
-    await prisma.notificationDelivery.upsert({
-      where: { userId_dedupeKey: { userId, dedupeKey: l.key } },
-      create: { userId, tripId, channel: "email", subject: l.text.slice(0, 200), dedupeKey: l.key, status, providerId: res.status === "sent" ? res.providerId : null, error: res.status === "failed" ? res.error : null },
-      update: { status, providerId: res.status === "sent" ? res.providerId : null, error: res.status === "failed" ? res.error : null },
-    });
-  }
-}
-
-/** Sends queued daily digests (once per 24h per user/trip). */
-export async function sendDailyDigests() {
-  const prefs = await prisma.notificationPreference.findMany({ where: { emailEnabled: true, frequency: "daily", OR: [{ lastDigestAt: null }, { lastDigestAt: { lt: new Date(Date.now() - 23 * 3600_000) } }] }, include: { user: true, trip: { select: { name: true } } } });
-  for (const p of prefs) {
-    const queued = await prisma.notificationDelivery.findMany({ where: { userId: p.userId, tripId: p.tripId, status: { in: ["queued", "not_configured", "failed"] } } });
-    if (!queued.length) continue;
-    await deliver(p.userId, p.user.email, p.tripId, p.trip.name, queued.map((q) => ({ key: q.dedupeKey, text: q.subject })));
-    await prisma.notificationPreference.update({ where: { id: p.id }, data: { lastDigestAt: new Date() } });
-  }
+/** Coalesce all ready batches into ONE immutable daily email per member/trip.
+ * Staged rows are marked in the same transaction so restarts never duplicate a digest.
+ */
+export async function prepareEventDigests(now = new Date()) {
+  await prisma.$transaction(async tx => {
+    const ready = await tx.tripNotification.findMany({ where: { kind: "event_email", emailStatus: "digest", nextAttemptAt: { lte: now } }, include: { audit: { select: { after: true } } }, orderBy: { createdAt: "asc" }, take: 200 });
+    const groups = new Map<string, typeof ready>();
+    for (const n of ready) { const key = `${n.userId}:${n.tripId}`; groups.set(key, [...(groups.get(key) ?? []), n]); }
+    for (const sample of groups.values()) {
+      const first = sample[0];
+      const batches = await tx.tripNotification.findMany({ where: { userId: first.userId, tripId: first.tripId, kind: "event_email", emailStatus: "digest", nextAttemptAt: { lte: now } }, include: { audit: { select: { after: true } } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+      const ids = batches.map(n => n.id);
+      const pref = await tx.notificationPreference.findUnique({ where: { userId_tripId: { userId: first.userId, tripId: first.tripId } } });
+      const member = await tx.tripMembership.findUnique({ where: { tripId_userId: { tripId: first.tripId, userId: first.userId } }, include: { user: true } });
+      if (!member || !pref?.emailEnabled || !member.user.emailVerified || member.user.email !== first.emailTo || !(await getTripPlan(first.tripId, tx)).premium) {
+        for (let i = 0; i < ids.length; i += 50) await tx.tripNotification.updateMany({ where: { id: { in: ids.slice(i, i + 50) } }, data: { emailStatus: "cancelled", nextAttemptAt: null } }); continue;
+      }
+      const lines = [...new Set(batches.flatMap(n => {
+        const data = n.audit.after as { lines?: unknown } | null;
+        return Array.isArray(data?.lines) ? data.lines.filter((l): l is string => typeof l === "string") : [];
+      }))];
+      const auditId = `event-digest:${hash(ids)}`;
+      await tx.auditLog.upsert({ where: { id: auditId }, create: { id: auditId, tripId: first.tripId, entity: "event_email", entityId: first.tripId, action: "digest" }, update: {} });
+      await tx.tripNotification.upsert({ where: { userId_auditId: { userId: first.userId, auditId } }, create: {
+        userId: first.userId, tripId: first.tripId, auditId, kind: "event_email", tripName: first.tripName, summary: "Daily event digest", href: first.href,
+        emailTo: first.emailTo, emailSubject: `Tripanize: daily event matches for ${first.tripName.replace(/[\r\n]+/g, " ").slice(0, 90)}`, emailText: emailBody(first.tripName, lines, first.tripId), emailStatus: "queued", nextAttemptAt: now,
+      }, update: {} });
+      for (let i = 0; i < ids.length; i += 50) await tx.tripNotification.updateMany({ where: { id: { in: ids.slice(i, i + 50) }, emailStatus: "digest" }, data: { emailStatus: "batched", nextAttemptAt: null } });
+      await tx.notificationPreference.update({ where: { id: pref.id }, data: { lastDigestAt: now } });
+    }
+  });
 }
