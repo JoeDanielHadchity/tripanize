@@ -236,7 +236,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true, onboarding = f
               ))}
             </div>
           </fieldset>
-          <Chips label="Interests" options={INTERESTS} value={t.interests ?? []} onChange={(v) => set("interests", v)} />
+          <Chips label="Interests" options={[...new Set([...INTERESTS, ...(t.interests ?? [])])]} value={t.interests ?? []} onChange={(v) => set("interests", v)} />
           <Chips label="Preferred transport" options={TRANSPORT} value={t.transport ?? []} onChange={(v) => set("transport", v)} />
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Overall budget (optional)" htmlFor="budget" hint="For the whole group."><Input id="budget" inputMode="decimal" value={t.budget ?? ""} onChange={(e) => set("budget", e.target.value)} placeholder="e.g. 2500" /></Field>
