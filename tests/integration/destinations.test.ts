@@ -81,3 +81,14 @@ it("does not charge the daily destination allowance for failed searches", async 
   for (let i = 0; i < 6; i++) { const q = await startDestinationSearch(user.id, input); await prisma.destinationSearch.update({ where: { id: q.id }, data: { status: "FAILED" } }); }
   expect((await startDestinationSearch(user.id, input)).id).toBeTruthy();
 });
+it("keeps five usable recommendations when researched descriptions exceed display limits", async () => {
+  const user = await makeUser("Explorer"); const q = await startDestinationSearch(user.id, input); const data = fixtureIdeas();
+  data.summary = "A helpful summary. ".repeat(70);
+  data.ideas[0].whyFits = "A detailed reason to visit. ".repeat(80);
+  data.ideas[1].weather = "Typical conditions with rain possible. ".repeat(30);
+  data.ideas[2].experiences[0] = "A very detailed experience ".repeat(20);
+  await runDestinationSearch(q.id, generator(data));
+  const result = await getDestinationSearch(user.id, q.id); expect(result?.status).toBe("SUCCEEDED");
+  expect(result?.result?.ideas).toHaveLength(5); expect(result?.result?.summary.length).toBeLessThanOrEqual(600);
+  expect(result?.result?.ideas[0].whyFits.length).toBeLessThanOrEqual(700); expect(result?.result?.ideas[1].weather.length).toBeLessThanOrEqual(400);
+});
