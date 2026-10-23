@@ -11,6 +11,8 @@ async function signUp(browser: Browser, name: string, email: string, isMobile: b
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
+  await page.waitForURL("**/start");
+  await page.getByRole("link", { name: "I have a destination in mind", exact: true }).click();
   await page.waitForURL("**/trips");
   return page;
 }

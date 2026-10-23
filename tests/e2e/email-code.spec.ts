@@ -31,8 +31,11 @@ test("new and returning users sign in with an emailed code", async ({ page, brow
   await page.getByLabel("Sign-in code").fill(await lastCode(email));
   await page.getByLabel("Your name").fill("Rita");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.waitForURL("**/trips");
+  await page.waitForURL("**/start");
   await expect(page.getByRole("link", { name: "Rita" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Let me help you choose", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "I have a destination in mind", exact: true }).click();
+  await page.waitForURL("**/trips");
 
   // Returning user, fresh browser: same email, new code, same account.
   const ctx = await browser.newContext();
@@ -43,7 +46,7 @@ test("new and returning users sign in with an emailed code", async ({ page, brow
   await expect(again.getByLabel("Sign-in code")).toBeVisible();
   await again.getByLabel("Sign-in code").fill(await lastCode(email));
   await again.getByRole("button", { name: "Sign in", exact: true }).click();
-  await again.waitForURL("**/trips");
+  await again.waitForURL("**/start");
   await expect(again.getByRole("link", { name: "Rita" })).toBeVisible();
   await ctx.close();
 });

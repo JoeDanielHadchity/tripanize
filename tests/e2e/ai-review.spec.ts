@@ -11,7 +11,7 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   await page.getByLabel("Email").fill(`stub-${run}@example.test`);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
-  await page.waitForURL("**/trips");
+  await page.waitForURL("**/start");
   await page.goto("/trips/new");
   await page.getByLabel("Trip name").fill("Stub trip");
   await page.getByRole("button", { name: "Create trip & choose plan" }).click();

@@ -100,8 +100,8 @@ try {
   do { destinations = await get("/destinations/state"); if (destinations.status === "SUCCEEDED") break; assert.notEqual(destinations.status, "FAILED", destinations.error); await new Promise(resolve => setTimeout(resolve, 100)); } while (Date.now() < destinationDeadline);
   assert.equal(destinations.result.ideas.length, 5);
   const selected = await get("/destinations/choose");
-  assert.ok(selected.next.includes("/premium?created=1"));
-  assert.equal((await get("/destinations/choose")).id, selected.id);
+  assert.equal(selected.next, `/trips?selected=${encodeURIComponent(selected.id)}`);
+  assert.deepEqual(await get("/destinations/choose"), selected);
   const multipleStart = await get("/destinations/multiple");
   assert.equal(new Set(multipleStart.numbers).size, 2);
   await stop(child); child = await start();
@@ -140,6 +140,6 @@ try {
   const trialState = await get("/trials/state");
   assert.equal(trialState.plan.source, "trial"); assert.equal(trialState.otherPlan.premium, false); assert.equal(trialState.recipientTrips, 2); assert.equal(trialState.payments, 0);
   await get("/trials/revoke"); assert.equal((await get("/trials/state")).plan.premium, false);
-  console.log(JSON.stringify({ multipleDestinationSearchesAfterRestart: true, trialEmailRetriesAfterRestart: true, oneTripTrialClaim: true, trialRevocation: true, scheduledEventsAfterRestart: true, eventAlertsDeduplicated: true, eventEmailOutbox: true, destinationIdeasAfterRestart: true, chosenDestinationContinuesToPlans: true, nativeAlarms: true, guidedTripAfterRestart: true, personalizedPacking: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
+  console.log(JSON.stringify({ multipleDestinationSearchesAfterRestart: true, trialEmailRetriesAfterRestart: true, oneTripTrialClaim: true, trialRevocation: true, scheduledEventsAfterRestart: true, eventAlertsDeduplicated: true, eventEmailOutbox: true, destinationIdeasAfterRestart: true, chosenDestinationReturnsToTrips: true, nativeAlarms: true, guidedTripAfterRestart: true, personalizedPacking: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
 } catch (error) { console.error(error.stack ?? error.message); console.error(logs.replace(/sk-[A-Za-z0-9_-]+/g, "[credential hidden]")); process.exitCode = 1; }
 finally { await stop(child); }

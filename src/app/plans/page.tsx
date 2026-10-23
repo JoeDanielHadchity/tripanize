@@ -5,7 +5,7 @@ import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { PlanComparison } from "@/components/plan-comparison";
 export const metadata: Metadata = { title: "Normal or Premium — $15 per trip" };
 export default async function PlansPage() {
-  const user = await getSessionUser(); const create = user ? "/trips/new" : "/sign-up?next=%2Ftrips%2Fnew";
+  const user = await getSessionUser(); const create = user ? "/trips/new" : "/sign-up";
   return <>{user ? <AppHeader user={user} /> : <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4"><Logo /><LinkButton href="/sign-in">Sign in</LinkButton></header>}
     <main id="main" className="mx-auto max-w-5xl space-y-6 px-4 pb-16 pt-8">
       <PageHeader title="One trip. One simple choice." subtitle="Start with Normal for free, or get a complete Premium trip for $15. Any group size." />

@@ -1,11 +1,9 @@
-import { TripStart } from "@/components/trip-start";
-import { getDestinationWorkspace } from "@/server/destinations/service";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/server/auth/session";
 import { listTrips, type TripCard } from "@/server/trips/service";
 import { AppHeader } from "@/components/shell";
-import { Badge, EmptyState, LinkButton, PageHeader, cx } from "@/components/ui";
+import { Badge, EmptyState, LinkButton, Notice, PageHeader, cx } from "@/components/ui";
 import { formatDateRange, tripLength } from "@/lib/dates";
 import { EXAMPLES } from "@/server/examples/data";
 import { listPendingInvitations } from "@/server/invitations/service";
@@ -28,20 +26,21 @@ const PHASE: Record<TripCard["phase"], { label: string; tone: "accent" | "sage" 
   undated: { label: "Dates not set", tone: "warn" },
 };
 
-export default async function TripsPage({ searchParams }: { searchParams: Promise<{ q?: string; phase?: string }> }) {
+export default async function TripsPage({ searchParams }: { searchParams: Promise<{ q?: string; phase?: string; selected?: string }> }) {
   const user = await requireUser();
-  const destinationSearch = await getDestinationWorkspace(user.id);
-  const { q = "", phase = "all" } = await searchParams;
+  const { q = "", phase = "all", selected } = await searchParams;
   const all = await listTrips(user.id);
   const trips = await listTrips(user.id, { q, phase });
+  const selectedTrip = all.find(t => t.id === selected);
+  if (selectedTrip) trips.sort((a, b) => Number(b.id === selectedTrip.id) - Number(a.id === selectedTrip.id));
   const invites = await listPendingInvitations(user.id);
   const trials = await pendingTrialInvitations(user.id);
   return (
     <>
       <AppHeader user={user} current="trips" />
       <main id="main" className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <TripStart initial={destinationSearch} />
-        <PageHeader title="My trips" subtitle={all.length ? `${all.length} trip${all.length === 1 ? "" : "s"} you own or were invited to` : "Only trips you own or were invited to appear here."} actions={<><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Plan a new trip</LinkButton></>} />
+        <PageHeader title="My trips" subtitle={all.length ? `${all.length} trip${all.length === 1 ? "" : "s"} you own or were invited to` : "Only trips you own or were invited to appear here."} actions={<><LinkButton href="/destinations">Find a destination</LinkButton><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Plan a new trip</LinkButton></>} />
+        {selectedTrip && <Notice tone="accent" className="mb-5">Your chosen destination is saved in <strong>{selectedTrip.name}</strong>. Continue planning from your trip below.</Notice>}
         <PendingInvites invites={invites} />
         {trials.map(inv => <div key={inv.id} className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent bg-accent-soft p-5"><div><h2 className="font-display text-xl font-semibold">You’re invited to try Premium</h2><p className="mt-1 text-sm text-muted">The company offered you all Premium features for one trip. No payment details needed.</p></div><LinkButton href={`/trial?invitation=${encodeURIComponent(inv.id)}`} variant="primary">Activate my trial</LinkButton></div>)}
         {all.length > 0 && (
@@ -60,7 +59,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
         )}
         {all.length === 0 ? (
           <EmptyState title="Where to next?" action={<><LinkButton href="/trips/new" variant="primary">Plan your first trip</LinkButton><LinkButton href="/examples/lisbon-porto">Browse the example</LinkButton></>}>
-            Choose a destination above, or let us help you find one. If someone invited you, open their invitation link while signed in.
+            Start a new trip with your destination, or select “Find a destination” for ideas. If someone invited you, open their invitation link while signed in.
           </EmptyState>
         ) : trips.length === 0 ? (
           <EmptyState title="No trips match" action={<LinkButton href="/trips">Clear filters</LinkButton>}>Try a different search or filter.</EmptyState>
@@ -68,7 +67,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {trips.map((t) => (
               <li key={t.id}>
-                <TripTile trip={t} />
+                <TripTile trip={t} selected={t.id === selectedTrip?.id} />
               </li>
             ))}
           </ul>
@@ -98,11 +97,11 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
   );
 }
 
-function TripTile({ trip }: { trip: TripCard }) {
+function TripTile({ trip, selected = false }: { trip: TripCard; selected?: boolean }) {
   const days = tripLength(trip.startDate, trip.endDate);
   const p = PHASE[trip.phase];
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface">
+    <article className={cx("flex h-full flex-col overflow-hidden rounded-2xl border bg-surface", selected ? "border-accent ring-2 ring-accent/25" : "border-line")}>
       <div className="relative h-36 brand-backdrop">
         {trip.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element

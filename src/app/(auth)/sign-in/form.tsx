@@ -133,7 +133,7 @@ export function SignInForm({ next, emailReady }: { next: string; emailReady: boo
           <button type="button" className="self-start text-accent-ink underline underline-offset-2" onClick={() => switchTo({ kind: "password" })}>Sign in with a password instead</button>
         )}
         <p className="text-muted">
-          Prefer a password account? <Link href={`/sign-up${next !== "/trips" ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-accent-ink underline underline-offset-2">Create one</Link>
+          Prefer a password account? <Link href={`/sign-up${next !== "/start" ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-accent-ink underline underline-offset-2">Create one</Link>
         </p>
       </div>
     </>

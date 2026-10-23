@@ -14,7 +14,7 @@ test("appearance setting switches and remembers light/dark mode", async ({ brows
   await page.getByLabel("Email").fill(`theme-${info.project.name}-${Date.now()}@example.test`);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
-  await page.waitForURL("**/trips");
+  await page.waitForURL("**/start");
   expect(await bg(page)).toBe(DARK); // System default follows the (dark) device
 
   await page.getByRole("link", { name: "Settings" }).click();

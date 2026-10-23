@@ -88,7 +88,19 @@ try {
     assert.equal(signup.status, 200, await signup.clone().text());
     const cookie = signup.headers.getSetCookie().map((v) => v.split(";")[0]).join("; ");
     assert.ok(cookie);
-    const trips = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(trips.status, 200); assert.equal(new URL(trips.url).pathname, "/trips"); assert.match(await trips.text(), /trips/i);
+    for (const path of ["/", "/sign-in", "/sign-up"]) {
+      const landing = await fetch(origin + path, { headers: { Cookie: cookie } });
+      assert.equal(new URL(landing.url).pathname, "/start", path);
+      const landingHtml = await landing.text();
+      assert.match(landingHtml, /I have a destination in mind/);
+      assert.match(landingHtml, /Let me help you choose/);
+      assert.match(landingHtml, /href="\/destinations"/);
+      assert.doesNotMatch(landingHtml, /Search trips/);
+    }
+    const directAccount = await fetch(origin + "/sign-in?next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(directAccount.url).pathname, "/account");
+    const destinationPage = await fetch(origin + "/destinations", { headers: { Cookie: cookie } }); assert.equal(new URL(destinationPage.url).pathname, "/destinations"); assert.match(await destinationPage.text(), /Your destination searches/);
+    const privateDiscovery = await fetch(origin + "/destinations"); assert.equal(new URL(privateDiscovery.url).pathname, "/sign-in");
+    const trips = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(trips.status, 200); assert.equal(new URL(trips.url).pathname, "/trips"); const tripsHtml = await trips.text(); assert.match(tripsHtml, /trips/i); assert.doesNotMatch(tripsHtml, /Choose how to start|Your destination searches/);
     const newTrip = await fetch(origin + "/trips/new", { headers: { Cookie: cookie } }); assert.equal(newTrip.status, 200); assert.equal(new URL(newTrip.url).pathname, "/trips/new");
     const deniedCompany = await fetch(origin + "/company", { headers: { Cookie: cookie } }); assert.equal(deniedCompany.status, 404);
     const deniedTrial = await fetch(origin + "/trial?invitation=not-yours", { headers: { Cookie: cookie } }); assert.equal(deniedTrial.status, 404);
