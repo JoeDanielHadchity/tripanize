@@ -24,6 +24,9 @@ export async function acceptTrialAction(input: { invitationId: string; tripId?: 
     const user = await requireUser();
     const result = await acceptTrialInvitation(user.id, input);
     revalidatePath("/trips", "layout");
+    revalidatePath("/start");
+    revalidatePath("/account");
+    revalidatePath("/plans");
     return result;
   });
 }

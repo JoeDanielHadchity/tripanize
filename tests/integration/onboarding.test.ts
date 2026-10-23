@@ -8,7 +8,8 @@ import { listBookings, createBooking } from "@/server/bookings/service";
 import { setEventStatus } from "@/server/events/service";
 import { getPacking, removePackingItem } from "@/server/packing/service";
 import { addStop } from "@/server/itinerary/service";
-import { makeUser, resetDb } from "./helpers";
+import { makeUser, resetDb, adminAuthenticationFixture } from "./helpers";
+import { createTrialInvitation } from "@/server/admin/trials";
 
 vi.mock("@/server/weather/trip", () => ({
   ensureDestinationCoords: async (tripId: string) => prisma.destination.findMany({ where: { tripId }, orderBy: { position: "asc" } }),
@@ -34,12 +35,21 @@ function generator(calls: string[], failPacking = false): Generator {
     return result({ summary: "Ready", generalNotes: [], unplacedMustSees: [], days: input.datesToPlan.map((date: string) => ({ date, title: "Explore", area: "Lisbon", isTravelDay: false, driveMinutes: null, planB: [], planBNote: null, notes: [], questions: [], estCost: null, stops: [{ title: date === "2027-05-02" ? "Lisbon cultural evening" : `Walk ${date}`, category: date === "2027-05-02" ? "event" : "sight", locationName: null, address: null, lat: null, lng: null, reason: "Fits your interests", startTime: "18:00", durationMin: 60, travelToNextMin: null, travelMode: null, travelNote: null, estCost: null, bookingRequired: false, bookingNote: null, hoursNote: null, hoursVerified: false, officialUrl: null, sourceUrls: [], isMeal: false, isFreeTime: false, indoor: null }] })) });
   }) as Generator;
 }
-async function fixture(premium: boolean) {
-  const owner = await makeUser("Owner"); const { id: tripId } = await createTripDraft(owner.id, "Our trip");
-  if (premium) {
+async function fixture(premium: boolean | "trial") {
+  const owner = await makeUser("Owner");
+  if (premium === "trial") {
+    const admin = await makeUser("Company", "company-trial@example.test");
+    await prisma.user.update({ where: { id: admin.id }, data: { emailVerified: true } });
+    await prisma.user.update({ where: { id: owner.id }, data: { emailVerified: true } });
+    setTestRuntime({ ...currentRuntime(), companyAdminEmail: admin.email });
+    await adminAuthenticationFixture(admin.id);
+    await createTrialInvitation(admin.id, owner.email);
+  }
+  const { id: tripId } = await createTripDraft(owner.id, "Our trip");
+  if (premium === true) {
     await prisma.premiumCheckout.create({ data: { tripId, buyerId: owner.id, environment: "live", priceId: "isolated-price", amountMinor: 1500, targetCapacity: 0, status: "COMPLETED" } });
     await prisma.trip.update({ where: { id: tripId }, data: { onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" } });
-  } else await chooseNormal(owner.id, tripId);
+  } else if (!premium) await chooseNormal(owner.id, tripId);
   const version = (await prisma.trip.findUniqueOrThrow({ where: { id: tripId } })).version;
   await saveOnboardingDetails(owner.id, tripId, details, version);
   return { owner, tripId };
@@ -66,8 +76,8 @@ it("automatically applies only two Normal days and never searches events or crea
   await addStop(owner.id, tripId, { dayId: days[3].id, input: { title: "Manual day 4" } });
   expect((await prisma.trip.findUniqueOrThrow({ where: { id: tripId } })).onboardingStage).toBe("COMPLETE");
 });
-it("prepares a complete Premium trip with tailored questions, researched events, linked suggestions and personalized packing", async () => {
-  const { owner, tripId } = await fixture(true); const calls: string[] = []; const generate = generator(calls);
+it.each([true, "trial"] as const)("prepares a complete Premium trip with tailored questions, events and personalized packing (access: %s)", async access => {
+  const { owner, tripId } = await fixture(access); const calls: string[] = []; const generate = generator(calls);
   const questions = await prisma.generationJob.findFirstOrThrow({ where: { tripId, kind: "questions" } });
   await claimJob(questions.id); await runJob(questions.id, generate);
   expect((await getPlanQuestions(owner.id, tripId)).source).toBe("ai");

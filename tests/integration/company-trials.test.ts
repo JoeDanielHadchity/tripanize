@@ -2,9 +2,14 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { prisma } from "@/server/db";
 import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
 import { accountDisplayName, companyAccount, requireCompanyAdmin, normalizeCompanyIdentity } from "@/server/admin/identity";
-import { createTrialInvitation, acceptTrialInvitation, listCompanyTrials, pendingTrialInvitations, previewTrialInvitation, revokeTrialInvitation, sendNextTrialEmail } from "@/server/admin/trials";
+import { createTrialInvitation, acceptTrialInvitation, listCompanyTrials, pendingTrialInvitations, previewTrialInvitation, revokeTrialInvitation, sendNextTrialEmail, userTrialAccess, redeemedTrialTrip } from "@/server/admin/trials";
 import { getTripPlan, requirePremiumTrip } from "@/server/plans/access";
-import { billingSummary } from "@/server/billing/service";
+import { billingSummary, beginCheckout } from "@/server/billing/service";
+import { PREMIUM_FEATURE_KEYS } from "@/lib/plans";
+import { getChatPage, sendChatMessage } from "@/server/chat/service";
+import { getMemberLocations } from "@/server/locations/service";
+import { listEvents } from "@/server/events/service";
+import { getAssistantConversation } from "@/server/assistant/service";
 import { planningScope } from "@/server/plans/planning";
 import { createTripDraft, chooseNormal } from "@/server/trips/onboarding";
 import { getExpenseData } from "@/server/expenses/service";
@@ -70,6 +75,107 @@ it("binds invitations to the verified recipient and hides them from other accoun
   expect(await pendingTrialInvitations(f.recipient.id)).toEqual([]);
   await expect(acceptTrialInvitation(f.recipient.id, { invitationId: inv.id, name: "Not verified" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   expect(await prisma.trip.count()).toBe(0);
+});
+
+it("discovers an invitation after verified sign-in and never discloses it to another or unverified account", async () => {
+  const f = await fixture(), inv = await invitation(f.admin.id, f.recipient.email);
+  expect(await userTrialAccess(f.recipient.id)).toMatchObject({ status: "available", invitationId: inv.id, durationDays: 14 });
+  await prisma.user.update({ where: { id: f.other.id }, data: { emailVerified: true } });
+  expect(await userTrialAccess(f.other.id)).toEqual({ status: "none" });
+  await prisma.user.update({ where: { id: f.recipient.id }, data: { emailVerified: false } });
+  expect(await userTrialAccess(f.recipient.id)).toEqual({ status: "verify" });
+  await prisma.user.update({ where: { id: f.recipient.id }, data: { emailVerified: true, suspendedAt: new Date() } });
+  expect(await userTrialAccess(f.recipient.id)).toEqual({ status: "none" });
+  expect(await pendingTrialInvitations(f.recipient.id)).toEqual([]);
+  await expect(acceptTrialInvitation(f.recipient.id, { invitationId: inv.id, name: "Suspended" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+});
+
+it("automatically activates a new Premium trial trip for 14 full days without checkout, and retries reuse the same trip", async () => {
+  const f = await fixture(), inv = await invitation(f.admin.id, f.recipient.email);
+  const draft = await createTripDraft(f.recipient.id, "My free trip", inv.id);
+  expect(draft).toMatchObject({ trial: true, next: `/trips/${draft.id}/onboarding` });
+  const grant = await prisma.trialInvitation.findUniqueOrThrow({ where: { id: inv.id } });
+  expect(grant.trialEndsAt!.getTime() - grant.acceptedAt!.getTime()).toBeGreaterThanOrEqual(14 * 86400_000);
+  expect(grant.trialEndsAt!.getTime() - grant.acceptedAt!.getTime()).toBeLessThan(14 * 86400_000 + 1000);
+  expect(await prisma.trip.findUnique({ where: { id: draft.id } })).toMatchObject({ onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" });
+  expect(await userTrialAccess(f.recipient.id)).toMatchObject({ status: "active", tripId: draft.id, tripName: "My free trip", endsAt: grant.trialEndsAt!.toISOString() });
+  expect(await createTripDraft(f.recipient.id, "Retry", inv.id)).toEqual(draft);
+  expect((await prisma.trialInvitation.findUniqueOrThrow({ where: { id: inv.id } })).trialEndsAt).toEqual(grant.trialEndsAt);
+  expect(await prisma.trip.count()).toBe(1);
+  const next = await createTripDraft(f.recipient.id, "Another trip");
+  expect(next).toMatchObject({ trial: false, next: `/trips/${next.id}/premium?created=1` });
+  expect((await getTripPlan(next.id)).premium).toBe(false);
+  await expect(acceptTrialInvitation(f.recipient.id, { invitationId: inv.id, tripId: next.id })).rejects.toMatchObject({ code: "CONFLICT" });
+  expect(await prisma.premiumCheckout.count()).toBe(0);
+  expect(await prisma.premiumEntitlement.count()).toBe(0);
+});
+
+it("does not create a paid draft when a displayed invitation was revoked or expired", async () => {
+  const f = await fixture(), inv = await invitation(f.admin.id, f.recipient.email);
+  await revokeTrialInvitation(f.admin.id, inv.id);
+  await expect(createTripDraft(f.recipient.id, "Old offer", inv.id)).rejects.toMatchObject({ code: "CONFLICT" });
+  const next = await invitation(f.admin.id, f.recipient.email);
+  await prisma.trialInvitation.update({ where: { id: next.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+  await expect(createTripDraft(f.recipient.id, "Expired offer", next.id)).rejects.toMatchObject({ code: "CONFLICT" });
+  expect(await prisma.trip.count()).toBe(0);
+});
+
+it("blocks stale payment requests for an available trial before contacting Paddle or writing checkout records", async () => {
+  const f = await fixture(), tripId = await makeTrip(f.recipient.id);
+  await invitation(f.admin.id, f.recipient.email);
+  const fetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("No external requests"));
+  await expect(beginCheckout(f.recipient.id, tripId, "premium")).rejects.toMatchObject({ code: "CONFLICT", message: expect.stringContaining("no payment is needed") });
+  expect(fetch).not.toHaveBeenCalled();
+  expect(await prisma.premiumCheckout.count()).toBe(0);
+});
+
+it("unlocks every Premium feature for trial members and stops access at expiry while retaining their data", async () => {
+  const f = await fixture(), tripId = await makeTrip(f.recipient.id), inv = await invitation(f.admin.id, f.recipient.email);
+  await prisma.tripMembership.create({ data: { tripId, userId: f.other.id, role: "VIEWER" } });
+  await addStop(f.recipient.id, tripId, { dayId: null, input: { title: "Keep my saved idea" } });
+  await acceptTrialInvitation(f.recipient.id, { invitationId: inv.id, tripId });
+  for (const feature of PREMIUM_FEATURE_KEYS) await expect(requirePremiumTrip(tripId, f.other.id, feature)).resolves.toBeDefined();
+  expect(await planningScope(tripId, "full")).toBeNull();
+  await expect(getExpenseData(f.other.id, tripId)).resolves.toBeDefined();
+  await sendChatMessage(f.other.id, tripId, { clientId: "d8380eca-869e-4dab-a5e4-5d6db7e4bbf5", body: "Trial chat works" });
+  expect((await getChatPage(f.recipient.id, tripId)).messages).toHaveLength(1);
+  expect((await getMemberLocations(f.other.id, tripId)).locations).toEqual([]);
+  await expect(listEvents(f.other.id, tripId)).resolves.toBeDefined();
+  await expect(getAssistantConversation(f.other.id, tripId)).resolves.toMatchObject({ canEdit: false });
+  await expect(requirePremiumTrip(tripId, f.other.id, "expenses", "edit")).rejects.toMatchObject({ code: "FORBIDDEN" });
+  await prisma.trialInvitation.update({ where: { id: inv.id }, data: { trialEndsAt: new Date(Date.now() - 1) } });
+  expect(await userTrialAccess(f.recipient.id)).toEqual({ status: "none" });
+  for (const feature of PREMIUM_FEATURE_KEYS) await expect(requirePremiumTrip(tripId, f.other.id, feature)).rejects.toMatchObject({ code: "FORBIDDEN", details: { upgrade: true } });
+  expect(await prisma.chatMessage.count({ where: { tripId } })).toBe(1);
+  expect(await prisma.stop.count({ where: { tripId, title: "Keep my saved idea" } })).toBe(1);
+});
+
+it("reopens redeemed links only for the invited member, including after expiry without restoring Premium", async () => {
+  const f = await fixture(), inv = await invitation(f.admin.id, f.recipient.email);
+  const { id } = await createTripDraft(f.recipient.id, "Link trial");
+  expect(await redeemedTrialTrip(f.recipient.id, inv.token)).toBe(id);
+  expect(await redeemedTrialTrip(f.recipient.id, undefined, inv.id)).toBe(id);
+  await prisma.user.update({ where: { id: f.other.id }, data: { emailVerified: true } });
+  await prisma.tripMembership.create({ data: { tripId: id, userId: f.other.id, role: "VIEWER" } });
+  expect(await redeemedTrialTrip(f.other.id, inv.token)).toBeNull();
+  await revokeTrialInvitation(f.admin.id, inv.id);
+  expect(await redeemedTrialTrip(f.recipient.id, inv.token)).toBe(id);
+  expect((await getTripPlan(id)).premium).toBe(false);
+  await prisma.tripMembership.delete({ where: { tripId_userId: { tripId: id, userId: f.recipient.id } } });
+  expect(await redeemedTrialTrip(f.recipient.id, inv.token)).toBeNull();
+});
+
+it("keeps the single trip's trial through an organizer transfer without moving or extending the grant", async () => {
+  const f = await fixture(), inv = await invitation(f.admin.id, f.recipient.email);
+  const { id } = await createTripDraft(f.recipient.id, "Shared trial");
+  await prisma.tripMembership.create({ data: { tripId: id, userId: f.other.id, role: "OWNER" } });
+  await prisma.tripMembership.update({ where: { tripId_userId: { tripId: id, userId: f.recipient.id } }, data: { role: "VIEWER" } });
+  await prisma.trip.update({ where: { id }, data: { ownerId: f.other.id } });
+  expect(await getTripPlan(id)).toMatchObject({ premium: true, source: "trial" });
+  expect(await acceptTrialInvitation(f.recipient.id, { invitationId: inv.id, tripId: id })).toEqual({ tripId: id });
+  const another = await makeTrip(f.recipient.id);
+  await expect(acceptTrialInvitation(f.recipient.id, { invitationId: inv.id, tripId: another })).rejects.toMatchObject({ code: "CONFLICT" });
+  expect((await getTripPlan(another)).premium).toBe(false);
 });
 
 it("unlocks exactly one existing owned trip for all members, without changing other prices or trips", async () => {

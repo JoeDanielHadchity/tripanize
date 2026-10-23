@@ -12,11 +12,22 @@ import { applyProposal } from "@/server/planner/apply";
 import { refreshSuggestions } from "@/server/packing/service";
 import type { Generator } from "@/server/planner/run";
 import type { Proposal } from "@/server/planner/schema";
+import { acceptTrialInvitation, pendingTrialInvitations, redeemedTrialTrip } from "@/server/admin/trials";
 
-export async function createTripDraft(userId: string, name: string) {
+export async function createTripDraft(userId: string, name: string, trialInvitationId?: string) {
+  const [trial] = await pendingTrialInvitations(userId);
+  if (trialInvitationId && trial?.id !== trialInvitationId) {
+    const tripId = await redeemedTrialTrip(userId, undefined, trialInvitationId);
+    if (tripId && (await getTripPlan(tripId)).source === "trial") return { id: tripId, next: `/trips/${tripId}/onboarding`, trial: true };
+    throw new AppError("CONFLICT", "This trial invitation has changed or is no longer available. Refresh to check your trial access.");
+  }
+  if (trial) {
+    const activated = await acceptTrialInvitation(userId, { invitationId: trial.id, name });
+    return { id: activated.tripId, next: `/trips/${activated.tripId}/onboarding`, trial: true };
+  }
   const id = await createTrip(userId, { name });
   await prisma.trip.update({ where: { id }, data: { onboardingStage: "PLAN" } });
-  return { id };
+  return { id, next: `/trips/${id}/premium?created=1`, trial: false };
 }
 
 export async function chooseNormal(userId: string, tripId: string) {

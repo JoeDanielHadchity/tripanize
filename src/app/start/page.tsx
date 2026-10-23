@@ -2,14 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/shell";
 import { requireUser } from "@/server/auth/session";
+import { userTrialAccess } from "@/server/admin/trials";
+import { TrialAccessBanner } from "@/components/trial-access";
 
 export const metadata: Metadata = { title: "Where will you go next?" };
 
 export default async function StartPage() {
   const user = await requireUser();
+  const trial = await userTrialAccess(user.id);
   return <>
     <AppHeader user={user} />
     <main id="main" className="mx-auto max-w-5xl px-4 pb-20 pt-10 sm:pt-16">
+      <TrialAccessBanner access={trial} />
       <div className="max-w-2xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-accent-ink">Your next adventure</p>
         <h1 className="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">Where will you go next?</h1>
