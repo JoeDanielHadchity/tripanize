@@ -1,3 +1,5 @@
+import { TripStart } from "@/components/trip-start";
+import { getDestinationSearch } from "@/server/destinations/service";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/server/auth/session";
@@ -27,6 +29,7 @@ const PHASE: Record<TripCard["phase"], { label: string; tone: "accent" | "sage" 
 
 export default async function TripsPage({ searchParams }: { searchParams: Promise<{ q?: string; phase?: string }> }) {
   const user = await requireUser();
+  const destinationSearch = await getDestinationSearch(user.id);
   const { q = "", phase = "all" } = await searchParams;
   const all = await listTrips(user.id);
   const trips = await listTrips(user.id, { q, phase });
@@ -35,6 +38,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
     <>
       <AppHeader user={user} current="trips" />
       <main id="main" className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+        <TripStart initial={destinationSearch} />
         <PageHeader title="My trips" subtitle={all.length ? `${all.length} trip${all.length === 1 ? "" : "s"} you own or were invited to` : "Only trips you own or were invited to appear here."} actions={<><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Plan a new trip</LinkButton></>} />
         <PendingInvites invites={invites} />
         {all.length > 0 && (
@@ -53,7 +57,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
         )}
         {all.length === 0 ? (
           <EmptyState title="Where to next?" action={<><LinkButton href="/trips/new" variant="primary">Plan your first trip</LinkButton><LinkButton href="/examples/lisbon-porto">Browse the example</LinkButton></>}>
-            Start with just a name and a destination — you can fill in the details and plan with AI whenever you're ready. If someone invited you, open their invitation link while signed in.
+            Choose a destination above, or let us help you find one. If someone invited you, open their invitation link while signed in.
           </EmptyState>
         ) : trips.length === 0 ? (
           <EmptyState title="No trips match" action={<LinkButton href="/trips">Clear filters</LinkButton>}>Try a different search or filter.</EmptyState>

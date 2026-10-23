@@ -36,6 +36,7 @@ model User {
   travelerLinks    Traveler[]
   chatMessages     ChatMessage[]
   premiumEntitlement PremiumEntitlement?
+  destinationSearches DestinationSearch[]
 
   @@map("user")
 }
@@ -873,6 +874,23 @@ model ExternalCache {
   key       String   @id
   value     Json
   fetchedAt DateTime @default(now())
+}
+
+// Private, resumable destination ideas prepared before a trip or payment exists.
+model DestinationSearch {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  input Json
+  status JobStatus @default(QUEUED)
+  result Json?
+  error String?
+  selectedTripId String?
+  createdAt DateTime @default(now())
+  finishedAt DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
 
 model RateLimitHit {

@@ -93,6 +93,15 @@ try {
   const prepared = await untilSetup(s => s.stage === "COMPLETE");
   assert.ok(prepared.jobs.find(j => j.kind === "full").appliedAt);
   assert.ok(prepared.packing > 0);
-  console.log(JSON.stringify({ nativeAlarms: true, guidedTripAfterRestart: true, personalizedPacking: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
+  await get("/destinations/start");
+  await stop(child); child = await start();
+  const destinationDeadline = Date.now() + 15000;
+  let destinations;
+  do { destinations = await get("/destinations/state"); if (destinations.status === "SUCCEEDED") break; assert.notEqual(destinations.status, "FAILED", destinations.error); await new Promise(resolve => setTimeout(resolve, 100)); } while (Date.now() < destinationDeadline);
+  assert.equal(destinations.result.ideas.length, 5);
+  const selected = await get("/destinations/choose");
+  assert.ok(selected.next.includes("/premium?created=1"));
+  assert.equal((await get("/destinations/choose")).id, selected.id);
+  console.log(JSON.stringify({ destinationIdeasAfterRestart: true, chosenDestinationContinuesToPlans: true, nativeAlarms: true, guidedTripAfterRestart: true, personalizedPacking: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
 } catch (error) { console.error(error.stack ?? error.message); console.error(logs.replace(/sk-[A-Za-z0-9_-]+/g, "[credential hidden]")); process.exitCode = 1; }
 finally { await stop(child); }

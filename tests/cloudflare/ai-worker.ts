@@ -1,3 +1,6 @@
+import { fixtureIdeas } from "../fixtures/destinations";
+import { startDestinationSearch, getDestinationSearch, chooseDestination } from "../../src/server/destinations/service";
+import destinationSearch from "../../prisma/migrations/202610230011_destination_search/migration.sql";
 import { DurableObject } from "cloudflare:workers";
 import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migration.sql";
 import eventBookings from "../../prisma/migrations/202610220002_event_bookings/migration.sql";
@@ -34,6 +37,10 @@ export class AiProbe extends DurableObject<Env> {
     return result;
   }
   private generate = (async (opts: { name: string; input: string }) => {
+    if (opts.name === "destination_ideas") {
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      return { data: fixtureIdeas(), model: "isolated-stub", sources: ["https://example.test/tourism"], usage: null };
+    }
     const data = JSON.parse(opts.input.match(/<trip_data>\n([\s\S]*)\n<\/trip_data>/)![1]);
     await this.serialize(async () => {
       const calls = await this.ctx.storage.get<string[][]>("calls") ?? [];
@@ -63,6 +70,7 @@ export class AiProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(column => column.name === "eventId")) ctx.storage.sql.exec(eventBookings);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("NotificationPreference")').toArray().some(column => column.name === "changeEmailEnabled")) ctx.storage.sql.exec(tripNotifications);
         ctx.storage.sql.exec(memberLocations);
+        ctx.storage.sql.exec(destinationSearch);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "chatSeq")) ctx.storage.sql.exec(tripChat);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Attachment")').toArray().some(column => column.name === "expenseId")) ctx.storage.sql.exec(expenseReceipts);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "normalAiDates")) ctx.storage.sql.exec(planAccess);
@@ -91,6 +99,14 @@ export class AiProbe extends DurableObject<Env> {
         }
         const fixture = await this.ctx.storage.get<{ ownerId: string; tripId: string }>("fixture");
         if (!fixture) return Response.json({ error: "Start first" }, { status: 400 });
+        if (url.pathname === "/destinations/start") {
+          process.env.OPENAI_API_KEY = "isolated-native-fixture-key";
+          const search = await startDestinationSearch(fixture.ownerId, { departureCity: "Beirut, Lebanon", timing: "flexible", days: 7, adults: 2, children: 0, budget: 1500, climate: "Mild & comfortable", interests: ["History & culture"], pace: "RELAXED", distance: "Up to 6 hours", crowds: "A balance" });
+          await this.ctx.storage.put("destination-fixture", search.id);
+          return Response.json(search);
+        }
+        if (url.pathname === "/destinations/state") return Response.json(await getDestinationSearch(fixture.ownerId, (await this.ctx.storage.get<string>("destination-fixture"))!));
+        if (url.pathname === "/destinations/choose") return Response.json(await chooseDestination(fixture.ownerId, (await this.ctx.storage.get<string>("destination-fixture"))!, 0));
         if (url.pathname === "/assistant/start") {
           const days = await this.db.itineraryDay.findMany({ where: { tripId: fixture.tripId }, orderBy: { date: "asc" } });
           await addStop(fixture.ownerId, fixture.tripId, { dayId: days[1].id, input: { title: "Assistant museum", startTime: "10:00", durationMin: 60 } });
