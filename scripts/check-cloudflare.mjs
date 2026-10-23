@@ -7,7 +7,7 @@ const mode = process.argv[2] ?? "storage";
 let config = mode === "storage" ? "tests/cloudflare/wrangler.jsonc" : "dist/server/wrangler.json";
 const port = mode === "storage" ? 8789 : 8787;
 const origin = `http://127.0.0.1:${port}`;
-const persistTo = mode === "app" ? `.wrangler/check-app-${process.pid}` : `.wrangler/check-${mode}`;
+const persistTo = mode === "app" ? `.wrangler/check-app-${process.pid}-${crypto.randomUUID()}` : `.wrangler/check-${mode}`;
 if (mode === "app") {
   const local = JSON.parse(readFileSync(config, "utf8"));
   delete local.routes;
@@ -75,7 +75,7 @@ try {
     for (const path of ["/terms", "/privacy", "/refunds", "/contact"]) {
       assert.match(html, new RegExp(`href="${path}"`));
       const policy = await fetch(origin + path); assert.equal(policy.status, 200, path); assert.equal(new URL(policy.url).pathname, path);
-      const policyHtml = await policy.text(); assert.match(policyHtml, /the company/i); assert.doesNotMatch(policyHtml, /an individual (?:operator )?based/i);
+      const policyHtml = await policy.text(); assert.match(policyHtml, /Tripanize\.app/); assert.doesNotMatch(policyHtml, /an individual (?:operator )?based/i);
     }
     const unsupported = await fetch(origin + "/api/support", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ name: "Isolated test", email: "test@example.test", topic: "general", message: "An isolated test. No email should be sent.", website: "", requestId: crypto.randomUUID() }) });
     assert.equal(unsupported.status, 503); assert.equal((await unsupported.json()).sent, undefined);
@@ -107,11 +107,11 @@ try {
     const reauth = await fetch(origin + "/sign-in?reauth=1&next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(reauth.url).pathname, "/sign-in"); assert.match(await reauth.text(), /Sign in to Tripanize/);
     const companySignup = await fetch(origin + "/api/auth/sign-up/email", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ name: "Retired personal label", email: "company@example.test", password: crypto.randomUUID() + "Aa1!" }) });
     assert.equal(companySignup.status, 200, await companySignup.clone().text());
-    const companyUser = await companySignup.json(); assert.equal(companyUser.user.name, "The company"); assert.equal(companyUser.user.emailVerified, false);
+    const companyUser = await companySignup.json(); assert.equal(companyUser.user.name, "Tripanize.app"); assert.equal(companyUser.user.emailVerified, false);
     const companyCookie = companySignup.headers.getSetCookie().map(v => v.split(";")[0]).join("; ");
     assert.equal((await fetch(origin + "/company", { headers: { Cookie: companyCookie } })).status, 404);
     const changedName = await fetch(origin + "/api/auth/update-user", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin, Cookie: companyCookie }, body: JSON.stringify({ name: "Another personal label" }) }); assert.equal(changedName.status, 200);
-    const companyAccountHtml = await (await fetch(origin + "/account", { headers: { Cookie: companyCookie } })).text(); assert.match(companyAccountHtml, /The company/); assert.doesNotMatch(companyAccountHtml, /Another personal label|Retired personal label/);
+    const companyAccountHtml = await (await fetch(origin + "/account", { headers: { Cookie: companyCookie } })).text(); assert.match(companyAccountHtml, /Tripanize\.app/); assert.doesNotMatch(companyAccountHtml, /Another personal label|Retired personal label/);
     const unauth = await fetch(origin + "/api/attachments/does-not-exist"); assert.equal(unauth.status, 401);
     const locationUnauth = await fetch(origin + "/api/trips/does-not-exist/locations"); assert.equal(locationUnauth.status, 401); assert.equal(locationUnauth.headers.get("Cache-Control"), "private, no-store");
     const locationMissing = await fetch(origin + "/api/trips/does-not-exist/locations", { headers: { Cookie: cookie } }); assert.equal(locationMissing.status, 404);

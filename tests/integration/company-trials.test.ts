@@ -33,7 +33,7 @@ it("restricts company authority to the exact verified account, regardless of dis
   const f = await fixture();
   expect(await companyAccount(f.admin.id)).toBe(true);
   expect(await companyAccount(f.other.id)).toBe(false);
-  await prisma.user.update({ where: { id: f.other.id }, data: { name: "The company", emailVerified: true } });
+  await prisma.user.update({ where: { id: f.other.id }, data: { name: "Tripanize.app", emailVerified: true } });
   await expect(requireCompanyAdmin(f.other.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
   await prisma.user.update({ where: { id: f.admin.id }, data: { emailVerified: false } });
   await expect(createTrialInvitation(f.admin.id, f.recipient.email)).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -179,14 +179,14 @@ it("cancels unused invitation delivery after revocation and never grants from a 
   await expect(createTrialInvitation(f.recipient.id, f.other.email)).rejects.toMatchObject({ code: "FORBIDDEN" });
 });
 
-it("uses The company in profile, traveler and audit labels and can continue included onboarding without payment", async () => {
+it("uses Tripanize.app in profile, traveler and audit labels and can continue included onboarding without payment", async () => {
   const f = await fixture();
-  expect(accountDisplayName(f.admin)).toBe("The company");
+  expect(accountDisplayName(f.admin)).toBe("Tripanize.app");
   await updateProfile(f.admin.id, { name: "A personal label", defaultCurrency: "EUR", pace: "BALANCED", interests: [], mapsApp: "GOOGLE" });
-  expect((await prisma.user.findUniqueOrThrow({ where: { id: f.admin.id } })).name).toBe("The company");
+  expect((await prisma.user.findUniqueOrThrow({ where: { id: f.admin.id } })).name).toBe("Tripanize.app");
   const draft = await createTripDraft(f.admin.id, "Company trip");
-  expect((await prisma.traveler.findFirstOrThrow({ where: { tripId: draft.id, userId: f.admin.id } })).name).toBe("The company");
-  expect((await prisma.auditLog.findFirstOrThrow({ where: { tripId: draft.id } })).actorName).toBe("The company");
+  expect((await prisma.traveler.findFirstOrThrow({ where: { tripId: draft.id, userId: f.admin.id } })).name).toBe("Tripanize.app");
+  expect((await prisma.auditLog.findFirstOrThrow({ where: { tripId: draft.id } })).actorName).toBe("Tripanize.app");
   expect(await chooseNormal(f.admin.id, draft.id)).toMatchObject({ next: `/trips/${draft.id}/onboarding` });
   expect((await prisma.trip.findUniqueOrThrow({ where: { id: draft.id } })).onboardingPlan).toBe("PREMIUM");
   expect(await prisma.premiumCheckout.count()).toBe(0);
@@ -204,10 +204,10 @@ it("migrates old company display labels without changing another member or resen
   await normalizeCompanyIdentity();
   await normalizeCompanyIdentity();
   const notification = await prisma.tripNotification.findFirstOrThrow({ where: { tripId } });
-  expect(notification).toMatchObject({ summary: "The company updated trip details.", emailStatus: "cancelled", emailText: "Immutable old payload", nextAttemptAt: null });
-  expect((await prisma.user.findUniqueOrThrow({ where: { id: f.admin.id } })).name).toBe("The company");
-  expect((await prisma.auditLog.findUniqueOrThrow({ where: { id: audit.id } })).actorName).toBe("The company");
-  expect((await prisma.traveler.findFirstOrThrow({ where: { tripId, userId: f.admin.id } })).name).toBe("The company");
-  expect(await prisma.chatMessage.findFirstOrThrow({ where: { tripId } })).toMatchObject({ senderName: "The company", body: "Keep the message content" });
+  expect(notification).toMatchObject({ summary: "Tripanize.app updated trip details.", emailStatus: "cancelled", emailText: "Immutable old payload", nextAttemptAt: null });
+  expect((await prisma.user.findUniqueOrThrow({ where: { id: f.admin.id } })).name).toBe("Tripanize.app");
+  expect((await prisma.auditLog.findUniqueOrThrow({ where: { id: audit.id } })).actorName).toBe("Tripanize.app");
+  expect((await prisma.traveler.findFirstOrThrow({ where: { tripId, userId: f.admin.id } })).name).toBe("Tripanize.app");
+  expect(await prisma.chatMessage.findFirstOrThrow({ where: { tripId } })).toMatchObject({ senderName: "Tripanize.app", body: "Keep the message content" });
   expect((await prisma.traveler.findFirstOrThrow({ where: { tripId: otherTrip, userId: f.other.id } })).name).toBe(f.other.name);
 });

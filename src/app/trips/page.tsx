@@ -1,3 +1,4 @@
+import { OPERATOR_NAME } from "@/lib/legal";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/server/auth/session";
@@ -42,7 +43,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
         <PageHeader title="My trips" subtitle={all.length ? `${all.length} trip${all.length === 1 ? "" : "s"} you own or were invited to` : "Only trips you own or were invited to appear here."} actions={<><LinkButton href="/destinations">Find a destination</LinkButton><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Plan a new trip</LinkButton></>} />
         {selectedTrip && <Notice tone="accent" className="mb-5">Your chosen destination is saved in <strong>{selectedTrip.name}</strong>. Continue planning from your trip below.</Notice>}
         <PendingInvites invites={invites} />
-        {trials.map(inv => <div key={inv.id} className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent bg-accent-soft p-5"><div><h2 className="font-display text-xl font-semibold">You’re invited to try Premium</h2><p className="mt-1 text-sm text-muted">The company offered you all Premium features for one trip. No payment details needed.</p></div><LinkButton href={`/trial?invitation=${encodeURIComponent(inv.id)}`} variant="primary">Activate my trial</LinkButton></div>)}
+        {trials.map(inv => <div key={inv.id} className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent bg-accent-soft p-5"><div><h2 className="font-display text-xl font-semibold">You’re invited to try Premium</h2><p className="mt-1 text-sm text-muted">{OPERATOR_NAME} offered you all Premium features for one trip. No payment details needed.</p></div><LinkButton href={`/trial?invitation=${encodeURIComponent(inv.id)}`} variant="primary">Activate my trial</LinkButton></div>)}
         {all.length > 0 && (
           <form role="search" className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center" action="/trips">
             <label htmlFor="q" className="sr-only">Search trips</label>
