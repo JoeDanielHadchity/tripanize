@@ -15,7 +15,7 @@ export default async function Home() {
   if (await getSessionUser()) redirect("/trips");
   return (
     <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+      <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4">
         <Logo />
         <nav aria-label="Account" className="flex gap-2">
           <LinkButton href="/plans" variant="ghost">Pricing</LinkButton>
