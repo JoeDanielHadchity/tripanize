@@ -4,6 +4,7 @@ import { ToastProvider, ConfirmProvider } from "@/components/client";
 import { OfflineBanner, ServiceWorker } from "@/components/offline";
 import { THEME_SCRIPT } from "@/lib/theme";
 import { LegalFooter } from "@/components/legal-footer";
+import { SandboxBanner } from "@/components/sandbox-banner";
 
 export const metadata: Metadata = {
   title: { default: "Tripanize — A little less planning. A lot more going.", template: "%s · Tripanize" },
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ToastProvider>
           <ConfirmProvider>
             <OfflineBanner />
+            <SandboxBanner />
             {children}
             <LegalFooter />
           </ConfirmProvider>
