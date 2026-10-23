@@ -28,7 +28,7 @@ it("validates upcoming timing, budget and interests before queuing, and reports 
 it("deduplicates pending searches, keeps results private, and returns exactly five researched ideas", async () => {
   const user = await makeUser("Explorer"), other = await makeUser("Other");
   const first = await startDestinationSearch(user.id, input), duplicate = await startDestinationSearch(user.id, input);
-  expect(duplicate.id).toBe(first.id); expect(await prisma.rateLimitHit.count()).toBe(1);
+  expect(duplicate.id).toBe(first.id); expect(await prisma.destinationSearch.count()).toBe(1);
   await expect(getDestinationSearch(other.id, first.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
   await expect(chooseDestination(other.id, first.id, 0)).rejects.toMatchObject({ code: "NOT_FOUND" });
   await runDestinationSearch(first.id, generator(undefined, opts => { const known = JSON.parse(opts.input.match(/<traveler_data>\n([\s\S]*)\n<\/traveler_data>/)![1]); expect(known.departureCity).toBe(input.departureCity); expect(known.budgetBasis).toContain("per person"); expect(known.constraints).toContain("child-friendly"); expect(opts.webSearch).toBe(true); }));
@@ -72,6 +72,12 @@ it("resumes interrupted searches and suppresses unverified or long-range forecas
 });
 it("bounds free discovery usage per signed-in account", async () => {
   const user = await makeUser("Explorer");
-  for (let i = 0; i < 5; i++) { const q = await startDestinationSearch(user.id, input); await prisma.destinationSearch.update({ where: { id: q.id }, data: { status: "FAILED" } }); }
+  for (let i = 0; i < 5; i++) { const q = await startDestinationSearch(user.id, input); await prisma.destinationSearch.update({ where: { id: q.id }, data: { status: "SUCCEEDED" } }); }
   await expect(startDestinationSearch(user.id, input)).rejects.toMatchObject({ code: "RATE_LIMITED" });
+});
+
+it("does not charge the daily destination allowance for failed searches", async () => {
+  const user = await makeUser("Explorer");
+  for (let i = 0; i < 6; i++) { const q = await startDestinationSearch(user.id, input); await prisma.destinationSearch.update({ where: { id: q.id }, data: { status: "FAILED" } }); }
+  expect((await startDestinationSearch(user.id, input)).id).toBeTruthy();
 });
