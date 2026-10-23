@@ -6,9 +6,9 @@ import { SignInForm } from "./form";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  const { next } = await searchParams;
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string; reauth?: string }> }) {
+  const { next, reauth } = await searchParams;
   const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/trips";
-  if (await getSessionUser()) redirect(safeNext);
+  if (await getSessionUser() && reauth !== "1") redirect(safeNext);
   return <SignInForm next={safeNext} emailReady={emailConfigured()} />;
 }

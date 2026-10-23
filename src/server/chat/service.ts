@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma, type Tx } from "@/server/db";
+import { accountDisplayName } from "@/server/admin/identity";
 import type { ChatMessage } from "@/generated/prisma/client";
 import { requirePremiumTrip } from "@/server/plans/access";
 import { AppError } from "@/server/errors";
@@ -57,7 +58,7 @@ export async function sendChatMessage(userId: string, tripId: string, input: { c
   if (!parsed.success || parsed.data.op !== "send") throw new AppError("VALIDATION", `Enter a message of up to ${CHAT_MAX_LENGTH.toLocaleString("en")} characters.`);
   const { clientId, body } = parsed.data;
   return prisma.$transaction(async tx => {
-    const member = await tx.tripMembership.findUnique({ where: { tripId_userId: { tripId, userId } }, include: { user: { select: { name: true } } } });
+    const member = await tx.tripMembership.findUnique({ where: { tripId_userId: { tripId, userId } }, include: { user: { select: { name: true, email: true } } } });
     if (!member) throw new AppError("NOT_FOUND", "Trip not found.");
     const previous = await tx.chatMessage.findUnique({ where: { tripId_senderId_clientId: { tripId, senderId: userId, clientId } } });
     if (previous) {
@@ -66,8 +67,9 @@ export async function sendChatMessage(userId: string, tripId: string, input: { c
     }
     if (await tx.chatMessage.count({ where: { tripId, senderId: userId, createdAt: { gt: new Date(Date.now() - 60_000) } } }) >= 30) throw new AppError("RATE_LIMITED", "Please wait a minute before sending more messages.");
     const trip = await tx.trip.update({ where: { id: tripId }, data: { chatSeq: { increment: 1 }, chatRevision: { increment: 1 } }, select: { name: true, chatSeq: true, chatRevision: true } });
-    const message = await tx.chatMessage.create({ data: { tripId, senderId: userId, senderName: member.user.name, clientId, body, seq: trip.chatSeq, revision: trip.chatRevision } });
-    await alertMembers(tx, tripId, userId, member.user.name, message.id, trip.name);
+    const senderName = accountDisplayName(member.user);
+    const message = await tx.chatMessage.create({ data: { tripId, senderId: userId, senderName, clientId, body, seq: trip.chatSeq, revision: trip.chatRevision } });
+    await alertMembers(tx, tripId, userId, senderName, message.id, trip.name);
     return view(message, userId);
   });
 }

@@ -37,6 +37,8 @@ model User {
   chatMessages     ChatMessage[]
   premiumEntitlement PremiumEntitlement?
   destinationSearches DestinationSearch[]
+  trialsCreated TrialInvitation[] @relation("TrialCreator")
+  trialsAccepted TrialInvitation[] @relation("TrialRecipient")
 
   @@map("user")
 }
@@ -97,6 +99,34 @@ model PremiumEntitlement {
   validUntil DateTime
   revokedAt DateTime?
   updatedAt DateTime @updatedAt
+}
+
+// A company-issued, email-bound invitation grants one specific trip, never an account plan.
+model TrialInvitation {
+  id String @id @default(cuid())
+  email String
+  activeEmail String? @unique
+  tokenHash String @unique
+  createdById String
+  createdBy User @relation("TrialCreator", fields: [createdById], references: [id])
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  acceptedAt DateTime?
+  acceptedById String?
+  acceptedBy User? @relation("TrialRecipient", fields: [acceptedById], references: [id], onDelete: SetNull)
+  tripId String? @unique
+  trip Trip? @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  revokedAt DateTime?
+  emailText String
+  emailStatus String @default("queued")
+  emailAttempts Int @default(0)
+  firstEmailAttemptAt DateTime?
+  nextEmailAttemptAt DateTime?
+  emailSentAt DateTime?
+  emailProviderId String?
+  emailError String?
+  @@index([email, createdAt])
+  @@index([emailStatus, nextEmailAttemptAt])
 }
 
 // ───────────────────────── Profile ─────────────────────────
@@ -208,6 +238,7 @@ model Trip {
   tripNotifications TripNotification[]
   chatMessages ChatMessage[]
   premiumCheckouts PremiumCheckout[]
+  trialInvitation TrialInvitation?
 }
 
 // One purchase unlocks one trip. Server-created intents fix the USD amount and

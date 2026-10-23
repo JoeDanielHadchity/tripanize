@@ -1,3 +1,6 @@
+import { createTrialInvitation, acceptTrialInvitation, revokeTrialInvitation, sendNextTrialEmail } from "../../src/server/admin/trials";
+import { getTripPlan } from "../../src/server/plans/access";
+import companyTrials from "../../prisma/migrations/202610230013_company_trials/migration.sql";
 import { queueDueDiscoveries } from "../../src/server/events/schedule";
 import { requestDiscovery } from "../../src/server/events/discovery";
 import eventAlerts from "../../prisma/migrations/202610230012_event_alerts/migration.sql";
@@ -57,13 +60,20 @@ export class AiProbe extends DurableObject<Env> {
       days: data.datesToPlan.map((date: string) => ({ date, area: "Lisbon", title: "Explore", isTravelDay: false, driveMinutes: null, stops: [], planB: [], planBNote: null, notes: [], questions: [], estCost: null })),
     } };
   }) as Generator;
-  private tasks: AiTasks = new AiTasks(this.ctx.storage, () => ({ database: this.db, authSecret: "isolated-ai-test", planAccessEnabled: true, wakeAi: (): Promise<void> => this.tasks.wake(), wakeNotifications: (): Promise<void> => this.tasks.wake() }), run => this.serialize(run), this.generate, () => sendNextChangeEmail(async msg => {
+  private tasks: AiTasks = new AiTasks(this.ctx.storage, () => ({ database: this.db, authSecret: "isolated-ai-test", companyAdminEmail: "company-native@example.test", planAccessEnabled: true, wakeAi: (): Promise<void> => this.tasks.wake(), wakeNotifications: (): Promise<void> => this.tasks.wake() }), run => this.serialize(run), this.generate, () => sendNextChangeEmail(async msg => {
     const attempt = await this.serialize(async () => {
       const attempts = await this.ctx.storage.get<string[]>("emailAttempts") ?? [];
       await this.ctx.storage.put("emailAttempts", [...attempts, msg.idempotencyKey!]);
       return attempts.length + 1;
     });
     return attempt === 1 ? { status: "failed", error: "Synthetic transient failure", retryable: true } : { status: "sent", providerId: "synthetic-provider-id" };
+  }), () => sendNextTrialEmail(async msg => {
+    const attempt = await this.serialize(async () => {
+      const attempts = await this.ctx.storage.get<string[]>("trialEmailAttempts") ?? [];
+      await this.ctx.storage.put("trialEmailAttempts", [...attempts, msg.idempotencyKey!]);
+      return attempts.length + 1;
+    });
+    return attempt === 1 ? { status: "failed", error: "Synthetic trial retry", retryable: true } : { status: "sent", providerId: "synthetic-trial-id" };
   }));
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -81,13 +91,14 @@ export class AiProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "selectedPremiumFeatures")) ctx.storage.sql.exec(tripFeatures);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "onboardingStage")) ctx.storage.sql.exec(guidedSetup);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TripNotification")').toArray().some(c => c.name === "kind")) ctx.storage.sql.exec(eventAlerts);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TrialInvitation")').toArray().length) ctx.storage.sql.exec(companyTrials);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });
   }
   async alarm() { await this.tasks.alarm(); }
   async fetch(request: Request) {
-    return this.serialize(() => appRuntime.run({ database: this.db, authSecret: "isolated-ai-test", planAccessEnabled: true, wakeAi: () => this.tasks.wake(), wakeNotifications: () => this.tasks.wake() }, async () => {
+    return this.serialize(() => appRuntime.run({ database: this.db, authSecret: "isolated-ai-test", companyAdminEmail: "company-native@example.test", planAccessEnabled: true, wakeAi: () => this.tasks.wake(), wakeNotifications: () => this.tasks.wake() }, async () => {
       try {
         const url = new URL(request.url);
         if (url.pathname === "/start") {
@@ -103,6 +114,29 @@ export class AiProbe extends DurableObject<Env> {
         }
         const fixture = await this.ctx.storage.get<{ ownerId: string; tripId: string }>("fixture");
         if (!fixture) return Response.json({ error: "Start first" }, { status: 400 });
+        if (url.pathname === "/trials/start") {
+          const admin = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "company-native@example.test", name: "The company", emailVerified: true } });
+          const recipient = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "trial-native@example.test", name: "Trial recipient", emailVerified: true } });
+          const otherTripId = await createTrip(recipient.id, { name: "Other Normal trip" });
+          const inv = await createTrialInvitation(admin.id, recipient.email);
+          await this.ctx.storage.put("trial-fixture", { invitationId: inv.id, adminId: admin.id, recipientId: recipient.id, otherTripId });
+          return Response.json({ queued: true });
+        }
+        if (url.pathname.startsWith("/trials/")) {
+          const trial = (await this.ctx.storage.get<{ invitationId: string; adminId: string; recipientId: string; otherTripId: string }>("trial-fixture"))!;
+          if (url.pathname === "/trials/retry") {
+            await this.db.trialInvitation.update({ where: { id: trial.invitationId }, data: { nextEmailAttemptAt: new Date() } });
+            await this.tasks.wake(); return Response.json({ retry: true });
+          }
+          if (url.pathname === "/trials/accept") {
+            const first = await acceptTrialInvitation(trial.recipientId, { invitationId: trial.invitationId, name: "Native trial trip" });
+            const repeated = await acceptTrialInvitation(trial.recipientId, { invitationId: trial.invitationId, name: "Must not create another trip" });
+            return Response.json({ first, repeated });
+          }
+          if (url.pathname === "/trials/revoke") { await revokeTrialInvitation(trial.adminId, trial.invitationId); return Response.json({ revoked: true }); }
+          const inv = await this.db.trialInvitation.findUniqueOrThrow({ where: { id: trial.invitationId } });
+          return Response.json({ emailStatus: inv.emailStatus, attempts: inv.emailAttempts, keys: await this.ctx.storage.get("trialEmailAttempts") ?? [], plan: inv.tripId ? await getTripPlan(inv.tripId) : null, otherPlan: await getTripPlan(trial.otherTripId), recipientTrips: await this.db.trip.count({ where: { ownerId: trial.recipientId } }), payments: await this.db.premiumCheckout.count({ where: { buyerId: trial.recipientId } }) });
+        }
         if (url.pathname === "/events/start") {
           process.env.OPENAI_API_KEY = "isolated-native-fixture-key"; process.env.OPENAI_WEB_SEARCH = "true";
           const tripId = await createTrip(fixture.ownerId, { name: "Scheduled event fixture", startDate: "2030-06-15", endDate: "2030-06-20", destinations: [{ name: "Scheduled events fixture" }], interests: ["Local culture"] });

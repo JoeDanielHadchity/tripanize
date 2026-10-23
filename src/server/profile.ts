@@ -5,6 +5,7 @@ import { requireTrip } from "@/server/auth/permissions";
 import { requirePremiumAccess } from "@/server/plans/access";
 import { isValidTimeZone } from "@/lib/dates";
 import { formatZodError } from "@/server/trips/schemas";
+import { accountDisplayName } from "@/server/admin/identity";
 
 const profileInput = z.object({
   name: z.string().trim().min(1, "Enter a display name").max(80),
@@ -27,9 +28,10 @@ export async function updateProfile(userId: string, input: z.input<typeof profil
   const r = profileInput.safeParse(input);
   if (!r.success) throw new AppError("VALIDATION", formatZodError(r.error));
   const { name, ...p } = r.data;
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   const data = { ...p, homeCity: p.homeCity || null, dietary: p.dietary || null, accessibility: p.accessibility || null, timezone: p.timezone && isValidTimeZone(p.timezone) ? p.timezone : null };
   await prisma.$transaction([
-    prisma.user.update({ where: { id: userId }, data: { name } }),
+    prisma.user.update({ where: { id: userId }, data: { name: accountDisplayName({ ...user, name }) } }),
     prisma.profile.upsert({ where: { userId }, create: { userId, ...data }, update: data }),
   ]);
 }

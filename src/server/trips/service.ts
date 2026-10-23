@@ -6,6 +6,7 @@ import { dateRange, todayIn, tripPhase } from "@/lib/dates";
 import { parseMoney } from "@/lib/money";
 import { syncBookingProjection } from "@/server/bookings/service";
 import { formatZodError, tripInput, type TripInput, type TripParsed } from "./schemas";
+import { accountDisplayName } from "@/server/admin/identity";
 
 function parse(input: TripInput): TripParsed {
   const r = tripInput.safeParse(input);
@@ -116,19 +117,20 @@ async function writeCommitments(tx: Tx, tripId: string, userId: string, t: TripP
   }
 }
 
-export async function createTrip(userId: string, input: TripInput, destinationSearchId?: string) {
+export async function createTrip(userId: string, input: TripInput, destinationSearchId?: string, transaction?: Tx) {
   const t = parse(input);
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  const tripId = await prisma.$transaction(async (tx) => {
+  const user = await (transaction ?? prisma).user.findUniqueOrThrow({ where: { id: userId } });
+  const name = accountDisplayName(user);
+  const write = async (tx: Tx) => {
     if (destinationSearchId) {
       const search = await tx.destinationSearch.findFirst({ where: { id: destinationSearchId, userId, status: "SUCCEEDED" } });
       if (!search) throw new AppError("NOT_FOUND", "Destination ideas not found.");
       if (search.selectedTripId && await tx.trip.findFirst({ where: { id: search.selectedTripId, ownerId: userId } })) return search.selectedTripId;
     }
     const trip = await tx.trip.create({ data: { ...scalarFields(t), ownerId: userId, autoDiscovery: true, ...(destinationSearchId ? { onboardingStage: "PLAN" } : {}) } });
-    const me = await tx.traveler.create({ data: { tripId: trip.id, name: user.name, userId } });
+    const me = await tx.traveler.create({ data: { tripId: trip.id, name, userId } });
     await tx.tripMembership.create({ data: { tripId: trip.id, userId, role: "OWNER", travelerId: me.id } });
-    const seen = new Set([user.name.trim().toLowerCase()]);
+    const seen = new Set([name.trim().toLowerCase()]);
     for (const tr of t.travelers) {
       const key = tr.name.trim().toLowerCase();
       if (seen.has(key)) continue;
@@ -150,8 +152,8 @@ export async function createTrip(userId: string, input: TripInput, destinationSe
     await recordChange(tx, { tripId: trip.id, actorId: userId, entity: "trip", entityId: trip.id, action: "create", after: { name: t.name } });
     if (destinationSearchId) await tx.destinationSearch.update({ where: { id: destinationSearchId }, data: { selectedTripId: trip.id } });
     return trip.id;
-  });
-  return tripId;
+  };
+  return transaction ? write(transaction) : prisma.$transaction(write);
 }
 
 /** Updates trip details. Destinations are replaced by the submitted list (matched by id). */

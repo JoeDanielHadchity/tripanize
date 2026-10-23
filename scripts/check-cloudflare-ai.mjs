@@ -115,6 +115,22 @@ try {
   const rechecked = await untilEvents(s => s.runs.length === 2 && s.runs.every(r => r.status === "succeeded"));
   assert.equal(rechecked.notices.filter(n => n.kind === "event").length, 1);
   assert.equal(rechecked.notices.filter(n => n.kind === "event_email").length, 1);
-  console.log(JSON.stringify({ scheduledEventsAfterRestart: true, eventAlertsDeduplicated: true, eventEmailOutbox: true, destinationIdeasAfterRestart: true, chosenDestinationContinuesToPlans: true, nativeAlarms: true, guidedTripAfterRestart: true, personalizedPacking: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
+  await get("/trials/start");
+  await stop(child); child = await start();
+  const untilTrial = async predicate => {
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) { const state = await get("/trials/state"); if (predicate(state)) return state; await new Promise(resolve => setTimeout(resolve, 100)); }
+    throw new Error("Trial invitation timed out");
+  };
+  await untilTrial(s => s.attempts === 1 && s.emailStatus === "queued");
+  await get("/trials/retry");
+  await stop(child); child = await start();
+  const deliveredTrial = await untilTrial(s => s.emailStatus === "sent");
+  assert.equal(deliveredTrial.keys.length, 2); assert.equal(deliveredTrial.keys[0], deliveredTrial.keys[1]);
+  const trialClaim = await get("/trials/accept"); assert.equal(trialClaim.first.tripId, trialClaim.repeated.tripId);
+  const trialState = await get("/trials/state");
+  assert.equal(trialState.plan.source, "trial"); assert.equal(trialState.otherPlan.premium, false); assert.equal(trialState.recipientTrips, 2); assert.equal(trialState.payments, 0);
+  await get("/trials/revoke"); assert.equal((await get("/trials/state")).plan.premium, false);
+  console.log(JSON.stringify({ trialEmailRetriesAfterRestart: true, oneTripTrialClaim: true, trialRevocation: true, scheduledEventsAfterRestart: true, eventAlertsDeduplicated: true, eventEmailOutbox: true, destinationIdeasAfterRestart: true, chosenDestinationContinuesToPlans: true, nativeAlarms: true, guidedTripAfterRestart: true, personalizedPacking: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
 } catch (error) { console.error(error.stack ?? error.message); console.error(logs.replace(/sk-[A-Za-z0-9_-]+/g, "[credential hidden]")); process.exitCode = 1; }
 finally { await stop(child); }

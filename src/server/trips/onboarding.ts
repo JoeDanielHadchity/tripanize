@@ -23,7 +23,10 @@ export async function chooseNormal(userId: string, tripId: string) {
   await requireTrip(tripId, userId, "manage");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   const plan = await getTripPlan(tripId);
-  if (plan.premium && !plan.preview) return { next: `/trips/${tripId}/${trip.onboardingStage === "COMPLETE" ? "itinerary" : "onboarding"}` };
+  if (plan.premium && !plan.preview) {
+    if (trip.onboardingStage === "PLAN") await prisma.trip.update({ where: { id: tripId }, data: { onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" } });
+    return { next: `/trips/${tripId}/${trip.onboardingStage === "COMPLETE" ? "itinerary" : "onboarding"}` };
+  }
   if (trip.onboardingStage === "PLAN") await prisma.trip.update({ where: { id: tripId }, data: { onboardingStage: "DETAILS", onboardingPlan: "NORMAL", selectedPremiumFeatures: [] } });
   return { next: `/trips/${tripId}/${trip.onboardingStage === "COMPLETE" ? "itinerary" : "onboarding"}` };
 }
