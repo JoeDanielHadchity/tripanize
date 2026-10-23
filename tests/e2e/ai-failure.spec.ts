@@ -18,8 +18,8 @@ test("Plan with AI failure keeps the itinerary and reports the real reason", asy
   await page.getByLabel("End date").fill("2027-05-02");
   await page.getByLabel("City or region").fill("Lisbon");
   await page.getByRole("button", { name: "Create trip" }).click();
-  await page.waitForURL("**/plan?start=1");
-  const tripUrl = page.url().replace(/\/plan.*$/, "");
+  await page.waitForURL("**/premium?created=1");
+  const tripUrl = page.url().replace(/\/premium.*$/, "");
 
   // Existing manual plan
   await page.goto(`${tripUrl}/itinerary`);
@@ -29,7 +29,7 @@ test("Plan with AI failure keeps the itinerary and reports the real reason", asy
   await expect(page.getByRole("heading", { name: "My saved idea" })).toBeVisible();
 
   await page.goto(`${tripUrl}/plan`);
-  const btn = page.getByRole("button", { name: "✨ Plan with AI" });
+  const btn = page.getByRole("button", { name: /Plan with AI$/ });
   await expect(btn).toBeEnabled();
   await btn.dblclick(); // duplicate clicks must not create two jobs
   await expect(page.getByText(/Planning stopped/)).toBeVisible({ timeout: 60_000 });

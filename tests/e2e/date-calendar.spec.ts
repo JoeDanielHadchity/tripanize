@@ -40,8 +40,8 @@ test("pick trip dates on the calendar", async ({ browser }, info) => {
   await page.getByLabel("Trip name").fill("Calendar trip");
   await page.getByLabel("City or region").fill("Lisbon");
   await page.getByRole("button", { name: "Create trip" }).click();
-  await page.waitForURL("**/plan?start=1");
-  await page.goto(page.url().replace(/\/plan.*$/, "/itinerary"));
+  await page.waitForURL("**/premium?created=1");
+  await page.goto(page.url().replace(/\/premium.*$/, "/itinerary"));
   await expect(page.getByRole("navigation", { name: "Days" }).getByRole("link")).toHaveCount(4);
   await ctx.close();
 });
