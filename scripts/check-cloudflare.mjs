@@ -36,6 +36,8 @@ let child;
 try {
   child = await start();
   if (mode === "storage") {
+    const administration = await json("/admin-check");
+    for (const [check, passed] of Object.entries(administration)) assert.equal(passed, true, `admin: ${check}`);
     const billing = await json("/billing-request");
     assert.deepEqual(billing, { nativeRequests: 2, rejectedRedirects: 2, pinnedHost: true });
     const result = await json("/run");
@@ -68,7 +70,7 @@ try {
     assert.deepEqual(plans.aiDates, ["2027-05-01", "2027-05-02"]);
     assert.equal(plans.premiumUnlocked, true);
     assert.equal(plans.expiryEnforced, true);
-    console.log(JSON.stringify({ mode, ...result, survivesRestart: true, plans, billing }));
+    console.log(JSON.stringify({ mode, ...result, survivesRestart: true, plans, billing, administration }));
   } else {
     const home = await fetch(origin); assert.equal(home.status, 200); const html = await home.text(); assert.match(html, /Tripanize/);
     const plansPage = await fetch(origin + "/plans"); assert.equal(plansPage.status, 200); assert.match(await plansPage.text(), /First 2 days per trip/);

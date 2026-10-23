@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
 import { getTripPlan } from "@/server/plans/access";
@@ -35,7 +36,7 @@ export async function recordVerifiedTransaction(tx: PaddleTransaction) {
     // not revoke it; unusual partial adjustments require merchant review before rebuying.
     const reviewRequired = (tx.adjustments ?? []).some(a => a.status === "approved" && ["refund", "credit", "chargeback", "chargeback_warning"].includes(a.action));
     const status = tx.status === "completed" ? "COMPLETED" : tx.status === "canceled" ? "CANCELED" : "PENDING";
-    await db.premiumCheckout.update({ where: { id: intent.id }, data: { transactionId: tx.id, status, reviewRequired } });
+    await db.premiumCheckout.update({ where: { id: intent.id }, data: { transactionId: tx.id, status, reviewRequired, ...(tx.details ? { paddleSummary: JSON.parse(JSON.stringify({ currency: tx.currency_code, totals: tx.details.totals, adjusted: tx.details.adjusted_totals, payout: tx.details.payout_totals, adjustedPayout: tx.details.adjusted_payout_totals, adjustments: tx.adjustments, syncedAt: new Date().toISOString() })) as Prisma.InputJsonValue } : {}) } });
     if (status === "COMPLETED" && !reviewRequired) await db.trip.updateMany({ where: { id: intent.tripId, onboardingStage: "PLAN" }, data: { onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" } });
     return intent.tripId;
   });

@@ -21,6 +21,9 @@ model User {
   email         String    @unique
   emailVerified Boolean   @default(false)
   image         String?
+  suspendedAt   DateTime?
+  suspensionReason String?
+  lastSeenAt    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
@@ -117,6 +120,8 @@ model TrialInvitation {
   tripId String? @unique
   trip Trip? @relation(fields: [tripId], references: [id], onDelete: SetNull)
   revokedAt DateTime?
+  durationDays Int? @default(14)
+  trialEndsAt DateTime?
   emailText String
   emailStatus String @default("queued")
   emailAttempts Int @default(0)
@@ -255,6 +260,7 @@ model PremiumCheckout {
   status String @default("CREATING")
   transactionId String? @unique
   reviewRequired Boolean @default(false)
+  paddleSummary Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([tripId, environment, status])
@@ -935,4 +941,91 @@ model RateLimitHit {
   createdAt DateTime @default(now())
 
   @@index([key, createdAt])
+}
+
+// Private platform administration. Never include prompts, secrets or session tokens.
+model AdminAudit {
+  id String @id @default(cuid())
+  actorId String
+  action String
+  targetType String
+  targetId String
+  details Json @default("{}")
+  createdAt DateTime @default(now())
+  @@index([createdAt, id])
+}
+
+model PlatformSettings {
+  id String @id
+  aiPaused Boolean @default(false)
+  aiDailyLimit Int?
+  aiUserDailyLimit Int?
+  pricingModel String?
+  inputUsdPerMillion Float?
+  outputUsdPerMillion Float?
+  searchUsdPerThousand Float?
+  updatedAt DateTime @updatedAt
+}
+
+model AiUsage {
+  id String @id @default(cuid())
+  userId String?
+  tripId String?
+  jobId String?
+  kind String
+  model String
+  status String @default("RUNNING")
+  inputTokens Int?
+  outputTokens Int?
+  searchCalls Int?
+  estimatedCostMicros Int?
+  errorCode String?
+  createdAt DateTime @default(now())
+  finishedAt DateTime?
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+model SupportRequest {
+  id String @id @default(cuid())
+  requestKey String @unique
+  reference String
+  name String
+  email String
+  topic String
+  message String
+  status String @default("OPEN")
+  note String @default("")
+  deliveryStatus String @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, createdAt])
+}
+
+model Announcement {
+  id String @id @default(cuid())
+  title String
+  message String
+  tone String @default("info")
+  status String @default("DRAFT")
+  startsAt DateTime
+  endsAt DateTime?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, startsAt])
+}
+
+model BillingDelivery {
+  id String @id @default(cuid())
+  eventId String @unique
+  eventType String
+  transactionId String?
+  environment String
+  status String
+  responseStatus Int?
+  attempts Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([environment, createdAt])
 }

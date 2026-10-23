@@ -1,3 +1,4 @@
+import { AnnouncementBanner } from "@/components/announcements";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ToastProvider, ConfirmProvider } from "@/components/client";
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ToastProvider>
           <ConfirmProvider>
             <OfflineBanner />
+            <AnnouncementBanner />
             {children}
             <LegalFooter />
           </ConfirmProvider>

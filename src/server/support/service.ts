@@ -40,6 +40,8 @@ export async function submitSupport(input: unknown, clientIp: string) {
     for (const limit of limits) await tx.rateLimitHit.create({ data: { key: limit.key } });
     await tx.rateLimitHit.deleteMany({ where: { key: { startsWith: "support:" }, createdAt: { lt: new Date(Date.now() - 86400_000) } } });
   });
+  const requestKey = hash(`${data.requestId}:${JSON.stringify(data)}`);
+  const ticket = await prisma.supportRequest.upsert({ where: { requestKey }, create: { requestKey, reference: data.requestId, name: data.name, email: data.email, topic: data.topic, message: data.message }, update: {} });
   const result = await sendEmail({
     to: currentRuntime().supportEmail!,
     replyTo: data.email,
@@ -48,6 +50,7 @@ export async function submitSupport(input: unknown, clientIp: string) {
     // Exact retries use the same provider key; changed messages do not collide.
     idempotencyKey: `support/${data.requestId}/${hash(JSON.stringify(data))}`,
   });
+  await prisma.supportRequest.update({ where: { id: ticket.id }, data: { deliveryStatus: result.status } });
   if (result.status !== "sent") throw new AppError("UPSTREAM", "Your message could not be confirmed as sent. Please try again. For payment help, you can also visit paddle.net.");
   return { reference: data.requestId };
 }

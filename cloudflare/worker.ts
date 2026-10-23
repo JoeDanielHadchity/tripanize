@@ -1,3 +1,5 @@
+import adminDashboard from "../prisma/migrations/202610230015_admin_dashboard/migration.sql?raw";
+import { OPERATOR_NAME } from "../src/lib/legal";
 import destinationSearches from "../prisma/migrations/202610230014_destination_searches/migration.sql?raw";
 import { normalizeCompanyIdentity } from "../src/server/admin/identity";
 import companyTrials from "../prisma/migrations/202610230013_company_trials/migration.sql?raw";
@@ -119,11 +121,17 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
         });
         await ctx.storage.put("schemaVersion", 14);
       }
+      if (version < 15) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("user")').toArray().some(c => c.name === "suspendedAt")) ctx.storage.sql.exec(adminDashboard);
+        });
+        await ctx.storage.put("schemaVersion", 15);
+      }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
-      if (this.env.COMPANY_ADMIN_EMAIL && await ctx.storage.get("companyIdentity13") !== this.env.COMPANY_ADMIN_EMAIL) {
+      if (this.env.COMPANY_ADMIN_EMAIL && await ctx.storage.get("companyIdentity15") !== `${this.env.COMPANY_ADMIN_EMAIL}:${OPERATOR_NAME}`) {
         const normalized = await appRuntime.run(this.runtime(), normalizeCompanyIdentity);
-        if (normalized) await ctx.storage.put("companyIdentity13", this.env.COMPANY_ADMIN_EMAIL);
+        if (normalized) await ctx.storage.put("companyIdentity15", `${this.env.COMPANY_ADMIN_EMAIL}:${OPERATOR_NAME}`);
       }
       if (await this.aiTasks.pending()) await this.aiTasks.wake();
     });

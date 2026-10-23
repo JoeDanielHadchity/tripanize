@@ -1,3 +1,7 @@
+import { requireTrip } from "../../src/server/auth/permissions";
+import { executeAdminCommand, adminOverview, adminUsers, adminTrips, adminAi, adminSupport, adminPayments, adminHealth, adminActivity, activeAnnouncements, adminAnnouncements } from "../../src/server/admin/operations";
+import { reserveAiUsage, captureAiUsage, finishAiUsage } from "../../src/server/admin/ai-usage";
+import adminDashboard from "../../prisma/migrations/202610230015_admin_dashboard/migration.sql";
 import destinationSearches from "../../prisma/migrations/202610230014_destination_searches/migration.sql";
 import companyTrials from "../../prisma/migrations/202610230013_company_trials/migration.sql";
 import eventAlerts from "../../prisma/migrations/202610230012_event_alerts/migration.sql";
@@ -52,12 +56,42 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TripNotification")').toArray().some(c => c.name === "kind")) ctx.storage.sql.exec(eventAlerts);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TrialInvitation")').toArray().length) ctx.storage.sql.exec(companyTrials);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("DestinationSearch")').toArray().some(c => c.name === "number")) ctx.storage.sql.exec(destinationSearches);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("user")').toArray().some(c => c.name === "suspendedAt")) ctx.storage.sql.exec(adminDashboard);
       });
     });
   }
   async fetch(request: Request) {
     try {
       return await appRuntime.run({ database: this.db, files: this.env.FILES, assets: this.env.ASSETS, authSecret: "test-only-not-used-for-production" }, async () => {
+        if (new URL(request.url).pathname === "/admin-check") {
+          const adminEmail = `native-admin-${crypto.randomUUID()}@example.test`;
+          const admin = await this.db.user.create({ data: { id: crypto.randomUUID(), name: "Administrator", email: adminEmail, emailVerified: true } });
+          const traveler = await this.db.user.create({ data: { id: crypto.randomUUID(), name: "Native traveler", email: `native-${crypto.randomUUID()}@example.test`, emailVerified: true } });
+          return appRuntime.run({ database: this.db, authSecret: "isolated-admin-fixture", companyAdminEmail: adminEmail, planAccessEnabled: true }, async () => {
+            let guard = false;
+            try { await adminOverview(traveler.id); } catch (e) { guard = (e as { code?: string }).code === "FORBIDDEN"; }
+            const checkName = `Native administration check ${crypto.randomUUID()}`;
+            const tripId = await createTrip(traveler.id, { name: checkName });
+            const users = await adminUsers(admin.id, traveler.email, 0);
+            const trips = await adminTrips(admin.id, checkName, 0);
+            await executeAdminCommand(admin.id, { op: "user.suspend", id: traveler.id, suspended: true, reason: "Native access check" });
+            let suspended = false;
+            try { await requireTrip(tripId, traveler.id); } catch (e) { suspended = (e as { code?: string }).code === "NOT_FOUND"; }
+            await executeAdminCommand(admin.id, { op: "user.suspend", id: traveler.id, suspended: false, reason: "" });
+            await executeAdminCommand(admin.id, { op: "announcement.create", title: "Native fixture", message: "Plain text", tone: "info", startsAt: new Date(Date.now() - 1000).toISOString(), endsAt: null });
+            const a = (await adminAnnouncements(admin.id))[0];
+            await executeAdminCommand(admin.id, { op: "announcement.status", id: a.id, version: 1, status: "PUBLISHED" });
+            const published = (await activeAnnouncements()).some(r => r.id === a.id);
+            await executeAdminCommand(admin.id, { op: "announcement.status", id: a.id, version: 2, status: "ARCHIVED" });
+            await executeAdminCommand(admin.id, { op: "ai.settings", aiPaused: false, aiDailyLimit: null, aiUserDailyLimit: null, pricingModel: "native-model", inputUsdPerMillion: 1, outputUsdPerMillion: 2, searchUsdPerThousand: 3 });
+            const usage = await reserveAiUsage("fixture", "native-model", { userId: traveler.id, tripId });
+            await captureAiUsage(usage.id, { model: "native-model", usage: { input_tokens: 100, output_tokens: 100 }, output: [] });
+            await finishAiUsage(usage.id, "SUCCEEDED");
+            await this.db.supportRequest.create({ data: { requestKey: crypto.randomUUID(), reference: crypto.randomUUID(), name: "Fixture", email: traveler.email, topic: "general", message: "Native support fixture" } });
+            const overview = await adminOverview(admin.id), ai = await adminAi(admin.id), support = await adminSupport(admin.id, 0), payments = await adminPayments(admin.id, 0), health = await adminHealth(admin.id), audit = await adminActivity(admin.id, 0);
+            return Response.json({ guard, suspended, restored: (await requireTrip(tripId, traveler.id)).role === "OWNER", users: users.total === 1, trips: trips.total === 1, announcements: published, usage: ai.rows.some(r => r.id === usage.id && r.estimatedCostMicros === 300), support: support.total > 0, payments: Array.isArray(payments.rows), health: Array.isArray(health.webhooks), audit: audit.total >= 5, overview: overview.users >= 2 });
+          });
+        }
         if (new URL(request.url).pathname === "/count") return Response.json({ users: await this.db.user.count() });
         if (new URL(request.url).pathname === "/billing-request") {
           return appRuntime.run({ database: this.db, authSecret: "isolated-billing-fixture", paddle: { environment: "sandbox", apiKey: "isolated-native-fixture", clientToken: "test_fixture", webhookSecret: "fixture", prices: {}, checkoutEnabled: true } }, async () => {

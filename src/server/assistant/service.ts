@@ -101,7 +101,7 @@ export async function runAssistantJob(jobId: string, generate: Generator, signal
   const state = await loadAssistantState(prisma, job.tripId), baseHash = assistantStateHash(state);
   const history = await prisma.generationJob.findMany({ where: { ...scoped(job.tripId, job.requestedById, m.id), createdAt: { lt: job.createdAt } }, orderBy: newest, take: 8 });
   const input = { canEdit: roleAllows(m.role, "edit"), selectedDate: params.selectedDate, trip: contextForModel(state), history: history.reverse().map(j => ({ request: (j.params as AssistantParams).message, reply: (j.proposal as AssistantResponse | null)?.reply?.slice(0, 3000), proposedChanges: (j.checks as Review | null)?.preview.changes, appliedAt: j.appliedAt?.toISOString() ?? null, dismissed: Boolean((j.checks as Review | null)?.dismissedAt) })), latestRequest: params.message };
-  const result = await generate({ schema: AssistantResponseSchema, name: "trip_assistant", instructions: ASSISTANT_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(input)}\n</trip_data>`, webSearch: true, signal, timeoutMs: 180_000, maxOutputTokens: 12000 });
+  const result = await generate({ schema: AssistantResponseSchema, name: "trip_assistant", metering: { userId: job.requestedById, tripId: job.tripId, jobId }, instructions: ASSISTANT_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(input)}\n</trip_data>`, webSearch: true, signal, timeoutMs: 180_000, maxOutputTokens: 12000 });
   await requirePremiumAccess(job.tripId, "assistant");
   const freshJob = await prisma.generationJob.findUnique({ where: { id: jobId } });
   const stillMember = await prisma.tripMembership.findFirst({ where: { id: m.id, tripId: job.tripId, userId: job.requestedById } });

@@ -13,7 +13,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   if (!session) return null;
   // Code sign-ups may skip the name; fall back to the email's local part so travelers never appear blank.
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user) return null;
+  if (!user || user.suspendedAt) return null;
+  if (!user.lastSeenAt || user.lastSeenAt.getTime() < Date.now() - 10 * 60_000) await prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: new Date() } });
   return { id: user.id, name: accountDisplayName(user).trim() || user.email.split("@")[0], email: user.email, companyAdmin: isCompanyAccount(user) };
 });
 

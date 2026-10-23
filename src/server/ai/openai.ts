@@ -1,3 +1,4 @@
+import { reserveAiUsage, captureAiUsage, finishAiUsage, type AiMetering } from "@/server/admin/ai-usage";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import type { z } from "zod";
@@ -37,7 +38,7 @@ function getClient() {
 
 export type StructuredResult<T> = { data: T; model: string; sources: string[]; usage: { input: number; output: number } | null };
 
-export async function generateStructured<S extends z.ZodType>(opts: {
+type StructuredOptions<S extends z.ZodType> = {
   schema: S;
   name: string;
   instructions: string;
@@ -46,7 +47,22 @@ export async function generateStructured<S extends z.ZodType>(opts: {
   signal?: AbortSignal;
   timeoutMs?: number;
   maxOutputTokens?: number;
-}): Promise<StructuredResult<z.infer<S>>> {
+  metering?: AiMetering;
+};
+
+export async function generateStructured<S extends z.ZodType>(opts: StructuredOptions<S>): Promise<StructuredResult<z.infer<S>>> {
+  const entry = await reserveAiUsage(opts.name, aiModel(), opts.metering);
+  try {
+    const result = await requestStructured(opts, entry.id);
+    await finishAiUsage(entry.id, "SUCCEEDED");
+    return result;
+  } catch (error) {
+    await finishAiUsage(entry.id, "FAILED", error instanceof AIError ? error.code : "UPSTREAM");
+    throw error;
+  }
+}
+
+async function requestStructured<S extends z.ZodType>(opts: StructuredOptions<S>, usageId: string): Promise<StructuredResult<z.infer<S>>> {
   const openai = getClient();
   const model = aiModel();
   const useSearch = Boolean(opts.webSearch && webSearchEnabled());
@@ -73,6 +89,8 @@ export async function generateStructured<S extends z.ZodType>(opts: {
     console.error("[ai] request failed", err instanceof OpenAI.APIError ? { name: opts.name, status: err.status, code: err.code, param: err.param, requestId: err.requestID } : { name: opts.name, type: err instanceof Error ? err.name : "unknown" });
     throw classify(err, opts.signal);
   }
+
+  await captureAiUsage(usageId, resp);
 
   if (resp.status === "incomplete") {
     const why = resp.incomplete_details?.reason;

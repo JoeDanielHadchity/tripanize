@@ -1,7 +1,9 @@
+import { currentRuntime } from "@/server/cloudflare/runtime";
+const runtime = currentRuntime();
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 const key = process.env.OPENAI_API_KEY;
-beforeEach(() => { vi.resetModules(); process.env.OPENAI_API_KEY = "isolated-sdk-fixture"; });
+beforeEach(async () => { vi.resetModules(); const { setTestRuntime } = await import("@/server/cloudflare/runtime"); setTestRuntime(runtime); process.env.OPENAI_API_KEY = "isolated-sdk-fixture"; });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key; });
 function response(output: unknown[], extra = {}) {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "resp_fixture", object: "response", model: "isolated", status: "completed", output, usage: null, ...extra }), { headers: { "Content-Type": "application/json" } })));

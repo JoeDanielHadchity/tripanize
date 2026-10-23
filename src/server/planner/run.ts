@@ -121,6 +121,7 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
       const res = await generate({
         schema: ProposalSchema,
         name: "trip_plan",
+        metering: { userId: job.requestedById, tripId: job.tripId, jobId },
         instructions: PLANNER_INSTRUCTIONS,
         input: buildPlannerInput(ctx, { chunkDates: chunk, previouslyPlanned: partialDays.map((d) => ({ date: d.date, titles: d.stops.map((s) => s.title) })), extraInstruction: params.instruction }),
         webSearch: true,
@@ -218,7 +219,7 @@ async function runSwap(jobId: string, tripId: string, params: JobParams, generat
     weather,
     travelerRequest: params.instruction ?? null,
   };
-  const res = await generate({ schema: SwapSchema, name: "swap", instructions: SWAP_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(data, null, 1)}\n</trip_data>`, webSearch: true, signal, timeoutMs: 3 * 60_000, maxOutputTokens: 12000 });
+  const res = await generate({ schema: SwapSchema, name: "swap", metering: { tripId, jobId, userId: (await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } })).requestedById }, instructions: SWAP_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(data, null, 1)}\n</trip_data>`, webSearch: true, signal, timeoutMs: 3 * 60_000, maxOutputTokens: 12000 });
   const checked = checkProposal(
     { summary: "", unplacedMustSees: [], generalNotes: [], days: [{ date: "2000-01-01", area: "", title: "", isTravelDay: false, driveMinutes: null, stops: res.data.alternatives, planB: [], planBNote: null, notes: [], questions: [], estCost: null }] },
     { dates: ["2000-01-01"], anchors: [], mustSee: [], arrivalAt: null, departureAt: null },

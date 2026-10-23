@@ -43,7 +43,7 @@ export async function runDiscovery(runId: string, generate = generateStructured)
       knownEvents: known.slice(0, 40),
       instruction: "Use the saved preferences and questionnaire answers to find genuinely matching events. Explain why each fits. Exclude unsuitable events rather than filling a quota. Re-check known events for changes (date, venue, cancellation, sold out, booking opening, price) and add new relevant ones.",
     };
-    const res = await generate({ schema: EventsSchema, name: "events", instructions: EVENTS_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(data, null, 1)}\n</trip_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 16000 });
+    const res = await generate({ schema: EventsSchema, name: "events", metering: { tripId: run.tripId, userId: run.requestedById, jobId: run.id }, instructions: EVENTS_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(data, null, 1)}\n</trip_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 16000 });
     await requirePremiumAccess(run.tripId, "events");
     const inWindow = res.data.events.filter((e) => {
       if (e.date && !isDateStr(e.date)) e.date = null;
