@@ -1,3 +1,4 @@
+import destinationSearch from "../prisma/migrations/202610230011_destination_search/migration.sql?raw";
 import { DurableObject } from "cloudflare:workers";
 import handler from "vinext/server/app-router-entry";
 import schema from "../prisma/migrations/202610220001_cloudflare_initial/migration.sql?raw";
@@ -92,6 +93,10 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
           if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "onboardingStage")) ctx.storage.sql.exec(guidedSetup);
         });
         await ctx.storage.put("schemaVersion", 10);
+      }
+      if (version < 11) {
+        ctx.storage.transactionSync(() => ctx.storage.sql.exec(destinationSearch));
+        await ctx.storage.put("schemaVersion", 11);
       }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }

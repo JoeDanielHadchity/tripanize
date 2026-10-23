@@ -1,3 +1,4 @@
+import { runDestinationSearch } from "@/server/destinations/service";
 import { appRuntime, type AppRuntime } from "./runtime";
 import { serializedDatabase, type Serialize } from "./serialized-db";
 import { claimJob, runJob, type Generator, type PlanCheckpoint } from "@/server/planner/run";
@@ -26,7 +27,8 @@ export class AiTasks {
 
   private async pendingAi() {
     const db = this.context().database;
-    return await db.generationJob.count({ where: { status: { in: ["QUEUED", "RUNNING"] } } }) > 0 ||
+    return await db.destinationSearch.count({ where: { status: { in: ["QUEUED", "RUNNING"] } } }) > 0 ||
+      await db.generationJob.count({ where: { status: { in: ["QUEUED", "RUNNING"] } } }) > 0 ||
       await db.discoveryRun.count({ where: { status: { in: ["queued", "running"] } } }) > 0;
   }
 
@@ -59,6 +61,8 @@ export class AiTasks {
           });
           return;
         }
+        const search = await db.destinationSearch.findFirst({ where: { status: { in: ["QUEUED", "RUNNING"] } }, orderBy: { createdAt: "asc" } });
+        if (search) { await runDestinationSearch(search.id, this.generate); return; }
         // An interrupted event search is reported honestly instead of being left
         // running forever or automatically repeating external notifications.
         await db.discoveryRun.updateMany({ where: { status: "running" }, data: { status: "failed", finishedAt: new Date(), error: "The event search was interrupted. Please run a new check." } });
