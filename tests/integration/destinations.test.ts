@@ -92,3 +92,15 @@ it("keeps five usable recommendations when researched descriptions exceed displa
   expect(result?.result?.ideas).toHaveLength(5); expect(result?.result?.summary.length).toBeLessThanOrEqual(600);
   expect(result?.result?.ideas[0].whyFits.length).toBeLessThanOrEqual(700); expect(result?.result?.ideas[1].weather.length).toBeLessThanOrEqual(400);
 });
+it("keeps researched sources clickable without raw citation markup or broken URLs in card copy", async () => {
+  const user = await makeUser("Explorer"); const q = await startDestinationSearch(user.id, input); const data = fixtureIdeas();
+  data.ideas[0].whyFits = "Good seasonal fit. ([example.test](https://example.test/tourism?utm_source=openai))";
+  data.ideas[0].experiences[0] = "Explore old streets. ([example.test](https://example.test/tourism?utm_source=openai))";
+  await runDestinationSearch(q.id, generator(data));
+  const clean = (await getDestinationSearch(user.id, q.id))!.result!.ideas[0];
+  expect(clean.whyFits).toBe("Good seasonal fit."); expect(clean.experiences[0]).toBe("Explore old streets."); expect(clean.sourceUrls).toEqual(["https://example.test/tourism"]);
+  const saved = (await prisma.destinationSearch.findUniqueOrThrow({ where: { id: q.id } })).result as unknown as ReturnType<typeof fixtureIdeas>;
+  saved.ideas[0].experiences[0] = "Explore old streets. ([example.test](https://example.test/a-previously-cut";
+  await prisma.destinationSearch.update({ where: { id: q.id }, data: { result: saved } });
+  expect((await getDestinationSearch(user.id, q.id))!.result!.ideas[0].experiences[0]).toBe("Explore old streets.");
+});

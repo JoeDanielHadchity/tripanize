@@ -3,7 +3,7 @@ import { AppError } from "@/server/errors";
 import { AIError, aiConfigured, generateStructured } from "@/server/ai/openai";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { createTrip } from "@/server/trips/service";
-import { discoveryInput, discoveryWireResult, normalizeDiscoveryResult, type DiscoveryInput, type DiscoveryResult } from "./schema";
+import { discoveryInput, discoveryWireResult, normalizeDiscoveryResult, type DiscoveryInput } from "./schema";
 import type { Generator } from "@/server/planner/run";
 
 export function safeSource(url: string) {
@@ -12,7 +12,7 @@ export function safeSource(url: string) {
 export async function getDestinationSearch(userId: string, id?: string) {
   const row = await prisma.destinationSearch.findFirst({ where: { userId, ...(id ? { id } : {}) }, orderBy: { createdAt: "desc" } });
   if (id && !row) throw new AppError("NOT_FOUND", "Destination ideas not found.");
-  return row ? { id: row.id, status: row.status, input: row.input as DiscoveryInput, result: row.result as DiscoveryResult | null, error: row.error, selectedTripId: row.selectedTripId } : null;
+  return row ? { id: row.id, status: row.status, input: row.input as DiscoveryInput, result: row.result ? normalizeDiscoveryResult(discoveryWireResult.parse(row.result)) : null, error: row.error, selectedTripId: row.selectedTripId } : null;
 }
 export async function startDestinationSearch(userId: string, input: unknown) {
   const parsed = discoveryInput.safeParse(input);
