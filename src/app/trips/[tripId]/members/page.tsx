@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Member locations · Chat & locations
 export default async function MembersPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
   const user = await requireUser();
-  if (!(await getMemberTripPlan(tripId, user.id)).premium) return <PremiumRequired feature="locations" />;
+  if (!(await getMemberTripPlan(tripId, user.id)).premium) return <PremiumRequired tripId={tripId} feature="locations" />;
   await requireTrip(tripId, user.id, "view");
   return (
     <ChatLocationsSection tripId={tripId} selected="members">

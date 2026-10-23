@@ -1,4 +1,5 @@
 "use client";
+import { PremiumStar } from "./premium-star";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -73,7 +74,7 @@ export function TripAssistant({ tripId, defaultDate }: { tripId: string; default
   }
   return <>
     <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className="fixed bottom-20 right-4 z-20 inline-flex min-h-12 items-center gap-2 rounded-full border border-accent/30 bg-accent px-4 font-semibold text-on-accent shadow-lg lg:bottom-6 lg:right-6">
-      <span aria-hidden>✦</span> AI assistant
+      <PremiumStar className="text-current" /> AI assistant
       {active && <span className="h-2 w-2 animate-pulse rounded-full bg-current" aria-label="Preparing a reply" />}
     </button>
     <Dialog open={open} onClose={() => setOpen(false)} title="AI trip assistant" wide tall>

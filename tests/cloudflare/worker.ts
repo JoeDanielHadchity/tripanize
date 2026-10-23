@@ -7,6 +7,7 @@ import tripChat from "../../prisma/migrations/202610220005_trip_chat/migration.s
 import expenseReceipts from "../../prisma/migrations/202610220006_expense_receipts/migration.sql";
 import tripPurchases from "../../prisma/migrations/202610220008_trip_purchases/migration.sql";
 import planAccess from "../../prisma/migrations/202610220007_plan_access/migration.sql";
+import tripFeatures from "../../prisma/migrations/202610230009_trip_features/migration.sql";
 import { changeMemberLocation, getLocationSelf, getMemberLocations } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
@@ -20,6 +21,7 @@ import { createExpense } from "../../src/server/expenses/service";
 import { readAttachment, saveAttachment } from "../../src/server/storage";
 import { exportTripPdf } from "../../src/server/export";
 import { deleteChatMessage, getChatPage, getChatSummary, markChatRead, sendChatMessage } from "../../src/server/chat/service";
+import { saveTripFeatures } from "../../src/server/plans/selection";
 import { getTripPlan } from "../../src/server/plans/access";
 import { planningScope } from "../../src/server/plans/planning";
 import { paddleRequest } from "../../src/server/billing/paddle";
@@ -39,6 +41,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Attachment")').toArray().some(column => column.name === "expenseId")) ctx.storage.sql.exec(expenseReceipts);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "normalAiDates")) ctx.storage.sql.exec(planAccess);
         ctx.storage.sql.exec(tripPurchases);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "selectedPremiumFeatures")) ctx.storage.sql.exec(tripFeatures);
       });
     });
   }
@@ -87,10 +90,17 @@ export class StorageProbe extends DurableObject<Env> {
           const file = await readAttachment(fixture.userId, fixture.receiptId);
           return Response.json({ linked: file.meta.expenseId === fixture.expenseId, readable: file.data.toString().includes("private fixture") });
         }
+        if (new URL(request.url).pathname === "/feature-selection") {
+          const tripId = await this.ctx.storage.get<string>("feature-trip");
+          const trip = await this.db.trip.findUniqueOrThrow({ where: { id: tripId! }, select: { selectedPremiumFeatures: true } });
+          return Response.json({ features: trip.selectedPremiumFeatures });
+        }
         if (new URL(request.url).pathname === "/chat-count") { const chat = await this.ctx.storage.get<{ userId: string; tripId: string }>("chat-fixture"); return Response.json(chat ? { messages: await this.db.chatMessage.count({ where: { tripId: chat.tripId } }), unread: (await getChatSummary(chat.userId, chat.tripId)).unread } : null); }
         const id = crypto.randomUUID();
         const user = await this.db.user.create({ data: { id, email: `${id}@example.test`, name: "Cloudflare fixture" } });
         const tripId = await createTrip(user.id, { name: "Cloudflare migration check", startDate: "2027-05-01", endDate: "2027-05-03", timezone: "Europe/Paris", currency: "EUR", destinations: [{ name: "Paris" }], travelers: [{ name: "Companion", isChild: false }], interests: ["architecture"] });
+        await saveTripFeatures(user.id, tripId, ["expenses", "chat"]);
+        await this.ctx.storage.put("feature-trip", tripId);
         const trip = await this.db.trip.findUniqueOrThrow({ where: { id: tripId }, include: { days: true, travelers: true } });
         const location = await changeMemberLocation(user.id, tripId, { op: "start", scope: (await getLocationSelf(user.id, tripId)).scope, token: "isolated-location-lease-01234567890123456789", expectedVersion: 0, lat: 48.85, lng: 2.35, accuracy: 25, capturedAt: new Date().toISOString() });
         const locationVisible = (await getMemberLocations(user.id, tripId)).locations.length === 1;

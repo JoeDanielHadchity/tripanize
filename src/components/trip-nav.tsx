@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cx } from "./ui";
+import { PremiumStar } from "./premium-star";
 import { newerChatSummary, type ChatSummary } from "@/lib/chat";
 
 const SECTIONS = [
@@ -40,7 +41,7 @@ export function TripNav({ tripId, initialChat, premium = true }: { tripId: strin
   }, [tripId]);
   const unreadBadge = premium && chat.unread > 0 ? <span aria-label={`${chat.unread} unread chat messages`} className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-on-accent">{chat.unread > 99 ? "99+" : chat.unread}</span> : null;
   const destination = (slug: string) => `/trips/${tripId}/${slug === "events" && !premium ? "bookings" : slug}`;
-  const label = (slug: string, text: string) => slug === "events" && !premium ? "Bookings" : text;
+  const label = (slug: string, text: string) => <span className="inline-flex items-center justify-center gap-1">{slug === "events" && !premium ? "Bookings" : text}{(["expenses", "chat"].includes(slug) || (slug === "events" && premium)) && <PremiumStar />}</span>;
   const active = (slug: string) => path.startsWith(`/trips/${tripId}/${slug}`)
     || (slug === "itinerary" && ["plan", "today"].some(s => path.startsWith(`/trips/${tripId}/${s}`)))
     || (slug === "chat" && path.startsWith(`/trips/${tripId}/members`))
@@ -56,7 +57,6 @@ export function TripNav({ tripId, initialChat, premium = true }: { tripId: strin
               <Link href={destination(s.slug)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium", active(s.slug) ? "bg-accent-soft text-accent-ink" : "text-muted hover:bg-surface-2 hover:text-ink")}>
                 <Icon d={s.icon} />
                 {label(s.slug, s.label)}
-                {!premium && ["expenses", "chat"].includes(s.slug) && <span className="ml-auto text-[10px]">Premium</span>}
                 {s.slug === "chat" && <span className="ml-auto">{unreadBadge}</span>}
               </Link>
             </li>

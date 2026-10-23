@@ -60,6 +60,7 @@ try {
     await stop(child); child = await start();
     assert.equal((await json("/count")).users, result.users);
     assert.deepEqual(await json("/chat-count"), { messages: 1, unread: 0 });
+    assert.deepEqual(await json("/feature-selection"), { features: ["expenses", "chat"] });
     assert.deepEqual(await json("/expense-receipt"), { linked: true, readable: true });
     const plans = await json("/plans");
     assert.equal(plans.normalDenied, true);
