@@ -12,7 +12,6 @@ import { formatDate } from "@/lib/dates";
 import type { TripInput } from "@/server/trips/schemas";
 
 type Dest = NonNullable<TripInput["destinations"]>[number];
-type Commit = { title: string; date: string; startTime: string; durationMin: string; location: string };
 
 export type TripFormInitial = Partial<Omit<TripInput, "commitments">> & { version?: number };
 
@@ -116,7 +115,6 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
   const [travelers, setTravelers] = useState<string[]>([]);
   const [mustSee, setMustSee] = useState<string[]>(initial?.mustSee ?? []);
   const [optional, setOptional] = useState<string[]>(initial?.optional ?? []);
-  const [commits, setCommits] = useState<Commit[]>([]);
   const set = <K extends keyof typeof t>(k: K, v: (typeof t)[K]) => setT((x) => ({ ...x, [k]: v }));
   const multi = dests.length > 1;
 
@@ -130,7 +128,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
       travelers: travelers.map((name) => ({ name, isChild: false })),
       mustSee,
       optional,
-      commitments: commits.filter((c) => c.title.trim()).map((c) => ({ title: c.title, date: c.date, startTime: c.startTime || null, durationMin: c.durationMin ? Number(c.durationMin) : null, location: c.location || null })),
+      commitments: [],
     };
   }
 
@@ -140,7 +138,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
     const data = payload();
     if (mode === "create") {
       const r = await run(() => createTripAction(data), { onError: (r) => setError(r.error), refresh: false });
-      if (r) router.push(`/trips/${r.id}/plan?start=1`);
+      if (r) router.push(`/trips/${r.id}/premium?created=1`);
       return;
     }
     const preview = await run(() => previewTripChangeAction(tripId!, data), { onError: (r) => setError(r.error), refresh: false });
@@ -210,7 +208,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
           </div>
         </Section>
 
-        <Section title="Who's going" hint="Names let you split expenses and invite people later.">
+        <Section title="Who's going" hint="Count everyone, including yourself and children. You can add names later." open={mode === "create"}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Adults" htmlFor="adults"><Input id="adults" type="number" min={1} max={50} value={t.adults} onChange={(e) => set("adults", e.target.value)} /></Field>
             <Field label="Children" htmlFor="children"><Input id="children" type="number" min={0} max={50} value={t.children} onChange={(e) => set("children", e.target.value)} /></Field>
@@ -218,6 +216,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
           {mode === "create" ? <ListEditor label="Other travelers' names (you're added automatically)" items={travelers} onChange={setTravelers} placeholder="e.g. Sam" /> : <p className="text-sm text-muted">Manage traveler names and invitations under “Travelers & sharing” below.</p>}
         </Section>
 
+        {mode === "edit" && <>
         <Section title="Travel style & budget">
           <fieldset>
             <legend className="mb-2 text-sm font-medium">Pace</legend>
@@ -264,25 +263,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
         <Section title="Places & commitments" hint="Must-sees are never silently dropped by the planner.">
           <ListEditor label="Must-see places" items={mustSee} onChange={setMustSee} placeholder="e.g. Jerónimos Monastery" />
           <ListEditor label="Nice-to-have places" items={optional} onChange={setOptional} placeholder="e.g. LX Factory" />
-          {mode === "create" ? (
-            <div className="space-y-3">
-              <p className="text-sm font-medium">Fixed commitments (weddings, meetings, tours you already have)</p>
-              {commits.map((c, i) => (
-                <div key={i} className="grid gap-2 rounded-xl border border-line p-3 sm:grid-cols-6">
-                  <Input aria-label="Commitment" className="sm:col-span-2" value={c.title} placeholder="What" onChange={(e) => setCommits(commits.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} />
-                  <Input aria-label="Date" type="date" value={c.date} min={t.startDate ?? undefined} max={t.endDate ?? undefined} onChange={(e) => setCommits(commits.map((x, j) => (j === i ? { ...x, date: e.target.value } : x)))} />
-                  <Input aria-label="Start time" type="time" value={c.startTime} onChange={(e) => setCommits(commits.map((x, j) => (j === i ? { ...x, startTime: e.target.value } : x)))} />
-                  <Input aria-label="Duration in minutes" type="number" min={5} placeholder="Minutes" value={c.durationMin} onChange={(e) => setCommits(commits.map((x, j) => (j === i ? { ...x, durationMin: e.target.value } : x)))} />
-                  <Button aria-label="Remove commitment" onClick={() => setCommits(commits.filter((_, j) => j !== i))}>✕</Button>
-                  <Input aria-label="Location" className="sm:col-span-6" value={c.location} placeholder="Where (optional)" onChange={(e) => setCommits(commits.map((x, j) => (j === i ? { ...x, location: e.target.value } : x)))} />
-                </div>
-              ))}
-              <Button onClick={() => setCommits([...commits, { title: "", date: t.startDate ?? "", startTime: "", durationMin: "", location: "" }])} disabled={!t.startDate}>+ Add a fixed commitment</Button>
-              {!t.startDate && <p className="text-xs text-muted">Set trip dates first.</p>}
-            </div>
-          ) : (
-            <p className="text-sm text-muted">Fixed commitments live in the itinerary — add or edit them there (marked “Fixed”).</p>
-          )}
+          <p className="text-sm text-muted">Fixed commitments live in the itinerary — add or edit them there (marked “Fixed”).</p>
         </Section>
 
         <Section title="Food, access & preferences" hint="Only share what you're comfortable with. It's used to tailor plans for this trip.">
@@ -292,9 +273,11 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
           <Field label="Other preferences" htmlFor="prefs"><Textarea id="prefs" value={t.preferences ?? ""} onChange={(e) => set("preferences", e.target.value)} placeholder="e.g. early risers, no museums on sunny days" /></Field>
           <Field label="Notes" htmlFor="notes"><Textarea id="notes" value={t.notes ?? ""} onChange={(e) => set("notes", e.target.value)} /></Field>
         </Section>
+        </>}
       </fieldset>
 
       {error && <Notice tone="danger"><span id="trip-form-error">{error}</span></Notice>}
+      {mode === "create" && <p className="text-sm text-muted">Creating your trip is free. Next, add your information and choose any optional Premium features. Nothing is charged automatically.</p>}
       {canEdit && (
         <div className="sticky bottom-20 z-10 flex justify-end lg:bottom-4">
           <Button type="submit" variant="primary" disabled={pending} className="shadow-lg">

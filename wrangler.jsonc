@@ -40,9 +40,9 @@
     "OPENAI_MODEL": "gpt-6.1-sol",
     "OPENAI_WEB_SEARCH": "true",
     "EMAIL_FROM": "Tripanize <hello@tripanize.app>",
-    "PLAN_ACCESS_ENABLED": "false",
+    "PLAN_ACCESS_ENABLED": "true",
     "PADDLE_ENVIRONMENT": "live",
-    "PADDLE_CHECKOUT_ENABLED": "false",
+    "PADDLE_CHECKOUT_ENABLED": "true",
     "PADDLE_PRICE_900": "pri_01m5j5asrjaa1ktb24g3xyw0n1",
     "PADDLE_PRICE_1500": "pri_01m5j5d0wvpvrhjmzdq1ph03z7",
     "PADDLE_PRICE_2500": "pri_01m5j5eyyj0w0hearvf1akegjw",
@@ -58,11 +58,31 @@
   "observability": {
     "enabled": true
   },
+  "routes": [
+    {
+      "pattern": "tripanize.app",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.tripanize.app",
+      "custom_domain": true
+    }
+  ],
   "previews": {
     "durable_objects": {
-      "bindings": [{ "name": "APP", "class_name": "TripanizeApp" }]
+      "bindings": [
+        {
+          "name": "APP",
+          "class_name": "TripanizeApp"
+        }
+      ]
     },
-    "r2_buckets": [{ "binding": "ATTACHMENTS", "bucket_name": "tripanize-sandbox-attachments" }],
+    "r2_buckets": [
+      {
+        "binding": "ATTACHMENTS",
+        "bucket_name": "tripanize-sandbox-attachments"
+      }
+    ],
     "vars": {
       "APP_URL": "https://paddle-sandbox-tripanize.joedanielhadchity1.workers.dev",
       "BETTER_AUTH_URL": "https://paddle-sandbox-tripanize.joedanielhadchity1.workers.dev",
@@ -78,15 +98,5 @@
       "PADDLE_PRICE_1000": "pri_01m5jc3yv2e39w6bb2tkdf8whs",
       "PADDLE_PRICE_1600": "pri_01m5jc4nbx2ebya40tjefbr34c"
     }
-  },
-  "routes": [
-    {
-      "pattern": "tripanize.app",
-      "custom_domain": true
-    },
-    {
-      "pattern": "www.tripanize.app",
-      "custom_domain": true
-    }
-  ]
+  }
 }

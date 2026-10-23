@@ -1,4 +1,5 @@
 "use client";
+import { PremiumStar } from "@/components/premium-star";
 
 import { useEffect, useState } from "react";
 import { Button, Field, Input, LinkButton, Notice, Spinner, Textarea } from "@/components/ui";
@@ -87,9 +88,9 @@ export function SwapDialog({ open, onClose, tripId, currency, stop, aiReady, pre
       ) : (
         <div className="space-y-6">
           <section className="space-y-3">
-            <h3 className="font-semibold">Suggested alternatives</h3>
+            <h3 className="flex items-center gap-1.5 font-semibold">Suggested alternatives <PremiumStar /></h3>
             {!premium ? (
-              <Notice tone="accent">AI alternatives are included with Premium. You can enter a replacement manually below. <LinkButton href="/plans">See plans</LinkButton></Notice>
+              <Notice tone="accent">AI alternatives are included with Premium. You can enter a replacement manually below. <LinkButton href={`/trips/${tripId}/premium#feature-advancedPlanning`}>Choose AI alternatives</LinkButton></Notice>
             ) : !aiReady ? (
               <Notice tone="warn">AI alternatives need OpenAI, which isn't configured on this server. You can enter a replacement manually below.</Notice>
             ) : !jobId ? (
@@ -97,7 +98,7 @@ export function SwapDialog({ open, onClose, tripId, currency, stop, aiReady, pre
                 <p className="text-sm text-muted">ChatGPT looks for comparable nearby options that fit your interests, time slot, budget, accessibility needs, weather and the rest of the day's route.</p>
                 <Field label="Anything specific? (optional)" htmlFor="swap-req"><Input id="swap-req" value={request} onChange={(e) => setRequest(e.target.value)} placeholder="e.g. something indoors, cheaper, kid-friendly" maxLength={200} /></Field>
                 <Button variant="primary" disabled={pending} onClick={async () => { const r = await run(() => startPlanAction(tripId, "swap", { stopId: stop.id, instruction: request || null }), { refresh: false }); if (r) setJobId(r.jobId); }}>
-                  Find alternatives
+                  <PremiumStar className="text-current" /> Find alternatives
                 </Button>
               </div>
             ) : error ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PremiumStar } from "@/components/premium-star";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Badge, Button, Card, ExternalLink, Field, LinkButton, Notice, Spinner, Textarea, cx } from "@/components/ui";
@@ -130,7 +131,7 @@ export function PlanPanel(props: { tripId: string; premium: boolean; canEdit: bo
 
   return (
     <div className="space-y-6">
-      {!props.premium && <Notice tone="accent">Normal includes an AI draft for the first 3 days per trip. Add the remaining days manually. <Link href="/plans" className="font-semibold underline">Premium</Link> unlocks longer AI plans, selected-day regeneration and the AI assistant.</Notice>}
+      {!props.premium && <Notice tone="accent">Normal includes an AI draft for the first 3 days per trip. Add the remaining days manually. <Link href={`/trips/${tripId}/premium#feature-advancedPlanning`} className="inline-flex items-center gap-1 font-semibold underline">Premium <PremiumStar /></Link> unlocks longer AI plans, selected-day regeneration and the AI assistant.</Notice>}
       {props.canEdit && !running && (
         <Card id="plan-form">
           <h2 className="font-display text-xl font-semibold">{!props.premium ? "Draft your first 3 days" : props.hasPlan ? "Regenerate with AI" : "Draft my itinerary"}</h2>
@@ -171,7 +172,7 @@ export function PlanPanel(props: { tripId: string; premium: boolean; canEdit: bo
               </Field>
               <div className="flex flex-wrap items-center gap-3">
                 <Button variant="primary" onClick={start} disabled={pending || !props.aiReady || (scope === "days" && !selDays.length)}>
-                  {pending ? "Starting…" : "✨ Plan with AI"}
+                  {props.premium && <PremiumStar className="text-current" />}{pending ? "Starting…" : "Plan with AI"}
                 </Button>
                 <p className="text-xs text-muted">{props.aiReady ? `Creates a draft${props.webSearch ? " with web research for opening hours and official links" : ""}. Usually takes a few minutes; longer trips are planned in sections. Your itinerary stays as it is until you accept.` : "AI planning is not available yet."}</p>
               </div>

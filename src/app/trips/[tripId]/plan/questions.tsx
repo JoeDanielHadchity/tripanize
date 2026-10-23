@@ -1,4 +1,5 @@
 "use client";
+import { PremiumStar } from "@/components/premium-star";
 
 import { useEffect, useState } from "react";
 import { Button, Card, Field, Notice, Spinner, Textarea, cx } from "@/components/ui";
@@ -87,7 +88,7 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs }: { tripId: str
         ) : (
           <>
             <p className="mt-1 text-sm text-muted">Answer a few quick questions so the plan fits how you like to travel. About a minute.</p>
-            <div className="mt-3"><Button variant="primary" onClick={() => load()}>Answer questions</Button></div>
+            <div className="mt-3"><Button variant="primary" onClick={() => load()}>{aiReady && <PremiumStar className="text-current" />}Answer questions</Button></div>
           </>
         )}
       </Card>
@@ -97,7 +98,7 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs }: { tripId: str
   return (
     <Card>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-xl font-semibold">A few questions first</h2>
+        <h2 className="font-display text-xl font-semibold">A few questions first {aiReady && <PremiumStar />}</h2>
         {set && !set.pendingJobId && <span className="text-xs text-muted">{set.source === "ai" ? "Written by AI for this trip" : "Standard questions"}</span>}
       </div>
       {loadError && <Notice className="mt-3">{loadError}</Notice>}
