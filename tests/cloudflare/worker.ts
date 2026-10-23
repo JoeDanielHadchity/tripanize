@@ -1,3 +1,4 @@
+import destinationSearch from "../../prisma/migrations/202610230011_destination_search/migration.sql";
 import { DurableObject } from "cloudflare:workers";
 import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migration.sql";
 import eventBookings from "../../prisma/migrations/202610220002_event_bookings/migration.sql";
@@ -38,6 +39,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(column => column.name === "eventId")) ctx.storage.sql.exec(eventBookings);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("NotificationPreference")').toArray().some(column => column.name === "changeEmailEnabled")) ctx.storage.sql.exec(tripNotifications);
         ctx.storage.sql.exec(memberLocations);
+        ctx.storage.sql.exec(destinationSearch);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "chatSeq")) ctx.storage.sql.exec(tripChat);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Attachment")').toArray().some(column => column.name === "expenseId")) ctx.storage.sql.exec(expenseReceipts);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "normalAiDates")) ctx.storage.sql.exec(planAccess);

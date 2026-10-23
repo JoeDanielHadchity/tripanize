@@ -135,7 +135,7 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs, onboarding = fa
           <Field label="Anything else? (optional)" htmlFor="pq-note">
             <Textarea id="pq-note" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. one day trip to the coast, no early flights" />
           </Field>
-          {Object.values(picked).every((a) => !a.length) && !note && <Notice tone="neutral">Pick at least one answer, or cancel to plan without preferences.</Notice>}
+          {onboarding ? set.questions.some(q => !(picked[q.id]?.length)) && <Notice>Choose an answer to each question to prepare your trip.</Notice> : Object.values(picked).every((a) => !a.length) && !note && <Notice tone="neutral">Pick at least one answer, or cancel to plan without preferences.</Notice>}
           <div className="flex flex-wrap gap-2">
             <Button variant="primary" disabled={pending || (onboarding ? set.questions.some(q => !(picked[q.id]?.length)) : (Object.values(picked).every((a) => !a.length) && !note))} onClick={save}>{onboarding ? "Generate my trip" : "Save answers"}</Button>
             {!onboarding && <Button onClick={() => setOpen(false)}>Cancel</Button>}
