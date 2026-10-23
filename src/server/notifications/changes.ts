@@ -1,3 +1,4 @@
+import { getTripPlan } from "@/server/plans/access";
 import { prisma, type Tx } from "@/server/db";
 import type { AuditLog } from "@/generated/prisma/client";
 import { requireTrip } from "@/server/auth/permissions";
@@ -55,7 +56,7 @@ export async function queueChangeNotifications(tx: Tx, change: AuditLog) {
   if (queued) await currentRuntime().wakeNotifications?.();
 }
 
-const inboxWhere = (userId: string) => ({ userId, trip: { memberships: { some: { userId } } } });
+const inboxWhere = (userId: string) => ({ userId, kind: { not: "event_email" }, trip: { memberships: { some: { userId } } } });
 
 export async function listChangeNotifications(userId: string, cursor?: string) {
   let older: { createdAt: Date; id: string } | null = null;
@@ -94,7 +95,7 @@ export async function setChangeEmailPreference(userId: string, tripId: string, e
   if (enabled && !emailConfigured()) throw new AppError("NOT_CONFIGURED", "Email delivery is unavailable. In-app notifications are still on.");
   await prisma.$transaction(async tx => {
     await tx.notificationPreference.upsert({ where: { userId_tripId: { userId, tripId } }, create: { userId, tripId, changeEmailEnabled: enabled }, update: { changeEmailEnabled: enabled } });
-    if (!enabled) await tx.tripNotification.updateMany({ where: { userId, tripId, emailStatus: "queued" }, data: { emailStatus: "cancelled", nextAttemptAt: null } });
+    if (!enabled) await tx.tripNotification.updateMany({ where: { userId, tripId, kind: "change", emailStatus: "queued" }, data: { emailStatus: "cancelled", nextAttemptAt: null } });
   });
 }
 
@@ -108,7 +109,8 @@ export async function sendNextChangeEmail(send = sendEmail) {
   if (!n) return;
   const member = await prisma.tripMembership.findUnique({ where: { tripId_userId: { tripId: n.tripId, userId: n.userId } }, include: { user: true } });
   const pref = await prisma.notificationPreference.findUnique({ where: { userId_tripId: { userId: n.userId, tripId: n.tripId } } });
-  if (!member || !pref?.changeEmailEnabled || !member.user.emailVerified || member.user.email !== n.emailTo) {
+  const enabled = n.kind === "event_email" ? pref?.emailEnabled && (await getTripPlan(n.tripId)).premium : pref?.changeEmailEnabled;
+  if (!member || !enabled || !member.user.emailVerified || member.user.email !== n.emailTo) {
     await prisma.tripNotification.update({ where: { id: n.id }, data: { emailStatus: "cancelled", nextAttemptAt: null } });
     return;
   }
@@ -119,7 +121,7 @@ export async function sendNextChangeEmail(send = sendEmail) {
   // The durable worker is the sole consumer. Persist the attempt before the network call.
   const attempts = n.attempts + 1;
   await prisma.tripNotification.update({ where: { id: n.id }, data: { attempts, firstAttemptAt: n.firstAttemptAt ?? new Date() } });
-  const result = await send({ to: n.emailTo!, subject: n.emailSubject!, text: n.emailText!, idempotencyKey: `trip-change/${n.id}` });
+  const result = await send({ to: n.emailTo!, subject: n.emailSubject!, text: n.emailText!, idempotencyKey: `${n.kind === "event_email" ? "trip-events" : "trip-change"}/${n.id}` });
   if (result.status === "sent") {
     await prisma.tripNotification.updateMany({ where: { id: n.id, emailStatus: "queued" }, data: { emailStatus: "sent", providerId: result.providerId, nextAttemptAt: null, error: null } });
   } else {

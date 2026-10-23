@@ -125,7 +125,7 @@ export async function createTrip(userId: string, input: TripInput, destinationSe
       if (!search) throw new AppError("NOT_FOUND", "Destination ideas not found.");
       if (search.selectedTripId && await tx.trip.findFirst({ where: { id: search.selectedTripId, ownerId: userId } })) return search.selectedTripId;
     }
-    const trip = await tx.trip.create({ data: { ...scalarFields(t), ownerId: userId, ...(destinationSearchId ? { onboardingStage: "PLAN" } : {}) } });
+    const trip = await tx.trip.create({ data: { ...scalarFields(t), ownerId: userId, autoDiscovery: true, ...(destinationSearchId ? { onboardingStage: "PLAN" } : {}) } });
     const me = await tx.traveler.create({ data: { tripId: trip.id, name: user.name, userId } });
     await tx.tripMembership.create({ data: { tripId: trip.id, userId, role: "OWNER", travelerId: me.id } });
     const seen = new Set([user.name.trim().toLowerCase()]);
@@ -146,7 +146,7 @@ export async function createTrip(userId: string, input: TripInput, destinationSe
     for (const name of t.optional) await tx.tripPlace.create({ data: { tripId: trip.id, kind: "OPTIONAL", name } });
     await syncDays(tx, trip.id);
     await writeCommitments(tx, trip.id, userId, t);
-    await tx.notificationPreference.create({ data: { userId, tripId: trip.id, emailEnabled: false, changeTypes: ["date", "venue", "cancelled", "sold_out"] } });
+    await tx.notificationPreference.create({ data: { userId, tripId: trip.id, emailEnabled: false, changeTypes: ["new", "date", "venue", "cancelled", "sold_out"] } });
     await recordChange(tx, { tripId: trip.id, actorId: userId, entity: "trip", entityId: trip.id, action: "create", after: { name: t.name } });
     if (destinationSearchId) await tx.destinationSearch.update({ where: { id: destinationSearchId }, data: { selectedTripId: trip.id } });
     return trip.id;

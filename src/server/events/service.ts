@@ -1,6 +1,7 @@
+import { discoveryCadence, nextDiscoveryAt } from "./schedule";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { prisma } from "@/server/db";
+import { prisma, type Tx } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { requirePremiumTrip } from "@/server/plans/access";
 import { recordChange } from "@/server/audit";
@@ -65,7 +66,7 @@ export function materialHash(e: EventFields) {
  * Upserts discovered events. New ones enter the shortlist with status NEW; known ones are updated and material
  * changes are recorded (never auto-scheduled). Hidden events stay hidden but still record changes.
  */
-export async function upsertDiscoveredEvents(tripId: string, events: (EventFields & { sources: { url: string; title?: string | null }[] })[]) {
+export async function upsertDiscoveredEvents(tripId: string, events: (EventFields & { sources: { url: string; title?: string | null }[] })[], db: Tx = prisma) {
   let added = 0;
   let changed = 0;
   const changedEvents: { id: string; title: string; changes: EventChange[] }[] = [];
@@ -75,13 +76,13 @@ export async function upsertDiscoveredEvents(tripId: string, events: (EventField
     const key = eventDedupeKey(e);
     if (!key.split("|")[0] || seen.has(key)) continue;
     seen.add(key);
-    const existing = await prisma.tripEvent.findUnique({ where: { tripId_dedupeKey: { tripId, dedupeKey: key } } });
+    const existing = await db.tripEvent.findUnique({ where: { tripId_dedupeKey: { tripId, dedupeKey: key } } });
     const hash = materialHash(e);
     const sources = e.sources.map((s) => ({ url: safeUrl(s.url), title: s.title?.slice(0, 200) ?? null })).filter((s): s is { url: string; title: string | null } => Boolean(s.url)).slice(0, 5);
     const data = { ...e, officialUrl: safeUrl(e.officialUrl), bookingUrl: safeUrl(e.bookingUrl), lastCheckedAt: new Date(), changeHash: hash };
     const { sources: _s, ...fields } = data as typeof data & { sources?: unknown };
     if (!existing) {
-      const created = await prisma.tripEvent.create({ data: { ...(fields as Prisma.TripEventUncheckedCreateInput), tripId, dedupeKey: key, origin: "discovered", status: "NEW", sources: { create: sources } } });
+      const created = await db.tripEvent.create({ data: { ...(fields as Prisma.TripEventUncheckedCreateInput), tripId, dedupeKey: key, origin: "discovered", status: "NEW", sources: { create: sources } } });
       added++;
       newEvents.push({ id: created.id, title: created.title });
       continue;
@@ -89,14 +90,14 @@ export async function upsertDiscoveredEvents(tripId: string, events: (EventField
     if (existing.origin === "user") continue; // never overwrite a traveler's own entry
     const changes = existing.changeHash === hash ? [] : detectChanges(existing, e);
     const prevChanges = (existing.changes as EventChange[] | null) ?? [];
-    await prisma.tripEvent.update({
+    await db.tripEvent.update({
       where: { id: existing.id },
       data: {
         ...(fields as Prisma.TripEventUncheckedUpdateInput),
         changes: changes.length ? ([...prevChanges, ...changes].slice(-10) as unknown as Prisma.InputJsonValue) : undefined,
       },
     });
-    for (const s of sources) await prisma.eventSource.upsert({ where: { eventId_url: { eventId: existing.id, url: s.url } }, create: { eventId: existing.id, ...s }, update: { retrievedAt: new Date() } });
+    for (const s of sources) await db.eventSource.upsert({ where: { eventId_url: { eventId: existing.id, url: s.url } }, create: { eventId: existing.id, ...s }, update: { retrievedAt: new Date() } });
     if (changes.length) {
       changed++;
       changedEvents.push({ id: existing.id, title: existing.title, changes });
@@ -110,10 +111,10 @@ export async function listEvents(userId: string, tripId: string) {
   const [events, runs, trip] = await Promise.all([
     prisma.tripEvent.findMany({ where: { tripId }, include: { booking: { select: { id: true, status: true } }, sources: true, stop: { select: { id: true, dayId: true, day: { select: { date: true } } } } }, orderBy: [{ date: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }] }),
     prisma.discoveryRun.findMany({ where: { tripId }, orderBy: { createdAt: "desc" }, take: 5 }),
-    prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { autoDiscovery: true, discoveryEveryHours: true, nextDiscoveryAt: true } }),
+    prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { autoDiscovery: true, discoveryEveryHours: true, nextDiscoveryAt: true, startDate: true, endDate: true, timezone: true } }),
   ]);
   const lastSuccess = await prisma.discoveryRun.findFirst({ where: { tripId, status: "succeeded" }, orderBy: { finishedAt: "desc" } });
-  return { access, events, runs, lastSuccess, settings: trip };
+  return { access, events, runs, lastSuccess, settings: { ...trip, cadence: discoveryCadence(trip), nextDiscoveryAt: trip.autoDiscovery ? trip.nextDiscoveryAt ?? (lastSuccess?.finishedAt ? nextDiscoveryAt(trip, lastSuccess.finishedAt) : null) : null } };
 }
 
 export async function setEventStatus(userId: string, tripId: string, eventId: string, status: "SAVED" | "HIDDEN" | "NEW" | "SCHEDULED", expectedStatus?: "NEW" | "SAVED" | "HIDDEN" | "SCHEDULED") {
@@ -233,11 +234,14 @@ export async function scheduleEvent(userId: string, tripId: string, eventId: str
   });
 }
 
-export async function updateDiscoverySettings(userId: string, tripId: string, input: { autoDiscovery: boolean; everyHours: number }) {
+export async function updateDiscoverySettings(userId: string, tripId: string, input: { autoDiscovery: boolean; everyHours?: number }) {
   await requirePremiumTrip(tripId, userId, "events", "edit");
-  const every = [6, 12, 24, 72, 168].includes(input.everyHours) ? input.everyHours : 24;
+  if (typeof input.autoDiscovery !== "boolean") throw new AppError("VALIDATION", "Choose whether automatic search is on.");
   await prisma.$transaction(async tx => {
-    await tx.trip.update({ where: { id: tripId }, data: { autoDiscovery: input.autoDiscovery, discoveryEveryHours: every, nextDiscoveryAt: input.autoDiscovery ? new Date(Date.now() + 60_000) : null } });
+    const trip = await tx.trip.findUniqueOrThrow({ where: { id: tripId } });
+    const success = await tx.discoveryRun.findFirst({ where: { tripId, status: "succeeded" }, orderBy: { finishedAt: "desc" } });
+    const next = success?.finishedAt ? nextDiscoveryAt(trip, success.finishedAt) : new Date(Date.now() + 60_000);
+    await tx.trip.update({ where: { id: tripId }, data: { autoDiscovery: input.autoDiscovery, discoveryEveryHours: 24, nextDiscoveryAt: input.autoDiscovery ? next : null } });
     await recordChange(tx, { tripId, actorId: userId, entity: "discovery", entityId: tripId, action: "update" });
   });
 }
