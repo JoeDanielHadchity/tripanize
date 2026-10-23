@@ -2,7 +2,6 @@ import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { AIError, aiConfigured, generateStructured } from "@/server/ai/openai";
 import { currentRuntime } from "@/server/cloudflare/runtime";
-import { rateLimit } from "@/server/ratelimit";
 import { createTrip } from "@/server/trips/service";
 import { discoveryInput, discoveryResult, type DiscoveryInput, type DiscoveryResult } from "./schema";
 import type { Generator } from "@/server/planner/run";
@@ -21,7 +20,8 @@ export async function startDestinationSearch(userId: string, input: unknown) {
   if (!aiConfigured()) throw new AppError("NOT_CONFIGURED", "Destination suggestions are unavailable right now. Please try again later or choose your own destination.");
   const active = await prisma.destinationSearch.findFirst({ where: { userId, status: { in: ["QUEUED", "RUNNING"] } }, orderBy: { createdAt: "desc" } });
   if (active) { await currentRuntime().wakeAi?.(); return { id: active.id }; }
-  await rateLimit(`destinations:${userId}`, 5, 86400, "You've explored five sets of destinations today. Come back tomorrow for more ideas.");
+  const used = await prisma.destinationSearch.count({ where: { userId, createdAt: { gte: new Date(Date.now() - 86400_000) }, status: { not: "FAILED" } } });
+  if (used >= 5) throw new AppError("RATE_LIMITED", "You've explored five sets of destinations today. Come back tomorrow for more ideas.");
   const details = parsed.data;
   if (details.timing === "dates") details.days = Math.round((Date.parse(details.endDate) - Date.parse(details.startDate)) / 86400000) + 1;
   const row = await prisma.destinationSearch.create({ data: { userId, input: details } });
@@ -37,7 +37,7 @@ export async function runDestinationSearch(id: string, generate: Generator = gen
   await prisma.destinationSearch.update({ where: { id }, data: { status: "RUNNING", error: null } });
   try {
     const input = discoveryInput.parse(row.input);
-    const response = await generate({ schema: discoveryResult, name: "destination_ideas", instructions: INSTRUCTIONS, input: `<traveler_data>\n${JSON.stringify({ today: new Date().toISOString().slice(0, 10), ...input, budgetBasis: "USD per person, whole trip, including transport and accommodation" })}\n</traveler_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 6500 });
+    const response = await generate({ schema: discoveryResult, name: "destination_ideas", instructions: INSTRUCTIONS, input: `<traveler_data>\n${JSON.stringify({ today: new Date().toISOString().slice(0, 10), ...input, budgetBasis: "USD per person, whole trip, including transport and accommodation" })}\n</traveler_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 16000 });
     const result = discoveryResult.parse(response.data);
     if (new Set(result.ideas.map(i => `${i.destination},${i.country}`.toLowerCase())).size !== 5) throw new AppError("UPSTREAM", "The destination search did not return five different places. Please try again.");
     const used = new Set(response.sources.map(safeSource).filter(Boolean));
@@ -48,7 +48,8 @@ export async function runDestinationSearch(id: string, generate: Generator = gen
     }
     await prisma.destinationSearch.update({ where: { id }, data: { status: "SUCCEEDED", result, finishedAt: new Date() } });
   } catch (error) {
-    const message = error instanceof AIError ? ({ NOT_CONFIGURED: "Destination suggestions are unavailable right now.", AUTH: "Destination suggestions are unavailable right now.", QUOTA: "Destination suggestions are unavailable right now. Please try again later.", TIMEOUT: "The destination search took too long. Please try again." } as Record<string, string>)[error.code] ?? "We couldn't finish your destination ideas. Please try again." : error instanceof AppError ? error.message : "We couldn't finish your destination ideas. Please try again.";
+    console.error("[destinations] failed", { id, code: error instanceof AIError || error instanceof AppError ? error.code : "INVALID_RESULT" });
+    const message = error instanceof AIError ? ({ NOT_CONFIGURED: "Destination suggestions are unavailable right now.", AUTH: "Destination suggestions are unavailable right now.", QUOTA: "Destination suggestions are unavailable right now. Please try again later.", TIMEOUT: "The destination search took too long. Please try again.", INCOMPLETE: "The destination search stopped before all five ideas were ready. Please try again; this attempt does not count toward your daily limit.", INVALID_RESPONSE: "The destination results couldn't be read. Please try again; this attempt does not count toward your daily limit.", RATE_LIMITED: "The destination service is busy. Please try again in a minute." } as Record<string, string>)[error.code] ?? "We couldn't finish your destination ideas. Please try again." : error instanceof AppError ? error.message : "We couldn't finish your destination ideas. Please try again.";
     await prisma.destinationSearch.update({ where: { id }, data: { status: "FAILED", error: message, finishedAt: new Date() } });
   }
 }
