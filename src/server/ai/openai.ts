@@ -69,6 +69,8 @@ export async function generateStructured<S extends z.ZodType>(opts: {
       { signal: opts.signal, timeout: opts.timeoutMs ?? 6 * 60_000 },
     );
   } catch (err) {
+    // Operational metadata only: never log the prompt, response body or credentials.
+    console.error("[ai] request failed", err instanceof OpenAI.APIError ? { name: opts.name, status: err.status, code: err.code, param: err.param, requestId: err.requestID } : { name: opts.name, type: err instanceof Error ? err.name : "unknown" });
     throw classify(err, opts.signal);
   }
 
@@ -84,11 +86,17 @@ export async function generateStructured<S extends z.ZodType>(opts: {
     }
   }
 
-  const text = resp.output_text;
+  // output_text concatenates ALL assistant messages, including tool-progress
+  // commentary. Only final-answer content belongs to the structured payload.
+  const messages = (resp.output ?? []).filter(item => item.type === "message");
+  const final = messages.filter(item => item.phase === "final_answer");
+  const eligible = final.length ? final : messages.filter(item => item.phase == null);
+  const text = eligible.flatMap(item => item.content.filter(c => c.type === "output_text").map(c => c.text)).join("\n");
   let json: unknown;
   try {
     json = JSON.parse(text);
   } catch {
+    console.error("[ai] invalid JSON", { name: opts.name, responseId: resp.id, phases: messages.map(item => item.phase ?? "unmarked"), finalMessages: eligible.length });
     throw new AIError("INVALID_RESPONSE", "The AI returned a response that is not valid JSON.");
   }
   const parsed = opts.schema.safeParse(json);
