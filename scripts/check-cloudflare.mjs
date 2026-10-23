@@ -135,6 +135,12 @@ try {
     const modeUnauth = await fetch(origin + "/api/account/mode", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ mode: "ADMIN" }) }); assert.equal(modeUnauth.status, 401);
     const ordinaryMode = await fetch(origin + "/api/account/mode", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ mode: "ADMIN" }) }); assert.equal(ordinaryMode.status, 403);
     const unverifiedMode = await fetch(origin + "/api/account/mode", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json", Cookie: companyCookie }, body: JSON.stringify({ mode: "NORMAL" }) }); assert.equal(unverifiedMode.status, 403);
+    const securityPost = (cookie, extra = {}) => fetch(origin + "/api/account/security", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}), ...extra }, body: JSON.stringify({ op: "enroll" }) });
+    assert.equal((await securityPost()).status, 401);
+    assert.equal((await securityPost(cookie)).status, 403);
+    assert.equal((await securityPost(companyCookie)).status, 403);
+    assert.equal((await securityPost(cookie, { Origin: "https://outside.example" })).status, 403);
+    assert.equal((await fetch(origin + "/account/security", { headers: { Cookie: cookie } })).status, 404);
     const ordinaryAccount = await (await fetch(origin + "/account", { headers: { Cookie: cookie } })).text(); assert.doesNotMatch(ordinaryAccount, /Switching mode|Account mode|Normal mode/);
     const receiptUnauth = await fetch(origin + "/api/trips/does-not-exist/expenses", { method: "POST", headers: { Origin: origin, "Content-Type": "multipart/form-data; boundary=test" }, body: "--test--" });
     assert.equal(receiptUnauth.status, 401); assert.equal(receiptUnauth.headers.get("Cache-Control"), "private, no-store");

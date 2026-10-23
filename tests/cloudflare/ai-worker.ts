@@ -1,3 +1,4 @@
+import adminAuthentication from "../../prisma/migrations/202610230018_admin_authentication/migration.sql";
 import adminNormalMode from "../../prisma/migrations/202610230017_admin_normal_mode/migration.sql";
 import remindersVotes from "../../prisma/migrations/202610230016_reminders_votes/migration.sql";
 import adminDashboard from "../../prisma/migrations/202610230015_admin_dashboard/migration.sql";
@@ -25,7 +26,7 @@ import tripFeatures from "../../prisma/migrations/202610230009_trip_features/mig
 import { changeMemberLocation, getLocationSelf } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
-import { appRuntime } from "../../src/server/cloudflare/runtime";
+import { appRuntime, currentRuntime } from "../../src/server/cloudflare/runtime";
 import { AiTasks } from "../../src/server/cloudflare/ai-tasks";
 import { createTripDraft, saveOnboardingDetails, startOnboardingPlan } from "../../src/server/trips/onboarding";
 import { createTrip } from "../../src/server/trips/service";
@@ -100,6 +101,7 @@ export class AiProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("user")').toArray().some(c => c.name === "suspendedAt")) ctx.storage.sql.exec(adminDashboard);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(c => c.name === "bookByAt")) ctx.storage.sql.exec(remindersVotes);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "normalMode")) ctx.storage.sql.exec(adminNormalMode);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminVerifiedUntil")) ctx.storage.sql.exec(adminAuthentication);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });
@@ -126,12 +128,14 @@ export class AiProbe extends DurableObject<Env> {
           const admin = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "company-native@example.test", name: "Tripanize.app", emailVerified: true } });
           const recipient = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "trial-native@example.test", name: "Trial recipient", emailVerified: true } });
           const otherTripId = await createTrip(recipient.id, { name: "Other Normal trip" });
-          const inv = await createTrialInvitation(admin.id, recipient.email);
-          await this.ctx.storage.put("trial-fixture", { invitationId: inv.id, adminId: admin.id, recipientId: recipient.id, otherTripId });
+          await this.db.adminAuthenticator.create({ data: { userId: admin.id, encryptedSecret: "isolated-admin-feature-fixture", enabledAt: new Date() } });
+          const adminSession = await this.db.session.create({ data: { id: crypto.randomUUID(), token: crypto.randomUUID(), userId: admin.id, expiresAt: new Date(Date.now() + 86400_000), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
+          const inv = await appRuntime.run({ ...currentRuntime(), accountMode: { userId: admin.id, sessionId: adminSession.id, normal: false } }, () => createTrialInvitation(admin.id, recipient.email));
+          await this.ctx.storage.put("trial-fixture", { invitationId: inv.id, adminId: admin.id, adminSessionId: adminSession.id, recipientId: recipient.id, otherTripId });
           return Response.json({ queued: true });
         }
         if (url.pathname.startsWith("/trials/")) {
-          const trial = (await this.ctx.storage.get<{ invitationId: string; adminId: string; recipientId: string; otherTripId: string }>("trial-fixture"))!;
+          const trial = (await this.ctx.storage.get<{ invitationId: string; adminId: string; adminSessionId: string; recipientId: string; otherTripId: string }>("trial-fixture"))!;
           if (url.pathname === "/trials/retry") {
             await this.db.trialInvitation.update({ where: { id: trial.invitationId }, data: { nextEmailAttemptAt: new Date() } });
             await this.tasks.wake(); return Response.json({ retry: true });
@@ -141,7 +145,7 @@ export class AiProbe extends DurableObject<Env> {
             const repeated = await acceptTrialInvitation(trial.recipientId, { invitationId: trial.invitationId, name: "Must not create another trip" });
             return Response.json({ first, repeated });
           }
-          if (url.pathname === "/trials/revoke") { await revokeTrialInvitation(trial.adminId, trial.invitationId); return Response.json({ revoked: true }); }
+          if (url.pathname === "/trials/revoke") { await appRuntime.run({ ...currentRuntime(), accountMode: { userId: trial.adminId, sessionId: trial.adminSessionId, normal: false } }, () => revokeTrialInvitation(trial.adminId, trial.invitationId)); return Response.json({ revoked: true }); }
           const inv = await this.db.trialInvitation.findUniqueOrThrow({ where: { id: trial.invitationId } });
           return Response.json({ emailStatus: inv.emailStatus, attempts: inv.emailAttempts, keys: await this.ctx.storage.get("trialEmailAttempts") ?? [], plan: inv.tripId ? await getTripPlan(inv.tripId) : null, otherPlan: await getTripPlan(trial.otherTripId), recipientTrips: await this.db.trip.count({ where: { ownerId: trial.recipientId } }), payments: await this.db.premiumCheckout.count({ where: { buyerId: trial.recipientId } }) });
         }

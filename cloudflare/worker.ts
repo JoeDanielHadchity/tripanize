@@ -1,3 +1,4 @@
+import adminAuthentication from "../prisma/migrations/202610230018_admin_authentication/migration.sql?raw";
 import { resolveAccountMode } from "../src/server/admin/mode";
 import adminNormalMode from "../prisma/migrations/202610230017_admin_normal_mode/migration.sql?raw";
 import { queueDueBookingReminders } from "../src/server/bookings/reminders";
@@ -142,6 +143,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
           if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "normalMode")) ctx.storage.sql.exec(adminNormalMode);
         });
         await ctx.storage.put("schemaVersion", 17);
+      }
+      if (version < 18) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(column => column.name === "adminVerifiedUntil")) ctx.storage.sql.exec(adminAuthentication);
+        });
+        await ctx.storage.put("schemaVersion", 18);
       }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }

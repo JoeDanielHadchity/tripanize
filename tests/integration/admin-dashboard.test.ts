@@ -9,7 +9,7 @@ import { getTripPlan } from "@/server/plans/access";
 import { requireTrip } from "@/server/auth/permissions";
 import { receivePaddleWebhook } from "@/server/billing/webhook";
 import { submitSupport } from "@/server/support/service";
-import { makeTrip, makeUser, resetDb } from "./helpers";
+import { makeTrip, makeUser, resetDb, adminAuthenticationFixture } from "./helpers";
 const runtime = currentRuntime();
 const price = `pri_${"1".repeat(26)}`, transactionId = `txn_${"2".repeat(26)}`;
 const paddle = { environment: "live" as const, apiKey: "isolated-not-real", clientToken: `live_${"x".repeat(27)}`, webhookSecret: "test-only-secret", checkoutEnabled: true, prices: {1500:price} };
@@ -19,6 +19,7 @@ async function fixture() {
   const admin = await makeUser("Administrator","admin@example.test");
   const user = await makeUser("Traveler","traveler@example.test");
   await prisma.user.updateMany({where:{id:{in:[admin.id,user.id]}},data:{emailVerified:true}});
+  await adminAuthenticationFixture(admin.id);
   return {admin,user};
 }
 it("guards every admin data surface and mutation with the verified configured identity", async () => {

@@ -1,6 +1,6 @@
 import { auth } from "@/server/auth/auth";
 import { prisma } from "@/server/db";
-import { isCompanyIdentity, isCompanyAccount, companyAccount } from "./identity";
+import { isCompanyIdentity, isCompanyAccount, companyAccount, hasAdminAuthentication } from "./identity";
 import { AppError } from "@/server/errors";
 import { currentRuntime, type AccountModeContext } from "@/server/cloudflare/runtime";
 import { adminAudit } from "./audit";
@@ -27,8 +27,9 @@ export async function setAccountMode(userId: string, mode: "ADMIN" | "NORMAL") {
   if (mode !== "ADMIN" && mode !== "NORMAL") throw new AppError("VALIDATION", "Choose Admin or Normal mode.");
   const context = currentRuntime().accountMode;
   if (!context?.sessionId || context.userId !== userId) throw new AppError("UNAUTHENTICATED", "Sign in again before switching modes.");
+  if (mode === "ADMIN" && !await hasAdminAuthentication(userId)) throw new AppError("FORBIDDEN", "Enter a fresh authenticator code in Admin security to return to Admin mode.", { adminAuthentication: true });
   return prisma.$transaction(async tx => {
-    const changed = await tx.session.updateMany({ where: { id: context.sessionId, userId, expiresAt: { gt: new Date() } }, data: { normalMode: mode === "NORMAL" } });
+    const changed = await tx.session.updateMany({ where: { id: context.sessionId, userId, expiresAt: { gt: new Date() } }, data: { normalMode: mode === "NORMAL", ...(mode === "NORMAL" ? { adminVerifiedUntil: null } : {}) } });
     if (!changed.count) throw new AppError("UNAUTHENTICATED", "This session has expired. Sign in again.");
     // No session IDs, cookies or credentials are included in the activity log.
     await adminAudit(userId, "account.mode", "user", userId, { mode }, tx);
