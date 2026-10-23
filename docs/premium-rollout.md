@@ -1,6 +1,6 @@
 # Per-trip Premium and Paddle rollout
 
-The app remains fully hosted on Cloudflare. The pricing and purchase code may be deployed with checkout and restrictions disabled until the merchant account and integration pass the launch checklist.
+The app remains fully hosted on Cloudflare. Live checkout and Normal/Premium restrictions are enabled in the production configuration following Paddle merchant activation on 23 October 2026.
 
 ## Product rules
 
@@ -41,22 +41,22 @@ Secrets: `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`. Public token configuration: 
 
 API key permissions: transaction read/write and adjustment read. Notification settings can be created manually, without granting notification-setting write access to the app key.
 
-`PADDLE_CHECKOUT_ENABLED=true` additionally requires all credentials/price IDs before any payment button is usable. Keep false/unset until tested. `PLAN_ACCESS_ENABLED=true` activates restrictions; leave false/unset until live payment is verified and the existing-trip transition has been decided. These flags are intentionally independent.
+`PADDLE_CHECKOUT_ENABLED=true` additionally requires all credentials/price IDs before any payment button is usable. `PLAN_ACCESS_ENABLED=true` activates restrictions. Both are enabled for launch. Existing trips without a verified live purchase use Normal; their saved information is retained. No permanent founder entitlement or migration of sandbox purchases is added. These flags are intentionally independent so checkout can be paused during an incident without deleting purchases or trip data.
 
 ## Live catalog created on 22 October 2026
 
-Product: `pro_01m5j53xmtqvd4nts9f7tvz954`, SaaS tax category. All six prices are one-time, USD, tax excluded, quantity fixed to one. The public live price IDs are included in wrangler.jsonc; checkout and restrictions are explicitly false. The live API key (transaction read/write and adjustment read only, expires 20 January 2027), checkout token and five-event payment notification destination were created during the connection setup. Credentials are stored as encrypted Cloudflare production secrets and are not committed. The destination accepts both platform and simulation events; actual checkout remains disabled pending verification and sandbox payment testing.
+Product: `pro_01m5j53xmtqvd4nts9f7tvz954`, SaaS tax category. All six prices are active, one-time, USD, tax excluded, quantity fixed to one. Public live price IDs are included in wrangler.jsonc. The live API key (transaction read/write and adjustment read only, expires 20 January 2027), checkout token and five-event payment notification destination are stored as encrypted Cloudflare production secrets and are not committed. The destination accepts both platform and simulation events.
 
-## Remaining launch requirements
+## Launch verification and operating checks
 
-1. Merchant completes Paddle verification and payout setup. Get approval for tripanize.app and configure its default payment link to `https://tripanize.app/checkout`. This page loads Paddle.js for a known pending transaction and never grants Premium from the URL.
+1. Paddle confirmed merchant activation on 23 October 2026 by email, and its live dashboard shows account verification Complete. Payout details were confirmed saved in a fresh dashboard view. The domain tripanize.app is approved for checkout and Apple Pay, and its default payment link is `https://tripanize.app/checkout`. This page loads Paddle.js for a known pending transaction and never grants Premium from the URL.
 2. Public Terms, Privacy, Refund and Contact pages identify Joe-Daniel Hadchity as an individual operator in Lebanon, as confirmed by the owner. Legal links are available on the homepage, sign-up, pricing and Premium screens. Refund requests use Paddle and preserve mandatory rights; there is no unconditional money-back promise. Review the pages when features or legal obligations change.
-3. Create a separate sandbox account/catalog and credentials. Configure sandbox webhook and verify initial payments, all three upgrades, duplicate notifications, canceled/failed payments, refunds/chargebacks and reconciliation using Paddle test cards. Do not use real charges for QA.
+3. The isolated Cloudflare `paddle-sandbox` preview has a separate database, private R2 bucket, catalog and encrypted credentials. A declined test card kept the trip on Normal; a successful USD 15 test purchase unlocked Premium through the signed server notification. Reopening checkout reused the same pending transaction. A USD 10 upgrade produced USD 25 total credit and capacity for 12 people. Integration tests also cover the pricing boundaries, adjustments, reconciliation, ownership and environment isolation, duplicate deliveries and ambiguous creation failures. These automated adjustment tests do not represent completed provider refund/chargeback tests. Continue those supplemental tests only in sandbox; do not use real charges for QA.
 4. Configure the live key, public client token, prices and webhook signing secret as Cloudflare configuration. API keys must never be pasted into chat, repo files, browser evaluation output or logs.
-5. Confirm commercial AI allowance/duration. Existing request rate limits apply; no numerical lifetime quota or unlimited-AI promise is introduced by this change. Before enabling sales, choose and implement the advertised per-trip usage allowance based on measured costs.
-6. Enable checkout after testing and approval; enable Normal restrictions only when customers can upgrade. No automatic permanent founder grant is inserted.
+5. AI requests retain the existing server rate limits; no numerical lifetime quota or unlimited-AI promise is introduced. Monitor provider costs and revisit the commercial usage allowance using measured usage.
+6. Production checkout and Normal restrictions are enabled together after approval. Verify the live checkout opens with the intended product, price and environment without submitting a real payment. No automatic permanent founder grant is inserted.
 
-Validation includes isolated integration tests, production build and native Durable Object/R2 migration/restart/feature checks. No test sends real email or makes an external payment.
+Validation includes isolated integration tests, production build and native Durable Object/R2 migration/restart/feature checks. Automated checks do not call external payment, AI or email services. Separate browser payment checks use Paddle sandbox test cards and synthetic billing details; Paddle may generate sandbox receipts. No real charge is used for QA.
 
 ## Public support
 
