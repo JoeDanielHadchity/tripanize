@@ -117,7 +117,7 @@ export class AiProbe extends DurableObject<Env> {
         const fixture = await this.ctx.storage.get<{ ownerId: string; tripId: string }>("fixture");
         if (!fixture) return Response.json({ error: "Start first" }, { status: 400 });
         if (url.pathname === "/trials/start") {
-          const admin = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "company-native@example.test", name: "The company", emailVerified: true } });
+          const admin = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "company-native@example.test", name: "Tripanize.app", emailVerified: true } });
           const recipient = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "trial-native@example.test", name: "Trial recipient", emailVerified: true } });
           const otherTripId = await createTrip(recipient.id, { name: "Other Normal trip" });
           const inv = await createTrialInvitation(admin.id, recipient.email);

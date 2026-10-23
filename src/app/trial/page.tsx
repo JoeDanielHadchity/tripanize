@@ -1,3 +1,4 @@
+import { OPERATOR_NAME } from "@/lib/legal";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/server/auth/session";
@@ -12,5 +13,5 @@ export default async function TrialPage({ searchParams }: { searchParams: Promis
   const pending = await pendingTrialInvitations(user.id);
   if (!invitation || !pending.some(i => i.id === invitation)) notFound();
   const trips = await trialTripChoices(user.id);
-  return <><AppHeader user={user} /><main id="main" className="mx-auto max-w-lg px-4 pb-16 pt-8"><PageHeader title="Try Premium for one trip" subtitle="An invitation from the company. No card, subscription or automatic charge." /><Card><TrialClaim invitationId={invitation} trips={trips} /></Card></main></>;
+  return <><AppHeader user={user} /><main id="main" className="mx-auto max-w-lg px-4 pb-16 pt-8"><PageHeader title="Try Premium for one trip" subtitle={`An invitation from ${OPERATOR_NAME}. No card, subscription or automatic charge.`} /><Card><TrialClaim invitationId={invitation} trips={trips} /></Card></main></>;
 }

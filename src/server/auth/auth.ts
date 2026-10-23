@@ -1,3 +1,4 @@
+import { OPERATOR_NAME } from "@/lib/legal";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
@@ -28,9 +29,9 @@ function createAuth() { return betterAuth({
   databaseHooks: { user: {
     create: { before: async user => ({ data: { ...user, name: accountDisplayName(user) } }) },
     update: { after: async user => {
-      if (isCompanyIdentity(user) && user.name !== "The company") {
-        await prisma.user.update({ where: { id: user.id }, data: { name: "The company" } });
-        await prisma.traveler.updateMany({ where: { userId: user.id }, data: { name: "The company" } });
+      if (isCompanyIdentity(user) && user.name !== OPERATOR_NAME) {
+        await prisma.user.update({ where: { id: user.id }, data: { name: OPERATOR_NAME } });
+        await prisma.traveler.updateMany({ where: { userId: user.id }, data: { name: OPERATOR_NAME } });
       }
     } },
   } },

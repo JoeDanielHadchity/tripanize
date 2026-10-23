@@ -1,3 +1,4 @@
+import { OPERATOR_NAME } from "@/lib/legal";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/server/db";
@@ -13,7 +14,7 @@ import { sendEmail } from "@/server/notifications/email";
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 const emailInput = z.string().trim().toLowerCase().email().max(254);
 const claimInput = z.object({ invitationId: z.string().min(1).max(64), tripId: z.string().min(1).max(64).optional(), name: z.string().trim().min(1).max(120).optional() }).strict();
-const subject = "The company invited you to try Tripanize Premium for one trip";
+const subject = `${OPERATOR_NAME} invited you to try Tripanize Premium for one trip`;
 const invitationOpen = { acceptedAt: null, revokedAt: null };
 
 export async function createTrialInvitation(actorId: string, email: string) {
@@ -22,12 +23,12 @@ export async function createTrialInvitation(actorId: string, email: string) {
   if (!parsed.success) throw new AppError("VALIDATION", "Enter a valid recipient email.");
   const recipient = parsed.data;
   const actor = await prisma.user.findUniqueOrThrow({ where: { id: actorId } });
-  if (recipient === actor.email.toLowerCase()) throw new AppError("VALIDATION", "Your company account already has all access.");
+  if (recipient === actor.email.toLowerCase()) throw new AppError("VALIDATION", `Your ${OPERATOR_NAME} administrator account already has all access.`);
   await rateLimit(`trial-invite:${actorId}`, 50, 3600, "Please wait before creating more trial invitations.");
   const token = randomBytes(32).toString("base64url");
   const url = `${(currentRuntime().appUrl ?? process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/trial/${token}`;
   const expiresAt = new Date(Date.now() + 14 * 86400_000);
-  const emailText = `The company invited you to try every Tripanize Premium feature for one trip, free of charge.\n\nAccept your invitation:\n${url}\n\nSign in with ${recipient} and verify your email using an email sign-in code. Then choose one trip you organize, or create a new trial trip. The invitation can only be used once and expires in 14 days.\n\nYour trial covers that trip and its members. It is not a subscription, needs no payment details, and never charges automatically. The company can revoke trial access. Other trips keep their usual plans.\n\nIf you were not expecting this invitation, you can ignore it.`;
+  const emailText = `${OPERATOR_NAME} invited you to try every Tripanize Premium feature for one trip, free of charge.\n\nAccept your invitation:\n${url}\n\nSign in with ${recipient} and verify your email using an email sign-in code. Then choose one trip you organize, or create a new trial trip. The invitation can only be used once and expires in 14 days.\n\nYour trial covers that trip and its members. It is not a subscription, needs no payment details, and never charges automatically. ${OPERATOR_NAME} can revoke trial access. Other trips keep their usual plans.\n\nIf you were not expecting this invitation, you can ignore it.`;
   const inv = await prisma.$transaction(async tx => {
     await requireCompanyAdmin(actorId, tx);
     await tx.trialInvitation.updateMany({ where: { email: recipient, ...invitationOpen, expiresAt: { lte: new Date() } }, data: { revokedAt: new Date(), activeEmail: null, emailStatus: "cancelled", nextEmailAttemptAt: null } });

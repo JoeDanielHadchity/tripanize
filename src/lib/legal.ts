@@ -1,4 +1,4 @@
-export const OPERATOR_NAME = "the company";
+export const OPERATOR_NAME = "Tripanize.app";
 export const OPERATOR_COUNTRY = "Lebanon";
 export const POLICY_UPDATED = "23 October 2026";
 
