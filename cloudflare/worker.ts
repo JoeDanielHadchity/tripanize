@@ -1,3 +1,4 @@
+import destinationSearches from "../prisma/migrations/202610230014_destination_searches/migration.sql?raw";
 import { normalizeCompanyIdentity } from "../src/server/admin/identity";
 import companyTrials from "../prisma/migrations/202610230013_company_trials/migration.sql?raw";
 import { queueDueDiscoveries } from "../src/server/events/schedule";
@@ -111,6 +112,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
       if (version < 13) {
         ctx.storage.transactionSync(() => ctx.storage.sql.exec(companyTrials));
         await ctx.storage.put("schemaVersion", 13);
+      }
+      if (version < 14) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("DestinationSearch")').toArray().some(c => c.name === "number")) ctx.storage.sql.exec(destinationSearches);
+        });
+        await ctx.storage.put("schemaVersion", 14);
       }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }

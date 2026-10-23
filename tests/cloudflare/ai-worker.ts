@@ -1,3 +1,4 @@
+import destinationSearches from "../../prisma/migrations/202610230014_destination_searches/migration.sql";
 import { createTrialInvitation, acceptTrialInvitation, revokeTrialInvitation, sendNextTrialEmail } from "../../src/server/admin/trials";
 import { getTripPlan } from "../../src/server/plans/access";
 import companyTrials from "../../prisma/migrations/202610230013_company_trials/migration.sql";
@@ -5,7 +6,7 @@ import { queueDueDiscoveries } from "../../src/server/events/schedule";
 import { requestDiscovery } from "../../src/server/events/discovery";
 import eventAlerts from "../../prisma/migrations/202610230012_event_alerts/migration.sql";
 import { fixtureIdeas } from "../fixtures/destinations";
-import { startDestinationSearch, getDestinationSearch, chooseDestination } from "../../src/server/destinations/service";
+import { startDestinationSearch, getDestinationSearch, chooseDestination, createDestinationDraft, saveDestinationDraft, getDestinationWorkspace } from "../../src/server/destinations/service";
 import destinationSearch from "../../prisma/migrations/202610230011_destination_search/migration.sql";
 import { DurableObject } from "cloudflare:workers";
 import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migration.sql";
@@ -92,6 +93,7 @@ export class AiProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "onboardingStage")) ctx.storage.sql.exec(guidedSetup);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TripNotification")').toArray().some(c => c.name === "kind")) ctx.storage.sql.exec(eventAlerts);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TrialInvitation")').toArray().length) ctx.storage.sql.exec(companyTrials);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("DestinationSearch")').toArray().some(c => c.name === "number")) ctx.storage.sql.exec(destinationSearches);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });
@@ -151,6 +153,21 @@ export class AiProbe extends DurableObject<Env> {
           return Response.json({ runs: await this.db.discoveryRun.findMany({ where: { tripId }, select: { status: true, trigger: true } }), notices: await this.db.tripNotification.findMany({ where: { tripId }, select: { kind: true, summary: true, emailStatus: true } }), stops: await this.db.stop.count({ where: { tripId } }) });
         }
         if (url.pathname === "/events/again") return Response.json(await requestDiscovery(fixture.ownerId, (await this.ctx.storage.get<string>("event-fixture"))!));
+        if (url.pathname === "/destinations/multiple") {
+          const first = await createDestinationDraft(fixture.ownerId);
+          const second = await createDestinationDraft(fixture.ownerId);
+          const input = { departureCity: "Paris, France", timing: "flexible", days: 7, adults: 2, children: 0, budget: 1500, climate: "Mild & comfortable", interests: ["History & culture"], pace: "RELAXED", distance: "Up to 6 hours", crowds: "A balance" };
+          await saveDestinationDraft(fixture.ownerId, first.id, input);
+          await saveDestinationDraft(fixture.ownerId, second.id, { ...input, departureCity: "London, UK" });
+          await startDestinationSearch(fixture.ownerId, input, first.id);
+          await startDestinationSearch(fixture.ownerId, { ...input, departureCity: "London, UK" }, second.id);
+          await this.ctx.storage.put("multiple-destinations", [first.id, second.id]);
+          return Response.json({ numbers: [first.number, second.number] });
+        }
+        if (url.pathname === "/destinations/multiple/state") {
+          const ids = (await this.ctx.storage.get<string[]>("multiple-destinations"))!;
+          return Response.json({ workspace: await getDestinationWorkspace(fixture.ownerId), searches: await Promise.all(ids.map(id => getDestinationSearch(fixture.ownerId, id))) });
+        }
         if (url.pathname === "/destinations/start") {
           process.env.OPENAI_API_KEY = "isolated-native-fixture-key";
           const search = await startDestinationSearch(fixture.ownerId, { departureCity: "Beirut, Lebanon", timing: "flexible", days: 7, adults: 2, children: 0, budget: 1500, climate: "Mild & comfortable", interests: ["History & culture"], pace: "RELAXED", distance: "Up to 6 hours", crowds: "A balance" });
