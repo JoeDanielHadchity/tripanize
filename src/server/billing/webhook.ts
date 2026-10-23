@@ -17,7 +17,7 @@ export function verifyPaddleSignature(raw: string, header: string | null, secret
     return /^[a-f0-9]{64}$/.test(value) && timingSafeEqual(expected, Buffer.from(value, "hex"));
   });
 }
-const eventSchema = z.object({ event_id: z.string(), event_type: z.string(), data: z.object({ id: z.string(), transaction_id: z.string().optional(), custom_data: z.record(z.string(), z.unknown()).nullable().optional() }) });
+const eventSchema = z.object({ event_id: z.string().max(80), event_type: z.string().max(80), data: z.object({ id: z.string(), transaction_id: z.string().optional(), custom_data: z.record(z.string(), z.unknown()).nullable().optional() }) });
 export async function receivePaddleWebhook(raw: string, signature: string | null) {
   const secret = currentRuntime().paddle?.webhookSecret;
   if (!secret) throw new AppError("NOT_CONFIGURED", "Payments are not configured.");
@@ -27,13 +27,22 @@ export async function receivePaddleWebhook(raw: string, signature: string | null
   const event = eventSchema.safeParse(value);
   if (!event.success) throw new AppError("VALIDATION", "Invalid webhook payload.");
   const { event_type: type, data } = event.data;
+  const delivery = await prisma.billingDelivery.upsert({ where: { eventId: event.data.event_id },
+    create: { eventId: event.data.event_id, eventType: type, environment: billingEnvironment(), status: "PROCESSING" },
+    update: { status: "PROCESSING", attempts: { increment: 1 } } });
+  try {
   const transactionEvent = ["transaction.completed", "transaction.canceled", "transaction.updated"].includes(type);
   const transactionId = transactionEvent ? data.id : ["adjustment.created", "adjustment.updated"].includes(type) ? data.transaction_id : undefined;
-  if (!transactionId) return;
+  if (!transactionId) { await prisma.billingDelivery.update({ where: { id: delivery.id }, data: { status: "IGNORED", responseStatus: 200 } }); return; }
   // Signed notifications may describe other products or Paddle simulations.
   // Only a known server-created purchase can trigger payment reconciliation.
   // Metadata also recovers a create request whose response was interrupted.
   const checkoutId = transactionEvent && typeof data.custom_data?.checkoutId === "string" ? data.custom_data.checkoutId : null;
   const purchase = await prisma.premiumCheckout.findFirst({ where: { environment: billingEnvironment(), OR: [{ transactionId }, ...(checkoutId && checkoutId.length <= 64 ? [{ id: checkoutId }] : [])] }, select: { id: true } });
   if (purchase) await reconcilePayment(transactionId);
+    await prisma.billingDelivery.update({ where: { id: delivery.id }, data: { transactionId, status: purchase ? "PROCESSED" : "IGNORED", responseStatus: 200 } });
+  } catch (error) {
+    await prisma.billingDelivery.update({ where: { id: delivery.id }, data: { status: "FAILED", responseStatus: error instanceof AppError && error.code === "VALIDATION" ? 400 : 503 } });
+    throw error;
+  }
 }

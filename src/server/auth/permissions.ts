@@ -26,6 +26,8 @@ export function roleAllows(role: TripRole, cap: Capability) {
 export type TripAccess = { tripId: string; userId: string; role: TripRole; travelerId: string | null };
 
 export async function getTripAccess(tripId: string, userId: string): Promise<TripAccess | null> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { suspendedAt: true } });
+  if (!user || user.suspendedAt) return null;
   const m = await prisma.tripMembership.findUnique({ where: { tripId_userId: { tripId, userId } } });
   if (!m) return null;
   return { tripId, userId, role: m.role, travelerId: m.travelerId };

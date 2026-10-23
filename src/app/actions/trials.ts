@@ -3,10 +3,10 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/server/auth/session";
 import { runAction } from "@/server/errors";
 import { createTrialInvitation, revokeTrialInvitation, acceptTrialInvitation } from "@/server/admin/trials";
-export async function createTrialAction(email: string) {
+export async function createTrialAction(email: string, durationDays: number | null = 14) {
   return runAction(async () => {
     const user = await requireUser();
-    const result = await createTrialInvitation(user.id, email);
+    const result = await createTrialInvitation(user.id, email, durationDays);
     revalidatePath("/company");
     return result;
   });

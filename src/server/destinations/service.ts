@@ -73,7 +73,7 @@ export async function runDestinationSearch(id: string, generate: Generator = gen
   await prisma.destinationSearch.update({ where: { id }, data: { status: "RUNNING", error: null } });
   try {
     const input = discoveryInput.parse(row.input);
-    const response = await generate({ schema: discoveryWireResult, name: "destination_ideas", instructions: INSTRUCTIONS + " Keep each description to one or two concise sentences.", input: `<traveler_data>\n${JSON.stringify({ today: new Date().toISOString().slice(0, 10), ...input, budgetBasis: "USD per person, whole trip, including transport and accommodation" })}\n</traveler_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 16000 });
+    const response = await generate({ schema: discoveryWireResult, name: "destination_ideas", metering: { userId: row.userId, jobId: id }, instructions: INSTRUCTIONS + " Keep each description to one or two concise sentences.", input: `<traveler_data>\n${JSON.stringify({ today: new Date().toISOString().slice(0, 10), ...input, budgetBasis: "USD per person, whole trip, including transport and accommodation" })}\n</traveler_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 16000 });
     const result = normalizeDiscoveryResult(discoveryWireResult.parse(response.data));
     if (new Set(result.ideas.map(i => `${i.destination},${i.country}`.toLowerCase())).size !== 5) throw new AppError("UPSTREAM", "The destination search did not return five different places. Please try again.");
     const used = new Set(response.sources.map(safeSource).filter(Boolean));

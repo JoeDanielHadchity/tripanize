@@ -1,3 +1,5 @@
+import { adminAudit } from "./audit";
+import { billingEnvironment } from "@/server/billing/config";
 import { OPERATOR_NAME } from "@/lib/legal";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -17,8 +19,9 @@ const claimInput = z.object({ invitationId: z.string().min(1).max(64), tripId: z
 const subject = `${OPERATOR_NAME} invited you to try Tripanize Premium for one trip`;
 const invitationOpen = { acceptedAt: null, revokedAt: null };
 
-export async function createTrialInvitation(actorId: string, email: string) {
+export async function createTrialInvitation(actorId: string, email: string, durationDays: number | null = 14) {
   await requireCompanyAdmin(actorId);
+  if (durationDays !== null && (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365)) throw new AppError("VALIDATION", "Choose a trial duration between 1 and 365 days.");
   const parsed = emailInput.safeParse(email);
   if (!parsed.success) throw new AppError("VALIDATION", "Enter a valid recipient email.");
   const recipient = parsed.data;
@@ -28,14 +31,17 @@ export async function createTrialInvitation(actorId: string, email: string) {
   const token = randomBytes(32).toString("base64url");
   const url = `${(currentRuntime().appUrl ?? process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/trial/${token}`;
   const expiresAt = new Date(Date.now() + 14 * 86400_000);
-  const emailText = `${OPERATOR_NAME} invited you to try every Tripanize Premium feature for one trip, free of charge.\n\nAccept your invitation:\n${url}\n\nSign in with ${recipient} and verify your email using an email sign-in code. Then choose one trip you organize, or create a new trial trip. The invitation can only be used once and expires in 14 days.\n\nYour trial covers that trip and its members. It is not a subscription, needs no payment details, and never charges automatically. ${OPERATOR_NAME} can revoke trial access. Other trips keep their usual plans.\n\nIf you were not expecting this invitation, you can ignore it.`;
+  const emailText = `${OPERATOR_NAME} invited you to try every Tripanize Premium feature for one trip, free of charge.\n\nAccept your invitation:\n${url}\n\nSign in with ${recipient} and verify your email using an email sign-in code. Then choose one trip you organize, or create a new trial trip. The invitation can only be used once and expires in 14 days.\n\nYour trial covers that trip and its members${durationDays === null ? " until revoked" : ` for ${durationDays} days after activation`}. It is not a subscription, needs no payment details, and never charges automatically. ${OPERATOR_NAME} can revoke trial access. Other trips keep their usual plans.\n\nIf you were not expecting this invitation, you can ignore it.`;
   const inv = await prisma.$transaction(async tx => {
     await requireCompanyAdmin(actorId, tx);
     await tx.trialInvitation.updateMany({ where: { email: recipient, ...invitationOpen, expiresAt: { lte: new Date() } }, data: { revokedAt: new Date(), activeEmail: null, emailStatus: "cancelled", nextEmailAttemptAt: null } });
+    await tx.trialInvitation.updateMany({ where: { email: recipient, revokedAt: null, trialEndsAt: { lte: new Date() } }, data: { revokedAt: new Date(), activeEmail: null } });
     if (await tx.trialInvitation.findUnique({ where: { activeEmail: recipient } })) throw new AppError("CONFLICT", "This person already has a trial or an open invitation. Revoke it before inviting them again.");
     const user = await tx.user.findUnique({ where: { email: recipient } });
-    if (user && await tx.trialInvitation.findFirst({ where: { acceptedById: user.id, acceptedAt: { not: null }, revokedAt: null } })) throw new AppError("CONFLICT", "This person already has a trial. Revoke it before inviting them again.");
-    return tx.trialInvitation.create({ data: { email: recipient, activeEmail: recipient, tokenHash: tokenHash(token), createdById: actorId, expiresAt, emailText, nextEmailAttemptAt: new Date() } });
+    if (user && await tx.trialInvitation.findFirst({ where: { acceptedById: user.id, acceptedAt: { not: null }, revokedAt: null, OR: [{ trialEndsAt: null }, { trialEndsAt: { gt: new Date() } }] } })) throw new AppError("CONFLICT", "This person already has a trial. Revoke it before inviting them again.");
+    const invitation = await tx.trialInvitation.create({ data: { email: recipient, activeEmail: recipient, tokenHash: tokenHash(token), createdById: actorId, expiresAt, durationDays, emailText, nextEmailAttemptAt: new Date() } });
+    await adminAudit(actorId, "trial.created", "trial", invitation.id, { durationDays }, tx);
+    return invitation;
   });
   await currentRuntime().wakeNotifications?.();
   return { id: inv.id, url, expiresAt: expiresAt.toISOString() };
@@ -43,9 +49,9 @@ export async function createTrialInvitation(actorId: string, email: string) {
 
 export async function listCompanyTrials(actorId: string) {
   await requireCompanyAdmin(actorId);
-  const rows = await prisma.trialInvitation.findMany({ orderBy: { createdAt: "desc" }, take: 100, select: { id: true, email: true, createdAt: true, expiresAt: true, acceptedAt: true, revokedAt: true, tripId: true, trip: { select: { name: true } }, emailStatus: true } });
-  return rows.map(r => ({ id: r.id, email: r.email, tripName: r.trip?.name ?? null, tripId: r.tripId, createdAt: r.createdAt.toISOString(), expiresAt: r.expiresAt.toISOString(),
-    status: r.revokedAt ? "Revoked" : r.acceptedAt ? r.tripId ? "Active trial" : "Trip deleted" : r.expiresAt < new Date() ? "Expired" : "Invitation pending", emailStatus: r.emailStatus }));
+  const rows = await prisma.trialInvitation.findMany({ orderBy: { createdAt: "desc" }, take: 100, select: { id: true, email: true, createdAt: true, expiresAt: true, acceptedAt: true, revokedAt: true, tripId: true, trip: { select: { name: true, premiumCheckouts: { where: { environment: billingEnvironment(), status: "COMPLETED", reviewRequired: false }, take: 1, select: { id: true } } } }, emailStatus: true, trialEndsAt: true, durationDays: true } });
+  return rows.map(r => ({ id: r.id, email: r.email, tripName: r.trip?.name ?? null, tripId: r.tripId, createdAt: r.createdAt.toISOString(), expiresAt: r.expiresAt.toISOString(), trialEndsAt: r.trialEndsAt?.toISOString() ?? null, durationDays: r.durationDays, converted: Boolean(r.trip?.premiumCheckouts.length),
+    status: r.revokedAt ? "Revoked" : r.acceptedAt ? r.tripId ? r.trialEndsAt && r.trialEndsAt <= new Date() ? "Expired trial" : "Active trial" : "Trip deleted" : r.expiresAt < new Date() ? "Expired" : "Invitation pending", emailStatus: r.emailStatus }));
 }
 
 export async function revokeTrialInvitation(actorId: string, invitationId: string) {
@@ -57,15 +63,16 @@ export async function revokeTrialInvitation(actorId: string, invitationId: strin
     if (!inv) throw new AppError("NOT_FOUND", "Invitation not found.");
     if (inv.revokedAt) return;
     await tx.trialInvitation.update({ where: { id: inv.id }, data: { revokedAt: new Date(), activeEmail: null, ...(inv.emailStatus === "queued" ? { emailStatus: "cancelled", nextEmailAttemptAt: null } : {}) } });
+    await adminAudit(actorId, "trial.revoked", "trial", inv.id, {}, tx);
     if (inv.tripId) await recordChange(tx, { tripId: inv.tripId, actorId, entity: "trial", entityId: inv.id, action: "revoke" });
   });
 }
 
 export async function previewTrialInvitation(token: string) {
   if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
-  const inv = await prisma.trialInvitation.findUnique({ where: { tokenHash: tokenHash(token) }, select: { id: true, email: true, expiresAt: true, acceptedAt: true, revokedAt: true } });
+  const inv = await prisma.trialInvitation.findUnique({ where: { tokenHash: tokenHash(token) }, select: { id: true, email: true, expiresAt: true, acceptedAt: true, revokedAt: true, durationDays: true } });
   if (!inv || inv.revokedAt || inv.acceptedAt || inv.expiresAt <= new Date()) return null;
-  return { id: inv.id, maskedEmail: inv.email.replace(/^(.{2}).*(@.*)$/, "$1•••$2"), expiresAt: inv.expiresAt.toISOString() };
+  return { id: inv.id, maskedEmail: inv.email.replace(/^(.{2}).*(@.*)$/, "$1•••$2"), expiresAt: inv.expiresAt.toISOString(), durationDays: inv.durationDays };
 }
 
 export async function pendingTrialInvitations(userId: string) {
@@ -99,7 +106,7 @@ export async function acceptTrialInvitation(userId: string, input: z.input<typeo
       if (inv.acceptedById === userId && inv.tripId && await tx.trip.findFirst({ where: { id: inv.tripId, ownerId: userId } })) return { tripId: inv.tripId };
       throw new AppError("CONFLICT", "This invitation has already been used.");
     }
-    if (await tx.trialInvitation.findFirst({ where: { acceptedById: userId, acceptedAt: { not: null }, revokedAt: null } })) throw new AppError("CONFLICT", "You already have an active trial for one trip.");
+    if (await tx.trialInvitation.findFirst({ where: { acceptedById: userId, acceptedAt: { not: null }, revokedAt: null, OR: [{ trialEndsAt: null }, { trialEndsAt: { gt: new Date() } }] } })) throw new AppError("CONFLICT", "You already have an active trial for one trip.");
     let tripId = chosen;
     if (tripId) {
       if (!await tx.trip.findFirst({ where: { id: tripId, ownerId: userId } })) throw new AppError("NOT_FOUND", "Choose a trip you organize.");
@@ -111,7 +118,7 @@ export async function acceptTrialInvitation(userId: string, input: z.input<typeo
       tripId = await createTrip(userId, { name }, undefined, tx);
       await tx.trip.update({ where: { id: tripId }, data: { onboardingStage: "DETAILS" } });
     }
-    const claimed = await tx.trialInvitation.updateMany({ where: { id: inv.id, ...invitationOpen, expiresAt: { gt: new Date() } }, data: { acceptedAt: new Date(), acceptedById: userId, tripId, ...(inv.emailStatus === "queued" ? { emailStatus: "cancelled", nextEmailAttemptAt: null } : {}) } });
+    const claimed = await tx.trialInvitation.updateMany({ where: { id: inv.id, ...invitationOpen, expiresAt: { gt: new Date() } }, data: { acceptedAt: new Date(), acceptedById: userId, tripId, trialEndsAt: inv.durationDays ? new Date(Date.now() + inv.durationDays * 86400_000) : null, ...(inv.emailStatus === "queued" ? { emailStatus: "cancelled", nextEmailAttemptAt: null } : {}) } });
     if (!claimed.count) throw new AppError("CONFLICT", "This invitation has already been used.");
     const trip = await tx.trip.findUniqueOrThrow({ where: { id: tripId } });
     await tx.trip.update({ where: { id: tripId }, data: { onboardingPlan: "PREMIUM", ...(trip.onboardingStage === "PLAN" ? { onboardingStage: "DETAILS" } : {}) } });

@@ -26,7 +26,11 @@ function createAuth() { return betterAuth({
     }
   })(),
   database: prismaAdapter(prisma, { provider: "sqlite" }),
-  databaseHooks: { user: {
+  databaseHooks: { session: { create: { before: async session => {
+    const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { suspendedAt: true } });
+    if (!user || user.suspendedAt) return false;
+    return { data: session };
+  } } }, user: {
     create: { before: async user => ({ data: { ...user, name: accountDisplayName(user) } }) },
     update: { after: async user => {
       if (isCompanyIdentity(user) && user.name !== OPERATOR_NAME) {

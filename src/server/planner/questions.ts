@@ -65,7 +65,7 @@ export async function generatePlanQuestions(tripId: string, generate = generateS
     adults: trip.adults, children: trip.children, pace: trip.pace.toLowerCase(), interests: trip.interests, transport: trip.transport,
     mustSee: trip.places.filter((p) => p.kind === "MUST_SEE").map((p) => p.name), dietary: trip.dietary, accessibility: trip.accessibility, roadTrip: trip.isRoadTrip,
   };
-  const r = await generate({ schema: QuestionsSchema, name: "plan_questions", instructions: QUESTION_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(known)}\n</trip_data>`, webSearch: false, signal, timeoutMs: 90_000, maxOutputTokens: 4000 });
+  const r = await generate({ schema: QuestionsSchema, name: "plan_questions", metering: { tripId, userId: (await prisma.trip.findUniqueOrThrow({ where: { id: tripId } })).ownerId }, instructions: QUESTION_INSTRUCTIONS, input: `<trip_data>\n${JSON.stringify(known)}\n</trip_data>`, webSearch: false, signal, timeoutMs: 90_000, maxOutputTokens: 4000 });
   const questions = clean(r.data.questions);
   if (questions.length < 3) return { questions: STANDARD_QUESTIONS, source: "standard" };
   const set: PlanQuestionSet = { questions, source: "ai" };
