@@ -119,7 +119,7 @@ it("revocation retains records, blocks their restricted exports and permits turn
   expect((await getExpenseData(f.owner.id, f.tripId)).expenses).toHaveLength(1);
 });
 
-it("caps the real Normal generation input/output at three saved dates and rejects applying an old Premium day", async () => {
+it("caps the real Normal generation input/output at two saved dates and rejects applying an old Premium day", async () => {
   const f = await fixture();
   const result = await enqueueJob(f.owner.id, f.tripId, "full", { dates: [f.days[7].date], instruction: "Plan all eight days" });
   await claimJob(result.jobId);
@@ -129,15 +129,15 @@ it("caps the real Normal generation input/output at three saved dates and reject
     calls.push(data.datesToPlan);
     return { data: proposal(f.days.map(d => d.date)), model: "isolated", sources: [], usage: null };
   }) as Generator);
-  expect(calls).toEqual([f.days.slice(0, 3).map(d => d.date)]);
+  expect(calls).toEqual([f.days.slice(0, 2).map(d => d.date)]);
   const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: result.jobId } });
   expect(job.status).toBe("SUCCEEDED");
-  expect((job.proposal as unknown as Proposal).days.map(d => d.date)).toEqual(f.days.slice(0, 3).map(d => d.date));
+  expect((job.proposal as unknown as Proposal).days.map(d => d.date)).toEqual(f.days.slice(0, 2).map(d => d.date));
   await applyProposal(f.owner.id, f.tripId, job.id, [f.days[0].date]);
   const old = await prisma.generationJob.create({ data: { tripId: f.tripId, kind: "full", requestedById: f.owner.id, params: {}, status: "SUCCEEDED", proposal: proposal([f.days[7].date]) as never } });
   await expect(applyProposal(f.owner.id, f.tripId, old.id, [f.days[7].date])).rejects.toMatchObject({ code: "FORBIDDEN" });
   await prisma.trip.update({ where: { id: f.tripId }, data: { startDate: "2021-01-01", endDate: "2021-01-08" } });
-  expect(await normalPlanningDates(f.tripId)).toEqual(f.days.slice(0, 3).map(d => d.date));
+  expect(await normalPlanningDates(f.tripId)).toEqual(f.days.slice(0, 2).map(d => d.date));
   await expect(planningScope(f.tripId, "full")).rejects.toMatchObject({ code: "FORBIDDEN" });
 });
 

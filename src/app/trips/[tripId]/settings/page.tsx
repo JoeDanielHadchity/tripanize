@@ -35,7 +35,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ tripI
     <>
       <PageHeader title="Trip settings & travelers" />
       <div className="space-y-10">
-        <Card className="border-accent/30 bg-accent-soft/30"><h2 className="font-display text-xl font-semibold">Trip features & checkout</h2><p className="mt-2 text-sm text-muted">Choose optional starred features. Normal is $0; one Premium payment covers your group.</p><LinkButton href={`/trips/${tripId}/premium`} variant={isOwner ? "primary" : "secondary"} className="mt-3">{plan.premium ? "Manage Premium" : "Choose features & checkout"}</LinkButton></Card>
+        <Card className="border-accent/30 bg-accent-soft/30"><h2 className="font-display text-xl font-semibold">Your trip plan</h2><p className="mt-2 text-sm text-muted">Normal is free. Premium is $15 per trip for the whole group, with no group-size price bands.</p><LinkButton href={`/trips/${tripId}/premium`} variant={isOwner ? "primary" : "secondary"} className="mt-3">{plan.premium ? "Manage Premium" : "Upgrade to Premium · $15"}</LinkButton></Card>
         <TripChangeAlerts tripId={tripId} enabled={pref?.changeEmailEnabled ?? false} emailReady={emailConfigured()} email={user.email} verified={account.emailVerified} />
         <section id="details" aria-labelledby="details-h" className="scroll-mt-20">
           <h2 id="details-h" className="mb-3 font-display text-xl font-semibold">Trip details</h2>

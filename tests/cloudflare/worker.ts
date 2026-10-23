@@ -7,6 +7,7 @@ import tripChat from "../../prisma/migrations/202610220005_trip_chat/migration.s
 import expenseReceipts from "../../prisma/migrations/202610220006_expense_receipts/migration.sql";
 import tripPurchases from "../../prisma/migrations/202610220008_trip_purchases/migration.sql";
 import planAccess from "../../prisma/migrations/202610220007_plan_access/migration.sql";
+import guidedSetup from "../../prisma/migrations/202610230010_guided_setup/migration.sql";
 import tripFeatures from "../../prisma/migrations/202610230009_trip_features/migration.sql";
 import { changeMemberLocation, getLocationSelf, getMemberLocations } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
@@ -42,6 +43,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "normalAiDates")) ctx.storage.sql.exec(planAccess);
         ctx.storage.sql.exec(tripPurchases);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "selectedPremiumFeatures")) ctx.storage.sql.exec(tripFeatures);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "onboardingStage")) ctx.storage.sql.exec(guidedSetup);
       });
     });
   }

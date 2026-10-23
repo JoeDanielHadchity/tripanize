@@ -238,6 +238,7 @@ export async function listTrips(userId: string, opts: { q?: string; phase?: stri
         id: t.id,
         name: t.name,
         role: m.role,
+        onboardingStage: t.onboardingStage,
         startDate: t.startDate,
         endDate: t.endDate,
         destinations: t.destinations.map((d) => d.name),

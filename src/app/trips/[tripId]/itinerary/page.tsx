@@ -46,7 +46,7 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
         subtitle={len ? `${len} day${len === 1 ? "" : "s"} · times are local · costs and travel times are estimates` : "Add trip dates in settings to create your days."}
         actions={
           <>
-            {canEdit && <LinkButton href={`/trips/${tripId}/plan`} variant="primary">{premium && <PremiumStar className="text-current" />}{premium ? "Plan with AI" : "AI itinerary · 3 days"}</LinkButton>}
+            {canEdit && <LinkButton href={`/trips/${tripId}/plan`} variant="primary">{premium && <PremiumStar className="text-current" />}{premium ? "Plan with AI" : "AI itinerary · 2 days"}</LinkButton>}
             <a href={`/api/trips/${tripId}/export/pdf`} className="inline-flex min-h-11 items-center rounded-xl border border-line bg-surface px-4 text-[15px] font-medium hover:bg-surface-2">Trip PDF</a>
           </>
         }

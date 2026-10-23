@@ -10,7 +10,7 @@ const rv = (tripId: string) => revalidatePath(`/trips/${tripId}/packing`);
 export async function refreshPackingAction(tripId: string, laundry: boolean | null) {
   return runAction(async () => {
     const u = await requireUser();
-    const r = await refreshSuggestions(u.id, tripId, { laundry });
+    const r = await refreshSuggestions(u.id, tripId, { laundry, personalized: true });
     rv(tripId);
     return r;
   });

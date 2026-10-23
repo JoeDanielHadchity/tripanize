@@ -23,12 +23,17 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
 
   await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
   await ana.getByLabel("Trip name").fill(`Porto ${run}`);
+  await ana.getByRole("button", { name: "Create trip & choose plan" }).click();
+  await ana.waitForURL("**/premium?created=1");
+  const tripUrl = ana.url().split("/premium")[0];
+  await ana.getByRole("button", { name: "Choose Normal · $0" }).click();
+  await ana.waitForURL("**/onboarding");
   await ana.getByLabel("Start date").fill("2027-06-10");
   await ana.getByLabel("End date").fill("2027-06-13");
   await ana.getByLabel("City or region").fill("Porto");
-  await ana.getByRole("button", { name: "Create trip" }).click();
-  await ana.waitForURL("**/plan?start=1");
-  const tripUrl = ana.url().split("/plan")[0];
+  await ana.getByRole("button", { name: "Continue to travel questions" }).click();
+
+  await ana.goto(`${tripUrl}/plan`);
 
   // Questions
   await ana.getByRole("button", { name: "Answer questions" }).click();

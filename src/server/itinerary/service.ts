@@ -279,7 +279,7 @@ export async function deleteStop(userId: string, tripId: string, stopId: string,
   requireConfirmation(stop, opts.confirm, "It will be removed from the plan.");
   await prisma.$transaction(async (tx) => {
     await tx.stop.delete({ where: { id: stopId } });
-    if (stop.eventId) await tx.tripEvent.update({ where: { id: stop.eventId }, data: { status: "SAVED" } });
+    if (stop.eventId) await tx.tripEvent.update({ where: { id: stop.eventId }, data: { status: "HIDDEN" } });
     await recordChange(tx, { tripId, actorId: userId, entity: "stop", entityId: stopId, action: "delete", before: pick(stop) });
   });
 }

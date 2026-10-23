@@ -1,3 +1,4 @@
+import { getTripPlan } from "@/server/plans/access";
 import { prisma } from "@/server/db";
 import { dateRange, todayIn } from "@/lib/dates";
 import { minorToDecimalString } from "@/lib/money";
@@ -65,8 +66,10 @@ export async function buildContext(tripId: string, targetDates: string[] | null)
   }
 
   const today = todayIn(trip.timezone);
+  const events = (await getTripPlan(tripId)).premium ? await prisma.tripEvent.findMany({ where: { tripId, status: { not: "HIDDEN" }, cancelled: false, soldOut: false }, select: { title: true, date: true, endDate: true, startTime: true, venue: true, city: true, officialUrl: true, bookingUrl: true, dateVerified: true, whyFits: true }, take: 30 }) : [];
   return {
     trip,
+    events,
     today,
     dates,
     allDates,

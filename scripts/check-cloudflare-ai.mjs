@@ -80,6 +80,19 @@ try {
   assert.equal(locationState[0].lat, null);
   assert.equal(locationState[0].leaseHash, null);
   assert.equal(locationState[0].expiresAt, null);
-  console.log(JSON.stringify({ nativeAlarms: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
+  await get("/onboarding/start");
+  const untilSetup = async predicate => {
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline) { const state = await get("/onboarding/state"); if (state.jobs.some(j => j.status === "FAILED")) throw new Error(JSON.stringify(state)); if (predicate(state)) return state; await new Promise(resolve => setTimeout(resolve, 100)); }
+    throw new Error("Guided setup timed out");
+  };
+  await untilSetup(s => s.jobs.some(j => j.kind === "questions" && j.status === "SUCCEEDED"));
+  await get("/onboarding/answers");
+  await untilSetup(s => s.jobs.some(j => j.kind === "setup"));
+  await stop(child); child = await start();
+  const prepared = await untilSetup(s => s.stage === "COMPLETE");
+  assert.ok(prepared.jobs.find(j => j.kind === "full").appliedAt);
+  assert.ok(prepared.packing > 0);
+  console.log(JSON.stringify({ nativeAlarms: true, guidedTripAfterRestart: true, personalizedPacking: true, duplicateClicksDeduplicated: true, websiteResponsiveDuringGeneration: true, transactionRollbackIsolated: true, resumesAfterRestart: true, completedSectionsNotRepeated: true, questionsInBackground: true, cancellation: true, itineraryUnchangedUntilAccepted: true, notificationRetriesAfterRestart: true, notificationIdempotency: true, locationExpiresAfterRestart: true, externalApiCalls: 0 }));
 } catch (error) { console.error(error.stack ?? error.message); console.error(logs.replace(/sk-[A-Za-z0-9_-]+/g, "[credential hidden]")); process.exitCode = 1; }
 finally { await stop(child); }

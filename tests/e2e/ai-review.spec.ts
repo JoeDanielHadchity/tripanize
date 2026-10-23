@@ -14,14 +14,18 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   await page.waitForURL("**/trips");
   await page.goto("/trips/new");
   await page.getByLabel("Trip name").fill("Stub trip");
+  await page.getByRole("button", { name: "Create trip & choose plan" }).click();
+  await page.waitForURL("**/premium?created=1");
+  const tripUrl = page.url().split("/premium")[0];
+  await page.getByRole("button", { name: "Choose Normal · $0" }).click();
+  await page.waitForURL("**/onboarding");
   await page.getByLabel("Start date").fill("2027-05-01");
   await page.getByLabel("End date").fill("2027-05-03");
   await page.getByLabel("City or region").fill("Lisbon");
-  await page.getByRole("button", { name: "Create trip" }).click();
-  await page.waitForURL("**/plan?start=1");
-  const tripUrl = page.url().replace(/\/plan.*$/, "");
+  await page.getByRole("button", { name: "Continue to travel questions" }).click();
 
-  await page.getByRole("button", { name: "✨ Plan with AI" }).click();
+  await page.goto(`${tripUrl}/plan`);
+  await page.getByRole("button", { name: /Plan with AI$/ }).click();
   await expect(page.getByRole("heading", { name: "Review the draft" })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText("Stub day 1")).toBeVisible();
   // Accept only days 1 and 2
