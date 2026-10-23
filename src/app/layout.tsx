@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Plan trips with AI, share them with your travel companions, and keep bookings, expenses and packing in one calm place.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: { url: "/brand/tripanize-icon-192.png", type: "image/png", sizes: "192x192" },
+    icon: { url: "/brand/tripanize-favicon-transparent.png", type: "image/png", sizes: "192x192" },
     apple: { url: "/brand/tripanize-icon-180.png", type: "image/png", sizes: "180x180" },
   },
 };
