@@ -1,5 +1,5 @@
 import { TripStart } from "@/components/trip-start";
-import { getDestinationSearch } from "@/server/destinations/service";
+import { getDestinationWorkspace } from "@/server/destinations/service";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/server/auth/session";
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Create a trip" };
 
 export default async function NewTripPage() {
   const user = await requireUser();
-  const destinationSearch = await getDestinationSearch(user.id);
+  const destinationSearch = await getDestinationWorkspace(user.id);
   return (
     <>
       <AppHeader user={user} current="trips" />

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
-import { chooseDestination, getDestinationSearch, runDestinationSearch, safeSource, startDestinationSearch } from "@/server/destinations/service";
+import { chooseDestination, createDestinationDraft, getDestinationSearch, getDestinationWorkspace, runDestinationSearch, safeSource, saveDestinationDraft, startDestinationSearch } from "@/server/destinations/service";
 import { discoveryInput, type DiscoveryInput } from "@/server/destinations/schema";
 import { chooseNormal } from "@/server/trips/onboarding";
 import { getTripPlan } from "@/server/plans/access";
@@ -103,4 +103,76 @@ it("keeps researched sources clickable without raw citation markup or broken URL
   saved.ideas[0].experiences[0] = "Explore old streets. ([example.test](https://example.test/a-previously-cut";
   await prisma.destinationSearch.update({ where: { id: q.id }, data: { result: saved } });
   expect((await getDestinationSearch(user.id, q.id))!.result!.ideas[0].experiences[0]).toBe("Explore old streets.");
+});
+
+it("keeps numbered drafts for each account without requiring AI or consuming research allowance", async () => {
+  const user = await makeUser("Explorer"), other = await makeUser("Other");
+  delete process.env.OPENAI_API_KEY;
+  const first = await createDestinationDraft(user.id), second = await createDestinationDraft(user.id), separate = await createDestinationDraft(other.id);
+  expect([first.number, second.number, separate.number]).toEqual([1, 2, 1]);
+  expect(first.status).toBe("DRAFT");
+  const workspace = await getDestinationWorkspace(user.id);
+  expect(workspace.searches.map(s => s.id)).toEqual([first.id, second.id]);
+  expect(workspace.current?.id).toBe(second.id);
+  expect(await prisma.destinationSearch.count({ where: { queuedAt: { not: null } } })).toBe(0);
+});
+
+it("saves each draft's answers privately and copies answers into a separate numbered search", async () => {
+  const user = await makeUser("Explorer"), other = await makeUser("Other");
+  const first = await createDestinationDraft(user.id);
+  await saveDestinationDraft(user.id, first.id, { ...input, departureCity: "Paris, France" });
+  const second = await createDestinationDraft(user.id, first.id);
+  await saveDestinationDraft(user.id, second.id, { ...input, departureCity: "London, UK", budget: 2500 });
+  expect((await getDestinationSearch(user.id, first.id))?.input.departureCity).toBe("Paris, France");
+  expect((await getDestinationSearch(user.id, second.id))?.input.budget).toBe(2500);
+  await expect(saveDestinationDraft(other.id, first.id, input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(createDestinationDraft(other.id, first.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(startDestinationSearch(other.id, input, first.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+});
+
+it("queues distinct searches independently, deduplicates repeated submission of the same search and preserves both results", async () => {
+  const user = await makeUser("Explorer");
+  const first = await createDestinationDraft(user.id), second = await createDestinationDraft(user.id);
+  await startDestinationSearch(user.id, input, first.id);
+  await startDestinationSearch(user.id, { ...input, budget: 3000 }, second.id);
+  expect((await startDestinationSearch(user.id, input, first.id)).id).toBe(first.id);
+  expect(await prisma.destinationSearch.count()).toBe(2);
+  await runDestinationSearch(first.id, generator());
+  const secondResult = fixtureIdeas(); secondResult.summary = "Different travel ideas for a different budget";
+  await runDestinationSearch(second.id, generator(secondResult));
+  expect((await getDestinationSearch(user.id, first.id))?.result?.summary).not.toBe(secondResult.summary);
+  expect((await getDestinationSearch(user.id, second.id))?.result?.summary).toBe(secondResult.summary);
+  expect((await getDestinationWorkspace(user.id)).searches.map(s => s.status)).toEqual(["SUCCEEDED", "SUCCEEDED"]);
+  expect(await saveDestinationDraft(user.id, first.id, { ...input, budget: 9999 })).toEqual({ saved: false });
+  expect((await getDestinationSearch(user.id, first.id))?.input.budget).toBe(input.budget);
+  await expect(startDestinationSearch(user.id, input, first.id)).rejects.toMatchObject({ code: "CONFLICT" });
+});
+
+it("keeps earlier results when their answers are copied into a new draft", async () => {
+  const user = await makeUser("Explorer");
+  const first = await startDestinationSearch(user.id, input); await runDestinationSearch(first.id, generator());
+  const original = await getDestinationSearch(user.id, first.id);
+  const copy = await createDestinationDraft(user.id, first.id);
+  expect(copy).toMatchObject({ number: 2, status: "DRAFT", input: original?.input, result: null });
+  expect((await getDestinationSearch(user.id, first.id))?.result).toEqual(original?.result);
+});
+
+it("counts research when an old draft is submitted and leaves quota-blocked drafts intact", async () => {
+  const user = await makeUser("Explorer");
+  const draft = await createDestinationDraft(user.id);
+  await prisma.destinationSearch.update({ where: { id: draft.id }, data: { createdAt: new Date("2000-01-01") } });
+  for (let i = 0; i < 5; i++) { const q = await startDestinationSearch(user.id, input); await prisma.destinationSearch.update({ where: { id: q.id }, data: { status: "SUCCEEDED" } }); }
+  await expect(startDestinationSearch(user.id, input, draft.id)).rejects.toMatchObject({ code: "RATE_LIMITED" });
+  expect((await getDestinationSearch(user.id, draft.id))?.status).toBe("DRAFT");
+  await prisma.destinationSearch.updateMany({ where: { userId: user.id, status: "SUCCEEDED" }, data: { queuedAt: new Date("2000-01-01") } });
+  await startDestinationSearch(user.id, input, draft.id);
+  const queued = await prisma.destinationSearch.findUniqueOrThrow({ where: { id: draft.id } });
+  expect(queued.queuedAt!.getTime()).toBeGreaterThan(Date.now() - 5000);
+});
+
+it("does not collapse different legacy search requests into an unrelated active search", async () => {
+  const user = await makeUser("Explorer");
+  const first = await startDestinationSearch(user.id, input);
+  const second = await startDestinationSearch(user.id, { ...input, budget: 3000 });
+  expect(first.id).not.toBe(second.id);
 });

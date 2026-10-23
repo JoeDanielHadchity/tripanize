@@ -65,7 +65,7 @@ export class AiTasks {
           });
           return;
         }
-        const search = await db.destinationSearch.findFirst({ where: { status: { in: ["QUEUED", "RUNNING"] } }, orderBy: { createdAt: "asc" } });
+        const search = await db.destinationSearch.findFirst({ where: { status: { in: ["QUEUED", "RUNNING"] } }, orderBy: [{ queuedAt: "asc" }, { createdAt: "asc" }] });
         if (search) { await runDestinationSearch(search.id, this.generate); return; }
         // An interrupted event search is reported honestly instead of being left
         // running forever or automatically repeating external notifications.

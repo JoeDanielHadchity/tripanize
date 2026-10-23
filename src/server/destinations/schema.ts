@@ -23,6 +23,9 @@ export const discoveryInput = z.object({
   if (v.timing === "month" && (!/^\d{4}-(0[1-9]|1[0-2])$/.test(v.month) || v.month < today.slice(0, 7))) ctx.addIssue({ code: "custom", path: ["month"], message: "Choose this month or a future month." });
 });
 export type DiscoveryInput = z.infer<typeof discoveryInput>;
+// Drafts may be incomplete; full timing/interest validation happens before research.
+export const discoveryDraftInput = z.object({ ...discoveryInput.shape, departureCity: z.string().trim().max(120), interests: z.array(z.enum(DISCOVERY_INTERESTS)).max(10) });
+export const DISCOVERY_DEFAULTS: DiscoveryInput = { departureCity: "", timing: "month", startDate: "", endDate: "", month: "", days: 7, adults: 2, children: 0, budget: 1500, climate: "Mild & comfortable", interests: [], pace: "BALANCED", distance: "Up to 6 hours", crowds: "A balance", constraints: "" };
 const output = (text: (max: number) => z.ZodString) => z.object({
   summary: text(600),
   ideas: z.array(z.object({
