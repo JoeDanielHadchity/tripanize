@@ -40,9 +40,13 @@ export async function updateNotificationPrefs(userId: string, tripId: string, in
   const frequency = input.frequency === "daily" ? "daily" : "immediate";
   const allowed = ["new", "date", "venue", "cancelled", "sold_out", "booking_open", "price"];
   const changeTypes = input.changeTypes.filter((c) => allowed.includes(c));
-  await prisma.notificationPreference.upsert({
+  if (input.emailEnabled && !(await prisma.user.findUniqueOrThrow({ where: { id: userId } })).emailVerified) throw new AppError("VALIDATION", "Verify your email before enabling event emails.");
+  await prisma.$transaction(async tx => {
+  await tx.notificationPreference.upsert({
     where: { userId_tripId: { userId, tripId } },
     create: { userId, tripId, emailEnabled: input.emailEnabled, frequency, changeTypes },
     update: { emailEnabled: input.emailEnabled, frequency, changeTypes },
+  });
+  await tx.tripNotification.updateMany({ where: { userId, tripId, kind: "event_email", emailStatus: { in: ["queued", "digest"] } }, data: { emailStatus: "cancelled", nextAttemptAt: null } });
   });
 }

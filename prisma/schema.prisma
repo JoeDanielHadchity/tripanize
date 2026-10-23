@@ -843,6 +843,7 @@ model AuditLog {
 // In-app inbox and transactional email outbox, created with the shared edit.
 model TripNotification {
   id String @id @default(cuid())
+  kind String @default("change") // change | event | event_email
   userId String
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   tripId String

@@ -1,3 +1,6 @@
+import { queueDueDiscoveries } from "../../src/server/events/schedule";
+import { requestDiscovery } from "../../src/server/events/discovery";
+import eventAlerts from "../../prisma/migrations/202610230012_event_alerts/migration.sql";
 import { fixtureIdeas } from "../fixtures/destinations";
 import { startDestinationSearch, getDestinationSearch, chooseDestination } from "../../src/server/destinations/service";
 import destinationSearch from "../../prisma/migrations/202610230011_destination_search/migration.sql";
@@ -47,7 +50,7 @@ export class AiProbe extends DurableObject<Env> {
       await this.ctx.storage.put("calls", [...calls, data.datesToPlan ?? [opts.name === "trip_assistant" ? "assistant" : "questions"]]);
     });
     await new Promise(resolve => setTimeout(resolve, 1200));
-    if (opts.name === "events") return { model: "isolated-stub", sources: [], usage: null, data: { events: [] } };
+    if (opts.name === "events") return { model: "isolated-stub", sources: ["https://example.test/event"], usage: null, data: { events: data.destinations[0].city === "Scheduled events fixture" ? [{ title: "Native local culture evening", category: "cultural", date: data.destinations[0].from, endDate: null, startTime: "18:00", dateVerified: true, venue: "Fixture venue", city: "Scheduled events fixture", address: null, officialUrl: "https://example.test/event", bookingUrl: "https://example.test/tickets", priceText: "Free", availability: "Available", bookingDeadline: null, cancelled: false, soldOut: false, whyFits: "Local culture preference", uncertainty: null, sources: [{ url: "https://example.test/event", title: "Fixture source" }] }] : [] } };
     if (opts.name === "trip_packing") return { model: "isolated-stub", sources: [], usage: null, data: { items: [{ label: "Custom weather layer", category: "Clothing", reason: "Test fixture for this destination and season", shared: false, quantity: 1 }] } };
     return { model: "isolated-stub", sources: ["https://example.test/source"], usage: null, data: opts.name === "trip_assistant" ? { reply: "Proposed day swap", edits: [{ type: "swap_days", date: data.trip.days[1].date, otherDate: data.trip.days[2].date }] } : opts.name === "plan_questions" ? { questions: STANDARD_QUESTIONS } : {
       summary: "Local test draft", generalNotes: [], unplacedMustSees: [],
@@ -77,6 +80,7 @@ export class AiProbe extends DurableObject<Env> {
         ctx.storage.sql.exec(tripPurchases);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "selectedPremiumFeatures")) ctx.storage.sql.exec(tripFeatures);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "onboardingStage")) ctx.storage.sql.exec(guidedSetup);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TripNotification")').toArray().some(c => c.name === "kind")) ctx.storage.sql.exec(eventAlerts);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });
@@ -99,6 +103,20 @@ export class AiProbe extends DurableObject<Env> {
         }
         const fixture = await this.ctx.storage.get<{ ownerId: string; tripId: string }>("fixture");
         if (!fixture) return Response.json({ error: "Start first" }, { status: 400 });
+        if (url.pathname === "/events/start") {
+          process.env.OPENAI_API_KEY = "isolated-native-fixture-key"; process.env.OPENAI_WEB_SEARCH = "true";
+          const tripId = await createTrip(fixture.ownerId, { name: "Scheduled event fixture", startDate: "2030-06-15", endDate: "2030-06-20", destinations: [{ name: "Scheduled events fixture" }], interests: ["Local culture"] });
+          await this.db.premiumCheckout.create({ data: { tripId, buyerId: fixture.ownerId, environment: "live", priceId: "fixture", amountMinor: 1500, targetCapacity: 0, status: "COMPLETED" } });
+          await this.db.user.update({ where: { id: fixture.ownerId }, data: { emailVerified: true } });
+          await this.db.notificationPreference.update({ where: { userId_tripId: { userId: fixture.ownerId, tripId } }, data: { emailEnabled: true, changeTypes: ["new"] } });
+          await this.ctx.storage.put("event-fixture", tripId);
+          return Response.json({ queued: await queueDueDiscoveries(), duplicate: await queueDueDiscoveries() });
+        }
+        if (url.pathname === "/events/state") {
+          const tripId = (await this.ctx.storage.get<string>("event-fixture"))!;
+          return Response.json({ runs: await this.db.discoveryRun.findMany({ where: { tripId }, select: { status: true, trigger: true } }), notices: await this.db.tripNotification.findMany({ where: { tripId }, select: { kind: true, summary: true, emailStatus: true } }), stops: await this.db.stop.count({ where: { tripId } }) });
+        }
+        if (url.pathname === "/events/again") return Response.json(await requestDiscovery(fixture.ownerId, (await this.ctx.storage.get<string>("event-fixture"))!));
         if (url.pathname === "/destinations/start") {
           process.env.OPENAI_API_KEY = "isolated-native-fixture-key";
           const search = await startDestinationSearch(fixture.ownerId, { departureCity: "Beirut, Lebanon", timing: "flexible", days: 7, adults: 2, children: 0, budget: 1500, climate: "Mild & comfortable", interests: ["History & culture"], pace: "RELAXED", distance: "Up to 6 hours", crowds: "A balance" });

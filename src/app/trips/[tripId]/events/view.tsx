@@ -19,7 +19,7 @@ type Ev = {
 type Props = {
   initialEventId: string | null;
   tripId: string; canEdit: boolean; aiReady: boolean; emailReady: boolean; timezone: string; days: { id: string; date: string; title: string | null }[];
-  settings: { autoDiscovery: boolean; everyHours: number; nextAt: string | null }; lastSuccess: string | null;
+  settings: { autoDiscovery: boolean; cadence: string; nextAt: string | null }; lastSuccess: string | null;
   runs: { id: string; trigger: string; status: string; error: string | null; found: number; added: number; changed: number; at: string }[];
   pref: { emailEnabled: boolean; frequency: string; changeTypes: string[] }; deliveries: { id: string; subject: string; status: string; at: string }[]; events: Ev[];
 };
@@ -70,20 +70,26 @@ export function EventsView(p: Props) {
         </div>
         {!p.aiReady && <Notice tone="warn" className="mt-3">Event discovery uses OpenAI with web search, which isn't configured on this server. Manual and automatic checks can't run; you can still add events yourself.</Notice>}
         {p.canEdit && (
-          <form className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-4" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); run(() => discoverySettingsAction(p.tripId, { autoDiscovery: f.get("auto") === "on", everyHours: Number(f.get("every")) }), { success: "Automatic checks updated" }); }}>
+          <form className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-4" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); run(() => discoverySettingsAction(p.tripId, { autoDiscovery: f.get("auto") === "on" }), { success: "Automatic checks updated" }); }}>
             <label className="flex min-h-11 items-center gap-2 text-sm font-medium"><input type="checkbox" name="auto" defaultChecked={p.settings.autoDiscovery} className="h-5 w-5" /> Check automatically</label>
-            <Field label="How often" htmlFor="every"><Select id="every" name="every" defaultValue={String(p.settings.everyHours)} className="w-auto"><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24">Daily</option><option value="72">Every 3 days</option><option value="168">Weekly</option></Select></Field>
+            <div className="w-full rounded-xl bg-accent-soft p-4 text-sm text-accent-ink">
+              <p className="font-semibold">Searches adapt as your trip gets closer</p>
+              <ul className="mt-2 space-y-1"><li>30 or more days before departure: weekly, on Monday</li><li>15–29 days before departure: Mondays and Thursdays</li><li>14 days before departure through the trip: daily</li></ul>
+              <p className="mt-3 font-medium">Current schedule: {p.settings.cadence}</p>
+              <p className="mt-1 text-xs">Around 9 am in the trip’s time zone. Searches use your interests, questionnaire answers and saved preferences.</p>
+            </div>
             <Button type="submit" disabled={pending}>Save</Button>
-            <p className="w-full text-xs text-muted">Automatic checks run on the server's background worker{p.settings.autoDiscovery && p.settings.nextAt ? `; next check around ${formatTimestamp(p.settings.nextAt, p.timezone)}` : ""}. They stop after the trip ends. Results go to “New” — nothing is added to your days automatically.</p>
+            <p className="w-full text-xs text-muted">Automatic checks continue while the app is closed{p.settings.autoDiscovery && p.settings.nextAt ? `; next check around ${formatTimestamp(p.settings.nextAt, p.timezone)}` : ""}. They stop after the trip ends. Results go to “New” — nothing is added to your days automatically.</p>
           </form>
         )}
       </Card>
 
       <Card>
         <h2 className="font-display text-lg font-semibold">My event alerts</h2>
+        <p className="mt-2 text-sm text-muted">Every trip member receives in-app alerts for new matches and event changes. Known events are not announced again unless something changes. Open an alert to see the event and its booking links.</p>
         {!p.emailReady && <Notice tone="warn" className="mt-2">Email delivery isn't set up on this server yet (Resend or SMTP), so alerts can't be sent. Your preferences are saved and nothing will be reported as sent.</Notice>}
         <form className="mt-3 space-y-3" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); run(() => notificationPrefsAction(p.tripId, { emailEnabled: f.get("email") === "on", frequency: String(f.get("freq")), changeTypes: f.getAll("types").map(String) }), { success: "Alert preferences saved" }); }}>
-          <label className="flex min-h-11 items-center gap-2 text-sm font-medium"><input type="checkbox" name="email" defaultChecked={p.pref.emailEnabled} className="h-5 w-5" /> Email me about changes (opt-in)</label>
+          <label className="flex min-h-11 items-center gap-2 text-sm font-medium"><input type="checkbox" name="email" defaultChecked={p.pref.emailEnabled} className="h-5 w-5" /> Also email me about event matches and changes (opt-in)</label>
           <Field label="Frequency" htmlFor="freq"><Select id="freq" name="freq" defaultValue={p.pref.frequency} className="w-auto"><option value="immediate">As soon as found</option><option value="daily">Daily digest</option></Select></Field>
           <fieldset><legend className="mb-1 text-sm font-medium">Which changes</legend>
             <div className="flex flex-wrap gap-x-4">{NOTIFY_CHANGE_TYPES.map(([v, l]) => <label key={v} className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="types" value={v} defaultChecked={p.pref.changeTypes.includes(v)} className="h-5 w-5" />{l}</label>)}</div>
@@ -92,7 +98,7 @@ export function EventsView(p: Props) {
         </form>
         {p.deliveries.length > 0 && (
           <details className="mt-3 text-sm"><summary className="cursor-pointer text-muted">Recent alert deliveries</summary>
-            <ul className="mt-1 space-y-1">{p.deliveries.map((d) => <li key={d.id}>{formatTimestamp(d.at, p.timezone)} — {d.subject} — <strong>{d.status === "sent" ? "sent (accepted by email provider)" : d.status === "not_configured" ? "not sent: email not configured" : d.status === "queued" ? "waiting for daily digest" : "failed"}</strong></li>)}</ul>
+            <ul className="mt-1 space-y-1">{p.deliveries.map((d) => <li key={d.id}>{formatTimestamp(d.at, p.timezone)} — {d.subject} — <strong>{d.status === "sent" ? "sent (accepted by email provider)" : d.status === "not_configured" ? "not sent: email not configured" : d.status === "digest" ? "waiting for daily digest" : d.status === "queued" ? "waiting for delivery" : d.status === "cancelled" ? "cancelled" : "failed"}</strong></li>)}</ul>
           </details>
         )}
       </Card>

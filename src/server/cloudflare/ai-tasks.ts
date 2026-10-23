@@ -1,3 +1,4 @@
+import { prepareEventDigests } from "@/server/notifications/events";
 import { runDestinationSearch } from "@/server/destinations/service";
 import { appRuntime, type AppRuntime } from "./runtime";
 import { serializedDatabase, type Serialize } from "./serialized-db";
@@ -33,7 +34,7 @@ export class AiTasks {
   }
 
   async pending() {
-    return await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: "queued" } }) > 0 || await this.context().database.memberLocation.count({ where: { expiresAt: { not: null } } }) > 0;
+    return await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: { in: ["queued", "digest"] } } }) > 0 || await this.context().database.memberLocation.count({ where: { expiresAt: { not: null } } }) > 0;
   }
 
   async alarm() {
@@ -46,6 +47,7 @@ export class AiTasks {
       const runtime = this.context();
       await appRuntime.run({ ...runtime, database: serializedDatabase(runtime.database, this.serialize), wakeAi: undefined, wakeNotifications: undefined, wakeLocationExpiry: undefined }, async () => {
         await expireMemberLocations();
+        await prepareEventDigests();
         await this.sendChanges();
         const nextEmail = await nextChangeEmailAt();
         if (nextEmail && nextEmail.getTime() <= Date.now()) return;
@@ -76,7 +78,7 @@ export class AiTasks {
             const job = await this.context().database.generationJob.findUnique({ where: { id: jobId }, select: { status: true } });
             if (!job || !["QUEUED", "RUNNING"].includes(job.status)) await this.storage.delete(`ai-checkpoint:${jobId}`);
           }
-          const nextEmail = await this.context().database.tripNotification.findFirst({ where: { emailStatus: "queued" }, orderBy: { nextAttemptAt: "asc" }, select: { nextAttemptAt: true } });
+          const nextEmail = await this.context().database.tripNotification.findFirst({ where: { emailStatus: { in: ["queued", "digest"] } }, orderBy: { nextAttemptAt: "asc" }, select: { nextAttemptAt: true } });
           const location = await this.context().database.memberLocation.findFirst({ where: { expiresAt: { not: null } }, orderBy: { expiresAt: "asc" }, select: { expiresAt: true } });
           const candidates = [await this.pendingAi() ? Date.now() + 1000 : undefined, nextEmail?.nextAttemptAt?.getTime(), location?.expiresAt?.getTime()].filter((n): n is number => n !== undefined);
           const next = candidates.length ? Math.min(...candidates) : undefined;
