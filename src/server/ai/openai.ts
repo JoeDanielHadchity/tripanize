@@ -100,7 +100,10 @@ export async function generateStructured<S extends z.ZodType>(opts: {
     throw new AIError("INVALID_RESPONSE", "The AI returned a response that is not valid JSON.");
   }
   const parsed = opts.schema.safeParse(json);
-  if (!parsed.success) throw new AIError("INVALID_RESPONSE", `The AI response did not match the expected structure (${parsed.error.issues.slice(0, 3).map((i) => i.path.join(".")).join(", ")}).`);
+  if (!parsed.success) {
+    console.error("[ai] invalid structure", { name: opts.name, responseId: resp.id, issues: parsed.error.issues.slice(0, 8).map(i => ({ path: i.path.join("."), code: i.code })) });
+    throw new AIError("INVALID_RESPONSE", `The AI response did not match the expected structure (${parsed.error.issues.slice(0, 3).map((i) => i.path.join(".")).join(", ")}).`);
+  }
 
   const sources = new Set<string>();
   for (const item of resp.output ?? []) {

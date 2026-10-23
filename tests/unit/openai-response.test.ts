@@ -27,3 +27,13 @@ it("rejects incomplete output even if its final JSON parses", async () => {
 it("validates the final answer's schema and preserves refusal handling", async () => {
   response([message('{"ready":"wrong type"}', "final_answer")]); await expect(generate()).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
 });
+it("accepts researched destination copy through the SDK before applying display limits", async () => {
+  const { fixtureIdeas } = await import("../fixtures/destinations");
+  const { discoveryWireResult, normalizeDiscoveryResult } = await import("@/server/destinations/schema");
+  const data = fixtureIdeas(); data.ideas[0].weather = "Seasonal weather detail. ".repeat(35);
+  response([message("Researching the destination options.", "commentary"), message(JSON.stringify(data), "final_answer")]);
+  const { generateStructured } = await import("@/server/ai/openai");
+  const raw = await generateStructured({ name: "destination_ideas", schema: discoveryWireResult, instructions: "Synthetic destination fixture", input: "Test", webSearch: true });
+  const result = normalizeDiscoveryResult(raw.data);
+  expect(result.ideas).toHaveLength(5); expect(result.ideas[0].weather.length).toBeLessThanOrEqual(400);
+});
