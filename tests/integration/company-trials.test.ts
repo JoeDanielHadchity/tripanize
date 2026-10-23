@@ -10,7 +10,7 @@ import { createTripDraft, chooseNormal } from "@/server/trips/onboarding";
 import { getExpenseData } from "@/server/expenses/service";
 import { addStop } from "@/server/itinerary/service";
 import { updateProfile } from "@/server/profile";
-import { makeTrip, makeUser, resetDb } from "./helpers";
+import { makeTrip, makeUser, resetDb, adminAuthenticationFixture } from "./helpers";
 
 const runtime = currentRuntime();
 beforeEach(async () => { await resetDb(); setTestRuntime({ ...runtime, planAccessEnabled: true, appUrl: "https://tripanize.example.test", companyAdminEmail: "company@example.test" }); });
@@ -21,6 +21,7 @@ async function fixture() {
   const recipient = await makeUser("Traveler", "traveler@example.test");
   await prisma.user.update({ where: { id: recipient.id }, data: { emailVerified: true } });
   const other = await makeUser("Other traveler");
+  await adminAuthenticationFixture(admin.id);
   return { admin, recipient, other };
 }
 async function invitation(adminId: string, email: string) {

@@ -28,6 +28,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  adminAuthenticator AdminAuthenticator?
 
   profile          Profile?
   memberships      TripMembership[]
@@ -56,11 +57,27 @@ model Session {
   ipAddress String?
   userAgent String?
   normalMode Boolean @default(false) // Server-owned, per-session administrator view preference.
+  adminEmailVerifiedAt DateTime? // Fresh email-code proof for authenticator enrollment only.
+  adminVerifiedUntil DateTime? // Short-lived second-factor proof, never accepted from client input.
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("session")
+}
+
+model AdminAuthenticator {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  encryptedSecret String?
+  enabledAt DateTime?
+  recoveryHashes Json @default("[]")
+  lastCounter Int @default(-1)
+  failedAttempts Int @default(0)
+  lockedUntil DateTime?
+  pendingSecret String?
+  pendingSessionId String?
+  pendingExpiresAt DateTime?
 }
 
 model Account {

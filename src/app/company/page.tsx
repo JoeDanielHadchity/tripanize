@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { requireUser } from "@/server/auth/session";
 import { listCompanyTrials } from "@/server/admin/trials";
@@ -67,7 +67,8 @@ async function Content({ tab, userId, q, page }: { tab: AdminTab; userId: string
 }
 export default async function CompanyPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string }> }) {
   const user = await requireUser();
-  if (!user.companyAdmin) notFound();
+  if (!user.companyAdminEligible) notFound();
+  if (!user.companyAdmin) redirect("/account/security");
   const params = await searchParams;
   const tab = (ADMIN_TABS.some(([id]) => id === params.tab) ? params.tab : "overview") as AdminTab;
   const q = String(params.q ?? "").slice(0,100);
