@@ -51,6 +51,12 @@ Only the company can issue or revoke email-bound trial invitations. An unused in
 
 Invitation emails use a durable immutable outbox, stable provider idempotency keys, bounded retries within 20 hours, and native restart recovery. No email or payment is sent merely by deploying the feature. Migration 13 adds invitation storage. Startup uses the private configuration to replace existing company account, linked traveler, chat sender and historical activity display labels with “The company”; previously queued activity emails containing the old identity are cancelled rather than rewritten under an existing idempotency key. Public policies and contact pages identify the company without a personal name.
 
+## Saved destination searches
+
+“Let me help you choose” keeps private, numbered searches for each account. New searches begin as saved drafts with their own questionnaire answers; users can switch between searches and copy earlier answers into a new search without replacing existing results. Draft answers save automatically. Research begins only after an explicit submission and can queue independently for several searches. Each completed search retains its five ideas and its chosen trip.
+
+Migration 14 numbers existing searches by creation order (with ID tie-breaking), preserves failed and successful history, and adds queue time for accurate daily allowance accounting. Draft creation/saving does not call AI or consume the five-per-day research allowance. Authorization, draft transitions, numbering and quota checks are enforced on the server; late draft saves cannot overwrite a submitted search. Native alarms ignore drafts and recover queued searches across restarts.
+
 ## Local development and validation
 
 Use Node.js 22.14 or later.

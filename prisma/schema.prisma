@@ -785,6 +785,7 @@ model DiscoveryRun {
 // ───────────────────────── AI jobs ─────────────────────────
 
 enum JobStatus {
+  DRAFT
   QUEUED
   RUNNING
   SUCCEEDED
@@ -913,15 +914,18 @@ model DestinationSearch {
   id String @id @default(cuid())
   userId String
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  number Int
   input Json
   status JobStatus @default(QUEUED)
   result Json?
   error String?
   selectedTripId String?
   createdAt DateTime @default(now())
+  queuedAt DateTime?
   finishedAt DateTime?
 
   @@index([userId, createdAt])
+  @@unique([userId, number])
   @@index([status, createdAt])
 }
 
