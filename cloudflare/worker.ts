@@ -1,3 +1,5 @@
+import { resolveAccountMode } from "../src/server/admin/mode";
+import adminNormalMode from "../prisma/migrations/202610230017_admin_normal_mode/migration.sql?raw";
 import { queueDueBookingReminders } from "../src/server/bookings/reminders";
 import remindersVotes from "../prisma/migrations/202610230016_reminders_votes/migration.sql?raw";
 import adminDashboard from "../prisma/migrations/202610230015_admin_dashboard/migration.sql?raw";
@@ -135,6 +137,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
         });
         await ctx.storage.put("schemaVersion", 16);
       }
+      if (version < 17) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "normalMode")) ctx.storage.sql.exec(adminNormalMode);
+        });
+        await ctx.storage.put("schemaVersion", 17);
+      }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
       if (this.env.COMPANY_ADMIN_EMAIL && await ctx.storage.get("companyIdentity15") !== `${this.env.COMPANY_ADMIN_EMAIL}:${OPERATOR_NAME}`) {
@@ -163,8 +171,11 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     const runtime = this.runtime();
     const context = independent ? { ...runtime, database: serializedDatabase(runtime.database, run => this.serialize(run)) } : runtime;
     const run = () => appRuntime.run(context, async () => {
-      const response = await handler.fetch(request, this.env, { waitUntil: this.ctx.waitUntil.bind(this.ctx), passThroughOnException() {} });
-      return new Response(response.body ? await response.arrayBuffer() : null, { status: response.status, statusText: response.statusText, headers: response.headers });
+      const accountMode = new URL(request.url).pathname.startsWith("/api/auth/") ? undefined : await resolveAccountMode(request.headers);
+      return appRuntime.run({ ...context, accountMode }, async () => {
+        const response = await handler.fetch(request, this.env, { waitUntil: this.ctx.waitUntil.bind(this.ctx), passThroughOnException() {} });
+        return new Response(response.body ? await response.arrayBuffer() : null, { status: response.status, statusText: response.statusText, headers: response.headers });
+      });
     });
     return independent ? run() : this.serialize(run);
   }

@@ -1,3 +1,6 @@
+import { auth } from "../../src/server/auth/auth";
+import { resolveAccountMode, sessionAccountMode, setAccountMode } from "../../src/server/admin/mode";
+import adminNormalMode from "../../prisma/migrations/202610230017_admin_normal_mode/migration.sql";
 import { createPoll, castVote, decidePoll, listPolls } from "../../src/server/voting/service";
 import { queueDueBookingReminders, nextBookingReminderAt } from "../../src/server/bookings/reminders";
 import { scanExpenseReceipt } from "../../src/server/expenses/scan";
@@ -63,6 +66,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("DestinationSearch")').toArray().some(c => c.name === "number")) ctx.storage.sql.exec(destinationSearches);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("user")').toArray().some(c => c.name === "suspendedAt")) ctx.storage.sql.exec(adminDashboard);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(c => c.name === "bookByAt")) ctx.storage.sql.exec(remindersVotes);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "normalMode")) ctx.storage.sql.exec(adminNormalMode);
       });
     });
   }
@@ -97,6 +101,40 @@ export class StorageProbe extends DurableObject<Env> {
             const overview = await adminOverview(admin.id), ai = await adminAi(admin.id), support = await adminSupport(admin.id, 0), payments = await adminPayments(admin.id, 0), health = await adminHealth(admin.id), audit = await adminActivity(admin.id, 0);
             return Response.json({ guard, suspended, restored: (await requireTrip(tripId, traveler.id)).role === "OWNER", users: users.total === 1, trips: trips.total === 1, announcements: published, usage: ai.rows.some(r => r.id === usage.id && r.estimatedCostMicros === 300), support: support.total > 0, payments: Array.isArray(payments.rows), health: Array.isArray(health.webhooks), audit: audit.total >= 5, overview: overview.users >= 2 });
           });
+        }
+        if (new URL(request.url).pathname === "/mode-check") {
+          const email = `mode-${crypto.randomUUID()}@example.test`, origin = new URL(request.url).origin;
+          const modeRuntime = { database: this.db, authSecret: "isolated-mode-fixture", companyAdminEmail: email, planAccessEnabled: true, appUrl: origin };
+          return appRuntime.run(modeRuntime, async () => {
+            const signed = await auth.handler(new Request(`${origin}/api/auth/sign-up/email`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ name: "Native mode fixture", email, password: crypto.randomUUID() + "Aa1!" }) }));
+            if (!signed.ok) throw new Error(`Native fixture sign-in failed (${signed.status})`);
+            const body = await signed.json() as { user: { id: string } };
+            const cookie = signed.headers.getSetCookie().map(s => s.split(";")[0]).join("; ");
+            const headers = new Headers({ Cookie: cookie, Origin: origin });
+            const hiddenBeforeVerification = !await resolveAccountMode(headers);
+            await this.db.user.update({ where: { id: body.user.id }, data: { emailVerified: true } });
+            const initial = await resolveAccountMode(headers);
+            if (!initial?.sessionId) throw new Error("Native mode session missing");
+            const tripId = await createTrip(body.user.id, { name: "Native mode fixture", startDate: "2027-05-01", endDate: "2027-05-04", timezone: "UTC" });
+            await appRuntime.run({ ...modeRuntime, accountMode: initial }, () => setAccountMode(body.user.id, "NORMAL"));
+            const normal = await resolveAccountMode(headers);
+            let denied = false, normalPlan = false;
+            await appRuntime.run({ ...modeRuntime, accountMode: normal }, async () => {
+              try { await adminOverview(body.user.id); } catch (e) { denied = (e as { code?: string }).code === "FORBIDDEN"; }
+              normalPlan = !(await getTripPlan(tripId)).premium && (await planningScope(tripId, "full"))?.length === 2;
+            });
+            const othersUnchanged = (await getTripPlan(tripId)).premium;
+            await appRuntime.run({ ...modeRuntime, accountMode: normal }, () => setAccountMode(body.user.id, "ADMIN"));
+            const restored = !(await resolveAccountMode(headers))?.normal;
+            await appRuntime.run({ ...modeRuntime, accountMode: await resolveAccountMode(headers) }, () => setAccountMode(body.user.id, "NORMAL"));
+            await this.ctx.storage.put("modeFixture", { email, userId: body.user.id, sessionId: initial.sessionId });
+            return Response.json({ hiddenBeforeVerification, denied, normalPlan, othersUnchanged, restored, defaultsAdmin: initial.normal === false, forgedCookieIgnored: !await resolveAccountMode(new Headers({ Cookie: "tripanize.mode=ADMIN; better-auth.session_token=fake" })) });
+          });
+        }
+        if (new URL(request.url).pathname === "/mode-state") {
+          const state = await this.ctx.storage.get<{ email: string; userId: string; sessionId: string }>("modeFixture");
+          if (!state) throw new Error("Mode fixture missing");
+          return appRuntime.run({ database: this.db, authSecret: "isolated-mode-fixture", companyAdminEmail: state.email, planAccessEnabled: true }, async () => Response.json({ persisted: (await sessionAccountMode(state.userId, state.sessionId))?.normal === true }));
         }
         if (new URL(request.url).pathname === "/travel-tools") {
           const user = await this.db.user.create({ data: { id: crypto.randomUUID(), name: "Native trip tools", email: `tools-${crypto.randomUUID()}@example.test` } });

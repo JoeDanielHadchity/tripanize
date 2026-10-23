@@ -5,12 +5,12 @@ import { rateLimit } from "@/server/ratelimit";
 import { aiConfigured } from "@/server/ai/openai";
 import { missingEssentials } from "./context";
 import type { Prisma } from "@/generated/prisma/client";
-import { currentRuntime } from "@/server/cloudflare/runtime";
+import { currentRuntime, normalUserMode } from "@/server/cloudflare/runtime";
 import { planningScope } from "@/server/plans/planning";
 import { requirePremiumAccess } from "@/server/plans/access";
 
 export type JobKind = "full" | "days" | "swap";
-export type JobParams = { dates?: string[]; stopId?: string; instruction?: string | null; onboarding?: boolean; eventsReady?: boolean };
+export type JobParams = { dates?: string[]; stopId?: string; instruction?: string | null; onboarding?: boolean; eventsReady?: boolean; normalMode?: boolean };
 
 /**
  * Queues an AI job. Guards: AI must be configured (no simulated results), essentials must be present,
@@ -46,7 +46,7 @@ export async function enqueueJob(userId: string, tripId: string, kind: JobKind, 
 
   await rateLimit(`ai:${kind === "swap" ? "swap" : "plan"}:${userId}`, kind === "swap" ? 30 : 12, 3600, "You've reached the hourly limit for AI requests. Please try again later.");
   const job = await prisma.generationJob.create({
-    data: { tripId, kind, params: { dates: scope ?? params.dates ?? null, stopId: params.stopId ?? null, instruction: params.instruction?.slice(0, 500) ?? null, ...(params.onboarding ? { onboarding: true } : {}) } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your trip is queued and will start shortly" }] },
+    data: { tripId, kind, params: { dates: scope ?? params.dates ?? null, stopId: params.stopId ?? null, instruction: params.instruction?.slice(0, 500) ?? null, ...(params.onboarding ? { onboarding: true } : {}), ...(normalUserMode(userId) ? { normalMode: true } : {}) } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your trip is queued and will start shortly" }] },
   });
   await currentRuntime().wakeAi?.();
   return { jobId: job.id, existing: false };

@@ -29,7 +29,7 @@ function createAuth() { return betterAuth({
   databaseHooks: { session: { create: { before: async session => {
     const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { suspendedAt: true } });
     if (!user || user.suspendedAt) return false;
-    return { data: session };
+    return { data: { ...session, normalMode: false } };
   } } }, user: {
     create: { before: async user => ({ data: { ...user, name: accountDisplayName(user) } }) },
     update: { after: async user => {
@@ -57,7 +57,7 @@ function createAuth() { return betterAuth({
       }
     },
   },
-  session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24 },
+  session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24, additionalFields: { normalMode: { type: "boolean", defaultValue: false, input: false, returned: false } } },
   rateLimit: { enabled: true, window: 60, max: 30 },
   plugins: [
     // Passwordless sign-in: a 6-digit code by email (delivered through Resend or SMTP). The first successful

@@ -55,6 +55,7 @@ model Session {
   updatedAt DateTime @updatedAt
   ipAddress String?
   userAgent String?
+  normalMode Boolean @default(false) // Server-owned, per-session administrator view preference.
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

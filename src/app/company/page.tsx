@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { requireUser } from "@/server/auth/session";
-import { companyAccount } from "@/server/admin/identity";
 import { listCompanyTrials } from "@/server/admin/trials";
 import { adminOverview, adminUsers, adminTrips, adminPayments, adminAi, adminSupport, adminHealth, adminAnnouncements, adminActivity } from "@/server/admin/operations";
 import { OPERATOR_NAME } from "@/lib/legal";
@@ -68,7 +67,7 @@ async function Content({ tab, userId, q, page }: { tab: AdminTab; userId: string
 }
 export default async function CompanyPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string }> }) {
   const user = await requireUser();
-  if (!await companyAccount(user.id)) notFound();
+  if (!user.companyAdmin) notFound();
   const params = await searchParams;
   const tab = (ADMIN_TABS.some(([id]) => id === params.tab) ? params.tab : "overview") as AdminTab;
   const q = String(params.q ?? "").slice(0,100);

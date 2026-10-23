@@ -1,5 +1,5 @@
 import { prisma, type Tx } from "@/server/db";
-import { currentRuntime } from "@/server/cloudflare/runtime";
+import { currentRuntime, normalUserMode } from "@/server/cloudflare/runtime";
 import { requireTrip, type Capability } from "@/server/auth/permissions";
 import { AppError } from "@/server/errors";
 import { PREMIUM_FEATURES, PREMIUM_BANDS, type PremiumFeature } from "@/lib/plans";
@@ -23,9 +23,9 @@ export async function getTripPlan(tripId: string, db: Database = prisma) {
   const creditMinor = purchases.filter(p => !p.reviewRequired).reduce((sum, p) => sum + p.amountMinor, 0);
   const hasPurchase = purchases.some(p => !p.reviewRequired && [900, 1500, 2500].includes(p.amountMinor));
   const band = hasPurchase ? PREMIUM_BANDS[0] : null;
-  const preview = !planAccessEnabled();
+  const preview = !planAccessEnabled() && !normalUserMode();
   const trip = await db.trip.findUniqueOrThrow({ where: { id: tripId }, select: { ownerId: true, owner: { select: { email: true, emailVerified: true } }, memberships: { select: { user: { select: { email: true, emailVerified: true } } } } } });
-  const company = isCompanyAccount(trip.owner) || trip.memberships.some(m => isCompanyAccount(m.user));
+  const company = !normalUserMode() && (isCompanyAccount(trip.owner) || trip.memberships.some(m => isCompanyAccount(m.user)));
   const trial = await db.trialInvitation.findUnique({ where: { tripId }, select: { acceptedAt: true, acceptedById: true, revokedAt: true, trialEndsAt: true } });
   const hasTrial = Boolean(trial?.acceptedAt && !trial.revokedAt && trial.acceptedById === trip.ownerId && (!trial.trialEndsAt || trial.trialEndsAt > new Date()));
   const source = hasPurchase ? "purchase" : company ? "company" : hasTrial ? "trial" : null;

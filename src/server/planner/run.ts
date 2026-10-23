@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db";
-import type { Prisma } from "@/generated/prisma/client";
+import { appRuntime, currentRuntime, normalUserMode } from "@/server/cloudflare/runtime";
+import type { GenerationJob, Prisma } from "@/generated/prisma/client";
 import { AIError, aiModel, generateStructured } from "@/server/ai/openai";
 import { buildContext, missingEssentials } from "./context";
 import { buildPlannerInput, PLANNER_INSTRUCTIONS, SWAP_INSTRUCTIONS } from "./prompt";
@@ -49,6 +50,13 @@ export async function claimJob(jobId: string) {
  */
 export async function runJob(jobId: string, generate: Generator = generateStructured, checkpoint?: Checkpoints) {
   const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } });
+  if ((job.params as JobParams).normalMode && !normalUserMode(job.requestedById)) {
+    return appRuntime.run({ ...currentRuntime(), accountMode: { userId: job.requestedById, normal: true } }, () => runJobInContext(job, generate, checkpoint));
+  }
+  return runJobInContext(job, generate, checkpoint);
+}
+async function runJobInContext(job: GenerationJob, generate: Generator, checkpoint?: Checkpoints) {
+  const jobId = job.id;
   const params = job.params as JobParams;
   const controller = new AbortController();
   const stop = watchCancel(jobId, controller);
@@ -153,7 +161,7 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
       await tx.generationJob.update({ where: { id: jobId }, data: { status: "SUCCEEDED", finishedAt: new Date(), proposal: proposal as unknown as Prisma.InputJsonValue, checks: { issues, sources: [...allSources].slice(0, 50) } as unknown as Prisma.InputJsonValue } });
       if (params.onboarding) {
         const id = `setup:${jobId}`;
-        await tx.generationJob.upsert({ where: { id }, create: { id, tripId: job.tripId, requestedById: job.requestedById, kind: "setup", params: { planJobId: jobId }, progress: [{ at: new Date().toISOString(), message: "Preparing your complete trip" }] }, update: {} });
+        await tx.generationJob.upsert({ where: { id }, create: { id, tripId: job.tripId, requestedById: job.requestedById, kind: "setup", params: { planJobId: jobId, ...(params.normalMode ? { normalMode: true } : {}) }, progress: [{ at: new Date().toISOString(), message: "Preparing your complete trip" }] }, update: {} });
         await tx.trip.update({ where: { id: job.tripId }, data: { onboardingJobId: id } });
       }
     });

@@ -7,6 +7,7 @@ const SNAPSHOT_CACHE = "tripanize-trip-snapshots";
 /** Removes every cached private trip snapshot (called on sign-out). */
 export async function clearOfflineData() {
   try {
+    try { localStorage.setItem("tripanize:offline-epoch", crypto.randomUUID()); } catch { /* storage may be unavailable */ }
     if ("caches" in window) {
       for (const k of await caches.keys()) await caches.delete(k);
     }
@@ -58,12 +59,16 @@ export function SaveOfflineSnapshot({ tripId }: { tripId: string }) {
   useEffect(() => {
     if (!navigator.onLine || !("caches" in window)) return;
     const url = `/api/trips/${tripId}/snapshot`;
+    let epoch: string | null;
+    try { epoch = localStorage.getItem("tripanize:offline-epoch"); } catch { return; }
     (async () => {
       try {
         const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) return;
+        if (!res.ok || epoch !== localStorage.getItem("tripanize:offline-epoch")) return;
         const cache = await caches.open(SNAPSHOT_CACHE);
+        if (epoch !== localStorage.getItem("tripanize:offline-epoch")) return;
         await cache.put(url, res.clone());
+        if (epoch !== localStorage.getItem("tripanize:offline-epoch")) { await cache.delete(url); return; }
         const idx = JSON.parse(localStorage.getItem("tripanize:offline-index") ?? "{}") as Record<string, string>;
         const body = (await res.json()) as { trip: { name: string } };
         idx[tripId] = body.trip.name;
