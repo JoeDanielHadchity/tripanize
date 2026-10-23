@@ -1,3 +1,4 @@
+import companyTrials from "../../prisma/migrations/202610230013_company_trials/migration.sql";
 import eventAlerts from "../../prisma/migrations/202610230012_event_alerts/migration.sql";
 import destinationSearch from "../../prisma/migrations/202610230011_destination_search/migration.sql";
 import { DurableObject } from "cloudflare:workers";
@@ -48,6 +49,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "selectedPremiumFeatures")) ctx.storage.sql.exec(tripFeatures);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "onboardingStage")) ctx.storage.sql.exec(guidedSetup);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TripNotification")').toArray().some(c => c.name === "kind")) ctx.storage.sql.exec(eventAlerts);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TrialInvitation")').toArray().length) ctx.storage.sql.exec(companyTrials);
       });
     });
   }

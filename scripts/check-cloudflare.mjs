@@ -7,6 +7,7 @@ const mode = process.argv[2] ?? "storage";
 let config = mode === "storage" ? "tests/cloudflare/wrangler.jsonc" : "dist/server/wrangler.json";
 const port = mode === "storage" ? 8789 : 8787;
 const origin = `http://127.0.0.1:${port}`;
+const persistTo = mode === "app" ? `.wrangler/check-app-${process.pid}` : `.wrangler/check-${mode}`;
 if (mode === "app") {
   const local = JSON.parse(readFileSync(config, "utf8"));
   delete local.routes;
@@ -17,8 +18,8 @@ if (mode === "app") {
 let logs = "";
 async function start() {
   logs = "";
-  const args = ["node_modules/wrangler/bin/wrangler.js", "dev", "--local", "--ip", "127.0.0.1", "--inspector-port", "0", "--config", config, "--port", String(port), "--persist-to", `.wrangler/check-${mode}`];
-  if (mode === "app") args.push("--var", `APP_URL:${origin}`, "--var", `BETTER_AUTH_URL:${origin}`);
+  const args = ["node_modules/wrangler/bin/wrangler.js", "dev", "--local", "--ip", "127.0.0.1", "--inspector-port", "0", "--config", config, "--port", String(port), "--persist-to", persistTo];
+  if (mode === "app") args.push("--var", `APP_URL:${origin}`, "--var", `BETTER_AUTH_URL:${origin}`, "--var", "COMPANY_ADMIN_EMAIL:company@example.test");
   const child = spawn(process.execPath, args, { env: { ...process.env, OPENAI_API_KEY: "", RESEND_API_KEY: "", WRANGLER_SEND_METRICS: "false" }, stdio: ["ignore", "pipe", "pipe"] });
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("Local Cloudflare startup timed out")), 35000);
@@ -74,7 +75,7 @@ try {
     for (const path of ["/terms", "/privacy", "/refunds", "/contact"]) {
       assert.match(html, new RegExp(`href="${path}"`));
       const policy = await fetch(origin + path); assert.equal(policy.status, 200, path); assert.equal(new URL(policy.url).pathname, path);
-      assert.match(await policy.text(), /Joe-Daniel Hadchity/);
+      const policyHtml = await policy.text(); assert.match(policyHtml, /the company/i); assert.doesNotMatch(policyHtml, /an individual (?:operator )?based/i);
     }
     const unsupported = await fetch(origin + "/api/support", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ name: "Isolated test", email: "test@example.test", topic: "general", message: "An isolated test. No email should be sent.", website: "", requestId: crypto.randomUUID() }) });
     assert.equal(unsupported.status, 503); assert.equal((await unsupported.json()).sent, undefined);
@@ -89,6 +90,16 @@ try {
     assert.ok(cookie);
     const trips = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(trips.status, 200); assert.equal(new URL(trips.url).pathname, "/trips"); assert.match(await trips.text(), /trips/i);
     const newTrip = await fetch(origin + "/trips/new", { headers: { Cookie: cookie } }); assert.equal(newTrip.status, 200); assert.equal(new URL(newTrip.url).pathname, "/trips/new");
+    const deniedCompany = await fetch(origin + "/company", { headers: { Cookie: cookie } }); assert.equal(deniedCompany.status, 404);
+    const deniedTrial = await fetch(origin + "/trial?invitation=not-yours", { headers: { Cookie: cookie } }); assert.equal(deniedTrial.status, 404);
+    const reauth = await fetch(origin + "/sign-in?reauth=1&next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(reauth.url).pathname, "/sign-in"); assert.match(await reauth.text(), /Sign in to Tripanize/);
+    const companySignup = await fetch(origin + "/api/auth/sign-up/email", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ name: "Retired personal label", email: "company@example.test", password: crypto.randomUUID() + "Aa1!" }) });
+    assert.equal(companySignup.status, 200, await companySignup.clone().text());
+    const companyUser = await companySignup.json(); assert.equal(companyUser.user.name, "The company"); assert.equal(companyUser.user.emailVerified, false);
+    const companyCookie = companySignup.headers.getSetCookie().map(v => v.split(";")[0]).join("; ");
+    assert.equal((await fetch(origin + "/company", { headers: { Cookie: companyCookie } })).status, 404);
+    const changedName = await fetch(origin + "/api/auth/update-user", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin, Cookie: companyCookie }, body: JSON.stringify({ name: "Another personal label" }) }); assert.equal(changedName.status, 200);
+    const companyAccountHtml = await (await fetch(origin + "/account", { headers: { Cookie: companyCookie } })).text(); assert.match(companyAccountHtml, /The company/); assert.doesNotMatch(companyAccountHtml, /Another personal label|Retired personal label/);
     const unauth = await fetch(origin + "/api/attachments/does-not-exist"); assert.equal(unauth.status, 401);
     const locationUnauth = await fetch(origin + "/api/trips/does-not-exist/locations"); assert.equal(locationUnauth.status, 401); assert.equal(locationUnauth.headers.get("Cache-Control"), "private, no-store");
     const locationMissing = await fetch(origin + "/api/trips/does-not-exist/locations", { headers: { Cookie: cookie } }); assert.equal(locationMissing.status, 404);
@@ -107,7 +118,7 @@ try {
     assert.equal(receiptMissingTrip.status, 404);
     await stop(child); child = await start();
     const restored = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(restored.status, 200); assert.equal(new URL(restored.url).pathname, "/trips");
-    console.log(JSON.stringify({ mode, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
+    console.log(JSON.stringify({ mode, companyAdminGuard: true, companyNamePrivate: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
   }
 } catch (error) { await new Promise((resolve) => setTimeout(resolve, 200)); console.error(error.stack ?? error.message); console.error(logs.slice(-11000)); process.exitCode = 1; }
 finally { if (child) await stop(child); }

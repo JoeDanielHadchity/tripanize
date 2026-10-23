@@ -1,3 +1,4 @@
+import { accountDisplayName, isCompanyIdentity } from "@/server/admin/identity";
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
@@ -47,8 +48,8 @@ export async function createInvitation(
   if (email) {
     const res = await sendEmail({
       to: email,
-      subject: `${inviter.name} invited you to “${trip.name}” on Tripanize`,
-      text: `${inviter.name} invited you to join the trip “${trip.name}” as a ${input.role === "COLLABORATOR" ? "collaborator (can edit)" : "viewer (read-only)"}.\n\nOpen this link to join:\n${url}\n\nOr go to ${process.env.APP_URL ?? "Tripanize"} and sign in with this email address (${email}) — we'll email you a sign-in code, no password needed. The invitation will be waiting on your trips page.\n\nThe invitation expires in ${INVITE_TTL_DAYS} days.`,
+      subject: `${accountDisplayName(inviter)} invited you to “${trip.name}” on Tripanize`,
+      text: `${accountDisplayName(inviter)} invited you to join the trip “${trip.name}” as a ${input.role === "COLLABORATOR" ? "collaborator (can edit)" : "viewer (read-only)"}.\n\nOpen this link to join:\n${url}\n\nOr go to ${process.env.APP_URL ?? "Tripanize"} and sign in with this email address (${email}) — we'll email you a sign-in code, no password needed. The invitation will be waiting on your trips page.\n\nThe invitation expires in ${INVITE_TTL_DAYS} days.`,
     });
     emailStatus = res.status === "failed" ? `failed: ${res.error}` : res.status;
     await prisma.invitation.update({ where: { id: inv.id }, data: { emailStatus } });
@@ -77,8 +78,8 @@ export async function previewInvitation(token: string): Promise<InvitationPrevie
   if (inv.revokedAt) return { ok: false, reason: "This invitation was revoked by the trip owner." };
   if (inv.acceptedAt) return { ok: false, reason: "This invitation has already been used." };
   if (inv.expiresAt < new Date()) return { ok: false, reason: "This invitation has expired. Ask the trip owner for a new link." };
-  const inviter = await prisma.user.findUnique({ where: { id: inv.createdById }, select: { name: true } });
-  return { ok: true, tripName: inv.trip.name, inviterName: inviter?.name ?? "A traveler", role: inv.role, email: inv.email, travelerName: inv.traveler?.name ?? null, expiresAt: inv.expiresAt };
+  const inviter = await prisma.user.findUnique({ where: { id: inv.createdById }, select: { name: true, email: true } });
+  return { ok: true, tripName: inv.trip.name, inviterName: inviter ? accountDisplayName(inviter) : "A traveler", role: inv.role, email: inv.email, travelerName: inv.traveler?.name ?? null, expiresAt: inv.expiresAt };
 }
 
 /**
@@ -99,7 +100,7 @@ export async function listPendingInvitations(userId: string) {
     orderBy: { createdAt: "desc" },
   });
   const senders = await prisma.user.findMany({ where: { id: { in: invs.map((i) => i.createdById) } }, select: { id: true, name: true, email: true } });
-  const from = (id: string) => { const u = senders.find((x) => x.id === id); return u ? u.name || u.email.split("@")[0] : "Someone"; };
+  const from = (id: string) => { const u = senders.find((x) => x.id === id); return u ? accountDisplayName(u) || u.email.split("@")[0] : "Someone"; };
   return invs.map((i) => ({ id: i.id, tripName: i.trip.name, startDate: i.trip.startDate, endDate: i.trip.endDate, role: i.role, from: from(i.createdById) }));
 }
 
@@ -138,14 +139,14 @@ async function acceptWhere(userId: string, where: { tokenHash: string } | { id: 
     const previous = await tx.traveler.findUnique({ where: { tripId_userId: { tripId: inv.tripId, userId } } });
     if (previous) {
       travelerId = previous.id;
-      await tx.traveler.update({ where: { id: previous.id }, data: { leftAt: null } });
+      await tx.traveler.update({ where: { id: previous.id }, data: { leftAt: null, ...(isCompanyIdentity(user) ? { name: accountDisplayName(user) } : {}) } });
     } else if (inv.travelerId) {
       const planned = await tx.traveler.findUnique({ where: { id: inv.travelerId } });
       if (!planned || planned.userId) throw new AppError("CONFLICT", "The traveler this invitation was meant for is already connected to another account.");
-      await tx.traveler.update({ where: { id: planned.id }, data: { userId, leftAt: null } });
+      await tx.traveler.update({ where: { id: planned.id }, data: { userId, leftAt: null, ...(isCompanyIdentity(user) ? { name: accountDisplayName(user) } : {}) } });
       travelerId = planned.id;
     } else {
-      const t = await tx.traveler.create({ data: { tripId: inv.tripId, name: user.name, userId } });
+      const t = await tx.traveler.create({ data: { tripId: inv.tripId, name: accountDisplayName(user), userId } });
       travelerId = t.id;
     }
     await tx.tripMembership.create({ data: { tripId: inv.tripId, userId, role: inv.role, travelerId } });
@@ -225,7 +226,9 @@ export async function renameTraveler(actorId: string, tripId: string, travelerId
   const n = name.trim().slice(0, 80);
   if (!n) throw new AppError("VALIDATION", "Enter a name.");
   await prisma.$transaction(async tx => {
-    const res = await tx.traveler.updateMany({ where: { id: travelerId, tripId }, data: { name: n } });
+    const traveler = await tx.traveler.findFirst({ where: { id: travelerId, tripId }, include: { user: true } });
+    const displayName = traveler?.user && isCompanyIdentity(traveler.user) ? accountDisplayName(traveler.user) : n;
+    const res = await tx.traveler.updateMany({ where: { id: travelerId, tripId }, data: { name: displayName } });
     if (!res.count) throw new AppError("NOT_FOUND", "Traveler not found.");
     await recordChange(tx, { tripId, actorId, entity: "traveler", entityId: travelerId, action: "update" });
   });

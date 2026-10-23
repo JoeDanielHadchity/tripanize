@@ -12,7 +12,7 @@ import { INTERESTS } from "@/lib/constants";
 
 type Initial = { name: string; homeCity: string; defaultCurrency: string; pace: "RELAXED" | "BALANCED" | "AMBITIOUS"; interests: string[]; dietary: string; accessibility: string; mapsApp: "GOOGLE" | "APPLE" | "OSM"; timezone: string };
 
-export function AccountForm({ initial }: { initial: Initial }) {
+export function AccountForm({ initial, company = false }: { initial: Initial; company?: boolean }) {
   const { run, pending } = useAction();
   const [v, setV] = useState(initial);
   const [pw, setPw] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -21,7 +21,7 @@ export function AccountForm({ initial }: { initial: Initial }) {
       <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); run(() => updateProfileAction({ ...v, homeCity: v.homeCity || null, dietary: v.dietary || null, accessibility: v.accessibility || null, timezone: v.timezone || null }), { success: "Preferences saved" }); }}>
         <Card className="space-y-4">
           <h2 className="font-display text-lg font-semibold">Profile</h2>
-          <Field label="Display name" htmlFor="a-name" hint="Shown to people you travel with."><Input id="a-name" required maxLength={80} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
+          <Field label="Display name" htmlFor="a-name" hint={company ? "Your company account appears as The company throughout Tripanize." : "Shown to people you travel with."}><Input id="a-name" required maxLength={80} readOnly={company} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
           <Field label="Home city" htmlFor="a-home"><Input id="a-home" value={v.homeCity} onChange={(e) => setV({ ...v, homeCity: e.target.value })} /></Field>
         </Card>
         <Card className="space-y-4">

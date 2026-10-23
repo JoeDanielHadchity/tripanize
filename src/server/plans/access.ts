@@ -4,8 +4,9 @@ import { requireTrip, type Capability } from "@/server/auth/permissions";
 import { AppError } from "@/server/errors";
 import { PREMIUM_FEATURES, PREMIUM_BANDS, type PremiumFeature } from "@/lib/plans";
 import { billingEnvironment } from "@/server/billing/config";
+import { isCompanyAccount } from "@/server/admin/identity";
 
-type Database = Pick<Tx, "trip" | "premiumCheckout">;
+type Database = Pick<Tx, "trip" | "premiumCheckout" | "trialInvitation">;
 export function planAccessEnabled() { return currentRuntime().planAccessEnabled === true; }
 
 /** Count people once: planned totals, named travelers, and account members may overlap. */
@@ -23,7 +24,12 @@ export async function getTripPlan(tripId: string, db: Database = prisma) {
   const hasPurchase = purchases.some(p => !p.reviewRequired && [900, 1500, 2500].includes(p.amountMinor));
   const band = hasPurchase ? PREMIUM_BANDS[0] : null;
   const preview = !planAccessEnabled();
-  return { premium: preview || Boolean(band), preview, validUntil: null, people, creditMinor, capacity: band?.capacity ?? 0, bandId: band?.id ?? null, reviewRequired: purchases.some(p => p.reviewRequired) };
+  const trip = await db.trip.findUniqueOrThrow({ where: { id: tripId }, select: { ownerId: true, owner: { select: { email: true, emailVerified: true } }, memberships: { select: { user: { select: { email: true, emailVerified: true } } } } } });
+  const company = isCompanyAccount(trip.owner) || trip.memberships.some(m => isCompanyAccount(m.user));
+  const trial = await db.trialInvitation.findUnique({ where: { tripId }, select: { acceptedAt: true, acceptedById: true, revokedAt: true } });
+  const hasTrial = Boolean(trial?.acceptedAt && !trial.revokedAt && trial.acceptedById === trip.ownerId);
+  const source = hasPurchase ? "purchase" : company ? "company" : hasTrial ? "trial" : null;
+  return { premium: preview || Boolean(source), preview, source, validUntil: null, people, creditMinor, capacity: band?.capacity ?? 0, bandId: band?.id ?? null, reviewRequired: purchases.some(p => p.reviewRequired) };
 }
 
 export async function requirePremiumAccess(tripId: string, feature: PremiumFeature, db: Database = prisma) {
