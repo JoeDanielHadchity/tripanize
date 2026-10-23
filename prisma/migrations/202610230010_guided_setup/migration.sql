@@ -1,0 +1,5 @@
+ALTER TABLE "Trip" ADD COLUMN "onboardingStage" TEXT NOT NULL DEFAULT 'COMPLETE';
+ALTER TABLE "Trip" ADD COLUMN "onboardingPlan" TEXT;
+ALTER TABLE "Trip" ADD COLUMN "onboardingJobId" TEXT;
+ALTER TABLE "Trip" ADD COLUMN "packingTemplate" JSONB;
+ALTER TABLE "TripEvent" ADD COLUMN "hiddenStop" JSONB;

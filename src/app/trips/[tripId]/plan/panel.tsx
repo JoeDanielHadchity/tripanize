@@ -131,10 +131,10 @@ export function PlanPanel(props: { tripId: string; premium: boolean; canEdit: bo
 
   return (
     <div className="space-y-6">
-      {!props.premium && <Notice tone="accent">Normal includes an AI draft for the first 3 days per trip. Add the remaining days manually. <Link href={`/trips/${tripId}/premium#feature-advancedPlanning`} className="inline-flex items-center gap-1 font-semibold underline">Premium <PremiumStar /></Link> unlocks longer AI plans, selected-day regeneration and the AI assistant.</Notice>}
+      {!props.premium && <Notice tone="accent">Normal includes an AI draft for the first 2 days per trip. Add the remaining days manually. <Link href={`/trips/${tripId}/premium#feature-advancedPlanning`} className="inline-flex items-center gap-1 font-semibold underline">Premium <PremiumStar /></Link> unlocks longer AI plans, selected-day regeneration and the AI assistant.</Notice>}
       {props.canEdit && !running && (
         <Card id="plan-form">
-          <h2 className="font-display text-xl font-semibold">{!props.premium ? "Draft your first 3 days" : props.hasPlan ? "Regenerate with AI" : "Draft my itinerary"}</h2>
+          <h2 className="font-display text-xl font-semibold">{!props.premium ? "Draft your first 2 days" : props.hasPlan ? "Regenerate with AI" : "Draft my itinerary"}</h2>
           {blocking ? (
             <Notice tone="warn" title="A few essentials are needed first" className="mt-3">
               <ul className="list-disc pl-5">{props.missing.map((m) => <li key={m.field}>{m.question}</li>)}</ul>
@@ -147,7 +147,7 @@ export function PlanPanel(props: { tripId: string; premium: boolean; canEdit: bo
                 {(props.premium ? (["full", "days"] as const) : (["full"] as const)).map((s) => (
                   <label key={s} className={cx("flex min-h-11 cursor-pointer items-center rounded-xl border px-4 text-sm font-medium", scope === s ? "border-accent bg-accent-soft text-accent-ink" : "border-line")}>
                     <input type="radio" name="scope" className="sr-only" checked={scope === s} onChange={() => setScope(s)} />
-                    {s === "full" ? props.premium ? "Whole trip" : "First 3 days" : "Selected days only"}
+                    {s === "full" ? props.premium ? "Whole trip" : "First 2 days" : "Selected days only"}
                   </label>
                 ))}
               </fieldset>

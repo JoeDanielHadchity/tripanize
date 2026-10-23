@@ -10,7 +10,7 @@ import { planningScope } from "@/server/plans/planning";
 import { requirePremiumAccess } from "@/server/plans/access";
 
 export type JobKind = "full" | "days" | "swap";
-export type JobParams = { dates?: string[]; stopId?: string; instruction?: string | null };
+export type JobParams = { dates?: string[]; stopId?: string; instruction?: string | null; onboarding?: boolean; eventsReady?: boolean };
 
 /**
  * Queues an AI job. Guards: AI must be configured (no simulated results), essentials must be present,
@@ -18,6 +18,10 @@ export type JobParams = { dates?: string[]; stopId?: string; instruction?: strin
  */
 export async function enqueueJob(userId: string, tripId: string, kind: JobKind, params: JobParams) {
   await requireTrip(tripId, userId, "edit");
+  if (params.onboarding) {
+    await requireTrip(tripId, userId, "manage");
+    if (kind !== "full" || (await prisma.trip.findUniqueOrThrow({ where: { id: tripId } })).onboardingStage !== "QUESTIONS") throw new AppError("CONFLICT", "Complete guided setup before generating this trip.");
+  }
   if (!["full", "days", "swap"].includes(kind)) throw new AppError("VALIDATION", "Choose a valid planning tool.");
   if (!aiConfigured()) {
     throw new AppError("NOT_CONFIGURED", "AI planning isn't available on this server yet: the administrator needs to set an OpenAI API key (OPENAI_API_KEY). You can still plan manually.");
@@ -38,11 +42,11 @@ export async function enqueueJob(userId: string, tripId: string, kind: JobKind, 
   const active = await prisma.generationJob.findFirst({
     where: { tripId, status: { in: ["QUEUED", "RUNNING"] }, kind: kind === "swap" ? "swap" : { in: ["full", "days"] }, ...(kind === "swap" ? { params: { path: "$.stopId", equals: params.stopId! } } : {}) },
   });
-  if (active) { await currentRuntime().wakeAi?.(); return { jobId: active.id, existing: true }; }
+  if (active) { if (params.onboarding && !(active.params as JobParams).onboarding) throw new AppError("CONFLICT", "Another draft is being prepared. Wait for it to finish before starting guided setup."); await currentRuntime().wakeAi?.(); return { jobId: active.id, existing: true }; }
 
   await rateLimit(`ai:${kind === "swap" ? "swap" : "plan"}:${userId}`, kind === "swap" ? 30 : 12, 3600, "You've reached the hourly limit for AI requests. Please try again later.");
   const job = await prisma.generationJob.create({
-    data: { tripId, kind, params: { dates: scope ?? params.dates ?? null, stopId: params.stopId ?? null, instruction: params.instruction?.slice(0, 500) ?? null } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your draft is queued and will start shortly" }] },
+    data: { tripId, kind, params: { dates: scope ?? params.dates ?? null, stopId: params.stopId ?? null, instruction: params.instruction?.slice(0, 500) ?? null, ...(params.onboarding ? { onboarding: true } : {}) } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your trip is queued and will start shortly" }] },
   });
   await currentRuntime().wakeAi?.();
   return { jobId: job.id, existing: false };
@@ -52,7 +56,7 @@ export async function getJob(userId: string, tripId: string, jobId: string) {
   await requireTrip(tripId, userId, "view");
   const job = await prisma.generationJob.findFirst({ where: { id: jobId, tripId } });
   if (!job) throw new AppError("NOT_FOUND", "Planning job not found.");
-  if (job.kind !== "full") await requirePremiumAccess(tripId, "advancedPlanning");
+  if (!["full", "setup"].includes(job.kind)) await requirePremiumAccess(tripId, "advancedPlanning");
   if (job.kind === "assistant") {
     const { requireAssistantJob } = await import("@/server/assistant/service");
     return requireAssistantJob(userId, tripId, jobId);
@@ -69,6 +73,7 @@ export async function cancelJob(userId: string, tripId: string, jobId: string) {
   await requireTrip(tripId, userId, "edit");
   const job = await prisma.generationJob.findFirst({ where: { id: jobId, tripId } });
   if (!job) throw new AppError("NOT_FOUND", "Job not found.");
+  if (job.kind === "setup" || (job.params as JobParams).onboarding) await requireTrip(tripId, userId, "manage");
   if (job.kind === "assistant") {
     const { requireAssistantJob } = await import("@/server/assistant/service");
     await requireAssistantJob(userId, tripId, jobId);

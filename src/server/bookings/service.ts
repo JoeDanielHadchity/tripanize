@@ -100,7 +100,7 @@ export async function listBookings(userId: string, tripId: string) {
   const access = await requireTrip(tripId, userId, "view");
   const { premium } = await getTripPlan(tripId);
   const bookings = await prisma.booking.findMany({
-    where: { tripId },
+    where: { tripId, OR: [{ eventId: null }, { event: { status: { not: "HIDDEN" } } }] },
     include: { event: { select: { id: true, title: true, cancelled: true, soldOut: true } }, attachments: { select: { id: true, fileName: true, sizeBytes: true, mimeType: true } }, expenses: { where: { deletedAt: null, ...(!premium ? { id: "" } : {}) }, select: { id: true, amountMinor: true, currency: true } }, stop: { select: { id: true, dayId: true } } },
     orderBy: [{ date: { sort: "asc", nulls: "last" } }, { startTime: { sort: "asc", nulls: "last" } }, { priority: "asc" }],
   });

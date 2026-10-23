@@ -36,14 +36,14 @@ export function EventsView(p: Props) {
   const [scheduling, setScheduling] = useState<Ev | null>(null);
   const [adding, setAdding] = useState(false);
   const [settingsFirst, setSettingsFirst] = useState(false);
-  const [undo, setUndo] = useState<{ id: string; title: string; before: "NEW" | "SAVED" | "HIDDEN"; after: "NEW" | "SAVED" | "HIDDEN" } | null>(null);
+  const [undo, setUndo] = useState<{ id: string; title: string; before: "NEW" | "SAVED" | "HIDDEN" | "SCHEDULED"; after: "NEW" | "SAVED" | "HIDDEN" } | null>(null);
   useEffect(() => { try { setSettingsFirst(localStorage.getItem("tripanize:event-settings-first") === "true"); } catch { /* optional preference */ } }, []);
   function changeLayout(first: boolean) {
     setSettingsFirst(first);
     try { localStorage.setItem("tripanize:event-settings-first", String(first)); } catch { /* optional preference */ }
   }
   async function changeStatus(e: Ev, status: "NEW" | "SAVED" | "HIDDEN") {
-    if (e.status === "SCHEDULED") return;
+    if (e.status === "SCHEDULED" && status !== "HIDDEN") return;
     const result = await run(() => setEventStatusAction(p.tripId, e.id, status, e.status), { success: status === "HIDDEN" ? "Event hidden" : "Event saved" });
     if (result !== null) setUndo({ id: e.id, title: e.title, before: e.status, after: status });
   }
@@ -164,7 +164,7 @@ export function EventsView(p: Props) {
                   {e.status !== "SCHEDULED" && <Button variant="primary" onClick={() => setScheduling(e)} disabled={!p.days.length || e.booking?.status === "CANCELLED"}>Add to a day</Button>}
                   {!e.booking && e.status !== "HIDDEN" && !e.cancelled && !e.soldOut && <Link href={`/trips/${p.tripId}/bookings?event=${e.id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm font-medium">Add to bookings</Link>}
                   {e.status === "NEW" && <Button disabled={pending} onClick={() => changeStatus(e, "SAVED")}>Save</Button>}
-                  {e.status !== "HIDDEN" && e.status !== "SCHEDULED" && <Button variant="ghost" disabled={pending} onClick={() => changeStatus(e, "HIDDEN")}>Hide</Button>}
+                  {e.status !== "HIDDEN" && <Button variant="ghost" disabled={pending} onClick={() => changeStatus(e, "HIDDEN")}>Remove event</Button>}
                   {e.status === "HIDDEN" && <Button disabled={pending} onClick={() => changeStatus(e, "SAVED")}>Restore</Button>}
                 </div>
               )}

@@ -2,14 +2,17 @@
 import { PremiumStar } from "@/components/premium-star";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { onboardingAnswersAction } from "@/app/actions/onboarding";
 import { Button, Card, Field, Notice, Spinner, Textarea, cx } from "@/components/ui";
 import { useAction } from "@/components/client";
 import { planQuestionsAction, savePlanPrefsAction } from "@/app/actions/itinerary";
 import type { PlanPrefs, PlanQuestionSet } from "@/server/planner/questions";
 
 // Multiple-choice pre-planning questions. Answers are saved on the trip and used by every later AI plan.
-export function PlanQuestions({ tripId, canEdit, aiReady, prefs }: { tripId: string; canEdit: boolean; aiReady: boolean; prefs: PlanPrefs | null }) {
+export function PlanQuestions({ tripId, canEdit, aiReady, prefs, onboarding = false }: { tripId: string; canEdit: boolean; aiReady: boolean; prefs: PlanPrefs | null; onboarding?: boolean }) {
   const { run, pending } = useAction();
+  const router = useRouter();
   const [set, setSet] = useState<PlanQuestionSet | null>(null);
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<Record<string, string[]>>({});
@@ -51,6 +54,8 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs }: { tripId: str
     setPicked(init);
   }
 
+  useEffect(() => { if (onboarding) void load(); }, [onboarding, tripId]);
+
   function toggle(id: string, opt: string, multi: boolean) {
     setPicked((p) => {
       const cur = p[id] ?? [];
@@ -61,6 +66,11 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs }: { tripId: str
   async function save() {
     if (!set) return;
     const answers = set.questions.map((q) => ({ q: q.q, a: picked[q.id] ?? [] })).filter((x) => x.a.length);
+    if (onboarding) {
+      const r = await run(() => onboardingAnswersAction(tripId, { answers, note: note || null }), { refresh: false });
+      if (r) { router.push(`/trips/${tripId}/onboarding`); router.refresh(); }
+      return;
+    }
     const ok = await run(() => savePlanPrefsAction(tripId, { answers, note: note || null }), { success: "Preferences saved — the next plan will follow them" });
     if (ok !== null) setOpen(false);
   }
@@ -125,10 +135,10 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs }: { tripId: str
           <Field label="Anything else? (optional)" htmlFor="pq-note">
             <Textarea id="pq-note" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. one day trip to the coast, no early flights" />
           </Field>
-          {Object.values(picked).every((a) => !a.length) && !note && <Notice tone="neutral">Pick at least one answer, or cancel to plan without preferences.</Notice>}
+          {onboarding ? set.questions.some(q => !(picked[q.id]?.length)) && <Notice>Choose an answer to each question to prepare your trip.</Notice> : Object.values(picked).every((a) => !a.length) && !note && <Notice tone="neutral">Pick at least one answer, or cancel to plan without preferences.</Notice>}
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" disabled={pending || (Object.values(picked).every((a) => !a.length) && !note)} onClick={save}>Save answers</Button>
-            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="primary" disabled={pending || (onboarding ? set.questions.some(q => !(picked[q.id]?.length)) : (Object.values(picked).every((a) => !a.length) && !note))} onClick={save}>{onboarding ? "Generate my trip" : "Save answers"}</Button>
+            {!onboarding && <Button onClick={() => setOpen(false)}>Cancel</Button>}
             {aiReady && <Button variant="ghost" disabled={pending} onClick={() => { setSet(null); load(true); }}>New questions</Button>}
           </div>
         </div>

@@ -5,9 +5,9 @@ import { PremiumStar } from "./premium-star";
 export function PremiumRequired({ feature, tripId }: { feature: PremiumFeature; tripId: string }) {
   return <>
     <PageHeader title={<span className="inline-flex items-center gap-2">{PREMIUM_FEATURES[feature]} <PremiumStar /></span>} />
-    <Notice tone="accent" title="Choose this Premium feature">
-      <p>Add this to your trip's feature selection and review the total before paying. One Premium payment unlocks all starred features for everyone in the trip. Your saved information is kept.</p>
-      <LinkButton href={`/trips/${tripId}/premium#feature-${feature}`} className="mt-3" variant="primary">Choose features & checkout</LinkButton>
+    <Notice tone="accent" title="Included with Premium · $15 per trip">
+      <p>One $15 payment by the organizer unlocks every Premium feature for this trip, for any group size. You can upgrade whenever you like.</p>
+      <LinkButton href={`/trips/${tripId}/premium#feature-${feature}`} className="mt-3" variant="primary">Upgrade to Premium · $15</LinkButton>
     </Notice>
   </>;
 }

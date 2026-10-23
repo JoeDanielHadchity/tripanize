@@ -5,9 +5,9 @@ import { Logo, SettingsLink } from "@/components/shell";
 import { LinkButton } from "@/components/ui";
 
 const FEATURES = [
-  ["Plan with AI", "Describe the trip and get a realistic day-by-day plan built from your dates, places, pace and commitments — then accept all of it or just the days you like."],
-  ["Today, at a glance", "On the road, see only what's next: the stop, directions in your maps app, bookings, weather and a quick Plan B."],
-  ["Shared, not chaotic", "Invite companions as collaborators or viewers. Bookings, expenses and events stay in one place for everyone."],
+  ["A plan that fits you", "Choose Normal for two AI-planned days, or Premium for a complete trip built from your dates, travel details and tailored questions."],
+  ["Events, already connected", "Premium researches events while planning your trip and keeps their booking suggestions linked. Remove an event and its suggestion disappears too."],
+  ["Shared, not chaotic", "One organizer invites companions as editors or viewers. Bookings, expenses and events stay in one place for everyone."],
   ["Fair expenses", "Split any way you like, settle up, and see who paid what — in every currency, without rounding surprises."],
 ] as const;
 
@@ -31,9 +31,9 @@ export default async function Home() {
               A little less planning.<br />
               <span className="text-accent-ink">A lot more going.</span>
             </h1>
-            <p className="mt-5 max-w-lg text-lg text-muted">Tripanize is a calm travel workspace for you and the people you travel with: an AI-drafted itinerary you stay in control of, plus bookings, expenses, packing and events — on your phone when it matters.</p>
+            <p className="mt-5 max-w-lg text-lg text-muted">Tripanize is a calm travel workspace for you and the people you travel with: an AI-drafted itinerary you stay in control of, with bookings and packing in one place. Premium adds the complete AI plan, events, expenses and group tools.</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <LinkButton href="/sign-up" variant="primary" className="px-6">Plan a trip</LinkButton>
+              <LinkButton href="/sign-up?next=%2Ftrips%2Fnew" variant="primary" className="px-6">Create a trip</LinkButton>
               <LinkButton href="/examples/lisbon-porto">See an example trip</LinkButton>
             </div>
           </div>
@@ -45,6 +45,7 @@ export default async function Home() {
             </div>
           </div>
         </section>
+        <section className="mx-auto max-w-6xl px-4 pb-14"><div className="grid gap-4 rounded-3xl border border-accent/30 bg-accent-soft/30 p-6 sm:grid-cols-[1fr_auto]"><div><p className="text-xs font-semibold uppercase tracking-wider text-accent-ink">Normal or Premium</p><h2 className="mt-2 font-display text-2xl font-semibold">Start free. Get the whole trip for $15.</h2><p className="mt-2 max-w-2xl text-sm text-muted">Create your trip, compare the plans, then tell us where you are going. Premium includes every traveler, whatever your group size. One-time payment, plus applicable tax.</p></div><LinkButton href="/plans" variant="primary" className="self-center">Compare the benefits</LinkButton></div></section>
         <section className="border-t border-line bg-surface/60">
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map(([t, d]) => (

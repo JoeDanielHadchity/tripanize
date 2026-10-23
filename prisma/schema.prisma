@@ -167,6 +167,10 @@ model Trip {
   planPrefs     Json?
   normalAiDates Json?
   selectedPremiumFeatures Json @default("[]")
+  onboardingStage String @default("COMPLETE")
+  onboardingPlan String?
+  onboardingJobId String?
+  packingTemplate Json?
   // Bumped on every shared change so other members' devices can sync.
   revision  Int      @default(0)
   lastChangedById String?
@@ -707,6 +711,7 @@ model TripEvent {
   // Material changes not yet acknowledged by the travelers.
   changes      Json?
   changeHash   String?
+  hiddenStop   Json?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   sources      EventSource[]

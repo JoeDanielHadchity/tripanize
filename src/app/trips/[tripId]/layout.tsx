@@ -14,7 +14,6 @@ import { getChatSummary } from "@/server/chat/service";
 import { TripAssistant } from "@/components/trip-assistant";
 import { getTripPlan } from "@/server/plans/access";
 import { PremiumStar } from "@/components/premium-star";
-import { premiumPrice, selectedPremiumFeatures, tripCheckoutQuote } from "@/lib/plans";
 
 export default async function TripLayout({ children, params }: { children: React.ReactNode; params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
@@ -28,7 +27,6 @@ export default async function TripLayout({ children, params }: { children: React
   }
   const { trip, access } = header;
   const plan = await getTripPlan(tripId);
-  const quote = tripCheckoutQuote(selectedPremiumFeatures(trip.selectedPremiumFeatures), plan.people, plan.creditMinor);
   const chat = plan.premium ? await getChatSummary(user.id, tripId) : { unread: 0, readSeq: 0, revision: 0 };
   const tripToday = todayIn(trip.timezone);
   const destinationToday = todayIn(trip.destinations.find(d => (!d.arriveDate || d.arriveDate <= tripToday) && (!d.departDate || d.departDate >= tripToday))?.timezone ?? trip.timezone);
@@ -47,14 +45,14 @@ export default async function TripLayout({ children, params }: { children: React
             <p className="text-sm text-muted">{formatDateRange(trip.startDate, trip.endDate)}</p>
             <div className="mt-2"><Badge tone={plan.premium ? "accent" : "neutral"}>{plan.preview ? "Premium preview" : plan.premium ? "Premium trip" : "Normal trip"}</Badge></div>
             <LinkButton href={`/trips/${trip.id}/premium`} variant={access.role === "OWNER" ? "primary" : "secondary"} className="mt-3 w-full sm:w-auto lg:w-full">
-              {access.role !== "OWNER" ? "Features & checkout" : plan.premium ? "Premium · $0 due" : `Checkout${quote.dueMinor === null ? "" : ` · ${premiumPrice(quote.dueMinor)}`}`}
+              {plan.premium ? "Premium active" : "Premium · $15 / trip"}
             </LinkButton>
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted"><PremiumStar /> Premium feature · choose at checkout</p>
-            {access.role !== "OWNER" && <Badge tone={access.role === "VIEWER" ? "warn" : "sage"} className="mt-1">{access.role === "VIEWER" ? "View only" : "Collaborator"}</Badge>}
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted"><PremiumStar /> Premium feature · $15 per trip</p>
+            {access.role !== "OWNER" && <Badge tone={access.role === "VIEWER" ? "warn" : "sage"} className="mt-1">{access.role === "VIEWER" ? "View only" : "Editor"}</Badge>}
           </div>
           <TripNav tripId={trip.id} initialChat={chat} premium={plan.premium} />
         </aside>
-        <main id="main" className="min-w-0">{children}</main>
+        <main id="main" className="min-w-0">{access.role === "OWNER" && !["PLAN", "COMPLETE"].includes(trip.onboardingStage) && <LinkButton href={`/trips/${trip.id}/onboarding`} className="mb-4" variant="secondary">Continue trip setup</LinkButton>}{children}</main>
       </div>
       {plan.premium && <TripAssistant key={`assistant-${trip.id}`} tripId={trip.id} defaultDate={defaultDate} />}
       {!plan.premium && <LinkButton href={`/trips/${trip.id}/premium#feature-assistant`} className="fixed bottom-20 right-4 z-20 shadow-lg lg:bottom-6"><PremiumStar /> AI assistant</LinkButton>}

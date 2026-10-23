@@ -1,73 +1,47 @@
-# Per-trip Premium and Paddle rollout
+# Guided trip setup and flat Premium
 
-The app remains fully hosted on Cloudflare. Live checkout and Normal/Premium restrictions are enabled in the production configuration following Paddle merchant activation on 23 October 2026.
+Tripanize remains entirely on Cloudflare, with GitHub source and live Paddle checkout enabled after merchant approval on 23 October 2026.
 
-## Product rules
+## Current product rules
 
-- Normal: AI itinerary for the first three saved dates per trip; manual planning on all days; manual bookings and packing. No Expenses, Chat, Locations, Events, assistant, packing suggestions or other AI tools.
-- Premium: one-time payment for **one trip**, with identical features in every size band: 1–2 people USD 9; 3–6 USD 15; 7–12 USD 25. No subscription/automatic renewal.
-- Organizer, children and people without accounts count. Group size is the maximum of adults+children, active named travelers and account members; these overlapping lists are not summed.
-- Verified USD credit stays with the trip if ownership changes and never unlocks another trip. Capacity comes from total unadjusted completed purchases: USD 9 / 15 / 25. Upgrades charge the difference: USD 6, 10 or 16. Reducing the group does not trigger an automatic refund.
-- If a group outgrows the purchased capacity, restricted features require an upgrade. Data remains saved; manual planning, bookings and packing still work. Groups over 12 have no Premium checkout option.
-- Existing editing roles still apply. Location sharing is optional and can always be stopped, even after access changes.
-- Normal AI dates persist in Trip.normalAiDates and never reset when dates are changed. Queued AI work checks access again before provider requests and before applying results.
+- Normal is free: AI planning for the first **two saved dates** per trip, manual itinerary editing on every day, manual bookings and manual packing. No expenses, group chat, member locations, event discovery, assistant, packing AI or other additional AI tools.
+- Premium is **USD 15 per trip, for any group size**, with tax disclosed by Paddle before payment. No subscription, renewal or extra charge for adding travelers. A verified purchase belongs to that trip and survives an organizer transfer.
+- Earlier verified base purchases of USD 9, 15 or 25 retain Premium for the same trip without a group-size limit. An upgrade-difference payment alone does not grant access if its underlying base purchase has been refunded. Refunded/disputed payments are excluded and repurchase is blocked for review.
+- One organizer assigns editors and viewers. Existing server permissions remain in force. Personal packing remains private; sharing location is optional and always stoppable.
+- The two Normal AI dates persist across date changes. Existing three-date allowances are capped to two on read. All queued AI work rechecks access before generation and application.
 
-## Payment implementation
+## Guided setup
 
-`PremiumCheckout` fixes trip, buyer, environment, price ID, USD amount and target capacity on the server. Only the current owner can create a checkout. The browser receives a transaction ID and public client token; a checkout completion callback never grants access.
+1. `/trips/new` creates a named draft only. No destination questions or payment occurs here.
+2. `/trips/:id/premium` compares Normal and Premium in a benefits table, with a free Normal choice and a single USD 15 Premium checkout.
+3. Normal goes straight to trip details. Premium goes to details only after server-verified payment; the browser callback never grants access. Existing paid trips are opened without rebuilding or discarding their saved plans.
+4. Destination, dates, travelers, preferences and other details are saved before questions. Premium generates tailored multiple-choice questions in the background; Normal uses the standard set without a model call. The screen labels its source honestly and can retry tailored questions.
+5. Submitting the answers automatically starts generation. Premium researches events and booking links first, then sends researched events and answers to itinerary generation. Normal only drafts two allowed days.
+6. The completed draft creates a separate durable finishing job in the same transaction. It applies the itinerary with a restorable version, links matching researched events, and prepares custom Premium packing using weather/climate, season, destinations, customs, event context and traveler preferences. A saved template seeds each member's private list without another AI call.
+7. The UI polls progress and opens the full trip when complete. State survives navigation/restart. Retrying interrupted packing does not regenerate or reapply the itinerary. Manual packing items, checkmarks and dismissed suggestions remain respected.
 
-Paddle API requests are server-only and pinned to live or sandbox. Completed purchases require the saved intent, matching metadata, one item of quantity one, allowlisted intent price, matching USD subtotal/unit price, no discount and no recurring billing/subscription. Webhooks verify the raw-body HMAC and a five-second timestamp tolerance, then fetch the current transaction including adjustments. Current provider state makes repeated and out-of-order deliveries idempotent. No separate event grant can double-credit a transaction.
+Migration 10 adds onboarding stage/plan/job fields, the packing template and an event-removal snapshot. Existing trips default to COMPLETE and are not forced through setup. Runtime migration is numbered, preserves records and checks columns before replay. Migration 9's old feature selection field is retained for compatibility but is no longer the plan-selection experience.
 
-Listen at `https://tripanize.app/api/billing/webhook` for `transaction.completed`, `transaction.updated`, `transaction.canceled`, `adjustment.created`, `adjustment.updated`. A webhook failure returns a retryable error. The owner can reconcile pending and completed purchases with Check payment status, including adjustments whose notifications were missed. Signed unrelated notifications and simulations without a saved purchase are acknowledged without requesting or granting access to a payment.
+## Events and bookings
 
-One pending checkout is reused. A create request with an ambiguous network outcome stays blocked instead of creating another chargeable transaction. Use its saved checkout ID to find the transaction in Paddle custom data; reconcile it or cancel it in Paddle and mark it canceled only after verification. Never delete an uncertain intent blindly.
+Discovered events supply the suggested booking section through canonical event IDs and official links, without claiming anything is booked. When an event is removed, its suggested/linked booking disappears from the booking screen and its itinerary projection is removed. Linked booking/expense records are retained; removing an event does not cancel a reservation with an external provider. Undo restores the removed itinerary entry when the original day and booking are still valid and refuses a stale restore over another change.
 
-Approved refunds, credits and chargebacks remove that transaction's credit and block repurchase pending merchant review (including partial refunds). Adjustments whose status becomes reversed restore credit on reconciliation; a separate chargeback-reversal record still requires merchant review. This conservative policy avoids charging a customer again while an adjustment is unresolved. It does not initiate refunds or charges automatically.
+## Payment configuration
 
-The old unused PremiumEntitlement account model from draft migration 7 is retained for migration compatibility and is no longer read. Migration 8 adds the per-trip purchase table. No public mutation creates paid access.
+The current checkout requires only `PADDLE_PRICE_1500`, a one-time USD 15 tax-exclusive price with quantity fixed to one. Its customer-facing name is Tripanize Premium — one trip, any group size. Live ID: `pri_01m5j5d0wvpvrhjmzdq1ph03z7`; sandbox ID: `pri_01m5jc1twzekxpn6y12naf7f0v`. Older price configuration and saved purchase records remain for historical verification, not new group-size offers.
 
-## Cloudflare configuration
+Encrypted secrets remain `PADDLE_API_KEY`, `PADDLE_CLIENT_TOKEN` and `PADDLE_WEBHOOK_SECRET`. Environment/catalog isolation, exact public-token validation, allowlisted Paddle hosts, manual redirects, owner-only fixed-price intents, idempotent signed webhooks, authoritative provider reconciliation, and duplicate/ambiguous checkout protection are preserved. A pending older-price checkout is blocked with a support message rather than charged a different amount silently. Never delete an uncertain intent or mark an unpaid checkout complete.
 
-Secrets: `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`. Public token configuration: `PADDLE_CLIENT_TOKEN`. Set `PADDLE_ENVIRONMENT` to `sandbox` or `live`; the two catalogs and their payments are isolated. Configure the six one-time price IDs with fixed quantity 1 and tax excluded:
+Webhook: `https://tripanize.app/api/billing/webhook`, events transaction.completed/updated/canceled and adjustment.created/updated. Default payment link: `https://tripanize.app/checkout`. The existing live transaction read/write + adjustment read key expires on 20 January 2027. Existing app and Paddle credentials are not printed or copied into source.
 
-| Variable | USD amount | Use |
-| --- | ---: | --- |
-| PADDLE_PRICE_900 | 9 | 1–2 people |
-| PADDLE_PRICE_1500 | 15 | 3–6 people |
-| PADDLE_PRICE_2500 | 25 | 7–12 people |
-| PADDLE_PRICE_600 | 6 | 2 → 6 people upgrade |
-| PADDLE_PRICE_1000 | 10 | 6 → 12 people upgrade |
-| PADDLE_PRICE_1600 | 16 | 2 → 12 people upgrade |
+## Validation
 
-API key permissions: transaction read/write and adjustment read. Notification settings can be created manually, without granting notification-setting write access to the app key.
+Isolated integration checks cover payment-before-details, organizer-only setup, flat pricing including groups over 12, legacy paid access, two-day Normal generation, personalized packing, linked event removal/undo, and interrupted finishing retries. Native Cloudflare checks exercise storage upgrades/restart and the real durable-alarm guided Premium pipeline across a restart using injected model responses. No real card charge or live AI call is used for automated QA. Browser checks use the isolated Paddle preview; its database and R2 bucket are separate from production and production AI/email secrets are not copied there.
 
-`PADDLE_CHECKOUT_ENABLED=true` additionally requires all credentials/price IDs before any payment button is usable. `PLAN_ACCESS_ENABLED=true` activates restrictions. Both are enabled for launch. Existing trips without a verified live purchase use Normal; their saved information is retained. No permanent founder entitlement or migration of sandbox purchases is added. These flags are intentionally independent so checkout can be paused during an incident without deleting purchases or trip data.
-
-## Live catalog created on 22 October 2026
-
-Product: `pro_01m5j53xmtqvd4nts9f7tvz954`, SaaS tax category. All six prices are active, one-time, USD, tax excluded, quantity fixed to one. Public live price IDs are included in wrangler.jsonc. The live API key (transaction read/write and adjustment read only, expires 20 January 2027), checkout token and five-event payment notification destination are stored as encrypted Cloudflare production secrets and are not committed. The destination accepts both platform and simulation events.
-
-## Launch verification and operating checks
-
-1. Paddle confirmed merchant activation on 23 October 2026 by email, and its live dashboard shows account verification Complete. Payout details were confirmed saved in a fresh dashboard view. The domain tripanize.app is approved for checkout and Apple Pay, and its default payment link is `https://tripanize.app/checkout`. This page loads Paddle.js for a known pending transaction and never grants Premium from the URL.
-2. Public Terms, Privacy, Refund and Contact pages identify Joe-Daniel Hadchity as an individual operator in Lebanon, as confirmed by the owner. Legal links are available on the homepage, sign-up, pricing and Premium screens. Refund requests use Paddle and preserve mandatory rights; there is no unconditional money-back promise. Review the pages when features or legal obligations change.
-3. The isolated Cloudflare `paddle-sandbox` preview has a separate database, private R2 bucket, catalog and encrypted credentials. A declined test card kept the trip on Normal; a successful USD 15 test purchase unlocked Premium through the signed server notification. Reopening checkout reused the same pending transaction. A USD 10 upgrade produced USD 25 total credit and capacity for 12 people. Integration tests also cover the pricing boundaries, adjustments, reconciliation, ownership and environment isolation, duplicate deliveries and ambiguous creation failures. These automated adjustment tests do not represent completed provider refund/chargeback tests. Continue those supplemental tests only in sandbox; do not use real charges for QA.
-4. Configure the live key, public client token, prices and webhook signing secret as Cloudflare configuration. API keys must never be pasted into chat, repo files, browser evaluation output or logs.
-5. AI requests retain the existing server rate limits; no numerical lifetime quota or unlimited-AI promise is introduced. Monitor provider costs and revisit the commercial usage allowance using measured usage.
-6. Production checkout and Normal restrictions are enabled together after approval. Verify the live checkout opens with the intended product, price and environment without submitting a real payment. No automatic permanent founder grant is inserted.
-
-Validation includes isolated integration tests, production build and native Durable Object/R2 migration/restart/feature checks. Automated checks do not call external payment, AI or email services. Separate browser payment checks use Paddle sandbox test cards and synthetic billing details; Paddle may generate sandbox receipts. No real charge is used for QA.
+The existing AI request rate limits remain; no unlimited-AI promise or arbitrary lifetime quota is introduced. Monitor provider costs under the flat price.
 
 ## Public support
 
 Store the operator's private receiving address as the encrypted production secret `SUPPORT_EMAIL`; never commit it or send it to browser props. The public `/contact` form forwards plain-text messages through the existing verified Resend sender, with the visitor's validated address as Reply-To. It sends only to the fixed operator address, has no automatic reply to arbitrary senders, and only confirms success after provider acceptance. Requests use origin checks, a bounded body, a strict schema, a honeypot, provider idempotency and atomic per-IP, per-email and global rate limits. Rate-limit keys contain keyed hashes, not raw visitor addresses. Support delivery releases the application request queue while the external provider responds; complete database operations remain serialized.
 
 The contact form does not handle identity verification documents or payment credentials. Replies, privacy requests and refund issues must be reviewed by the operator; submitted messages cannot authorize account or payment changes. Resend acceptance is not a guarantee of inbox delivery. The setup verification does not send a real support email.
-
-## Feature selection and checkout
-
-New trips collect the essentials first and then open the trip setup screen at `/trips/:id/premium?created=1`. Travelers can add information immediately using Normal. The organizer can choose optional features marked with a small Premium star. Migration 9 adds a persistent `selectedPremiumFeatures` list per trip, with a restart-safe runtime upgrade; existing records default to an empty list without changing saved information or verified purchases.
-
-The selection is a wish list, not an entitlement. No selections means $0 with no payment provider call or card details. Any Premium selection uses the existing single trip package ($9 / $15 / $25 by group size), less verified credit, rather than adding a fee for every feature. Tax remains calculated and disclosed by Paddle. A completed, verified payment remains the only source of Premium access. Clearing selections does not revoke or refund paid access. Groups above 12 can keep using Normal, but Premium checkout is unavailable.
-
-Selection changes require authenticated organizer access. Other members can view the options and keep using allowed Normal tools. Checkout remains available from each trip's header, with the saved amount; feature-level links lead back to the corresponding starred option. Trip budgets and expense balances remain separate from the Premium price.

@@ -55,8 +55,28 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
   const partialDays: PlanDay[] = [];
   let partialMeta: Pick<Proposal, "summary" | "unplacedMustSees" | "generalNotes"> = { summary: "", unplacedMustSees: [], generalNotes: [] };
   try {
-    await requireTrip(job.tripId, job.requestedById, job.kind === "assistant" ? "view" : "edit");
+    await requireTrip(job.tripId, job.requestedById, params.onboarding ? "manage" : job.kind === "assistant" ? "view" : "edit");
+    if (job.kind === "setup") {
+      const { finishOnboarding } = await import("@/server/trips/onboarding");
+      return await finishOnboarding(jobId, generate);
+    }
     const scope = await planningScope(job.tripId, job.kind, params.dates);
+    if (params.onboarding && !params.eventsReady) {
+      const { getTripPlan } = await import("@/server/plans/access");
+      if ((await getTripPlan(job.tripId)).premium) {
+        await progress(jobId, "Finding events and booking links for your destinations and dates.");
+        const { runDiscovery } = await import("@/server/events/discovery");
+        const id = `setup-events:${jobId}`;
+        await prisma.discoveryRun.upsert({ where: { id }, create: { id, tripId: job.tripId, requestedById: job.requestedById, trigger: "setup" }, update: {} });
+        const previous = await prisma.discoveryRun.findUniqueOrThrow({ where: { id } });
+        if (["failed", "running"].includes(previous.status)) await prisma.discoveryRun.update({ where: { id }, data: { status: "queued", error: null } });
+        await runDiscovery(id, generate);
+        const result = await prisma.discoveryRun.findUniqueOrThrow({ where: { id } });
+        if (result.status !== "succeeded") throw new AIError("UPSTREAM", result.error ?? "Event research could not finish. Please retry to continue.");
+      }
+      await prisma.generationJob.update({ where: { id: jobId }, data: { params: { ...params, eventsReady: true } as Prisma.InputJsonValue } });
+      if (checkpoint) return; // A fresh alarm keeps event research separate from itinerary generation.
+    }
     const saved = await checkpoint?.load();
     if (saved) {
       const restored = ProposalSchema.parse(saved.proposal);
@@ -128,9 +148,13 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
     const mustSee = ctx.trip.places.filter((p) => p.kind === "MUST_SEE").map((p) => p.name).filter((m) => job.kind === "full" || !elsewhere.some((t) => t.toLowerCase().includes(m.toLowerCase())));
     const { proposal, issues } = checkProposal({ ...partialMeta, days: partialDays }, { dates: ctx.dates, anchors: ctx.anchors, mustSee, arrivalAt: ctx.trip.arrivalAt, departureAt: ctx.trip.departureAt });
     await progress(jobId, `Checked dates, timing, fixed commitments and must-sees: ${issues.filter((i) => i.severity === "conflict").length} conflict(s), ${issues.filter((i) => i.severity === "warning").length} warning(s)`);
-    await prisma.generationJob.update({
-      where: { id: jobId },
-      data: { status: "SUCCEEDED", finishedAt: new Date(), proposal: proposal as unknown as Prisma.InputJsonValue, checks: { issues, sources: [...allSources].slice(0, 50) } as unknown as Prisma.InputJsonValue },
+    await prisma.$transaction(async tx => {
+      await tx.generationJob.update({ where: { id: jobId }, data: { status: "SUCCEEDED", finishedAt: new Date(), proposal: proposal as unknown as Prisma.InputJsonValue, checks: { issues, sources: [...allSources].slice(0, 50) } as unknown as Prisma.InputJsonValue } });
+      if (params.onboarding) {
+        const id = `setup:${jobId}`;
+        await tx.generationJob.upsert({ where: { id }, create: { id, tripId: job.tripId, requestedById: job.requestedById, kind: "setup", params: { planJobId: jobId }, progress: [{ at: new Date().toISOString(), message: "Preparing your complete trip" }] }, update: {} });
+        await tx.trip.update({ where: { id: job.tripId }, data: { onboardingJobId: id } });
+      }
     });
     await progress(jobId, "Draft ready for review");
   } catch (err) {
@@ -155,7 +179,7 @@ export async function runJob(jobId: string, generate: Generator = generateStruct
         ...(partial ? { proposal: partial.proposal as unknown as Prisma.InputJsonValue, checks: { issues: partial.issues, sources: [] } as unknown as Prisma.InputJsonValue } : {}),
       },
     });
-    await progress(jobId, cancelled ? "Cancelled — your itinerary was not changed" : `Stopped: ${e.message}${/unchanged|not changed/.test(e.message) ? "" : " Your itinerary was not changed."}`);
+    await progress(jobId, job.kind === "setup" ? `Preparation stopped: ${e.message} Your saved itinerary is kept. Retry to finish.` : cancelled ? "Cancelled — your itinerary was not changed" : `Stopped: ${e.message}${/unchanged|not changed/.test(e.message) ? "" : " Your itinerary was not changed."}`);
   } finally {
     stop();
   }

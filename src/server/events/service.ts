@@ -9,7 +9,7 @@ import { safeUrl } from "@/lib/maps";
 import { findOverlaps, type SchedStop } from "@/server/itinerary/schedule";
 import { stopInclude, toSched } from "@/server/itinerary/service";
 import { formatZodError } from "@/server/trips/schemas";
-import type { Prisma, TripEvent } from "@/generated/prisma/client";
+import { Prisma, type TripEvent } from "@/generated/prisma/client";
 
 const STOP_WORDS = new Set(["the", "a", "an", "of", "and", "at", "in", "de", "la", "le", "der", "die", "das", "el", "il", "festival", "exhibition"]);
 
@@ -116,15 +116,28 @@ export async function listEvents(userId: string, tripId: string) {
   return { access, events, runs, lastSuccess, settings: trip };
 }
 
-export async function setEventStatus(userId: string, tripId: string, eventId: string, status: "SAVED" | "HIDDEN" | "NEW", expectedStatus?: "NEW" | "SAVED" | "HIDDEN" | "SCHEDULED") {
+export async function setEventStatus(userId: string, tripId: string, eventId: string, status: "SAVED" | "HIDDEN" | "NEW" | "SCHEDULED", expectedStatus?: "NEW" | "SAVED" | "HIDDEN" | "SCHEDULED") {
   await requirePremiumTrip(tripId, userId, "events", "edit");
   const e = await prisma.tripEvent.findFirst({ where: { id: eventId, tripId }, include: { stop: true } });
   if (!e) throw new AppError("NOT_FOUND", "Event not found.");
-  if (!["SAVED", "HIDDEN", "NEW"].includes(status)) throw new AppError("VALIDATION", "Invalid event status.");
-  if (e.stop) throw new AppError("CONFLICT", "This event is on your itinerary. Remove it from the day first.");
+  if (!["SAVED", "HIDDEN", "NEW", "SCHEDULED"].includes(status)) throw new AppError("VALIDATION", "Invalid event status.");
+  if (status === "SCHEDULED" && (e.status !== "HIDDEN" || !e.hiddenStop)) throw new AppError("CONFLICT", "There is no removed itinerary event to restore.");
+  if (e.stop && status !== "HIDDEN") throw new AppError("CONFLICT", "This event is already on your itinerary.");
   await prisma.$transaction(async (tx) => {
-    const result = await tx.tripEvent.updateMany({ where: { id: eventId, tripId, status: expectedStatus ?? e.status }, data: { status } });
+    const result = await tx.tripEvent.updateMany({ where: { id: eventId, tripId, status: expectedStatus ?? e.status }, data: { status, ...(status === "HIDDEN" && e.stop ? { hiddenStop: JSON.parse(JSON.stringify(e.stop)) } : {}) } });
     if (!result.count) throw new AppError("CONFLICT", "This event changed since your action. Review its current status before trying again.");
+    if (status === "HIDDEN") await tx.stop.deleteMany({ where: { tripId, eventId } });
+    if (status === "SCHEDULED") {
+      const saved = e.hiddenStop as unknown as Prisma.StopUncheckedCreateInput;
+      const day = saved.dayId ? await tx.itineraryDay.findFirst({ where: { id: saved.dayId, tripId } }) : null;
+      if (!day || saved.tripId !== tripId || saved.eventId !== eventId) throw new AppError("CONFLICT", "The original day has changed. Restore the event to Saved and choose a day again.");
+      if (saved.bookingId) {
+        const booking = await tx.booking.findFirst({ where: { id: saved.bookingId, tripId, status: { not: "CANCELLED" } } });
+        if (!booking || await tx.stop.findUnique({ where: { bookingId: saved.bookingId } })) throw new AppError("CONFLICT", "The linked booking has changed. Review it before restoring the event.");
+      }
+      await tx.stop.create({ data: saved });
+      await tx.tripEvent.update({ where: { id: eventId }, data: { hiddenStop: Prisma.DbNull } });
+    }
     await recordChange(tx, { tripId, actorId: userId, entity: "event", entityId: eventId, action: status.toLowerCase() });
   });
 }

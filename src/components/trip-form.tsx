@@ -6,6 +6,7 @@ import { Button, Field, Input, Notice, Select, Textarea, cx } from "./ui";
 import { useAction, useConfirm } from "./client";
 import { DateRangeCalendar } from "./date-range";
 import { createTripAction, previewTripChangeAction, updateTripAction } from "@/app/actions/trips";
+import { onboardingDetailsAction } from "@/app/actions/onboarding";
 import { CURRENCIES } from "@/lib/money";
 import { INTERESTS, TRANSPORT } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
@@ -78,7 +79,7 @@ function ListEditor({ label, items, onChange, placeholder }: { label: string; it
   );
 }
 
-export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "create" | "edit"; tripId?: string; initial?: TripFormInitial; canEdit?: boolean }) {
+export function TripForm({ mode, tripId, initial, canEdit = true, onboarding = false }: { mode: "create" | "edit"; tripId?: string; initial?: TripFormInitial; canEdit?: boolean; onboarding?: boolean }) {
   const router = useRouter();
   const { run, pending } = useAction();
   const confirm = useConfirm();
@@ -141,6 +142,11 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
       if (r) router.push(`/trips/${r.id}/premium?created=1`);
       return;
     }
+    if (onboarding) {
+      const r = await run(() => onboardingDetailsAction(tripId!, data, initial?.version ?? 1), { onError: r => setError(r.error), refresh: false });
+      if (r !== null) { router.push(`/trips/${tripId}/onboarding`); router.refresh(); }
+      return;
+    }
     const preview = await run(() => previewTripChangeAction(tripId!, data), { onError: (r) => setError(r.error), refresh: false });
     if (!preview) return;
     const lines: string[] = [];
@@ -184,6 +190,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
                     </div>
                   )}
                 </div>
+                <Field label="Country (optional)" htmlFor={`country-${i}`}><Input id={`country-${i}`} value={d.country ?? ""} onChange={e => setDests(dests.map((x, j) => j === i ? { ...x, country: e.target.value } : x))} placeholder="e.g. Portugal" /></Field>
                 {multi && (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Arrive" htmlFor={`arr-${i}`}><Input id={`arr-${i}`} type="date" value={d.arriveDate ?? ""} onChange={(e) => setDests(dests.map((x, j) => (j === i ? { ...x, arriveDate: e.target.value } : x)))} /></Field>
@@ -208,7 +215,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
           </div>
         </Section>
 
-        <Section title="Who's going" hint="Count everyone, including yourself and children. You can add names later." open={mode === "create"}>
+        <Section title="Who's going" hint="Count everyone, including yourself and children. You can add names later." open={mode === "create" || onboarding}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Adults" htmlFor="adults"><Input id="adults" type="number" min={1} max={50} value={t.adults} onChange={(e) => set("adults", e.target.value)} /></Field>
             <Field label="Children" htmlFor="children"><Input id="children" type="number" min={0} max={50} value={t.children} onChange={(e) => set("children", e.target.value)} /></Field>
@@ -217,7 +224,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
         </Section>
 
         {mode === "edit" && <>
-        <Section title="Travel style & budget">
+        <Section title="Travel style & budget" open={onboarding}>
           <fieldset>
             <legend className="mb-2 text-sm font-medium">Pace</legend>
             <div className="grid grid-cols-3 gap-2">
@@ -281,7 +288,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true }: { mode: "cre
       {canEdit && (
         <div className="sticky bottom-20 z-10 flex justify-end lg:bottom-4">
           <Button type="submit" variant="primary" disabled={pending} className="shadow-lg">
-            {pending ? "Saving…" : mode === "create" ? "Create trip" : "Save trip details"}
+            {pending ? "Saving…" : mode === "create" ? "Create trip" : onboarding ? "Continue to travel questions" : "Save trip details"}
           </Button>
         </div>
       )}

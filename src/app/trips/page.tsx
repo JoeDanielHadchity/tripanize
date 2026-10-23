@@ -111,8 +111,8 @@ function TripTile({ trip }: { trip: TripCard }) {
         <p className="mt-1 text-sm">{formatDateRange(trip.startDate, trip.endDate)}{days ? ` · ${days} day${days === 1 ? "" : "s"}` : ""}</p>
         <p className="mt-1 text-sm text-muted">{trip.travelers.join(", ")}</p>
         <div className="mt-auto pt-4">
-          <LinkButton href={`/trips/${trip.id}/itinerary`} variant="secondary" className="w-full" aria-label={`Open ${trip.name}`}>Open trip</LinkButton>
-          <Link href={`/trips/${trip.id}/premium`} className="mt-2 flex min-h-11 items-center justify-center rounded-xl text-sm font-semibold text-accent-ink hover:bg-accent-soft" aria-label={`Features and checkout for ${trip.name}`}>Features & checkout</Link>
+          <LinkButton href={`/trips/${trip.id}/${trip.role !== "OWNER" || trip.onboardingStage === "COMPLETE" ? "itinerary" : trip.onboardingStage === "PLAN" ? "premium" : "onboarding"}`} variant="secondary" className="w-full" aria-label={`Open ${trip.name}`}>{trip.role === "OWNER" && trip.onboardingStage !== "COMPLETE" ? "Continue setup" : "Open trip"}</LinkButton>
+          <Link href={`/trips/${trip.id}/premium`} className="mt-2 flex min-h-11 items-center justify-center rounded-xl text-sm font-semibold text-accent-ink hover:bg-accent-soft" aria-label={`Features and checkout for ${trip.name}`}>Normal & Premium</Link>
         </div>
       </div>
     </article>

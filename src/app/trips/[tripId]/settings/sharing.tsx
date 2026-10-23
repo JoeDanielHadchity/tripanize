@@ -57,16 +57,16 @@ export function SharingPanel(p: Props) {
             {p.members.map((m) => (
               <li key={m.userId} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <span>{m.name}{m.userId === p.meId ? " (you)" : ""}{m.email && <span className="block text-xs text-muted">{m.email}</span>}</span>
-                {m.role === "OWNER" ? <Badge tone="accent">Owner</Badge> : p.isOwner ? (
+                {m.role === "OWNER" ? <Badge tone="accent">Organizer</Badge> : p.isOwner ? (
                   <span className="flex flex-wrap gap-1">
                     <Select aria-label={`Role for ${m.name}`} className="min-h-10 w-auto" value={m.role} onChange={(e) => run(() => changeRoleAction(p.tripId, m.userId, e.target.value as "COLLABORATOR" | "VIEWER"), { success: "Role updated" })}>
-                      <option value="COLLABORATOR">Collaborator (can edit)</option>
+                      <option value="COLLABORATOR">Editor (can edit)</option>
                       <option value="VIEWER">Viewer (read-only)</option>
                     </Select>
                     <Button className="min-h-10" variant="ghost" onClick={async () => { if (await confirm({ title: `Make ${m.name} the owner?`, message: "You'll become a collaborator. Only the owner can manage access and delete the trip.", confirmLabel: "Transfer ownership" })) run(() => transferOwnerAction(p.tripId, m.userId), { success: "Ownership transferred" }); }}>Make owner</Button>
                     <Button className="min-h-10" variant="danger" onClick={async () => { if (await confirm({ title: `Remove ${m.name}'s access?`, message: "They'll lose access to this trip immediately. Their past expenses stay in the ledger.", danger: true, confirmLabel: "Revoke access" })) run(() => removeMemberAction(p.tripId, m.userId), { success: "Access revoked" }); }}>Revoke</Button>
                   </span>
-                ) : <Badge>{m.role === "VIEWER" ? "Viewer" : "Collaborator"}</Badge>}
+                ) : <Badge>{m.role === "VIEWER" ? "Viewer" : "Editor"}</Badge>}
               </li>
             ))}
           </ul>
@@ -87,7 +87,7 @@ export function SharingPanel(p: Props) {
               const r = await run(() => createInviteAction(p.tripId, { role: String(f.get("role")) as "COLLABORATOR" | "VIEWER", email: String(f.get("email") || "") || null, travelerId: String(f.get("traveler") || "") || null }));
               if (r) setLink({ url: r.url, emailStatus: r.emailStatus });
             }}>
-              <Field label="Role" htmlFor="inv-role"><Select id="inv-role" name="role" defaultValue="COLLABORATOR"><option value="COLLABORATOR">Collaborator — can edit shared trip info</option><option value="VIEWER">Viewer — read-only</option></Select></Field>
+              <Field label="Role" htmlFor="inv-role"><Select id="inv-role" name="role" defaultValue="COLLABORATOR"><option value="COLLABORATOR">Editor — can edit shared trip info</option><option value="VIEWER">Viewer — read-only</option></Select></Field>
               <Field label="Connect to traveler (optional)" htmlFor="inv-trav" hint="Keeps their existing expense history."><Select id="inv-trav" name="traveler" defaultValue=""><option value="">New traveler</option>{unlinked.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
               <Field label="Email (optional)" htmlFor="inv-email" hint="If set, only an account with this email can accept." className="sm:col-span-2"><Input id="inv-email" name="email" type="email" placeholder="friend@example.com" /></Field>
               <div className="sm:col-span-2"><Button type="submit" variant="primary" disabled={pending}>Create invitation link</Button></div>
@@ -108,7 +108,7 @@ export function SharingPanel(p: Props) {
                 <ul className="mt-1 divide-y divide-line text-sm">
                   {p.invitations.map((i) => (
                     <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                      <span>{i.role === "VIEWER" ? "Viewer" : "Collaborator"}{i.email ? ` · ${i.email}` : " · anyone with the link"}{i.traveler ? ` · as ${i.traveler}` : ""}<span className="block text-xs text-muted">Expires {formatDate(i.expiresAt.slice(0, 10))}{i.emailStatus ? ` · email: ${i.emailStatus === "not_configured" ? "not sent (not configured)" : i.emailStatus}` : ""}</span></span>
+                      <span>{i.role === "VIEWER" ? "Viewer" : "Editor"}{i.email ? ` · ${i.email}` : " · anyone with the link"}{i.traveler ? ` · as ${i.traveler}` : ""}<span className="block text-xs text-muted">Expires {formatDate(i.expiresAt.slice(0, 10))}{i.emailStatus ? ` · email: ${i.emailStatus === "not_configured" ? "not sent (not configured)" : i.emailStatus}` : ""}</span></span>
                       <Button className="min-h-10" variant="ghost" onClick={() => run(() => revokeInviteAction(p.tripId, i.id), { success: "Invitation revoked" })}>Revoke</Button>
                     </li>
                   ))}
