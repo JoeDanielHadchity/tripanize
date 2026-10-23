@@ -39,17 +39,27 @@ const output = (text: (max: number) => z.ZodString) => z.object({
 export const discoveryWireResult = output(() => z.string());
 export const discoveryResult = output(max => z.string().trim().min(1).max(max));
 export type DiscoveryResult = z.infer<typeof discoveryResult>;
+function plainCopy(value: string) {
+  return value
+    // Research tools can append Markdown citations inside structured strings.
+    // Sources have their own verified, clickable links on each destination card.
+    .replace(/\s*\(\[[^\]]+\]\(https?:\/\/[^\s)]+\)\)/g, "")
+    .replace(/\s*\(\[[^\]]+\]\(https?:\/\/[^\s]*$/g, "")
+    .replace(/\[([^\]]+)\]\(https?:\/\/[^\s)]+\)/g, "$1")
+    .replace(/cite[^]*/g, "")
+    .replace(/\s+/g, " ").trim();
+}
 export function normalizeDiscoveryResult(value: z.infer<typeof discoveryWireResult>): DiscoveryResult {
   const limits = { destination: 120, country: 80, whyFits: 700, bestTime: 200, weather: 400, season: 300, budgetNote: 400, travelNote: 300, tradeoff: 400 } as const;
   const ideas = value.ideas.map(idea => {
     const clean = { ...idea };
     for (const key of Object.keys(limits) as (keyof typeof limits)[]) {
-      const text = idea[key].trim(); const limit = limits[key];
+      const text = plainCopy(idea[key]); const limit = limits[key];
       // Avoid splitting a word or a surrogate pair when shortening display copy.
       clean[key] = text.length <= limit ? text : [...text].join("").slice(0, limit - 1).replace(/\s+\S*$/, "").replace(/[\uD800-\uDBFF]$/, "") + "…";
     }
-    clean.experiences = idea.experiences.map(x => x.trim().slice(0, 120));
+    clean.experiences = idea.experiences.map(x => plainCopy(x).slice(0, 120));
     return clean;
   });
-  return discoveryResult.parse({ summary: value.summary.trim().slice(0, 600), ideas });
+  return discoveryResult.parse({ summary: plainCopy(value.summary).slice(0, 600), ideas });
 }
