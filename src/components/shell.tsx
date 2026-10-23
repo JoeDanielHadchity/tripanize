@@ -5,13 +5,9 @@ import { NotificationBell } from "./notifications";
 
 export function Logo({ small }: { small?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2">
-      <svg aria-hidden viewBox="0 0 32 32" className={small ? "h-7 w-7" : "h-8 w-8"}>
-        <circle cx="16" cy="16" r="15" fill="var(--accent)" />
-        <path d="M8 21c3-7 6-10 8-10s3 3 8-2" stroke="var(--on-accent)" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-        <circle cx="23.5" cy="9.5" r="2.2" fill="var(--on-accent)" />
-      </svg>
-      <span className={`${small ? "hidden sm:inline " : ""}font-display text-xl font-semibold tracking-tight text-accent-ink`}>Tripanize</span>
+    <span role="img" aria-label="Tripanize" className="inline-flex shrink-0 items-center gap-2">
+      <img src="/brand/tripanize-mark.png" alt="" aria-hidden="true" width={447} height={410} className={small ? "h-8 w-auto" : "h-9 w-auto sm:h-10"} />
+      <img src="/brand/tripanize-wordmark.png" alt="" aria-hidden="true" width={1318} height={332} className={`${small ? "hidden h-6 sm:block" : "h-7 sm:h-8"} w-auto dark:brightness-0 dark:invert`} />
     </span>
   );
 }
