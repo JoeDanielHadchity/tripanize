@@ -3,7 +3,7 @@ import { AppError } from "@/server/errors";
 import { AIError, aiConfigured, generateStructured } from "@/server/ai/openai";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { createTrip } from "@/server/trips/service";
-import { discoveryInput, discoveryResult, type DiscoveryInput, type DiscoveryResult } from "./schema";
+import { discoveryInput, discoveryWireResult, normalizeDiscoveryResult, type DiscoveryInput, type DiscoveryResult } from "./schema";
 import type { Generator } from "@/server/planner/run";
 
 export function safeSource(url: string) {
@@ -37,8 +37,8 @@ export async function runDestinationSearch(id: string, generate: Generator = gen
   await prisma.destinationSearch.update({ where: { id }, data: { status: "RUNNING", error: null } });
   try {
     const input = discoveryInput.parse(row.input);
-    const response = await generate({ schema: discoveryResult, name: "destination_ideas", instructions: INSTRUCTIONS, input: `<traveler_data>\n${JSON.stringify({ today: new Date().toISOString().slice(0, 10), ...input, budgetBasis: "USD per person, whole trip, including transport and accommodation" })}\n</traveler_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 16000 });
-    const result = discoveryResult.parse(response.data);
+    const response = await generate({ schema: discoveryWireResult, name: "destination_ideas", instructions: INSTRUCTIONS + " Keep each description to one or two concise sentences.", input: `<traveler_data>\n${JSON.stringify({ today: new Date().toISOString().slice(0, 10), ...input, budgetBasis: "USD per person, whole trip, including transport and accommodation" })}\n</traveler_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 16000 });
+    const result = normalizeDiscoveryResult(discoveryWireResult.parse(response.data));
     if (new Set(result.ideas.map(i => `${i.destination},${i.country}`.toLowerCase())).size !== 5) throw new AppError("UPSTREAM", "The destination search did not return five different places. Please try again.");
     const used = new Set(response.sources.map(safeSource).filter(Boolean));
     for (const idea of result.ideas) {
