@@ -2,7 +2,7 @@ import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
 import { getTripPlan } from "@/server/plans/access";
 import { AppError } from "@/server/errors";
-import { PREMIUM_BANDS, premiumBandForPeople, type PremiumBandId } from "@/lib/plans";
+import { PREMIUM_BANDS, premiumBandForPeople, selectedPremiumFeatures, type PremiumBandId } from "@/lib/plans";
 import { billingEnvironment, checkoutAvailable } from "./config";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { rateLimit } from "@/server/ratelimit";
@@ -12,7 +12,8 @@ export async function billingSummary(userId: string, tripId: string) {
   const access = await requireTrip(tripId, userId);
   const plan = await getTripPlan(tripId);
   const recommended = premiumBandForPeople(plan.people);
-  return { ...plan, canPurchase: access.role === "OWNER", available: checkoutAvailable(), environment: billingEnvironment(), recommended: recommended?.id ?? null,
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { selectedPremiumFeatures: true } });
+  return { ...plan, selectedFeatures: selectedPremiumFeatures(trip.selectedPremiumFeatures), canPurchase: access.role === "OWNER", available: checkoutAvailable(), environment: billingEnvironment(), recommended: recommended?.id ?? null,
     options: PREMIUM_BANDS.map(b => ({ ...b, eligible: b.capacity >= plan.people && b.priceMinor > plan.creditMinor, dueMinor: Math.max(0, b.priceMinor - plan.creditMinor) })) };
 }
 

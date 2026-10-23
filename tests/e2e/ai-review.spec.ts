@@ -18,10 +18,11 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   await page.getByLabel("End date").fill("2027-05-03");
   await page.getByLabel("City or region").fill("Lisbon");
   await page.getByRole("button", { name: "Create trip" }).click();
-  await page.waitForURL("**/plan?start=1");
-  const tripUrl = page.url().replace(/\/plan.*$/, "");
+  await page.waitForURL("**/premium?created=1");
+  const tripUrl = page.url().replace(/\/premium.*$/, "");
 
-  await page.getByRole("button", { name: "✨ Plan with AI" }).click();
+  await page.goto(`${tripUrl}/plan`);
+  await page.getByRole("button", { name: /Plan with AI$/ }).click();
   await expect(page.getByRole("heading", { name: "Review the draft" })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText("Stub day 1")).toBeVisible();
   // Accept only days 1 and 2

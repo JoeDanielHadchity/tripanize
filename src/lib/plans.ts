@@ -20,6 +20,24 @@ export const PREMIUM_FEATURES: Record<PremiumFeature, string> = {
   packing: "Packing suggestions",
   advancedPlanning: "Extended AI planning and stop alternatives",
 };
+export const PREMIUM_FEATURE_KEYS = ["advancedPlanning", "expenses", "chat", "locations", "events", "packing", "assistant"] as const satisfies readonly PremiumFeature[];
+export const PREMIUM_FEATURE_DETAILS: Record<PremiumFeature, string> = {
+  advancedPlanning: "AI plans beyond 3 days, day regeneration and stop alternatives.",
+  expenses: "Track payments, attach receipts, split costs and see who owes whom.",
+  chat: "Keep the group conversation inside your trip.",
+  locations: "See members who choose to share their location. Sharing stays optional.",
+  events: "Find events along your route and turn suggestions into bookings.",
+  packing: "Get packing suggestions tailored to your trip and weather.",
+  assistant: "Ask for itinerary changes, review them and apply them when ready.",
+};
+export function selectedPremiumFeatures(value: unknown): PremiumFeature[] {
+  return PREMIUM_FEATURE_KEYS.filter(key => Array.isArray(value) && value.includes(key));
+}
+/** Selecting features is a wish list, never a paid entitlement or a per-feature charge. */
+export function tripCheckoutQuote(features: readonly PremiumFeature[], people: number, creditMinor: number) {
+  const band = premiumBandForPeople(people);
+  return { band, dueMinor: features.length === 0 ? 0 : band ? Math.max(0, band.priceMinor - creditMinor) : null };
+}
 export const PLAN_COMPARISON = [
   { feature: "AI itinerary", normal: "First 3 days per trip", premium: "All trip days" },
   { feature: "Manual itinerary changes", normal: "All days", premium: "All days" },

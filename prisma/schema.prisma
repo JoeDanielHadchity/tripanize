@@ -166,6 +166,7 @@ model Trip {
   planQuestions Json?
   planPrefs     Json?
   normalAiDates Json?
+  selectedPremiumFeatures Json @default("[]")
   // Bumped on every shared change so other members' devices can sync.
   revision  Int      @default(0)
   lastChangedById String?

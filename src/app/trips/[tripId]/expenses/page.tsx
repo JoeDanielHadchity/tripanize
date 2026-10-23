@@ -1,3 +1,4 @@
+import { PremiumStar } from "@/components/premium-star";
 import { getMemberTripPlan } from "@/server/plans/access";
 import { PremiumRequired } from "@/components/premium-required";
 import type { Metadata } from "next";
@@ -16,7 +17,7 @@ export default async function ExpensesPage({ params, searchParams }: { params: P
   const { tripId } = await params;
   const { fromBooking } = await searchParams;
   const user = await requireUser();
-  if (!(await getMemberTripPlan(tripId, user.id)).premium) return <PremiumRequired feature="expenses" />;
+  if (!(await getMemberTripPlan(tripId, user.id)).premium) return <PremiumRequired tripId={tripId} feature="expenses" />;
   const data = await getExpenseData(user.id, tripId);
   const [stops, bookings] = await Promise.all([
     prisma.stop.findMany({ where: { tripId, dayId: { not: null } }, select: { plan: true, status: true, bookingId: true, estCostMinor: true, currency: true, day: { select: { activePlan: true } } } }),
@@ -33,7 +34,7 @@ export default async function ExpensesPage({ params, searchParams }: { params: P
   const me = data.travelers.find((t) => t.userId === user.id);
   return (
     <>
-      <PageHeader title="Expenses & settlements" subtitle="Shared ledger in exact amounts. Different currencies are never added together." />
+      <PageHeader title={<span className="inline-flex items-center gap-2">Expenses & settlements <PremiumStar /></span>} subtitle="Shared ledger in exact amounts. Different currencies are never added together." />
       <ExpensesView
         tripId={tripId}
         canEdit={roleAllows(data.access.role, "edit")}

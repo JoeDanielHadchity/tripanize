@@ -1,4 +1,5 @@
 "use client";
+import { PremiumStar } from "@/components/premium-star";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -65,7 +66,7 @@ export function EventsView(p: Props) {
             {lastRun?.status === "succeeded" && <p className="text-sm text-muted">Last run found {lastRun.found} relevant event(s): {lastRun.added} new, {lastRun.changed} changed.</p>}
             {running && <p className="text-sm text-accent-ink">A check is in progress… refresh this page in a minute.</p>}
           </div>
-          {p.canEdit && <Button variant="primary" disabled={!p.aiReady || pending || Boolean(running)} onClick={() => run(() => discoverEventsAction(p.tripId), { success: "Check started. Results will appear in New." })}>Check for events now</Button>}
+          {p.canEdit && <Button variant="primary" disabled={!p.aiReady || pending || Boolean(running)} onClick={() => run(() => discoverEventsAction(p.tripId), { success: "Check started. Results will appear in New." })}><PremiumStar className="text-current" />Check for events now</Button>}
         </div>
         {!p.aiReady && <Notice tone="warn" className="mt-3">Event discovery uses OpenAI with web search, which isn't configured on this server. Manual and automatic checks can't run; you can still add events yourself.</Notice>}
         {p.canEdit && (

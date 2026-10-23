@@ -27,8 +27,10 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
   await ana.getByLabel("End date").fill("2027-06-13");
   await ana.getByLabel("City or region").fill("Porto");
   await ana.getByRole("button", { name: "Create trip" }).click();
-  await ana.waitForURL("**/plan?start=1");
-  const tripUrl = ana.url().split("/plan")[0];
+  await ana.waitForURL("**/premium?created=1");
+  const tripUrl = ana.url().split("/premium")[0];
+
+  await ana.goto(`${tripUrl}/plan`);
 
   // Questions
   await ana.getByRole("button", { name: "Answer questions" }).click();

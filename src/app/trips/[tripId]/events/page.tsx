@@ -16,7 +16,7 @@ export default async function EventsPage({ params, searchParams }: { params: Pro
   const { tripId } = await params;
   const { event: initialEventId } = await searchParams;
   const user = await requireUser();
-  if (!(await getMemberTripPlan(tripId, user.id)).premium) return <PremiumRequired feature="events" />;
+  if (!(await getMemberTripPlan(tripId, user.id)).premium) return <PremiumRequired tripId={tripId} feature="events" />;
   const { access, events, runs, lastSuccess, settings } = await listEvents(user.id, tripId);
   const [days, pref, trip, deliveries] = await Promise.all([
     prisma.itineraryDay.findMany({ where: { tripId }, orderBy: { date: "asc" }, select: { id: true, date: true, title: true } }),

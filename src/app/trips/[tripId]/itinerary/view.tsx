@@ -1,4 +1,5 @@
 "use client";
+import { PremiumStar } from "@/components/premium-star";
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -157,7 +158,7 @@ export function ItineraryView(p: Props) {
                         {(close) => (
                           <>
                             {p.canEdit && <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm hover:bg-surface-2" onClick={() => { close(); setEditing({ dayId: d.id, plan: d.activePlan, label: formatDate(d.date) }); }}>Add stop to Plan {d.activePlan}</button>}
-                            {p.canEdit && p.premium && <Link className="block min-h-11 content-center rounded-lg px-3 text-sm hover:bg-surface-2" href={`/trips/${p.tripId}/plan?days=${d.date}`}>Regenerate this day with AI</Link>}
+                            {p.canEdit && <Link className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm hover:bg-surface-2" href={p.premium ? `/trips/${p.tripId}/plan?days=${d.date}` : `/trips/${p.tripId}/premium#feature-advancedPlanning`}>Regenerate this day with AI <PremiumStar /></Link>}
                             {p.canEdit && <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm hover:bg-surface-2" onClick={() => { close(); setNotesDay(d); }}>Edit day title & notes</button>}
                             <a className="block min-h-11 content-center rounded-lg px-3 text-sm hover:bg-surface-2" href={`/api/trips/${p.tripId}/export/pdf?date=${d.date}`}>Day PDF</a>
                           </>

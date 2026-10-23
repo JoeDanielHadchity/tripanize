@@ -49,24 +49,30 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   await ana.getByLabel("Start date").fill(isoDate(-1));
   await ana.getByLabel("End date").fill(isoDate(2));
   await ana.getByLabel("City or region").fill("Lisbon");
-  await ana.getByText("Who's going").click();
   await ana.getByLabel(/Other travelers' names/).fill("Ben");
   await ana.getByRole("button", { name: "Add", exact: true }).first().click();
+  await shot(ana, "02-new-trip", project);
+  await ana.getByRole("button", { name: "Create trip" }).click();
+
+  await ana.waitForURL("**/premium?created=1");
+  const tripUrl = ana.url().replace(/\/premium.*$/, "");
+  await expect(ana.getByRole("heading", { name: "Make this trip yours" })).toBeVisible();
+  // Add the remaining information after creating the trip.
+  await ana.goto(`${tripUrl}/settings`);
   await ana.getByText("Getting there & around").click();
   await ana.getByLabel("Time zone").fill("Europe/Lisbon");
   await ana.getByText("Places & commitments").click();
   await ana.getByLabel("Must-see places").fill("Belém Tower");
   await ana.getByLabel("Must-see places").press("Enter");
-  await shot(ana, "02-new-trip", project);
-  await ana.getByRole("button", { name: "Create trip" }).click();
+  await ana.getByRole("button", { name: "Save trip details" }).click();
+  await expect(ana.getByText("Trip details saved")).toBeVisible();
 
   // 3. Plan with AI — honest state without OPENAI_API_KEY
-  await ana.waitForURL("**/plan?start=1");
+  await ana.goto(`${tripUrl}/plan?start=1`);
   await expect(ana.getByText("Your trip is created")).toBeVisible();
   await expect(ana.getByText("AI planning isn't available on this server yet")).toBeVisible();
-  await expect(ana.getByRole("button", { name: "✨ Plan with AI" })).toBeDisabled();
+  await expect(ana.getByRole("button", { name: /Plan with AI$/ })).toBeDisabled();
   await shot(ana, "03-plan-with-ai", project);
-  const tripUrl = ana.url().replace(/\/plan.*$/, "");
 
   // 6. Manual planning: add stops on today's date
   await ana.getByRole("link", { name: "Start planning manually" }).click();
