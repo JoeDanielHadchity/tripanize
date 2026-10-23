@@ -39,3 +39,11 @@ it("accepts researched destination copy through the SDK before applying display 
   const result = normalizeDiscoveryResult(raw.data);
   expect(result.ideas).toHaveLength(5); expect(result.ideas[0].weather.length).toBeLessThanOrEqual(400);
 });
+it("sends receipt image/PDF inputs through the SDK without search or provider response storage", async () => {
+  response([message('{"ready":true}', "final_answer")]);
+  const { generateStructured } = await import("@/server/ai/openai");
+  await generateStructured({ name: "receipt_sdk_fixture", schema: z.object({ ready: z.boolean() }), instructions: "Synthetic extraction", input: "Read one receipt", content: [{ role: "user", content: [{ type: "input_text", text: "Read one receipt" }, { type: "input_image", image_url: "data:image/png;base64,ZmFrZQ==", detail: "high" }, { type: "input_file", filename: "receipt.pdf", file_data: "data:application/pdf;base64,ZmFrZQ==" }] }], webSearch: false });
+  const call = vi.mocked(fetch).mock.calls[0];
+  const body = JSON.parse(String(call[1]?.body));
+  expect(body.store).toBe(false); expect(body.tools).toBeUndefined(); expect(body.input[0].content[1].type).toBe("input_image"); expect(body.input[0].content[2].type).toBe("input_file");
+});

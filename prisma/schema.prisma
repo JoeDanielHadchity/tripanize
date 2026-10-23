@@ -42,6 +42,7 @@ model User {
   destinationSearches DestinationSearch[]
   trialsCreated TrialInvitation[] @relation("TrialCreator")
   trialsAccepted TrialInvitation[] @relation("TrialRecipient")
+  tripVotes TripVote[]
 
   @@map("user")
 }
@@ -244,6 +245,7 @@ model Trip {
   chatMessages ChatMessage[]
   premiumCheckouts PremiumCheckout[]
   trialInvitation TrialInvitation?
+  polls TripPoll[]
 }
 
 // One purchase unlocks one trip. Server-created intents fix the USD amount and
@@ -569,6 +571,9 @@ model Booking {
   confirmationRef String?
   notes       String?
   cancellationTerms String?
+  bookByAt String? // Local YYYY-MM-DDTHH:MM in the trip time zone; user-confirmed deadlines only.
+  paymentDueAt String?
+  freeCancellationAt String?
   version     Int             @default(1)
   createdById String?
   createdAt   DateTime        @default(now())
@@ -596,6 +601,38 @@ model Attachment {
   createdAt  DateTime @default(now())
 
   @@index([expenseId])
+}
+
+// A vote is a preference, never permission to change the itinerary or buy a ticket.
+model TripPoll {
+  id String @id @default(cuid())
+  tripId String
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  question String
+  kind String // DESTINATION | ACTIVITY
+  options Json
+  status String @default("OPEN") // OPEN | DECIDED | ARCHIVED
+  chosenOptionId String?
+  decisionNote String?
+  decidedById String?
+  decidedAt DateTime?
+  createdById String
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  votes TripVote[]
+  @@index([tripId, createdAt])
+}
+
+model TripVote {
+  id String @id @default(cuid())
+  pollId String
+  poll TripPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  optionId String
+  updatedAt DateTime @updatedAt
+  @@unique([pollId, userId])
 }
 
 // ───────────────────────── Expenses ─────────────────────────
@@ -835,6 +872,7 @@ model NotificationPreference {
   emailEnabled Boolean @default(false)
   // Shared edits by other trip members; separate from event discovery alerts.
   changeEmailEnabled Boolean @default(false)
+  bookingReminderEmailEnabled Boolean @default(false)
   frequency String   @default("immediate") // immediate | daily
   // Which event changes matter: new, date, venue, cancelled, sold_out, booking_open, price
   changeTypes Json @default("[]")

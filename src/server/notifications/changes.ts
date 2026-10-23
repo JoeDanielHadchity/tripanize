@@ -6,6 +6,8 @@ import { AppError } from "@/server/errors";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { emailConfigured, sendEmail } from "./email";
 
+import { bookingReminderStillRelevant } from "@/server/bookings/reminders";
+
 const sections: Record<string, [string, string]> = {
   stop: ["an itinerary stop", "itinerary"], day: ["an itinerary day", "itinerary"],
   itinerary: ["the itinerary", "itinerary"], booking: ["a booking", "bookings"],
@@ -14,6 +16,7 @@ const sections: Record<string, [string, string]> = {
   packing: ["the shared packing list", "packing"], task: ["a trip task", "today"],
   trip: ["trip details", "settings"], membership: ["trip membership", "settings"],
   traveler: ["a traveler", "settings"], invitation: ["a trip invitation", "settings"],
+  poll: ["a group vote", "votes"],
   trial: ["Premium trial access", "premium"],
   discovery: ["event discovery settings", "events"], preferences: ["planning preferences", "itinerary"],
 };
@@ -23,6 +26,7 @@ const verbs: Record<string, string> = {
   restore: "restored", apply_ai: "applied an AI plan to", plan_A: "switched to Plan A for",
   plan_B: "switched to Plan B for", saved: "saved", hidden: "hid", new: "reset",
   schedule: "scheduled", done: "completed", undone: "reopened", archive: "archived",
+  vote: "voted in", decide: "finalized", reopen: "reopened",
   role: "changed a role in", transfer_owner: "transferred ownership in", revoke: "revoked",
 };
 
@@ -110,8 +114,8 @@ export async function sendNextChangeEmail(send = sendEmail) {
   if (!n) return;
   const member = await prisma.tripMembership.findUnique({ where: { tripId_userId: { tripId: n.tripId, userId: n.userId } }, include: { user: true } });
   const pref = await prisma.notificationPreference.findUnique({ where: { userId_tripId: { userId: n.userId, tripId: n.tripId } } });
-  const enabled = n.kind === "event_email" ? pref?.emailEnabled && (await getTripPlan(n.tripId)).premium : pref?.changeEmailEnabled;
-  if (!member || !enabled || !member.user.emailVerified || member.user.email !== n.emailTo) {
+  const enabled = n.kind === "event_email" ? pref?.emailEnabled && (await getTripPlan(n.tripId)).premium : n.kind === "booking_reminder" ? pref?.bookingReminderEmailEnabled && await bookingReminderStillRelevant(n.auditId) : pref?.changeEmailEnabled;
+  if (!member || member.user.suspendedAt || !enabled || !member.user.emailVerified || member.user.email !== n.emailTo) {
     await prisma.tripNotification.update({ where: { id: n.id }, data: { emailStatus: "cancelled", nextAttemptAt: null } });
     return;
   }

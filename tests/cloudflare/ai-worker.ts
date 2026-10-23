@@ -1,3 +1,4 @@
+import remindersVotes from "../../prisma/migrations/202610230016_reminders_votes/migration.sql";
 import adminDashboard from "../../prisma/migrations/202610230015_admin_dashboard/migration.sql";
 import destinationSearches from "../../prisma/migrations/202610230014_destination_searches/migration.sql";
 import { createTrialInvitation, acceptTrialInvitation, revokeTrialInvitation, sendNextTrialEmail } from "../../src/server/admin/trials";
@@ -96,6 +97,7 @@ export class AiProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("TrialInvitation")').toArray().length) ctx.storage.sql.exec(companyTrials);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("DestinationSearch")').toArray().some(c => c.name === "number")) ctx.storage.sql.exec(destinationSearches);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("user")').toArray().some(c => c.name === "suspendedAt")) ctx.storage.sql.exec(adminDashboard);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(c => c.name === "bookByAt")) ctx.storage.sql.exec(remindersVotes);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });

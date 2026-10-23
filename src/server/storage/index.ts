@@ -10,7 +10,7 @@ import { recordChange } from "@/server/audit";
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const ALLOWED: Record<string, string> = { "application/pdf": "pdf", "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
 
-function sniff(buf: Buffer): string | null {
+export function sniffAttachment(buf: Buffer): string | null {
   if (buf.subarray(0, 4).toString() === "%PDF") return "application/pdf";
   if (buf[0] === 0x89 && buf.subarray(1, 4).toString() === "PNG") return "image/png";
   if (buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
@@ -24,7 +24,7 @@ export type UploadedFile = { fileName: string; mimeType: string; sizeBytes: numb
 export async function uploadPrivateFile(tripId: string, file: File): Promise<UploadedFile> {
   if (!file.size || file.size > MAX_ATTACHMENT_BYTES) throw new AppError("VALIDATION", "Choose a file up to 10 MB.");
   const buf = Buffer.from(await file.arrayBuffer());
-  const mime = sniff(buf);
+  const mime = sniffAttachment(buf);
   if (!mime || !ALLOWED[mime] || (file.type && file.type !== mime && file.type !== "application/octet-stream")) throw new AppError("VALIDATION", "Upload a PDF, PNG, JPEG or WebP file that matches its format.");
   const key = `${tripId}/${randomBytes(16).toString("hex")}.${ALLOWED[mime]}`;
   const files = currentRuntime().files;

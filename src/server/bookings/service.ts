@@ -10,6 +10,9 @@ import { safeUrl } from "@/lib/maps";
 import { formatZodError } from "@/server/trips/schemas";
 import type { Booking } from "@/generated/prisma/client";
 
+import { deadlineInstant } from "./reminders";
+import { currentRuntime } from "@/server/cloudflare/runtime";
+
 const CATS = ["ACCOMMODATION", "FLIGHT", "TRAIN", "TRANSPORT", "CAR_RENTAL", "ATTRACTION", "RESTAURANT", "EXPERIENCE", "OTHER"] as const;
 const STATUSES = ["IDEA", "TO_BOOK", "REQUESTED", "BOOKED", "PAID", "CANCELLED"] as const;
 
@@ -36,11 +39,14 @@ export const bookingInput = z.object({
   confirmationRef: z.preprocess(nul, z.string().max(120).nullable()),
   notes: z.preprocess(nul, z.string().max(2000).nullable()),
   cancellationTerms: z.preprocess(nul, z.string().max(1000).nullable()),
+  bookByAt: z.preprocess(nul, z.string().max(16).nullable()),
+  paymentDueAt: z.preprocess(nul, z.string().max(16).nullable()),
+  freeCancellationAt: z.preprocess(nul, z.string().max(16).nullable()),
 });
 type Opt<T> = T | null | undefined;
 export type BookingInput = {
   title: string; category: (typeof CATS)[number]; status: (typeof STATUSES)[number]; currency: string;
-  eventId?: string | null;
+  eventId?: string | null; bookByAt?: Opt<string>; paymentDueAt?: Opt<string>; freeCancellationAt?: Opt<string>;
   date?: Opt<string>; startTime?: Opt<string>; endDate?: Opt<string>; durationMin?: Opt<number | string>; guests?: Opt<string>;
   priority?: number | string; whenToBook?: Opt<string>; estCost?: Opt<string>; finalCost?: Opt<string>; ticketType?: Opt<string>;
   preferences?: Opt<string>; address?: Opt<string>; bookingUrl?: Opt<string>; confirmationRef?: Opt<string>; notes?: Opt<string>; cancellationTerms?: Opt<string>;
@@ -116,6 +122,8 @@ export async function createBooking(userId: string, tripId: string, input: Booki
   await requireTrip(tripId, userId, "edit");
   const data = toData(input);
   return prisma.$transaction(async (tx) => {
+    const trip = await tx.trip.findUniqueOrThrow({ where: { id: tripId }, select: { timezone: true } });
+    for (const deadline of [data.bookByAt, data.paymentDueAt, data.freeCancellationAt]) if (deadline) deadlineInstant(deadline, trip.timezone);
     let eventId: string | null = null;
     if (input.eventId) {
       await requirePremiumAccess(tripId, "events", tx);
@@ -130,6 +138,7 @@ export async function createBooking(userId: string, tripId: string, input: Booki
     }
     const b = await tx.booking.create({ data: { ...data, eventId, tripId, createdById: userId } });
     await syncBookingProjection(tx, b);
+    await currentRuntime().wakeNotifications?.();
     await recordChange(tx, { tripId, actorId: userId, entity: "booking", entityId: b.id, action: "create", after: { title: b.title, status: b.status } });
     return b;
   });
@@ -139,12 +148,15 @@ export async function updateBooking(userId: string, tripId: string, bookingId: s
   await requireTrip(tripId, userId, "edit");
   const data = toData(input);
   return prisma.$transaction(async (tx) => {
+    const trip = await tx.trip.findUniqueOrThrow({ where: { id: tripId }, select: { timezone: true } });
+    for (const deadline of [data.bookByAt, data.paymentDueAt, data.freeCancellationAt]) if (deadline) deadlineInstant(deadline, trip.timezone);
     const before = await tx.booking.findFirst({ where: { id: bookingId, tripId } });
     if (!before) throw new AppError("NOT_FOUND", "Booking not found.");
     const res = await tx.booking.updateMany({ where: { id: bookingId, tripId, version }, data: { ...data, version: { increment: 1 } } });
     if (!res.count) throw conflictError(`The booking “${before.title}”`);
     const after = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
     await syncBookingProjection(tx, after);
+    await currentRuntime().wakeNotifications?.();
     await recordChange(tx, { tripId, actorId: userId, entity: "booking", entityId: bookingId, action: "update", before: { status: before.status, date: before.date, startTime: before.startTime }, after: { status: after.status, date: after.date, startTime: after.startTime } });
     return after;
   });
@@ -158,6 +170,7 @@ export async function setBookingStatus(userId: string, tripId: string, bookingId
     if (!res.count) throw conflictError("This booking");
     const b = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
     await syncBookingProjection(tx, b);
+    await currentRuntime().wakeNotifications?.();
     await recordChange(tx, { tripId, actorId: userId, entity: "booking", entityId: bookingId, action: "status", after: { status } });
     return b;
   });

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireUser } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 import { roleAllows } from "@/server/auth/permissions";
+import { emailConfigured } from "@/server/notifications/email";
 import { listBookings } from "@/server/bookings/service";
 import { EventsBookingsSection } from "@/components/events-bookings-section";
 import { BookingsView } from "./view";
@@ -20,7 +21,9 @@ export default async function BookingsPage({ params, searchParams }: { params: P
     availability: e.availability, bookingDeadline: e.bookingDeadline, cancelled: e.cancelled, soldOut: e.soldOut,
     scheduledDate: e.stop?.day?.date ?? null, scheduledTime: e.stop?.startTime ?? null, durationMin: e.stop?.durationMin ?? null,
   });
-  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { currency: true, startDate: true, endDate: true } });
+  const verified = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { emailVerified: true } });
+  const pref = await prisma.notificationPreference.findUnique({ where: { userId_tripId: { userId: user.id, tripId } } });
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { currency: true, startDate: true, endDate: true, timezone: true } });
   return (
     <EventsBookingsSection tripId={tripId} selected="bookings" premium={premium}>
       <BookingsView
@@ -28,13 +31,16 @@ export default async function BookingsPage({ params, searchParams }: { params: P
         canEdit={roleAllows(access.role, "edit")}
         premium={premium}
         currency={trip.currency}
+        timezone={trip.timezone}
+        reminderEmail={pref?.bookingReminderEmailEnabled ?? false}
+        emailAvailable={emailConfigured() && verified.emailVerified}
         tripDates={{ start: trip.startDate, end: trip.endDate }}
         suggestedEvents={suggestedEvents.map(eventView)}
         initialEvent={initialEvent ? eventView(initialEvent) : null}
         bookings={bookings.map((b) => ({
           id: b.id, event: b.event, version: b.version, title: b.title, category: b.category, date: b.date, startTime: b.startTime, endDate: b.endDate, durationMin: b.durationMin, guests: b.guests, status: b.status, priority: b.priority,
           whenToBook: b.whenToBook, estCostMinor: b.estCostMinor, finalCostMinor: b.finalCostMinor, currency: b.currency, ticketType: b.ticketType, preferences: b.preferences, address: b.address, bookingUrl: b.bookingUrl,
-          confirmationRef: b.confirmationRef, notes: b.notes, cancellationTerms: b.cancellationTerms, attachments: b.attachments, hasExpense: b.expenses.length > 0, inItinerary: Boolean(b.stop?.dayId), updatedAt: b.updatedAt.toISOString(),
+          bookByAt: b.bookByAt, paymentDueAt: b.paymentDueAt, freeCancellationAt: b.freeCancellationAt, confirmationRef: b.confirmationRef, notes: b.notes, cancellationTerms: b.cancellationTerms, attachments: b.attachments, hasExpense: b.expenses.length > 0, inItinerary: Boolean(b.stop?.dayId), updatedAt: b.updatedAt.toISOString(),
         }))}
       />
     </EventsBookingsSection>

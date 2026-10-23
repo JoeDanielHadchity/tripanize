@@ -1,3 +1,4 @@
+import { nextBookingReminderAt, queueDueBookingReminders } from "@/server/bookings/reminders";
 import { prepareEventDigests } from "@/server/notifications/events";
 import { runDestinationSearch } from "@/server/destinations/service";
 import { appRuntime, type AppRuntime } from "./runtime";
@@ -35,7 +36,7 @@ export class AiTasks {
   }
 
   async pending() {
-    return await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: { in: ["queued", "digest"] } } }) > 0 || await this.context().database.trialInvitation.count({ where: { emailStatus: "queued" } }) > 0 || await this.context().database.memberLocation.count({ where: { expiresAt: { not: null } } }) > 0;
+    return Boolean(await appRuntime.run(this.context(), () => nextBookingReminderAt())) || await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: { in: ["queued", "digest"] } } }) > 0 || await this.context().database.trialInvitation.count({ where: { emailStatus: "queued" } }) > 0 || await this.context().database.memberLocation.count({ where: { expiresAt: { not: null } } }) > 0;
   }
 
   async alarm() {
@@ -48,6 +49,7 @@ export class AiTasks {
       const runtime = this.context();
       await appRuntime.run({ ...runtime, database: serializedDatabase(runtime.database, this.serialize), wakeAi: undefined, wakeNotifications: undefined, wakeLocationExpiry: undefined }, async () => {
         await expireMemberLocations();
+        await queueDueBookingReminders();
         await prepareEventDigests();
         if (await this.sendTrial()) return;
         await this.sendChanges();
@@ -83,7 +85,8 @@ export class AiTasks {
           const nextEmail = await this.context().database.tripNotification.findFirst({ where: { emailStatus: { in: ["queued", "digest"] } }, orderBy: { nextAttemptAt: "asc" }, select: { nextAttemptAt: true } });
           const location = await this.context().database.memberLocation.findFirst({ where: { expiresAt: { not: null } }, orderBy: { expiresAt: "asc" }, select: { expiresAt: true } });
           const trialEmail = await this.context().database.trialInvitation.findFirst({ where: { emailStatus: "queued" }, orderBy: { nextEmailAttemptAt: "asc" }, select: { nextEmailAttemptAt: true } });
-          const candidates = [await this.pendingAi() ? Date.now() + 1000 : undefined, nextEmail?.nextAttemptAt?.getTime(), trialEmail?.nextEmailAttemptAt?.getTime(), location?.expiresAt?.getTime()].filter((n): n is number => n !== undefined);
+          const bookingReminder = await appRuntime.run(this.context(), () => nextBookingReminderAt());
+          const candidates = [bookingReminder?.getTime(), await this.pendingAi() ? Date.now() + 1000 : undefined, nextEmail?.nextAttemptAt?.getTime(), trialEmail?.nextEmailAttemptAt?.getTime(), location?.expiresAt?.getTime()].filter((n): n is number => n !== undefined);
           const next = candidates.length ? Math.min(...candidates) : undefined;
           if (next !== undefined) await this.storage.setAlarm(Math.max(Date.now() + 1000, next));
           else await this.storage.deleteAlarm();

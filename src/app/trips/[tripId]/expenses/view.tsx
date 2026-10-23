@@ -308,6 +308,10 @@ function PlannedSpendingCard({ b }: { b: BudgetSummary }) {
 function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tripCurrency, today, meId, bookings }: Props & { open: boolean; expense: Expense | null; onClose: () => void; prefill: Prefill | null }) {
   const { run, pending } = useAction();
   const active = travelers.filter((t) => t.active || expense?.shares.some((s) => s.travelerId === t.id) || expense?.payerId === t.id);
+  const [description, setDescription] = useState(expense?.description ?? prefill?.description ?? "");
+  const [category, setCategory] = useState(expense?.category ?? prefill?.category ?? "Food & drink");
+  const [date, setDate] = useState(expense?.date ?? prefill?.date ?? today);
+  const [scanning, setScanning] = useState(false);
   const [currency, setCurrency] = useState(expense?.currency ?? prefill?.currency ?? tripCurrency);
   const [amount, setAmount] = useState(expense ? minorToDecimalString(expense.amountMinor, expense.currency) : prefill?.amountMinor ? minorToDecimalString(prefill.amountMinor, prefill.currency) : "");
   const [method, setMethod] = useState<Expense["splitMethod"]>(expense?.splitMethod ?? "EQUAL");
@@ -343,6 +347,7 @@ function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tri
         className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
+          if (scanning) return;
           const f = new FormData(e.currentTarget);
           setError(null);
           const participants = method === "SINGLE" ? [{ travelerId: single! }] : selected.map((id) => ({ travelerId: id, value: method === "EQUAL" ? undefined : values[id] ?? "" }));
@@ -364,11 +369,11 @@ function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tri
         }}
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Description" htmlFor="e-desc" className="sm:col-span-2"><Input id="e-desc" name="description" required defaultValue={expense?.description ?? prefill?.description ?? ""} maxLength={160} /></Field>
+          <Field label="Description" htmlFor="e-desc" className="sm:col-span-2"><Input id="e-desc" name="description" required value={description} onChange={e => setDescription(e.target.value)} maxLength={160} /></Field>
           <Field label="Amount" htmlFor="e-amount"><Input id="e-amount" inputMode="decimal" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></Field>
           <Field label="Currency" htmlFor="e-cur"><Select id="e-cur" required value={currency} onChange={(e) => setCurrency(e.target.value)}><option value="" disabled>Confirm currency</option>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
-          <Field label="Category" htmlFor="e-cat"><Select id="e-cat" name="category" defaultValue={expense?.category ?? prefill?.category ?? "Food & drink"}>{EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
-          <Field label="Expense date" htmlFor="e-date"><Input id="e-date" name="date" type="date" required defaultValue={expense?.date ?? prefill?.date ?? today} /></Field>
+          <Field label="Category" htmlFor="e-cat"><Select id="e-cat" name="category" value={category} onChange={e => setCategory(e.target.value)}>{EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
+          <Field label="Expense date" htmlFor="e-date"><Input id="e-date" name="date" type="date" required value={date} onChange={e => setDate(e.target.value)} /></Field>
           <Field label="Paid by" htmlFor="e-payer"><Select id="e-payer" name="payer" defaultValue={expense?.payerId ?? meId ?? active[0]?.id}>{active.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
           <Field label="Linked booking (optional)" htmlFor="e-book" hint="Connect this payment to its reservation. The booking estimate stays in planned spending."><Select id="e-book" name="bookingId" defaultValue={expense?.bookingId ?? prefill?.bookingId ?? ""}><option value="">None</option>{bookings.filter((b) => !b.hasExpense || b.id === expense?.bookingId || b.id === prefill?.bookingId).map((b) => <option key={b.id} value={b.id}>{b.title}</option>)}</Select></Field>
         </div>
@@ -415,12 +420,19 @@ function ExpenseDialog({ open, expense, prefill, onClose, tripId, travelers, tri
             <Field label="Rate date" htmlFor="c-date"><Input id="c-date" name="convDate" type="date" defaultValue={expense?.conversion?.rateDate ?? today} required={convOn} /></Field>
           </div>
         </details>
-        <ExpenseReceipts existing={expense?.receipts ?? []} files={files} removeIds={removeIds} onFiles={setFiles} onRemoveIds={setRemoveIds} disabled={pending} />
+        <ExpenseReceipts existing={expense?.receipts ?? []} files={files} removeIds={removeIds} onFiles={setFiles} onRemoveIds={setRemoveIds} disabled={pending} tripId={tripId} onScanning={setScanning} onScanned={proposal => {
+          if (proposal.merchant) setDescription(proposal.merchant);
+          if (proposal.currency) setCurrency(proposal.currency);
+          if (proposal.amount) setAmount(proposal.amount);
+          if (proposal.date) setDate(proposal.date);
+          setCategory(proposal.category); setConvOn(false);
+          if (method === "AMOUNT") setValues({});
+        }} />
         <Field label="Notes" htmlFor="e-notes"><Textarea id="e-notes" name="notes" defaultValue={expense?.notes ?? ""} /></Field>
         {error && <Notice tone="danger">{error}</Notice>}
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={pending}>{pending ? "Saving payment & receipts…" : "Save expense"}</Button>
+          <Button type="submit" variant="primary" disabled={pending || scanning}>{pending ? "Saving payment & receipts…" : "Save expense"}</Button>
         </div>
       </form>
     </Dialog>
