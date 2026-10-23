@@ -1,18 +1,19 @@
 import type { Tx } from "@/server/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { queueChangeNotifications } from "@/server/notifications/changes";
+import { accountDisplayName } from "@/server/admin/identity";
 
 /** Records an audit entry and bumps the trip revision so other members' devices refresh. */
 export async function recordChange(
   tx: Tx,
   args: { tripId: string; actorId: string | null; entity: string; entityId: string; action: string; before?: unknown; after?: unknown },
 ) {
-  const actor = args.actorId ? await tx.user.findUnique({ where: { id: args.actorId }, select: { name: true } }) : null;
+  const actor = args.actorId ? await tx.user.findUnique({ where: { id: args.actorId }, select: { name: true, email: true } }) : null;
   const change = await tx.auditLog.create({
     data: {
       tripId: args.tripId,
       actorId: args.actorId,
-      actorName: actor?.name ?? null,
+      actorName: actor ? accountDisplayName(actor) : null,
       entity: args.entity,
       entityId: args.entityId,
       action: args.action,

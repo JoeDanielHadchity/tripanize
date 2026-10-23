@@ -10,6 +10,7 @@ import { formatDateRange, tripLength } from "@/lib/dates";
 import { EXAMPLES } from "@/server/examples/data";
 import { listPendingInvitations } from "@/server/invitations/service";
 import { PendingInvites } from "@/components/pending-invites";
+import { pendingTrialInvitations } from "@/server/admin/trials";
 
 export const metadata: Metadata = { title: "My trips" };
 
@@ -34,6 +35,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
   const all = await listTrips(user.id);
   const trips = await listTrips(user.id, { q, phase });
   const invites = await listPendingInvitations(user.id);
+  const trials = await pendingTrialInvitations(user.id);
   return (
     <>
       <AppHeader user={user} current="trips" />
@@ -41,6 +43,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
         <TripStart initial={destinationSearch} />
         <PageHeader title="My trips" subtitle={all.length ? `${all.length} trip${all.length === 1 ? "" : "s"} you own or were invited to` : "Only trips you own or were invited to appear here."} actions={<><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Plan a new trip</LinkButton></>} />
         <PendingInvites invites={invites} />
+        {trials.map(inv => <div key={inv.id} className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent bg-accent-soft p-5"><div><h2 className="font-display text-xl font-semibold">You’re invited to try Premium</h2><p className="mt-1 text-sm text-muted">The company offered you all Premium features for one trip. No payment details needed.</p></div><LinkButton href={`/trial?invitation=${encodeURIComponent(inv.id)}`} variant="primary">Activate my trial</LinkButton></div>)}
         {all.length > 0 && (
           <form role="search" className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center" action="/trips">
             <label htmlFor="q" className="sr-only">Search trips</label>

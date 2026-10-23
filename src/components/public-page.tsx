@@ -22,7 +22,7 @@ export async function PolicyPage({ title, intro, children }: { title: string; in
     <p className="text-sm font-semibold text-accent-ink">Tripanize policies</p>
     <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">{title}</h1>
     <p className="mt-4 text-lg leading-8 text-muted">{intro}</p>
-    <p className="mt-4 text-xs text-muted">Updated {POLICY_UPDATED} · Operated by {OPERATOR_NAME}, an individual based in {OPERATOR_COUNTRY}.</p>
+    <p className="mt-4 text-xs text-muted">Updated {POLICY_UPDATED} · Operated by {OPERATOR_NAME}, based in {OPERATOR_COUNTRY}.</p>
     <nav aria-label="Policy pages" className="my-7 flex flex-wrap gap-x-5 border-y border-line py-2 text-sm">{LEGAL_LINKS.map(link => <Link key={link.href} href={link.href} className="inline-flex min-h-11 items-center text-accent-ink underline underline-offset-4">{link.label}</Link>)}</nav>
     <article className="space-y-8">{children}</article>
   </main></>;

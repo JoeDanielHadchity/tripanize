@@ -43,6 +43,14 @@ Event emails remain opt-in for verified addresses, respect each member's event c
 
 Both `tripanize.app` and `www.tripanize.app` are configured as custom domains. The production Worker URL is also enabled as an alternate entry point. Authentication trusts that exact configured URL; it does not trust other Workers or branch previews. Email links continue to use the canonical `APP_URL`.
 
+## Company access and one-trip trials
+
+The private Cloudflare secret `COMPANY_ADMIN_EMAIL` identifies the single company account and grants all Premium features on trips the verified company account owns or joins. It does not bypass membership or editor/viewer permissions, create paid transactions, or change Paddle settings. The company dashboard at `/company` is unavailable to ordinary accounts; every trial mutation independently verifies the current database account and its verified email.
+
+Only the company can issue or revoke email-bound trial invitations. An unused invitation expires after 14 days. A verified recipient redeems it once for one owned Normal trip or a new guided draft. The grant stays bound to that trip and its original organizer; it does not unlock another trip or create a subscription. One active invitation/trial per recipient is enforced by a unique normalized email and transactional recipient checks. The company must revoke the previous invitation/trial before issuing another. An accepted trial remains active until revoked, independently of the invitation acceptance deadline. Revocation retains saved trip content and does not remove a verified paid purchase.
+
+Invitation emails use a durable immutable outbox, stable provider idempotency keys, bounded retries within 20 hours, and native restart recovery. No email or payment is sent merely by deploying the feature. Migration 13 adds invitation storage. Startup uses the private configuration to replace existing company account, linked traveler, chat sender and historical activity display labels with “The company”; previously queued activity emails containing the old identity are cancelled rather than rewritten under an existing idempotency key. Public policies and contact pages identify the company without a personal name.
+
 ## Local development and validation
 
 Use Node.js 22.14 or later.

@@ -30,7 +30,8 @@ export function AppHeader({ user, current }: { user: SessionUser; current?: "tri
         </Link>
         <nav aria-label="Account" className="flex items-center gap-1">
           {link("/trips", "My trips", current === "trips")}
-          {link("/account", user.name.split(" ")[0] || "Account", current === "account")}
+          {user.companyAdmin && link("/company", "Company", false)}
+          {link("/account", user.companyAdmin ? "Account" : user.name.split(" ")[0] || "Account", current === "account")}
           <NotificationBell />
           <SettingsLink active={current === "settings"} />
           <SignOutButton />

@@ -14,6 +14,7 @@ const sections: Record<string, [string, string]> = {
   packing: ["the shared packing list", "packing"], task: ["a trip task", "today"],
   trip: ["trip details", "settings"], membership: ["trip membership", "settings"],
   traveler: ["a traveler", "settings"], invitation: ["a trip invitation", "settings"],
+  trial: ["Premium trial access", "premium"],
   discovery: ["event discovery settings", "events"], preferences: ["planning preferences", "itinerary"],
 };
 const verbs: Record<string, string> = {

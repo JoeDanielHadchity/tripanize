@@ -5,6 +5,7 @@ import { emailOTP } from "better-auth/plugins";
 import { prisma } from "@/server/db";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { sendEmail } from "@/server/notifications/email";
+import { accountDisplayName, isCompanyIdentity } from "@/server/admin/identity";
 
 function createAuth() { return betterAuth({
   appName: "Tripanize",
@@ -26,6 +27,15 @@ function createAuth() { return betterAuth({
     }
   })(),
   database: prismaAdapter(prisma, { provider: "sqlite" }),
+  databaseHooks: { user: {
+    create: { before: async user => ({ data: { ...user, name: accountDisplayName(user) } }) },
+    update: { after: async user => {
+      if (isCompanyIdentity(user) && user.name !== "The company") {
+        await prisma.user.update({ where: { id: user.id }, data: { name: "The company" } });
+        await prisma.traveler.updateMany({ where: { userId: user.id }, data: { name: "The company" } });
+      }
+    } },
+  } },
   advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
   emailAndPassword: {
     enabled: true,
