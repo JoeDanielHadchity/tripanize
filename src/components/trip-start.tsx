@@ -1,34 +1,14 @@
 "use client";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, ExternalLink, Field, Input, LinkButton, Notice, Select, Spinner, Textarea, cx } from "./ui";
-import { CreateTrip } from "./create-trip";
+import { Badge, Button, Card, ExternalLink, Field, Input, Notice, Select, Spinner, Textarea, cx } from "./ui";
 import { chooseDestinationAction, createDestinationDraftAction, findDestinationsAction, loadDestinationSearchAction, saveDestinationDraftAction } from "@/app/actions/destinations";
 import { DISCOVERY_DEFAULTS, DISCOVERY_INTERESTS, type DiscoveryInput } from "@/server/destinations/schema";
 import type { getDestinationSearch, getDestinationWorkspace } from "@/server/destinations/service";
 
 type Search = Awaited<ReturnType<typeof getDestinationSearch>>;
 type Workspace = Awaited<ReturnType<typeof getDestinationWorkspace>>;
-export function TripStart({ initial, create = false }: { initial: Workspace; create?: boolean }) {
-  const [tab, setTab] = useState<"known" | "discover">("known");
-  const uid = useId();
-  function selectTab(value: "known" | "discover") { setTab(value); }
-  return <section aria-label="Start planning a trip" className="mb-10 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-    <div className="brand-backdrop px-5 py-6 text-white sm:px-7">
-      <p className="text-xs font-semibold uppercase tracking-widest text-white/80">Your next adventure</p>
-      <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">Where will you go next?</h2>
-      <p className="mt-2 max-w-xl text-sm text-white/90">Bring a destination, or just the feeling of a trip. We’ll help with the rest.</p>
-    </div>
-    <div role="tablist" aria-label="Choose how to start" className="grid grid-cols-2 border-b border-line p-2">
-      {([['known', "I know where I’m going", "Continue to trip planning"], ['discover', "Let me help you choose", "Find five ideas that fit you"]] as const).map(([value, label, sub], i) => <button type="button" key={value} role="tab" id={`${uid}-${value}`} aria-controls={`${uid}-${value}-panel`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1} onClick={() => selectTab(value)} onKeyDown={e => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) { e.preventDefault(); const next = e.key === "Home" ? "known" : e.key === "End" ? "discover" : i === 0 ? "discover" : "known"; selectTab(next); document.getElementById(`${uid}-${next}`)?.focus(); } }} className={cx("min-h-20 rounded-xl px-3 py-3 text-left transition-colors sm:px-5", tab === value ? "bg-accent-soft text-accent-ink" : "text-muted hover:bg-surface-2")}><span className="block text-sm font-semibold sm:text-base">{label}</span><span className="mt-1 hidden text-xs sm:block">{sub}</span></button>)}
-    </div>
-    <div id={`${uid}-known-panel`} role="tabpanel" aria-labelledby={`${uid}-known`} hidden={tab !== "known"} className="p-5 sm:p-7">
-      {create ? <CreateTrip /> : <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-display text-xl font-semibold">Already have somewhere in mind?</h3><p className="mt-1 max-w-lg text-sm text-muted">Create your trip, compare Normal and Premium, then add your destination and details.</p></div><LinkButton href="/trips/new" variant="primary">Let’s plan my trip →</LinkButton></div>}
-    </div>
-    <div id={`${uid}-discover-panel`} role="tabpanel" aria-labelledby={`${uid}-discover`} hidden={tab !== "discover"} className="p-5 sm:p-7"><DestinationSearches initial={initial} /></div>
-  </section>;
-}
-function DestinationSearches({ initial }: { initial: Workspace }) {
+export function DestinationSearches({ initial }: { initial: Workspace }) {
   const [searches, setSearches] = useState(initial.searches);
   const [active, setActive] = useState(initial.current?.id ?? null);
   const [loaded, setLoaded] = useState<Record<string, NonNullable<Search>>>(initial.current ? { [initial.current.id]: initial.current } : {});
@@ -107,8 +87,8 @@ function DestinationFinder({ initial, onUpdate, onCopy }: { initial: NonNullable
       <dl className="mt-4 space-y-3 text-sm"><div><dt className="font-semibold">Best timing</dt><dd className="mt-1 text-muted">{idea.bestTime}</dd></div><div><dt className="font-semibold">{idea.weatherKind === "forecast" ? "Current forecast" : idea.weatherKind === "seasonal" ? "Typical seasonal weather" : "Weather information"}</dt><dd className="mt-1 text-muted">{idea.weather}</dd></div><div><dt className="font-semibold">Season & atmosphere</dt><dd className="mt-1 text-muted">{idea.season}</dd></div><div><dt className="font-semibold">Budget & getting there</dt><dd className="mt-1 text-muted">{idea.budgetNote} {idea.travelNote}</dd></div><div><dt className="font-semibold">Something to consider</dt><dd className="mt-1 text-muted">{idea.tradeoff}</dd></div></dl>
       <ul aria-label={`Experiences in ${idea.destination}`} className="mt-4 flex flex-wrap gap-2">{idea.experiences.map(x => <li key={x}><Badge tone="sage">{x}</Badge></li>)}</ul>
       {!!idea.sourceUrls.length && <div className="mt-4 flex flex-wrap gap-3 text-xs">{idea.sourceUrls.map((url, i) => <ExternalLink key={url} href={url}>Source {i + 1}</ExternalLink>)}</div>}
-      <Button variant="primary" className="mt-5 w-full sm:whitespace-normal" disabled={choosing !== null} onClick={async () => { setChoosing(index); setError(""); try { const r = await chooseDestinationAction(search.id, index); if (!r.ok) throw new Error(r.error); router.push(r.data.next); } catch (e) { setError(e instanceof Error ? e.message : "Please try again."); setChoosing(null); } }}>{choosing === index ? "Opening your trip…" : search.selectedTripId ? "Continue my chosen trip →" : `Plan a trip to ${idea.destination} →`}</Button>
-    </Card>)}</div><p className="text-sm text-muted">Choose a place to continue to Normal or Premium. Your destination and answers will carry over. Premium remains $15 per trip.</p>
+      <Button variant="primary" className="mt-5 w-full sm:whitespace-normal" disabled={choosing !== null} onClick={async () => { setChoosing(index); setError(""); try { const r = await chooseDestinationAction(search.id, index); if (!r.ok) throw new Error(r.error); router.push(r.data.next); } catch (e) { setError(e instanceof Error ? e.message : "Please try again."); setChoosing(null); } }}>{choosing === index ? "Saving your destination…" : search.selectedTripId ? "View my chosen trip →" : `Choose ${idea.destination} →`}</Button>
+    </Card>)}</div><p className="text-sm text-muted">Choose a destination to save it in My trips. Your answers will carry over, and you can continue setup there with Normal or Premium. Premium remains $15 per trip.</p>
   </div>;
   if (!editing && search?.status === "FAILED") return <div className="space-y-4"><Notice tone="warn">{search.error || "We couldn’t finish your destination ideas."}</Notice><Button onClick={onCopy}>Copy answers to a new search</Button></div>;
   return <form className="space-y-6" onSubmit={async e => {

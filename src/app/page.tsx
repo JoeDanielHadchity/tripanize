@@ -12,7 +12,7 @@ const FEATURES = [
 ] as const;
 
 export default async function Home() {
-  if (await getSessionUser()) redirect("/trips");
+  if (await getSessionUser()) redirect("/start");
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4">
@@ -33,7 +33,7 @@ export default async function Home() {
             </h1>
             <p className="mt-5 max-w-lg text-lg text-muted">Tripanize is a calm travel workspace for you and the people you travel with: an AI-drafted itinerary you stay in control of, with bookings and packing in one place. Premium adds the complete AI plan, events, expenses and group tools.</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <LinkButton href="/sign-up?next=%2Ftrips%2Fnew" variant="primary" className="px-6">Create a trip</LinkButton>
+              <LinkButton href="/sign-up" variant="primary" className="px-6">Create a trip</LinkButton>
               <LinkButton href="/examples/lisbon-porto">See an example trip</LinkButton>
             </div>
           </div>

@@ -95,7 +95,7 @@ export async function chooseDestination(userId: string, id: string, index: numbe
   if (!Number.isInteger(index) || index < 0 || index > 4 || search?.status !== "SUCCEEDED" || !search.result) throw new AppError("VALIDATION", "Choose one of your five destination ideas.");
   if (search.selectedTripId) {
     const existing = await prisma.trip.findFirst({ where: { id: search.selectedTripId, ownerId: userId } });
-    if (existing) return { id: existing.id, next: `/trips/${existing.id}/${existing.onboardingStage === "PLAN" ? "premium" : existing.onboardingStage === "COMPLETE" ? "itinerary" : "onboarding"}` };
+    if (existing) return { id: existing.id, next: `/trips?selected=${encodeURIComponent(existing.id)}` };
   }
   const p = search.input, idea = search.result.ideas[index];
   const idTrip = await createTrip(userId, {
@@ -107,5 +107,5 @@ export async function chooseDestination(userId: string, id: string, index: numbe
     preferences: [`Weather: ${p.climate}`, `Crowds: ${p.crowds}`, `Travel distance: ${p.distance}`, p.constraints].filter(Boolean).join(". ").slice(0, 1000),
     notes: `Destination discovery: ${idea.whyFits}\nSuggested timing: ${idea.bestTime}. ${p.days} days preferred. Budget preference: USD ${p.budget} per person for the whole trip.`.slice(0, 2000),
   }, id);
-  return { id: idTrip, next: `/trips/${idTrip}/premium?created=1` };
+  return { id: idTrip, next: `/trips?selected=${encodeURIComponent(idTrip)}` };
 }

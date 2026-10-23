@@ -21,7 +21,7 @@ export function AppHeader({ user, current }: { user: SessionUser; current?: "tri
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
-        <Link href="/trips" aria-label="Tripanize — my trips">
+        <Link href="/start" aria-label="Tripanize home">
           <Logo small />
         </Link>
         <nav aria-label="Account" className="flex items-center gap-1">

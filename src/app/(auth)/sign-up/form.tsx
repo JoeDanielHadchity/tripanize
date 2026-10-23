@@ -45,7 +45,7 @@ export function SignUpForm({ next }: { next: string }) {
         </Button>
       </form>
       <p className="mt-6 text-sm text-muted">
-        Already have an account? <Link href={`/sign-in${next !== "/trips" ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-accent-ink underline underline-offset-2">Sign in</Link>
+        Already have an account? <Link href={`/sign-in${next !== "/start" ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-accent-ink underline underline-offset-2">Sign in</Link>
       </p>
     </>
   );
