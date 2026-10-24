@@ -5,11 +5,10 @@ import type { TripInput } from "@/server/trips/schemas";
 import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
 
 /** Pre-authenticated owner fixture for admin feature tests. The dedicated
- * admin-security tests exercise real enrollment, code verification and expiry.
+ * admin-security tests exercise email delivery, code verification and expiry.
  */
 export async function adminAuthenticationFixture(userId: string) {
-  await prisma.adminAuthenticator.create({ data: { userId, encryptedSecret: "isolated-admin-feature-fixture", enabledAt: new Date() } });
-  const session = await prisma.session.create({ data: { id: randomUUID(), token: randomUUID(), userId, expiresAt: new Date(Date.now() + 86400_000), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
+  const session = await prisma.session.create({ data: { id: randomUUID(), token: randomUUID(), userId, expiresAt: new Date(Date.now() + 86400_000), adminEmailUnlockedAt: new Date(), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
   setTestRuntime({ ...currentRuntime(), accountMode: { userId, sessionId: session.id, normal: false } });
   return session;
 }

@@ -12,18 +12,16 @@ export async function companyAccount(userId: string, db: Pick<Tx, "user"> = pris
   const user = await db.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true, suspendedAt: true } });
   return Boolean(user && !user.suspendedAt && isCompanyAccount(user));
 }
-export async function hasAdminAuthentication(userId: string, db: Pick<Tx, "session" | "adminAuthenticator"> = prisma) {
+export async function hasAdminAuthentication(userId: string, db: Pick<Tx, "session"> = prisma) {
   const context = currentRuntime().accountMode;
   if (!context?.sessionId || context.userId !== userId || context.normal) return false;
-  const session = await db.session.findFirst({ where: { id: context.sessionId, userId, normalMode: false, expiresAt: { gt: new Date() }, adminVerifiedUntil: { gt: new Date() } }, select: { id: true } });
-  if (!session) return false;
-  const authenticator = await db.adminAuthenticator.findUnique({ where: { userId }, select: { enabledAt: true, encryptedSecret: true } });
-  return Boolean(authenticator?.enabledAt && authenticator.encryptedSecret);
+  const session = await db.session.findFirst({ where: { id: context.sessionId, userId, normalMode: false, expiresAt: { gt: new Date() }, adminVerifiedUntil: { gt: new Date() }, adminEmailUnlockedAt: { gte: new Date(Date.now() - 30 * 60_000), lte: new Date() } }, select: { id: true } });
+  return Boolean(session);
 }
-export async function requireCompanyAdmin(userId: string, db: Pick<Tx, "user" | "session" | "adminAuthenticator"> = prisma) {
+export async function requireCompanyAdmin(userId: string, db: Pick<Tx, "user" | "session"> = prisma) {
   if (normalUserMode(userId)) throw new AppError("FORBIDDEN", "Switch back to Admin mode in Account to use administrator features.");
   if (!await companyAccount(userId, db)) throw new AppError("FORBIDDEN", `Only the ${OPERATOR_NAME} administrator account can manage trial invitations.`);
-  if (!await hasAdminAuthentication(userId, db)) throw new AppError("FORBIDDEN", "Unlock administrator access with your authenticator in Account → Admin security.", { adminAuthentication: true });
+  if (!await hasAdminAuthentication(userId, db)) throw new AppError("FORBIDDEN", "Unlock Admin mode with a code sent to your email in Account → Admin access.", { adminAuthentication: true });
 }
 
 /** Run once for an existing configured account on startup. The private email is

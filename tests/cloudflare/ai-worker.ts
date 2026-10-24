@@ -1,3 +1,4 @@
+import adminEmailCode from "../../prisma/migrations/202610240019_admin_email_code/migration.sql";
 import adminAuthentication from "../../prisma/migrations/202610230018_admin_authentication/migration.sql";
 import adminNormalMode from "../../prisma/migrations/202610230017_admin_normal_mode/migration.sql";
 import remindersVotes from "../../prisma/migrations/202610230016_reminders_votes/migration.sql";
@@ -102,6 +103,7 @@ export class AiProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(c => c.name === "bookByAt")) ctx.storage.sql.exec(remindersVotes);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "normalMode")) ctx.storage.sql.exec(adminNormalMode);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminVerifiedUntil")) ctx.storage.sql.exec(adminAuthentication);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminEmailUnlockedAt")) ctx.storage.sql.exec(adminEmailCode);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });
@@ -128,8 +130,7 @@ export class AiProbe extends DurableObject<Env> {
           const admin = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "company-native@example.test", name: "Tripanize.app", emailVerified: true } });
           const recipient = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "trial-native@example.test", name: "Trial recipient", emailVerified: true } });
           const otherTripId = await createTrip(recipient.id, { name: "Other Normal trip" });
-          await this.db.adminAuthenticator.create({ data: { userId: admin.id, encryptedSecret: "isolated-admin-feature-fixture", enabledAt: new Date() } });
-          const adminSession = await this.db.session.create({ data: { id: crypto.randomUUID(), token: crypto.randomUUID(), userId: admin.id, expiresAt: new Date(Date.now() + 86400_000), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
+          const adminSession = await this.db.session.create({ data: { id: crypto.randomUUID(), token: crypto.randomUUID(), userId: admin.id, expiresAt: new Date(Date.now() + 86400_000), adminEmailUnlockedAt: new Date(), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
           const inv = await appRuntime.run({ ...currentRuntime(), accountMode: { userId: admin.id, sessionId: adminSession.id, normal: false } }, () => createTrialInvitation(admin.id, recipient.email));
           await this.ctx.storage.put("trial-fixture", { invitationId: inv.id, adminId: admin.id, adminSessionId: adminSession.id, recipientId: recipient.id, otherTripId });
           return Response.json({ queued: true });

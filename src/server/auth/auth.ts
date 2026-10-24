@@ -1,6 +1,5 @@
 import { OPERATOR_NAME } from "@/lib/legal";
 import { betterAuth } from "better-auth";
-import { createAuthMiddleware } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins";
@@ -30,7 +29,7 @@ function createAuth() { return betterAuth({
   databaseHooks: { session: { create: { before: async session => {
     const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { suspendedAt: true } });
     if (!user || user.suspendedAt) return false;
-    return { data: { ...session, normalMode: false, adminEmailVerifiedAt: null, adminVerifiedUntil: null } };
+    return { data: { ...session, normalMode: false, adminEmailVerifiedAt: null, adminVerifiedUntil: null, adminEmailUnlockedAt: null } };
   } } }, user: {
     create: { before: async user => ({ data: { ...user, name: accountDisplayName(user) } }) },
     update: { after: async user => {
@@ -62,15 +61,8 @@ function createAuth() { return betterAuth({
     normalMode: { type: "boolean", defaultValue: false, input: false, returned: false },
     adminEmailVerifiedAt: { type: "date", required: false, input: false, returned: false },
     adminVerifiedUntil: { type: "date", required: false, input: false, returned: false },
+    adminEmailUnlockedAt: { type: "date", required: false, input: false, returned: false },
   } },
-  hooks: { after: createAuthMiddleware(async ctx => {
-    // Only an actually completed email-code sign-in can authorize first enrollment.
-    // Password sign-in, password reset and client-supplied fields cannot set this proof.
-    const signedIn = ctx.context.newSession;
-    if (ctx.path === "/sign-in/email-otp" && signedIn?.user.emailVerified && isCompanyIdentity(signedIn.user)) {
-      await prisma.session.updateMany({ where: { id: signedIn.session.id, userId: signedIn.user.id }, data: { adminEmailVerifiedAt: new Date() } });
-    }
-  }) },
   rateLimit: { enabled: true, window: 60, max: 30 },
   plugins: [
     // Passwordless sign-in: a 6-digit code by email (delivered through Resend or SMTP). The first successful

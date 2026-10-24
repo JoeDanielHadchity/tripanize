@@ -20,8 +20,7 @@ async function fixture() {
   await prisma.user.update({ where: { id: admin.id }, data: { emailVerified: true } });
   const a = await prisma.session.create({ data: { id: randomUUID(), token: randomUUID(), userId: admin.id, expiresAt: new Date(Date.now() + 86400_000) } });
   const b = await prisma.session.create({ data: { id: randomUUID(), token: randomUUID(), userId: admin.id, expiresAt: new Date(Date.now() + 86400_000) } });
-  await prisma.adminAuthenticator.create({ data: { userId: admin.id, encryptedSecret: "isolated-admin-feature-fixture", enabledAt: new Date() } });
-  await prisma.session.updateMany({ where: { userId: admin.id }, data: { adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
+  await prisma.session.updateMany({ where: { userId: admin.id }, data: { adminEmailUnlockedAt: new Date(), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
   const tripId = await makeTrip(admin.id, { startDate: "2020-05-01", endDate: "2020-05-08", mustSee: [] });
   await prisma.destination.updateMany({ where: { tripId }, data: { lat: 38.7, lng: -9.1 } });
   await prisma.tripMembership.create({ data: { tripId, userId: other.id, role: "VIEWER" } });
@@ -39,8 +38,8 @@ it("persists Normal only for the selected session and requires new authenticatio
   expect(await sessionAccountMode(admin.id, b.id)).toMatchObject({ normal: false });
   await inSession(admin.id, a.id, async () => { expect(normalUserMode(admin.id)).toBe(true); expect(await companyAccount(admin.id)).toBe(true); await expect(requireCompanyAdmin(admin.id)).rejects.toMatchObject({ code: "FORBIDDEN" }); await expect(adminOverview(admin.id)).rejects.toMatchObject({ code: "FORBIDDEN" }); await expect(setAccountMode(admin.id, "ADMIN")).rejects.toMatchObject({ code: "FORBIDDEN" }); });
   expect((await prisma.session.findUniqueOrThrow({ where: { id: a.id } })).adminVerifiedUntil).toBeNull();
-  // Simulate successful step-up; real authenticator verification has its own suite.
-  await prisma.session.update({ where: { id: a.id }, data: { normalMode: false, adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
+  // Simulate successful step-up; real admin email-code verification has its own suite.
+  await prisma.session.update({ where: { id: a.id }, data: { normalMode: false, adminEmailUnlockedAt: new Date(), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
   await inSession(admin.id, a.id, () => setAccountMode(admin.id, "ADMIN"));
   await inSession(admin.id, a.id, async () => { expect(normalUserMode()).toBe(false); await requireCompanyAdmin(admin.id); });
   expect((await prisma.adminAudit.findMany({ orderBy: { createdAt: "asc" } })).map(r => r.details)).toEqual([{ mode: "NORMAL" }, { mode: "ADMIN" }]);
@@ -83,7 +82,7 @@ it("keeps the two-day Normal scope for durable jobs even after returning to Admi
   await inSession(admin.id, a.id, () => setAccountMode(admin.id, "NORMAL"));
   const job = await inSession(admin.id, a.id, () => enqueueJob(admin.id, tripId, "full", {}));
   expect((await prisma.generationJob.findUniqueOrThrow({ where: { id: job.jobId } })).params).toMatchObject({ normalMode: true, dates: ["2020-05-01", "2020-05-02"] });
-  await prisma.session.update({ where: { id: a.id }, data: { normalMode: false, adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
+  await prisma.session.update({ where: { id: a.id }, data: { normalMode: false, adminEmailUnlockedAt: new Date(), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
   await inSession(admin.id, a.id, () => setAccountMode(admin.id, "ADMIN"));
   await claimJob(job.jobId);
   const inputs: string[][] = [];

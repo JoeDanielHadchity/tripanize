@@ -29,6 +29,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   adminAuthenticator AdminAuthenticator?
+  adminEmailChallenge AdminEmailChallenge?
 
   profile          Profile?
   memberships      TripMembership[]
@@ -57,8 +58,9 @@ model Session {
   ipAddress String?
   userAgent String?
   normalMode Boolean @default(false) // Server-owned, per-session administrator view preference.
-  adminEmailVerifiedAt DateTime? // Fresh email-code proof for authenticator enrollment only.
-  adminVerifiedUntil DateTime? // Short-lived second-factor proof, never accepted from client input.
+  adminEmailVerifiedAt DateTime? // Legacy enrollment field; never grants admin access.
+  adminVerifiedUntil DateTime? // Short-lived admin unlock proof, never accepted from client input.
+  adminEmailUnlockedAt DateTime? // Dedicated admin email-code proof; legacy authenticator grants do not qualify.
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -78,6 +80,19 @@ model AdminAuthenticator {
   pendingSecret String?
   pendingSessionId String?
   pendingExpiresAt DateTime?
+}
+
+model AdminEmailChallenge {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId String?
+  codeHash String?
+  sessionId String?
+  expiresAt DateTime?
+  requestedAt DateTime?
+  deliveredAt DateTime?
+  failedAttempts Int @default(0)
+  lockedUntil DateTime?
 }
 
 model Account {
