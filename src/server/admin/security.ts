@@ -1,153 +1,123 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { createOTP } from "@better-auth/utils/otp";
-import { symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
+import { createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { prisma, type Tx } from "@/server/db";
 import { currentRuntime } from "@/server/cloudflare/runtime";
-import { companyAccount } from "./identity";
+import { companyAccount, hasAdminAuthentication } from "./identity";
 import { adminAudit } from "./audit";
 import { AppError } from "@/server/errors";
-import { rateLimit } from "@/server/ratelimit";
+import { sendEmail } from "@/server/notifications/email";
 
 export const ADMIN_UNLOCK_MS = 30 * 60_000;
-const ENROLLMENT_MS = 10 * 60_000;
-const MAX_FAILURES = 5;
-const LOCK_MS = 15 * 60_000;
-const code = z.string().trim().min(1).max(80);
+export const ADMIN_EMAIL_CODE_MS = 10 * 60_000;
+const RESEND_MS = 60_000, MAX_FAILURES = 5, LOCK_MS = 15 * 60_000;
 export const adminSecurityCommand = z.discriminatedUnion("op", [
-  z.object({ op: z.literal("enroll") }).strict(),
-  z.object({ op: z.literal("confirm"), code }).strict(),
-  z.object({ op: z.literal("unlock"), code, recovery: z.boolean().optional() }).strict(),
+  z.object({ op: z.literal("send-code") }).strict(),
+  z.object({ op: z.literal("unlock"), code: z.string().trim().regex(/^\d{6}$/) }).strict(),
   z.object({ op: z.literal("lock") }).strict(),
-  z.object({ op: z.literal("recovery-codes"), code }).strict(),
 ]);
-const cipherKey = () => `${currentRuntime().authSecret}:admin-authenticator:v1`;
-const recoveryHash = (userId: string, value: string) => createHmac("sha256", currentRuntime().authSecret).update(`admin-recovery:${userId}:${value.replace(/[\s-]/g, "").toUpperCase()}`).digest("hex");
-const hashes = (value: unknown): string[] => Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && /^[a-f0-9]{64}$/.test(v)) : [];
-const newRecoveryCodes = (userId: string) => {
-  const codes = Array.from({ length: 10 }, () => randomBytes(10).toString("hex").toUpperCase().match(/.{1,5}/g)!.join("-"));
-  return { codes, hashes: codes.map(value => recoveryHash(userId, value)) };
-};
+const cleared = { challengeId: null, codeHash: null, sessionId: null, expiresAt: null, deliveredAt: null };
+const codeHash = (userId: string, sessionId: string, challengeId: string, code: string) => createHmac("sha256", currentRuntime().authSecret).update(`admin-email:v1:${userId}:${sessionId}:${challengeId}:${code}`).digest("hex");
 
 async function securitySession(userId: string, db: Pick<Tx, "user" | "session"> = prisma) {
   if (!await companyAccount(userId, db)) throw new AppError("FORBIDDEN", "Admin security is only available to the verified administrator account.");
   const context = currentRuntime().accountMode;
-  if (!context?.sessionId || context.userId !== userId) throw new AppError("UNAUTHENTICATED", "Sign in again to manage admin security.");
+  if (!context?.sessionId || context.userId !== userId) throw new AppError("UNAUTHENTICATED", "Sign in again to unlock Admin mode.");
   const session = await db.session.findFirst({ where: { id: context.sessionId, userId, expiresAt: { gt: new Date() } } });
   if (!session) throw new AppError("UNAUTHENTICATED", "This sign-in has expired. Sign in again.");
   return session;
 }
-const freshEmail = (at: Date | null) => Boolean(at && at.getTime() <= Date.now() && Date.now() - at.getTime() < ENROLLMENT_MS);
-function requireEnrollmentEmail(at: Date | null) {
-  if (!freshEmail(at)) throw new AppError("FORBIDDEN", "Sign in with a fresh email code before setting up or replacing your authenticator.", { emailReauthentication: true });
-}
 export async function adminSecurityStatus(userId: string) {
   const session = await securitySession(userId);
-  const record = await prisma.adminAuthenticator.findUnique({ where: { userId } });
-  const enrolled = Boolean(record?.enabledAt && record.encryptedSecret);
-  const unlocked = enrolled && !session.normalMode && Boolean(session.adminVerifiedUntil && session.adminVerifiedUntil.getTime() > Date.now());
-  return { enrolled, unlocked, verifiedUntil: unlocked ? session.adminVerifiedUntil!.toISOString() : null,
-    recoveryRemaining: hashes(record?.recoveryHashes).length, freshEmail: freshEmail(session.adminEmailVerifiedAt),
+  const record = await prisma.adminEmailChallenge.findUnique({ where: { userId } });
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } });
+  const unlocked = await hasAdminAuthentication(userId);
+  const codeSent = Boolean(record?.codeHash && record.deliveredAt && record.sessionId === session.id && record.expiresAt && record.expiresAt.getTime() > Date.now());
+  return { email: user.email, unlocked, verifiedUntil: unlocked ? session.adminVerifiedUntil!.toISOString() : null,
+    codeSent, expiresAt: codeSent ? record!.expiresAt!.toISOString() : null,
+    resendAt: record?.requestedAt ? new Date(record.requestedAt.getTime() + RESEND_MS).toISOString() : null,
     lockedUntil: record?.lockedUntil && record.lockedUntil.getTime() > Date.now() ? record.lockedUntil.toISOString() : null };
 }
 
-/** Use the same RFC 6238 implementation as Better Auth. Record the matched counter
- * so a valid code cannot unlock two sessions or be reused for another command.
- */
-async function matchingCounter(secret: string, entered: string, previous: number) {
-  const value = entered.replace(/\s/g, "");
-  if (!/^\d{6}$/.test(value)) return null;
-  const counter = Math.floor(Date.now() / 30_000);
-  let matched: number | null = null;
-  for (const step of [counter - 1, counter, counter + 1]) {
-    const expected = await createOTP(secret).hotp(step);
-    if (timingSafeEqual(Buffer.from(value), Buffer.from(expected)) && step > previous) matched = step;
-  }
-  return matched;
-}
-async function unlockSession(db: Tx, userId: string, sessionId: string) {
-  const until = new Date(Date.now() + ADMIN_UNLOCK_MS);
-  const changed = await db.session.updateMany({ where: { id: sessionId, userId, expiresAt: { gt: new Date() } }, data: { adminVerifiedUntil: until, normalMode: false } });
-  if (!changed.count) throw new AppError("UNAUTHENTICATED", "Your sign-in expired. Sign in again.");
-  return until.toISOString();
+/** Cancel pending codes without resetting the account-wide retry limit or lockout. */
+export async function invalidateAdminEmailChallenge(db: Pick<Tx, "adminEmailChallenge">, userId: string, sessionId: string) {
+  await db.adminEmailChallenge.updateMany({ where: { userId, sessionId }, data: cleared });
 }
 
-export async function executeAdminSecurity(userId: string, input: z.input<typeof adminSecurityCommand>) {
+/** Dedicated, session-bound admin verification. General sign-in codes, legacy
+ * authenticator codes and recovery codes cannot authorize administrator powers.
+ */
+export async function executeAdminSecurity(userId: string, input: z.input<typeof adminSecurityCommand>, deliver = sendEmail) {
   const command = adminSecurityCommand.parse(input);
   const session = await securitySession(userId);
-  await rateLimit(`admin-security:${userId}`, 30, 15 * 60);
   if (command.op === "lock") {
     await prisma.$transaction(async db => {
-      await db.session.updateMany({ where: { id: session.id, userId }, data: { adminVerifiedUntil: null } });
+      await securitySession(userId, db);
+      await db.session.updateMany({ where: { id: session.id, userId }, data: { adminVerifiedUntil: null, adminEmailUnlockedAt: null } });
+      await invalidateAdminEmailChallenge(db, userId, session.id);
       await adminAudit(userId, "admin.authentication.locked", "user", userId, {}, db);
     });
     return { ok: true as const };
   }
-  if (command.op === "enroll") {
-    requireEnrollmentEmail(session.adminEmailVerifiedAt);
-    const secret = randomBytes(32).toString("base64url");
-    const encrypted = await symmetricEncrypt({ key: cipherKey(), data: secret });
-    await prisma.$transaction(async db => {
-      const current = await securitySession(userId, db);
-      requireEnrollmentEmail(current.adminEmailVerifiedAt);
-      const record = await db.adminAuthenticator.findUnique({ where: { userId } });
-      if (record?.lockedUntil && record.lockedUntil.getTime() > Date.now()) throw new AppError("RATE_LIMITED", "Too many incorrect codes. Try again after the security lock expires.");
-      // Replacing a configured factor needs both fresh email proof and a factor
-      // verified in the last five minutes. Keep the existing factor until confirmed.
-      if (record?.enabledAt && (!current.adminVerifiedUntil || current.normalMode || current.adminVerifiedUntil.getTime() < Date.now() + ADMIN_UNLOCK_MS - 5 * 60_000)) throw new AppError("FORBIDDEN", "Unlock admin access with your authenticator or a recovery code, then try again.");
-      const pending = { pendingSecret: encrypted, pendingSessionId: current.id, pendingExpiresAt: new Date(Date.now() + ENROLLMENT_MS) };
-      await db.adminAuthenticator.upsert({ where: { userId }, create: { userId, ...pending }, update: pending });
-      await adminAudit(userId, "admin.authentication.enrollment_started", "user", userId, {}, db);
+  if (command.op === "send-code") {
+    const value = randomInt(0, 1_000_000).toString().padStart(6, "0"), challengeId = randomUUID();
+    const expiresAt = new Date(Date.now() + ADMIN_EMAIL_CODE_MS);
+    const prepared = await prisma.$transaction(async db => {
+      await securitySession(userId, db);
+      const record = await db.adminEmailChallenge.findUnique({ where: { userId } });
+      if (record?.lockedUntil && record.lockedUntil.getTime() > Date.now()) throw new AppError("RATE_LIMITED", "Too many incorrect codes. Wait until the 15-minute lock expires before requesting a new code.");
+      if (record?.requestedAt && Date.now() - record.requestedAt.getTime() < RESEND_MS) throw new AppError("RATE_LIMITED", "Please wait 60 seconds before requesting another admin code.");
+      const key = `admin-email-send:${userId}`;
+      if (await db.rateLimitHit.count({ where: { key, createdAt: { gte: new Date(Date.now() - 3600_000) } } }) >= 5) throw new AppError("RATE_LIMITED", "You have requested five admin codes this hour. Please wait before requesting another.");
+      await db.rateLimitHit.create({ data: { key } });
+      const data = { challengeId, codeHash: codeHash(userId, session.id, challengeId, value), sessionId: session.id, expiresAt, requestedAt: new Date(), deliveredAt: null, ...(record?.lockedUntil ? { failedAttempts: 0, lockedUntil: null } : {}) };
+      await db.adminEmailChallenge.upsert({ where: { userId }, create: { userId, ...data }, update: data });
+      const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } });
+      return { email: user.email, resendAt: new Date(Date.now() + RESEND_MS).toISOString() };
     });
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } });
-    const uri = createOTP(secret).url("Tripanize.app", user.email);
-    return { ok: true as const, uri, setupKey: new URL(uri).searchParams.get("secret")! };
-  }
-
-  // Return failures from the transaction so counters/lockouts commit before the
-  // public error is thrown. All attempts and recovery consumption are atomic.
-  const result = await prisma.$transaction(async db => {
-    const current = await securitySession(userId, db);
-    const record = await db.adminAuthenticator.findUnique({ where: { userId } });
-    if (!record) throw new AppError("FORBIDDEN", "Set up your authenticator first.");
-    if (record.lockedUntil && record.lockedUntil.getTime() > Date.now()) return { error: "locked" as const };
-    if (command.op === "confirm") {
-      requireEnrollmentEmail(current.adminEmailVerifiedAt);
-      if (!record.pendingSecret || record.pendingSessionId !== current.id || !record.pendingExpiresAt || record.pendingExpiresAt.getTime() <= Date.now()) throw new AppError("VALIDATION", "This setup has expired. Start authenticator setup again.");
-    } else if (!record.enabledAt || !record.encryptedSecret) throw new AppError("FORBIDDEN", "Confirm your authenticator setup first.");
-    let counter: number | null = null, recoveryIndex = -1;
-    const savedHashes = hashes(record.recoveryHashes);
-    const recovery = command.op === "unlock" && command.recovery === true;
-    if (recovery) {
-      const expected = Buffer.from(recoveryHash(userId, command.code), "hex");
-      savedHashes.forEach((value, index) => { if (timingSafeEqual(Buffer.from(value, "hex"), expected)) recoveryIndex = index; });
-    } else {
-      const encrypted = command.op === "confirm" ? record.pendingSecret! : record.encryptedSecret!;
-      const secret = await symmetricDecrypt({ key: cipherKey(), data: encrypted });
-      counter = await matchingCounter(secret, command.code, command.op === "confirm" ? -1 : record.lastCounter);
+    // The raw code exists only in memory and in the email delivered to the owner.
+    // Do not log it, return it to the client, or persist it in an email outbox.
+    let sent = false;
+    try {
+      const result = await deliver({ to: prepared.email, subject: "Your Tripanize.app Admin access code", text: `Your Tripanize.app Admin access code is ${value}\n\nEnter it on the Admin access page in the same browser session within 10 minutes. It can be used once and unlocks Admin mode for 30 minutes.\n\nDo not share this code. If you did not request Admin access, ignore this email.`, idempotencyKey: `admin-email/${challengeId}` });
+      sent = result.status === "sent";
+    } catch { /* Delivery errors must never include the raw code in responses or logs. */ }
+    if (!sent) {
+      await prisma.$transaction(async db => {
+        await db.adminEmailChallenge.updateMany({ where: { userId, challengeId }, data: cleared });
+        await adminAudit(userId, "admin.authentication.email_failed", "user", userId, {}, db);
+      });
+      throw new AppError("UPSTREAM", "Your admin code could not be sent. Wait 60 seconds, then try again.");
     }
-    if (counter === null && recoveryIndex < 0) {
-      const failures = (record.lockedUntil ? 0 : record.failedAttempts) + 1;
-      const locked = failures >= MAX_FAILURES;
-      await db.adminAuthenticator.update({ where: { userId }, data: { failedAttempts: failures, lockedUntil: locked ? new Date(Date.now() + LOCK_MS) : null } });
-      await adminAudit(userId, "admin.authentication.failed", "user", userId, { locked }, db);
+    await prisma.$transaction(async db => {
+      await securitySession(userId, db);
+      const updated = await db.adminEmailChallenge.updateMany({ where: { userId, challengeId, sessionId: session.id, expiresAt: { gt: new Date() } }, data: { deliveredAt: new Date() } });
+      if (!updated.count) throw new AppError("CONFLICT", "This request was replaced or canceled. Request a fresh admin code.");
+      await adminAudit(userId, "admin.authentication.email_sent", "user", userId, {}, db);
+    });
+    return { ok: true as const, expiresAt: expiresAt.toISOString(), resendAt: prepared.resendAt };
+  }
+  // Commit wrong-attempt counters before returning the public validation error.
+  const result = await prisma.$transaction(async db => {
+    await securitySession(userId, db);
+    const record = await db.adminEmailChallenge.findUnique({ where: { userId } });
+    if (record?.lockedUntil && record.lockedUntil.getTime() > Date.now()) return { error: "locked" as const };
+    if (!record?.codeHash || !record.challengeId || !record.deliveredAt || record.sessionId !== session.id || !record.expiresAt || record.expiresAt.getTime() <= Date.now()) return { error: "expired" as const };
+    const expected = Buffer.from(codeHash(userId, session.id, record.challengeId, command.code), "hex");
+    const stored = Buffer.from(record.codeHash, "hex");
+    if (stored.length !== expected.length || !timingSafeEqual(stored, expected)) {
+      const failures = record.failedAttempts + 1, locked = failures >= MAX_FAILURES;
+      await db.adminEmailChallenge.update({ where: { userId }, data: { failedAttempts: failures, ...(locked ? { ...cleared, lockedUntil: new Date(Date.now() + LOCK_MS) } : {}) } });
+      await adminAudit(userId, "admin.authentication.failed", "user", userId, { method: "email", locked }, db);
       return { error: locked ? "locked" as const : "invalid" as const };
     }
-    if (command.op === "confirm") {
-      const recovery = newRecoveryCodes(userId);
-      await db.adminAuthenticator.update({ where: { userId }, data: { encryptedSecret: record.pendingSecret, enabledAt: new Date(), recoveryHashes: recovery.hashes, lastCounter: counter!, failedAttempts: 0, lockedUntil: null, pendingSecret: null, pendingSessionId: null, pendingExpiresAt: null } });
-      // A new or replaced authenticator invalidates every other sign-in.
-      await db.session.deleteMany({ where: { userId, id: { not: current.id } } });
-      const verifiedUntil = await unlockSession(db, userId, current.id);
-      await adminAudit(userId, "admin.authentication.enabled", "user", userId, {}, db);
-      return { ok: true as const, recoveryCodes: recovery.codes, verifiedUntil };
-    }
-    const replacement = command.op === "recovery-codes" ? newRecoveryCodes(userId) : null;
-    await db.adminAuthenticator.update({ where: { userId }, data: { failedAttempts: 0, lockedUntil: null, ...(counter !== null ? { lastCounter: counter } : {}), ...(replacement ? { recoveryHashes: replacement.hashes } : recoveryIndex >= 0 ? { recoveryHashes: savedHashes.filter((_, index) => index !== recoveryIndex) } : {}) } });
-    const verifiedUntil = await unlockSession(db, userId, current.id);
-    await adminAudit(userId, replacement ? "admin.authentication.recovery_regenerated" : "admin.authentication.unlocked", "user", userId, { method: recovery ? "recovery" : "authenticator" }, db);
-    return { ok: true as const, verifiedUntil, ...(replacement ? { recoveryCodes: replacement.codes } : {}) };
+    const consumed = await db.adminEmailChallenge.updateMany({ where: { userId, challengeId: record.challengeId, codeHash: record.codeHash, sessionId: session.id }, data: { ...cleared, failedAttempts: 0, lockedUntil: null } });
+    if (!consumed.count) return { error: "expired" as const };
+    const until = new Date(Date.now() + ADMIN_UNLOCK_MS);
+    const changed = await db.session.updateMany({ where: { id: session.id, userId, expiresAt: { gt: new Date() } }, data: { adminVerifiedUntil: until, adminEmailUnlockedAt: new Date(), normalMode: false } });
+    if (!changed.count) throw new AppError("UNAUTHENTICATED", "Your sign-in expired. Sign in again.");
+    await adminAudit(userId, "admin.authentication.unlocked", "user", userId, { method: "email" }, db);
+    return { ok: true as const, verifiedUntil: until.toISOString() };
   });
-  if ("error" in result) throw new AppError(result.error === "locked" ? "RATE_LIMITED" : "VALIDATION", result.error === "locked" ? "Too many incorrect codes. Admin verification is locked for 15 minutes." : "That code is incorrect, expired or already used. Try the next authenticator code or an unused recovery code.");
+  if ("error" in result) throw new AppError(result.error === "locked" ? "RATE_LIMITED" : "VALIDATION", result.error === "locked" ? "Too many incorrect codes. Admin verification is locked for 15 minutes." : result.error === "expired" ? "Request a new admin email code in this browser. The previous code has expired, was used, or belongs to another session." : "That admin email code is incorrect. Check the most recent email and try again.");
   return result;
 }

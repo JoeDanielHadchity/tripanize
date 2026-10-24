@@ -6,10 +6,10 @@ import { AppHeader } from "@/components/shell";
 import { PageHeader } from "@/components/ui";
 import { AdminSecurity } from "./security";
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Admin security", robots: { index: false, follow: false }, referrer: "no-referrer" };
+export const metadata: Metadata = { title: "Admin access", robots: { index: false, follow: false }, referrer: "no-referrer" };
 export default async function AdminSecurityPage() {
   const user = await requireUser();
   if (!user.companyAdminEligible) notFound();
   const status = await adminSecurityStatus(user.id);
-  return <><AppHeader user={user} current="account" /><main id="main" className="mx-auto max-w-2xl px-4 pb-16 pt-6"><PageHeader title="Admin security" subtitle="Extra protection for your administrator account." /><AdminSecurity initial={status} /></main></>;
+  return <><AppHeader user={user} current="account" /><main id="main" className="mx-auto max-w-2xl px-4 pb-16 pt-6"><PageHeader title="Admin access" subtitle="One email code to unlock your administrator tools." /><AdminSecurity initial={status} /></main></>;
 }

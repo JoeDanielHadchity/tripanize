@@ -1,6 +1,5 @@
+import adminEmailCode from "../../prisma/migrations/202610240019_admin_email_code/migration.sql";
 import adminAuthentication from "../../prisma/migrations/202610230018_admin_authentication/migration.sql";
-import { createOTP } from "@better-auth/utils/otp";
-import { base32 } from "@better-auth/utils/base32";
 import { executeAdminSecurity, adminSecurityStatus } from "../../src/server/admin/security";
 import { auth } from "../../src/server/auth/auth";
 import { resolveAccountMode, sessionAccountMode, setAccountMode } from "../../src/server/admin/mode";
@@ -72,6 +71,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Booking")').toArray().some(c => c.name === "bookByAt")) ctx.storage.sql.exec(remindersVotes);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "normalMode")) ctx.storage.sql.exec(adminNormalMode);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminVerifiedUntil")) ctx.storage.sql.exec(adminAuthentication);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminEmailUnlockedAt")) ctx.storage.sql.exec(adminEmailCode);
       });
     });
   }
@@ -82,8 +82,7 @@ export class StorageProbe extends DurableObject<Env> {
           const adminEmail = `native-admin-${crypto.randomUUID()}@example.test`;
           const admin = await this.db.user.create({ data: { id: crypto.randomUUID(), name: "Administrator", email: adminEmail, emailVerified: true } });
           const traveler = await this.db.user.create({ data: { id: crypto.randomUUID(), name: "Native traveler", email: `native-${crypto.randomUUID()}@example.test`, emailVerified: true } });
-          await this.db.adminAuthenticator.create({ data: { userId: admin.id, encryptedSecret: "isolated-admin-feature-fixture", enabledAt: new Date() } });
-          const adminSession = await this.db.session.create({ data: { id: crypto.randomUUID(), token: crypto.randomUUID(), userId: admin.id, expiresAt: new Date(Date.now() + 86400_000), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
+          const adminSession = await this.db.session.create({ data: { id: crypto.randomUUID(), token: crypto.randomUUID(), userId: admin.id, expiresAt: new Date(Date.now() + 86400_000), adminEmailUnlockedAt: new Date(), adminVerifiedUntil: new Date(Date.now() + 30 * 60_000) } });
           return appRuntime.run({ database: this.db, authSecret: "isolated-admin-fixture", companyAdminEmail: adminEmail, planAccessEnabled: true, accountMode: { userId: admin.id, sessionId: adminSession.id, normal: false } }, async () => {
             let guard = false;
             try { await adminOverview(traveler.id); } catch (e) { guard = (e as { code?: string }).code === "FORBIDDEN"; }
@@ -122,13 +121,17 @@ export class StorageProbe extends DurableObject<Env> {
             await this.db.user.update({ where: { id: body.user.id }, data: { emailVerified: true } });
             const initial = await resolveAccountMode(headers);
             if (!initial?.sessionId) throw new Error("Native mode session missing");
-            await this.db.session.update({ where: { id: initial.sessionId }, data: { adminEmailVerifiedAt: new Date() } });
-            const enrollment = await appRuntime.run({ ...modeRuntime, accountMode: initial }, () => executeAdminSecurity(body.user.id, { op: "enroll" }));
-            if (!("uri" in enrollment) || !enrollment.uri) throw new Error("Native authenticator setup missing");
-            const secret = Buffer.from(base32.decode(new URL(enrollment.uri).searchParams.get("secret")!)).toString("utf8");
-            const confirmation = await appRuntime.run({ ...modeRuntime, accountMode: initial }, async () => executeAdminSecurity(body.user.id, { op: "confirm", code: await createOTP(secret).totp() }));
-            if (!("recoveryCodes" in confirmation) || !confirmation.recoveryCodes) throw new Error("Native recovery codes missing");
-            const encryptedSecret = (await this.db.adminAuthenticator.findUniqueOrThrow({ where: { userId: body.user.id } })).encryptedSecret;
+            let emailed = "";
+            const deliver = async (message: { to: string; text: string }) => {
+              if (message.to !== email) throw new Error("Admin code recipient mismatch");
+              emailed = message.text.match(/\b\d{6}\b/)![0];
+              return { status: "sent" as const, providerId: "native-admin-email-fixture" };
+            };
+            const sent = await appRuntime.run({ ...modeRuntime, accountMode: initial }, () => executeAdminSecurity(body.user.id, { op: "send-code" }, deliver));
+            const firstCode = emailed;
+            const savedHash = (await this.db.adminEmailChallenge.findUniqueOrThrow({ where: { userId: body.user.id } })).codeHash;
+            const codeHashOnly = Boolean(savedHash && savedHash !== firstCode && !JSON.stringify(sent).includes(firstCode));
+            await appRuntime.run({ ...modeRuntime, accountMode: initial }, () => executeAdminSecurity(body.user.id, { op: "unlock", code: firstCode }));
             const tripId = await createTrip(body.user.id, { name: "Native mode fixture", startDate: "2027-05-01", endDate: "2027-05-04", timezone: "UTC" });
             await appRuntime.run({ ...modeRuntime, accountMode: initial }, () => setAccountMode(body.user.id, "NORMAL"));
             const normal = await resolveAccountMode(headers);
@@ -140,12 +143,16 @@ export class StorageProbe extends DurableObject<Env> {
             const othersUnchanged = (await getTripPlan(tripId)).premium;
             let requiresCode = false;
             try { await appRuntime.run({ ...modeRuntime, accountMode: normal }, () => setAccountMode(body.user.id, "ADMIN")); } catch (e) { requiresCode = (e as { code?: string }).code === "FORBIDDEN"; }
-            await appRuntime.run({ ...modeRuntime, accountMode: normal }, () => executeAdminSecurity(body.user.id, { op: "unlock", code: confirmation.recoveryCodes![0], recovery: true }));
+            let replayDenied = false;
+            try { await appRuntime.run({ ...modeRuntime, accountMode: normal }, () => executeAdminSecurity(body.user.id, { op: "unlock", code: firstCode })); } catch { replayDenied = true; }
+            await this.db.adminEmailChallenge.update({ where: { userId: body.user.id }, data: { requestedAt: new Date(Date.now() - 61_000) } });
+            await appRuntime.run({ ...modeRuntime, accountMode: normal }, () => executeAdminSecurity(body.user.id, { op: "send-code" }, deliver));
+            await appRuntime.run({ ...modeRuntime, accountMode: normal }, () => executeAdminSecurity(body.user.id, { op: "unlock", code: emailed }));
             const restored = !(await resolveAccountMode(headers))?.normal;
             const factorConfirmed = await appRuntime.run({ ...modeRuntime, accountMode: await resolveAccountMode(headers) }, async () => (await adminSecurityStatus(body.user.id)).unlocked);
             await appRuntime.run({ ...modeRuntime, accountMode: await resolveAccountMode(headers) }, () => setAccountMode(body.user.id, "NORMAL"));
             await this.ctx.storage.put("modeFixture", { email, userId: body.user.id, sessionId: initial.sessionId });
-            return Response.json({ hiddenBeforeVerification, denied, normalPlan, othersUnchanged, restored, requiresCode, factorConfirmed, secretEncrypted: encryptedSecret !== secret && Boolean(encryptedSecret), defaultsAdmin: initial.normal === false, forgedCookieIgnored: !await resolveAccountMode(new Headers({ Cookie: "tripanize.mode=ADMIN; better-auth.session_token=fake" })) });
+            return Response.json({ hiddenBeforeVerification, denied, normalPlan, othersUnchanged, restored, requiresCode, factorConfirmed, codeHashOnly, replayDenied, defaultsAdmin: initial.normal === false, forgedCookieIgnored: !await resolveAccountMode(new Headers({ Cookie: "tripanize.mode=ADMIN; better-auth.session_token=fake" })) });
           });
         }
         if (new URL(request.url).pathname === "/mode-state") {

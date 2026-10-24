@@ -1,3 +1,4 @@
+import adminEmailCode from "../prisma/migrations/202610240019_admin_email_code/migration.sql?raw";
 import adminAuthentication from "../prisma/migrations/202610230018_admin_authentication/migration.sql?raw";
 import { resolveAccountMode } from "../src/server/admin/mode";
 import adminNormalMode from "../prisma/migrations/202610230017_admin_normal_mode/migration.sql?raw";
@@ -149,6 +150,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
           if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(column => column.name === "adminVerifiedUntil")) ctx.storage.sql.exec(adminAuthentication);
         });
         await ctx.storage.put("schemaVersion", 18);
+      }
+      if (version < 19) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(column => column.name === "adminEmailUnlockedAt")) ctx.storage.sql.exec(adminEmailCode);
+        });
+        await ctx.storage.put("schemaVersion", 19);
       }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
