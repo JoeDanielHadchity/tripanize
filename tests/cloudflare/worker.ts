@@ -135,10 +135,10 @@ export class StorageProbe extends DurableObject<Env> {
             const tripId = await createTrip(body.user.id, { name: "Native mode fixture", startDate: "2027-05-01", endDate: "2027-05-04", timezone: "UTC" });
             await appRuntime.run({ ...modeRuntime, accountMode: initial }, () => setAccountMode(body.user.id, "NORMAL"));
             const normal = await resolveAccountMode(headers);
-            let denied = false, normalPlan = false;
+            let denied = false, premiumRetained = false;
             await appRuntime.run({ ...modeRuntime, accountMode: normal }, async () => {
               try { await adminOverview(body.user.id); } catch (e) { denied = (e as { code?: string }).code === "FORBIDDEN"; }
-              normalPlan = !(await getTripPlan(tripId)).premium && (await planningScope(tripId, "full"))?.length === 2;
+              premiumRetained = (await getTripPlan(tripId)).source === "company" && await planningScope(tripId, "full") === null;
             });
             const othersUnchanged = (await getTripPlan(tripId)).premium;
             let requiresCode = false;
@@ -152,7 +152,7 @@ export class StorageProbe extends DurableObject<Env> {
             const factorConfirmed = await appRuntime.run({ ...modeRuntime, accountMode: await resolveAccountMode(headers) }, async () => (await adminSecurityStatus(body.user.id)).unlocked);
             await appRuntime.run({ ...modeRuntime, accountMode: await resolveAccountMode(headers) }, () => setAccountMode(body.user.id, "NORMAL"));
             await this.ctx.storage.put("modeFixture", { email, userId: body.user.id, sessionId: initial.sessionId });
-            return Response.json({ hiddenBeforeVerification, denied, normalPlan, othersUnchanged, restored, requiresCode, factorConfirmed, codeHashOnly, replayDenied, defaultsAdmin: initial.normal === false, forgedCookieIgnored: !await resolveAccountMode(new Headers({ Cookie: "tripanize.mode=ADMIN; better-auth.session_token=fake" })) });
+            return Response.json({ hiddenBeforeVerification, denied, premiumRetained, othersUnchanged, restored, requiresCode, factorConfirmed, codeHashOnly, replayDenied, defaultsAdmin: initial.normal === false, forgedCookieIgnored: !await resolveAccountMode(new Headers({ Cookie: "tripanize.mode=ADMIN; better-auth.session_token=fake" })) });
           });
         }
         if (new URL(request.url).pathname === "/mode-state") {
