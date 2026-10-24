@@ -25,7 +25,9 @@ export async function getTripPlan(tripId: string, db: Database = prisma) {
   const band = hasPurchase ? PREMIUM_BANDS[0] : null;
   const preview = !planAccessEnabled() && !normalUserMode();
   const trip = await db.trip.findUniqueOrThrow({ where: { id: tripId }, select: { ownerId: true, owner: { select: { email: true, emailVerified: true } }, memberships: { select: { user: { select: { email: true, emailVerified: true } } } } } });
-  const company = !normalUserMode() && (isCompanyAccount(trip.owner) || trip.memberships.some(m => isCompanyAccount(m.user)));
+  // Company Premium is permanent account access. Normal mode hides admin tools;
+  // it must never turn off the owner's included trip features or background jobs.
+  const company = isCompanyAccount(trip.owner) || trip.memberships.some(m => isCompanyAccount(m.user));
   const trial = await db.trialInvitation.findUnique({ where: { tripId }, select: { acceptedAt: true, revokedAt: true, trialEndsAt: true } });
   // A redeemed invitation covers its one bound trip for the entire trial. A
   // legitimate organizer transfer does not silently revoke access for members.
