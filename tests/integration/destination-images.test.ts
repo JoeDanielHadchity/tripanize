@@ -22,6 +22,7 @@ describe("destination trip covers", () => {
     expect(image).toMatchObject({ url: skyline.thumbnail.source, credit: "Test Photographer · CC BY-SA 4.0", pageUrl: expect.stringContaining("commons.wikimedia.org/wiki/File:") });
     const query = new URL(fetch.mock.calls[0][0] as string).searchParams.get("gsrsearch");
     expect(query).toBe('intitle:"New York" "United States"');
+    expect(new URL(fetch.mock.calls[0][0] as string).searchParams.get("pithumbsize")).toBe("1920");
     expect(await findDestinationImage("New York", "United States")).toEqual(image);
     expect(fetch).toHaveBeenCalledTimes(2);
   });

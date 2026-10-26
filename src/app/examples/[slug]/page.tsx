@@ -26,7 +26,7 @@ export default async function ExamplePage({ params }: { params: Promise<{ slug: 
         {user ? <LinkButton href="/trips" variant="ghost">My trips</LinkButton> : <LinkButton href="/sign-up" variant="primary">Get started</LinkButton>}
       </header>
       <main id="main" className="mx-auto max-w-4xl px-4 pb-16">
-        <div className="relative overflow-hidden rounded-3xl p-6 text-white sm:p-10" style={{ background: ex.slug === "lisbon-porto" ? "linear-gradient(90deg,#102c36ed,#102c3699),url(/editorial/guide.jpg) center / cover" : ex.image }}>
+        <div className="relative overflow-hidden rounded-3xl p-6 text-white sm:p-10" style={{ background: ex.slug === "lisbon-porto" ? "linear-gradient(90deg,#102c36ed,#102c3699),url(/editorial/guide.webp) center / cover" : ex.image }}>
           <Badge tone="warn" className="mb-3">Example trip — not one of your trips</Badge>
           <h1 className="photo-title font-display text-3xl font-semibold sm:text-4xl">{ex.name}</h1>
           <p className="mt-2 max-w-xl text-white/90">{ex.summary}</p>
