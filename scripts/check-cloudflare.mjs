@@ -96,7 +96,7 @@ try {
     const photos = ["home", "auth", "welcome", "trips", "ideas", "guide", "itinerary", "events", "expenses", "chat", "packing", "settings"];
     const photoHashes = new Set();
     for (const photo of photos) {
-      const asset = await fetch(origin + "/editorial/" + photo + ".jpg"); assert.equal(asset.status, 200, photo);
+      const asset = await fetch(origin + "/editorial/" + photo + ".webp"); assert.equal(asset.status, 200, photo);
       photoHashes.add(Buffer.from(await crypto.subtle.digest("SHA-256", await asset.arrayBuffer())).toString("hex"));
     }
     assert.equal(photoHashes.size, photos.length, "Editorial photos must all be different");

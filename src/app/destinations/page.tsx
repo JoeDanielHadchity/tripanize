@@ -19,7 +19,7 @@ export default async function DestinationsPage() {
     <main id="main" className="mx-auto max-w-5xl px-4 pb-20 pt-6">
       <Link href="/start" className="text-sm text-muted hover:text-ink">← Choose how to start</Link>
       <PageHeader title="Find a destination" />
-      <div className="discovery-banner"><img src="/editorial/ideas.jpg" alt="Porto waterfront, Portugal" width={600} height={520} /></div>
+      <div className="discovery-banner"><img decoding="async" src="/editorial/ideas.webp" alt="Porto waterfront, Portugal" width={600} height={520} /></div>
       <TrialAccessBanner access={trial} />
       <DestinationSearches initial={workspace} />
     </main>

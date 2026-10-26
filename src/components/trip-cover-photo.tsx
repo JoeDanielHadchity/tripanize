@@ -18,7 +18,7 @@ export function TripCoverPhoto({ tripId, destination }: { tripId: string; destin
   if (!image) return null;
   return <>
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={image.url} alt={destination} width={960} height={540} referrerPolicy="no-referrer" className={`absolute inset-0 h-full w-full object-cover ${loaded ? "" : "invisible"}`} loading="lazy" onLoad={() => setLoaded(true)} onError={() => setLoaded(false)} />
+    <img src={image.url} alt={destination} width={1920} height={1080} decoding="async" referrerPolicy="no-referrer" className={`absolute inset-0 h-full w-full object-cover ${loaded ? "" : "invisible"}`} loading="lazy" onLoad={() => setLoaded(true)} onError={() => setLoaded(false)} />
     {loaded && image.pageUrl && <a href={image.pageUrl} target="_blank" rel="noreferrer" aria-label={`Photo credits for ${destination}: ${image.credit}`} className="absolute bottom-1 right-1 max-w-[90%] truncate rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white hover:underline">{image.credit}</a>}
   </>;
 }

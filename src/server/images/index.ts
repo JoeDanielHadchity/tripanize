@@ -21,12 +21,12 @@ export async function findDestinationImage(place: string, country?: string | nul
   const region = country?.trim().slice(0, 100) ?? "";
   if (!name) return null;
   try {
-    const { value } = await cached(`destination-photo:v2:${JSON.stringify([name.toLowerCase(), region.toLowerCase()])}`, 86400, async () => {
+    const { value } = await cached(`destination-photo:v3-hd:${JSON.stringify([name.toLowerCase(), region.toLowerCase()])}`, 86400, async () => {
       const area = [name.split(",").slice(1).join(","), region].filter(Boolean).join(" ");
       const query = new URLSearchParams({
         action: "query", format: "json", generator: "search",
         gsrsearch: `intitle:${quote(name.split(",")[0])}${area ? ` ${quote(area)}` : ""}`,
-        gsrlimit: "5", prop: "pageimages|coordinates|info", piprop: "thumbnail|name", pithumbsize: "960", inprop: "url",
+        gsrlimit: "5", prop: "pageimages|coordinates|info", piprop: "thumbnail|name", pithumbsize: "1920", inprop: "url",
       });
       const data = await fetchJson<WikiSearch>("Wikipedia", `https://en.wikipedia.org/w/api.php?${query}`, { timeoutMs: 6000 });
       const page = Object.values(data.query?.pages ?? {}).sort((a, b) => (a.index ?? 99) - (b.index ?? 99)).find(p =>

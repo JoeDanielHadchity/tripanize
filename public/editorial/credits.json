@@ -1,50 +1,74 @@
 {
   "auth": {
-    "source": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1000&q=80",
-    "description": "An airplane wing above the clouds"
+    "source": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?fm=webp&fit=crop&w=1840&h=2240&q=85",
+    "description": "An airplane wing above the clouds",
+    "width": 1840,
+    "height": 2240
   },
   "welcome": {
-    "source": "https://images.unsplash.com/photo-1688506900122-60a27a5b4028?auto=format&fit=crop&w=1000&q=80",
-    "description": "People walking past tiled facades in Porto"
+    "source": "https://images.unsplash.com/photo-1688506900122-60a27a5b4028?fm=webp&fit=crop&w=2400&h=1140&q=85",
+    "description": "People walking past tiled facades in Porto",
+    "width": 2400,
+    "height": 1140
   },
   "trips": {
-    "source": "https://images.unsplash.com/photo-1762294946283-6921938e9937?auto=format&fit=crop&w=1000&q=80",
-    "description": "Aerial view of the Dom Lu\u00eds I Bridge in Porto"
+    "source": "https://images.unsplash.com/photo-1762294946283-6921938e9937?fm=webp&fit=crop&w=1950&h=1020&q=85",
+    "description": "Aerial view of the Dom Lu\u00eds I Bridge in Porto",
+    "width": 1950,
+    "height": 1020
   },
   "ideas": {
-    "source": "https://images.unsplash.com/photo-1783463272765-3bb995306afb?auto=format&fit=crop&w=1000&q=80",
-    "description": "Porto waterfront and boats on the Douro"
+    "source": "https://images.unsplash.com/photo-1783463272765-3bb995306afb?fm=webp&fit=crop&w=2400&h=2080&q=85",
+    "description": "Porto waterfront and boats on the Douro",
+    "width": 2400,
+    "height": 2080
   },
   "guide": {
-    "source": "https://images.unsplash.com/photo-1776188799884-f99ce840a413?auto=format&fit=crop&w=1000&q=80",
-    "description": "Porto rooftops and the Dom Lu\u00eds I Bridge"
+    "source": "https://images.unsplash.com/photo-1776188799884-f99ce840a413?fm=webp&fit=crop&w=2160&h=990&q=85",
+    "description": "Porto rooftops and the Dom Lu\u00eds I Bridge",
+    "width": 2160,
+    "height": 990
   },
   "itinerary": {
-    "source": "https://images.unsplash.com/photo-1523268266866-5dbd36907f00?auto=format&fit=crop&w=1000&q=80",
-    "description": "Travelers inside S\u00e3o Bento railway station"
+    "source": "https://images.unsplash.com/photo-1523268266866-5dbd36907f00?fm=webp&fit=crop&w=2700&h=570&q=85",
+    "description": "Travelers inside S\u00e3o Bento railway station",
+    "width": 2700,
+    "height": 570
   },
   "events": {
-    "source": "https://images.unsplash.com/photo-1531674842274-9563aa15686f?auto=format&fit=crop&w=1000&q=80",
-    "description": "The carved interior of Livraria Lello in Porto"
+    "source": "https://images.unsplash.com/photo-1531674842274-9563aa15686f?fm=webp&fit=crop&w=2700&h=570&q=85",
+    "description": "The carved interior of Livraria Lello in Porto",
+    "width": 2700,
+    "height": 570
   },
   "settings": {
-    "source": "https://images.unsplash.com/photo-1697718153693-a98d2387c3d5?auto=format&fit=crop&w=1000&q=80",
-    "description": "Blue and white Portuguese azulejo tiles"
+    "source": "https://images.unsplash.com/photo-1697718153693-a98d2387c3d5?fm=webp&fit=crop&w=2700&h=570&q=85",
+    "description": "Blue and white Portuguese azulejo tiles",
+    "width": 2700,
+    "height": 570
   },
   "expenses": {
-    "source": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1000&q=80",
-    "description": "Coffee, a small pleasure along the way"
+    "source": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?fm=webp&fit=crop&w=2700&h=570&q=85",
+    "description": "Coffee, a small pleasure along the way",
+    "width": 2700,
+    "height": 570
   },
   "chat": {
-    "source": "https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=1000&q=80",
-    "description": "Travelers exploring together"
+    "source": "https://images.unsplash.com/photo-1527631746610-bca00a040d60?fm=webp&fit=crop&w=2700&h=570&q=85",
+    "description": "Travelers exploring together",
+    "width": 2700,
+    "height": 570
   },
   "packing": {
-    "source": "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1000&q=80",
-    "description": "A map and travel essentials ready for a journey"
+    "source": "https://images.unsplash.com/photo-1488646953014-85cb44e25828?fm=webp&fit=crop&w=2700&h=570&q=85",
+    "description": "A map and travel essentials ready for a journey",
+    "width": 2700,
+    "height": 570
   },
   "home": {
-    "source": "https://images.unsplash.com/photo-1555881400-74d7acaacd8b",
-    "description": "Colorful Porto waterfront and traditional boats on the Douro River"
+    "source": "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?fm=webp&fit=crop&w=1360&h=1920&q=85",
+    "description": "Colorful Porto waterfront and traditional boats on the Douro River",
+    "width": 1360,
+    "height": 1920
   }
 }
