@@ -32,7 +32,7 @@ export function ItineraryView(p: Props) {
   const [moving, setMoving] = useState<StopView | null>(null);
   const [swapping, setSwapping] = useState<StopView | null>(null);
   const [pendingOrder, setPendingOrder] = useState<{ day: DayView; ids: string[]; impact: ImpactData } | null>(null);
-  const [view, setView] = useState<"list" | "map">("list");
+  const [view, setView] = useState<"split" | "list" | "map">("split");
   const [q, setQ] = useState("");
   const [showVersions, setShowVersions] = useState(false);
   const [drag, setDrag] = useState<{ dayId: string; id: string } | null>(null);
@@ -54,7 +54,6 @@ export function ItineraryView(p: Props) {
   function selectDay(date: string) {
     setSelectedDate(date);
     setQ("");
-    setView("list");
     setDrag(null);
     const hash = `#day-${date}`;
     if (window.location.hash !== hash) window.history.pushState(window.history.state, "", hash);
@@ -83,13 +82,13 @@ export function ItineraryView(p: Props) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <label htmlFor="stop-search" className="sr-only">Search stops</label>
         <Input id="stop-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search stops, addresses, categories…" className="sm:max-w-sm" />
         <div className="flex gap-1" role="group" aria-label="View">
-          {(["list", "map"] as const).map((v) => (
+          {(["split", "list", "map"] as const).map((v) => (
             <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={cx("min-h-11 rounded-xl px-4 text-sm font-medium", view === v ? "bg-ink text-bg" : "border border-line bg-surface text-muted")}>
-              {v === "list" ? "List" : "Map"}
+              {v === "split" ? "Plan & map" : v === "list" ? "List" : "Map"}
             </button>
           ))}
         </div>
@@ -100,7 +99,9 @@ export function ItineraryView(p: Props) {
         </div>
       </div>
       {p.weatherNote && <Notice tone="warn">{p.weatherNote}</Notice>}
-      {!p.routingLive && <p className="text-xs text-muted">Travel times are estimates (no live routing service is connected). Use “Directions” for live routes in your maps app.</p>}
+      {!p.routingLive && <p className="text-xs text-muted">Travel times are estimates. Open Directions for live routes.</p>}
+
+      {!query && <DayStrip days={p.days} active={selectedDay?.date ?? null} todayDate={p.todayDate} onSelect={selectDay} />}
 
       {query ? (
         <section aria-label="Search results">
@@ -116,10 +117,10 @@ export function ItineraryView(p: Props) {
           </ul>
         </section>
       ) : view === "map" ? (
-        <TripMap days={p.days} ideas={p.ideas} />
+        <TripMap key={selectedDay?.id} days={selectedDay ? [selectedDay] : []} ideas={[]} />
       ) : (
         <>
-        <DayStrip days={p.days} active={selectedDay?.date ?? null} todayDate={p.todayDate} onSelect={selectDay} />
+        <div className={view === "split" ? "itinerary-split" : undefined}>
         <ol aria-label="Selected itinerary day">
           {p.days.filter(d => d.id === selectedDay?.id).map((d) => {
             const stops = d.stops.filter((s) => s.plan === d.activePlan);
@@ -226,10 +227,12 @@ export function ItineraryView(p: Props) {
             );
           })}
         </ol>
+        {view === "split" && <aside className="itinerary-map-panel" aria-label="Selected day map"><TripMap key={selectedDay?.id} days={selectedDay ? [selectedDay] : []} ideas={[]} compact /></aside>}
+        </div>
         </>
       )}
 
-      {!query && view === "list" && (
+      {!query && view !== "map" && (
         <section aria-labelledby="ideas-h" className="rounded-3xl border border-dashed border-line p-4 sm:p-5">
           <div className="flex items-center justify-between gap-2">
             <h2 id="ideas-h" className="font-display text-lg font-semibold">Unscheduled ideas</h2>

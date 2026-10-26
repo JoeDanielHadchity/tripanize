@@ -35,7 +35,7 @@ export function AppHeader({ user, current }: { user: SessionUser; current?: "tri
           <SignOutButton />
         </nav>
       </div>
-      {user.normalMode && <div className="border-t border-line bg-accent-soft px-4 py-1.5 text-center text-xs text-accent-ink">Normal mode · Premium included · Admin tools hidden <Link href="/account" className="ml-2 font-semibold underline">Switch mode in Account</Link></div>}
+      {user.normalMode && <div className="border-t border-line bg-accent-soft px-4 py-1.5 text-center text-xs text-accent-ink">Normal mode · Premium included <Link href="/account" className="ml-2 font-semibold underline">Account mode</Link></div>}
     </header>
   );
 }

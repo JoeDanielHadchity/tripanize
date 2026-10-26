@@ -34,7 +34,7 @@ export default async function ExpensesPage({ params, searchParams }: { params: P
   const me = data.travelers.find((t) => t.userId === user.id);
   return (
     <>
-      <PageHeader title={<span className="inline-flex items-center gap-2">Expenses & settlements <PremiumStar /></span>} subtitle="Shared ledger in exact amounts. Different currencies are never added together." />
+      <PageHeader title={<span className="inline-flex items-center gap-2">Expenses <PremiumStar /></span>} subtitle="Shared ledger in exact amounts. Different currencies are never added together." />
       <ExpensesView
         tripId={tripId}
         canEdit={roleAllows(data.access.role, "edit")}

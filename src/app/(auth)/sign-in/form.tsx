@@ -9,7 +9,7 @@ type Step = { kind: "email" } | { kind: "code"; email: string } | { kind: "passw
 
 function sendError(err: { status?: number; message?: string }) {
   if (err.status === 429) return "Too many attempts. Please wait a minute.";
-  if (err.message?.includes("EMAIL_NOT_CONFIGURED")) return "This Tripanize server can't send email yet (no RESEND_API_KEY or SMTP_URL). Use a password, or ask the person who runs it to set up email.";
+  if (err.message?.includes("EMAIL_NOT_CONFIGURED")) return "Email sign-in is unavailable. Use your password or contact support.";
   if (err.message?.includes("EMAIL_FAILED")) return "We couldn't send the email. Check the address and try again.";
   return "Couldn't send a code. Check the address and try again.";
 }
@@ -72,8 +72,8 @@ export function SignInForm({ next, emailReady }: { next: string; emailReady: boo
 
   return (
     <>
-      <h1 className="font-display text-3xl font-semibold">Sign in to Tripanize</h1>
-      <p className="mt-1 text-muted">{step.kind === "password" ? "Sign in with your password." : "New or returning — we'll email you a code. No password needed."}</p>
+      <h1 className="font-display text-3xl font-semibold">Sign in</h1>
+      <p className="mt-1 text-muted">{step.kind === "password" ? "Sign in with your password." : "Get a sign-in code by email."}</p>
 
       {step.kind === "email" && (
         <form onSubmit={onEmail} className="mt-8 space-y-4">

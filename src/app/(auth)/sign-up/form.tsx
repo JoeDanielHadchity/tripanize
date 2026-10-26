@@ -27,7 +27,7 @@ export function SignUpForm({ next }: { next: string }) {
   return (
     <>
       <h1 className="font-display text-3xl font-semibold">Create your account</h1>
-      <p className="mt-1 text-muted">Each traveler has their own account, so shared trips stay private.</p>
+      <p className="mt-1 text-muted"></p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         {error && <Notice tone="danger">{error}</Notice>}
         <Field label="Your name" htmlFor="name" hint="Shown to people you travel with.">

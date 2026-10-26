@@ -40,7 +40,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
     <>
       <AppHeader user={user} current="trips" />
       <main id="main" className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <PageHeader title="My trips" subtitle={all.length ? `${all.length} trip${all.length === 1 ? "" : "s"} you own or were invited to` : "Only trips you own or were invited to appear here."} actions={<><LinkButton href="/destinations">Find a destination</LinkButton><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Plan a new trip</LinkButton></>} />
+        <PageHeader title="My trips"  actions={<><LinkButton href="/destinations">Find a destination</LinkButton><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Create a trip</LinkButton></>} />
         {selectedTrip && <Notice tone="accent" className="mb-5">Your chosen destination is saved in <strong>{selectedTrip.name}</strong>. Continue planning from your trip below.</Notice>}
         <PendingInvites invites={invites} />
         <TrialAccessBanner access={trial} tripId={selectedTrip?.id} canActivate={selectedTrip?.role === "OWNER"} />
@@ -60,15 +60,15 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
         )}
         {all.length === 0 ? (
           <EmptyState title="Where to next?" action={<><LinkButton href="/trips/new" variant="primary">Plan your first trip</LinkButton><LinkButton href="/examples/lisbon-porto">Browse the example</LinkButton></>}>
-            Start a new trip with your destination, or select “Find a destination” for ideas. If someone invited you, open their invitation link while signed in.
+            Create a trip or find a destination.
           </EmptyState>
         ) : trips.length === 0 ? (
           <EmptyState title="No trips match" action={<LinkButton href="/trips">Clear filters</LinkButton>}>Try a different search or filter.</EmptyState>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {trips.map((t) => (
+            {trips.map((t, index) => (
               <li key={t.id}>
-                <TripTile trip={t} selected={t.id === selectedTrip?.id} />
+                <TripTile trip={t} selected={t.id === selectedTrip?.id} fallbackPhoto={index === 0 && t.destinations.some(d => /porto|oporto/i.test(d)) ? "/editorial/trips.jpg" : undefined} />
               </li>
             ))}
           </ul>
@@ -76,7 +76,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
 
         <section aria-labelledby="examples" className="mt-14">
           <h2 id="examples" className="font-display text-xl font-semibold">Example trips</h2>
-          <p className="mt-1 text-sm text-muted">Read-only samples written by the Tripanize team — they're not part of your trips. Save a copy to make one yours.</p>
+          <p className="mt-1 text-sm text-muted">Copy an example to start planning.</p>
           <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {EXAMPLES.map((e) => (
               <li key={e.slug}>
@@ -98,18 +98,19 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
   );
 }
 
-function TripTile({ trip, selected = false }: { trip: TripCard; selected?: boolean }) {
+function TripTile({ trip, selected = false, fallbackPhoto }: { trip: TripCard; selected?: boolean; fallbackPhoto?: string }) {
   const days = tripLength(trip.startDate, trip.endDate);
   const p = PHASE[trip.phase];
+  const image = trip.imageUrl || fallbackPhoto;
   return (
     <article className={cx("flex h-full flex-col overflow-hidden rounded-2xl border bg-surface", selected ? "border-accent ring-2 ring-accent/25" : "border-line")}>
       <div className="relative h-36 brand-backdrop">
-        {trip.imageUrl && (
+        {image && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={trip.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+          <img src={image} alt="" className="h-full w-full object-cover" loading="lazy" />
         )}
         <Badge tone={p.tone} className="absolute left-3 top-3 shadow-sm">{p.label}</Badge>
-        {!trip.imageUrl && <CardPlace destinations={trip.destinations} fallback={trip.name} />}
+        {!image && <CardPlace destinations={trip.destinations} fallback={trip.name} />}
         {trip.imageCredit && <span className="absolute bottom-1 right-2 text-[10px] text-white/90 drop-shadow">{trip.imageCredit}</span>}
       </div>
       <div className="flex flex-1 flex-col p-4">
