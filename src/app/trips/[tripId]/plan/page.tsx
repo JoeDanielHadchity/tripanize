@@ -32,7 +32,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
   const hasPlan = days.some((d) => d._count.stops > 0);
   return (
     <>
-      <PageHeader title="Plan with AI" subtitle={`ChatGPT drafts a day-by-day plan from this trip's details. Nothing changes in your itinerary until you review and accept it.`} />
+      <PageHeader title="Plan with AI" subtitle={`Review the AI draft before applying it.`} />
       {sp.start && (
         <Notice tone="accent" title="Your trip is created" className="mb-5">
           <p>Choose how to start. You can switch any time.</p>

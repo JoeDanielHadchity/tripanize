@@ -42,7 +42,7 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
   return (
     <>
       <PageHeader
-        title="Your itinerary"
+        title="Itinerary"
         subtitle={len ? `${len} day${len === 1 ? "" : "s"} · times are local · costs and travel times are estimates` : "Add trip dates in settings to create your days."}
         actions={
           <>

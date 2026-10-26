@@ -1,0 +1,50 @@
+{
+  "auth": {
+    "source": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1000&q=80",
+    "description": "An airplane wing above the clouds"
+  },
+  "welcome": {
+    "source": "https://images.unsplash.com/photo-1688506900122-60a27a5b4028?auto=format&fit=crop&w=1000&q=80",
+    "description": "People walking past tiled facades in Porto"
+  },
+  "trips": {
+    "source": "https://images.unsplash.com/photo-1762294946283-6921938e9937?auto=format&fit=crop&w=1000&q=80",
+    "description": "Aerial view of the Dom Lu\u00eds I Bridge in Porto"
+  },
+  "ideas": {
+    "source": "https://images.unsplash.com/photo-1783463272765-3bb995306afb?auto=format&fit=crop&w=1000&q=80",
+    "description": "Porto waterfront and boats on the Douro"
+  },
+  "guide": {
+    "source": "https://images.unsplash.com/photo-1776188799884-f99ce840a413?auto=format&fit=crop&w=1000&q=80",
+    "description": "Porto rooftops and the Dom Lu\u00eds I Bridge"
+  },
+  "itinerary": {
+    "source": "https://images.unsplash.com/photo-1523268266866-5dbd36907f00?auto=format&fit=crop&w=1000&q=80",
+    "description": "Travelers inside S\u00e3o Bento railway station"
+  },
+  "events": {
+    "source": "https://images.unsplash.com/photo-1531674842274-9563aa15686f?auto=format&fit=crop&w=1000&q=80",
+    "description": "The carved interior of Livraria Lello in Porto"
+  },
+  "settings": {
+    "source": "https://images.unsplash.com/photo-1697718153693-a98d2387c3d5?auto=format&fit=crop&w=1000&q=80",
+    "description": "Blue and white Portuguese azulejo tiles"
+  },
+  "expenses": {
+    "source": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1000&q=80",
+    "description": "Coffee, a small pleasure along the way"
+  },
+  "chat": {
+    "source": "https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=1000&q=80",
+    "description": "Travelers exploring together"
+  },
+  "packing": {
+    "source": "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1000&q=80",
+    "description": "A map and travel essentials ready for a journey"
+  },
+  "home": {
+    "source": "https://images.unsplash.com/photo-1555881400-74d7acaacd8b",
+    "description": "Colorful Porto waterfront and traditional boats on the Douro River"
+  }
+}

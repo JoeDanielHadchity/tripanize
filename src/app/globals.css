@@ -1,6 +1,8 @@
 @import "tailwindcss";
-@import "./inter-font.css";
+@import "./nunito-font.css";
 @import "./fraunces-font.css";
+@import "./caveat-font.css";
+@import "./window-seat.css";
 
 /* Tailwind dark: variant follows the same rule as the color tokens. */
 @custom-variant dark {
@@ -9,73 +11,73 @@
 }
 
 :root {
-  --bg: #faf7f1;
-  --surface: #ffffff;
-  --surface-2: #f1ece3;
-  --ink: #1b273b;
-  --muted: #5b6372;
-  --line: #dfe3eb;
-  --accent: #0e8388;
-  --accent-ink: #09666b;
-  --accent-soft: #ddf1ef;
-  --on-accent: #ffffff;
+  --bg: #f6f2e9;
+  --surface: #fffdf8;
+  --surface-2: #eee7d9;
+  --ink: #172e33;
+  --muted: #485a5d;
+  --line: #d9d3c6;
+  --accent: #3f6d83;
+  --accent-ink: #244e61;
+  --accent-soft: #e3edf0;
+  --on-accent: #fffdf8;
   /* Legacy "sage" tokens hold the burnt orange secondary color. */
-  --sage: #bc5633;
-  --sage-ink: #9f3f1f;
-  --sage-soft: #fae6dc;
+  --sage: #b55a3c;
+  --sage-ink: #924027;
+  --sage-soft: #f6e6dc;
   --warn-ink: #7a4f00;
   --warn-soft: #fbefd5;
   --danger: #a3261c;
   --danger-soft: #f9e0dc;
-  --focus: #0e8388;
-  --brand-gradient: linear-gradient(150deg, #09666b 0%, #0c7177 55%, #9f3f1f 100%);
+  --focus: #3f6d83;
+  --brand-gradient: linear-gradient(150deg, #244e61 0%, #3f6d83 65%, #b55a3c 100%);
   color-scheme: light;
 }
 
 /* Dark colors: when the person picks Dark in Settings, or picks System (the default) on a device in dark mode. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121a2b;
-    --surface: #1a2438;
-    --surface-2: #233049;
-    --ink: #f2f3f7;
-    --muted: #b1bbce;
-    --line: #35415a;
-    --accent: #55bec1;
-    --accent-ink: #93d9da;
-    --accent-soft: #173f46;
-    --on-accent: #092629;
-    --sage: #efa580;
-    --sage-ink: #f6b99c;
-    --sage-soft: #3b2925;
+    --bg: #191e24;
+    --surface: #242a32;
+    --surface-2: #303641;
+    --ink: #f3eee5;
+    --muted: #b6bdbb;
+    --line: #424b54;
+    --accent: #a2c9df;
+    --accent-ink: #c8e0ec;
+    --accent-soft: #2c424f;
+    --on-accent: #192e38;
+    --sage: #eeaa87;
+    --sage-ink: #f6c1a4;
+    --sage-soft: #49352e;
     --warn-ink: #f1c76b;
     --warn-soft: #3a2f17;
     --danger: #f08a7e;
     --danger-soft: #3d201c;
-    --focus: #74cccf;
+    --focus: #a2c9df;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #121a2b;
-  --surface: #1a2438;
-  --surface-2: #233049;
-  --ink: #f2f3f7;
-  --muted: #b1bbce;
-  --line: #35415a;
-  --accent: #55bec1;
-  --accent-ink: #93d9da;
-  --accent-soft: #173f46;
-  --on-accent: #092629;
-  --sage: #efa580;
-  --sage-ink: #f6b99c;
-  --sage-soft: #3b2925;
+  --bg: #191e24;
+  --surface: #242a32;
+  --surface-2: #303641;
+  --ink: #f3eee5;
+  --muted: #b6bdbb;
+  --line: #424b54;
+  --accent: #a2c9df;
+  --accent-ink: #c8e0ec;
+  --accent-soft: #2c424f;
+  --on-accent: #192e38;
+  --sage: #eeaa87;
+  --sage-ink: #f6c1a4;
+  --sage-soft: #49352e;
   --warn-ink: #f1c76b;
   --warn-soft: #3a2f17;
   --danger: #f08a7e;
   --danger-soft: #3d201c;
-  --focus: #74cccf;
+  --focus: #a2c9df;
   color-scheme: dark;
 }
 
@@ -97,7 +99,7 @@
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Nunito Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
 }
 

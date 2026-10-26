@@ -20,8 +20,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf7f1" },
-    { media: "(prefers-color-scheme: dark)", color: "#121a2b" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f2e9" },
+    { media: "(prefers-color-scheme: dark)", color: "#191e24" },
   ],
 };
 
@@ -31,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="min-h-dvh antialiased">
+      <body className="tripanize-app min-h-dvh antialiased">
         <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2">
           Skip to content
         </a>

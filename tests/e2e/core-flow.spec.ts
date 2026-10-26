@@ -26,7 +26,7 @@ async function signUp(browser: Browser, name: string, email: string, viewport: {
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
   await page.waitForURL(next ? `**${next}` : "**/start");
-  if (!next) { await page.getByRole("link", { name: "I have a destination in mind", exact: true }).click(); await page.waitForURL("**/trips"); }
+  if (!next) { await page.getByRole("link", { name: "I have a destination", exact: true }).click(); await page.waitForURL("**/trips"); }
   return page;
 }
 
@@ -47,11 +47,11 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   // 2. Trip setup
   await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
   await ana.getByLabel("Trip name").fill(`Lisbon ${run}`);
-  await ana.getByRole("button", { name: "Create trip & choose plan" }).click();
+  await ana.getByRole("button", { name: "Continue to plans" }).click();
   await ana.waitForURL("**/premium?created=1");
   const tripUrl = ana.url().split("/premium")[0];
   await expect(ana.getByRole("heading", { name: "Choose how you want to travel" })).toBeVisible();
-  await ana.getByRole("button", { name: "Choose Normal · $0" }).click();
+  await ana.getByRole("button", { name: "Continue free" }).click();
   await ana.waitForURL("**/onboarding");
   await ana.getByLabel("Start date").fill(isoDate(-1));
   await ana.getByLabel("End date").fill(isoDate(2));
@@ -221,7 +221,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   await again.getByLabel("Password").fill("a-long-test-password");
   await again.getByRole("button", { name: "Sign in" }).click();
   await again.waitForURL("**/start");
-  await again.getByRole("link", { name: "I have a destination in mind", exact: true }).click();
+  await again.getByRole("link", { name: "I have a destination", exact: true }).click();
   await again.waitForURL("**/trips");
   await expect(again.getByText("Happening now")).toBeVisible();
   await again.goto(`${tripUrl}/itinerary`);

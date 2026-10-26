@@ -92,6 +92,15 @@ try {
     assert.ok(assets.length);
     for (const path of assets.slice(0, 5)) assert.equal((await fetch(origin + path)).status, 200, path);
     assert.equal((await fetch(origin + "/fonts/inter-latin-wght-normal.woff2")).status, 200);
+    for (const font of ["nunito-latin-wght-normal.woff2", "fraunces-latin-full-normal.woff2", "caveat-latin-wght-normal.woff2"]) assert.equal((await fetch(origin + "/fonts/" + font)).status, 200, font);
+    const photos = ["home", "auth", "welcome", "trips", "ideas", "guide", "itinerary", "events", "expenses", "chat", "packing", "settings"];
+    const photoHashes = new Set();
+    for (const photo of photos) {
+      const asset = await fetch(origin + "/editorial/" + photo + ".jpg"); assert.equal(asset.status, 200, photo);
+      photoHashes.add(Buffer.from(await crypto.subtle.digest("SHA-256", await asset.arrayBuffer())).toString("hex"));
+    }
+    assert.equal(photoHashes.size, photos.length, "Editorial photos must all be different");
+    assert.match(html, /id="how-it-works"/); assert.match(html, /Plan less/);
     const signupPage = await fetch(origin + "/sign-up"); assert.equal(signupPage.status, 200);
     const signup = await fetch(origin + "/api/auth/sign-up/email", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ name: "Hosting check", email: `hosting-${crypto.randomUUID()}@example.test`, password: crypto.randomUUID() + "Aa1!" }) });
     assert.equal(signup.status, 200, await signup.clone().text());
@@ -101,19 +110,19 @@ try {
       const landing = await fetch(origin + path, { headers: { Cookie: cookie } });
       assert.equal(new URL(landing.url).pathname, "/start", path);
       const landingHtml = await landing.text();
-      assert.match(landingHtml, /I have a destination in mind/);
-      assert.match(landingHtml, /Let me help you choose/);
+      assert.match(landingHtml, /I have a destination/);
+      assert.match(landingHtml, /Help me choose/);
       assert.match(landingHtml, /href="\/destinations"/);
       assert.doesNotMatch(landingHtml, /Search trips/);
     }
     const directAccount = await fetch(origin + "/sign-in?next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(directAccount.url).pathname, "/account");
-    const destinationPage = await fetch(origin + "/destinations", { headers: { Cookie: cookie } }); assert.equal(new URL(destinationPage.url).pathname, "/destinations"); assert.match(await destinationPage.text(), /Your destination searches/);
+    const destinationPage = await fetch(origin + "/destinations", { headers: { Cookie: cookie } }); assert.equal(new URL(destinationPage.url).pathname, "/destinations"); assert.match(await destinationPage.text(), /Saved searches/);
     const privateDiscovery = await fetch(origin + "/destinations"); assert.equal(new URL(privateDiscovery.url).pathname, "/sign-in");
-    const trips = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(trips.status, 200); assert.equal(new URL(trips.url).pathname, "/trips"); const tripsHtml = await trips.text(); assert.match(tripsHtml, /trips/i); assert.doesNotMatch(tripsHtml, /Choose how to start|Your destination searches/);
+    const trips = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(trips.status, 200); assert.equal(new URL(trips.url).pathname, "/trips"); const tripsHtml = await trips.text(); assert.match(tripsHtml, /trips/i); assert.doesNotMatch(tripsHtml, /Choose how to start|Saved searches/);
     const newTrip = await fetch(origin + "/trips/new", { headers: { Cookie: cookie } }); assert.equal(newTrip.status, 200); assert.equal(new URL(newTrip.url).pathname, "/trips/new");
     const deniedCompany = await fetch(origin + "/company", { headers: { Cookie: cookie } }); assert.equal(deniedCompany.status, 404);
     const unverifiedTrial = await fetch(origin + "/trial?invitation=not-yours", { headers: { Cookie: cookie } }); assert.equal(unverifiedTrial.status, 200); assert.match(await unverifiedTrial.text(), /Verify your invited email/);
-    const reauth = await fetch(origin + "/sign-in?reauth=1&next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(reauth.url).pathname, "/sign-in"); assert.match(await reauth.text(), /Sign in to Tripanize/);
+    const reauth = await fetch(origin + "/sign-in?reauth=1&next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(reauth.url).pathname, "/sign-in"); assert.match(await reauth.text(), /Sign in/);
     const companySignup = await fetch(origin + "/api/auth/sign-up/email", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ name: "Retired personal label", email: "company@example.test", password: crypto.randomUUID() + "Aa1!" }) });
     assert.equal(companySignup.status, 200, await companySignup.clone().text());
     const companyUser = await companySignup.json(); assert.equal(companyUser.user.name, "Tripanize.app"); assert.equal(companyUser.user.emailVerified, false);

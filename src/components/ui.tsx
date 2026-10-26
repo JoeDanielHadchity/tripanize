@@ -6,7 +6,7 @@ export function cx(...c: (string | false | null | undefined)[]) {
 }
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "sage";
-const base = "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-11 px-4 text-[15px] whitespace-nowrap";
+const base = "inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-11 px-4 text-[15px] whitespace-normal text-center";
 const variants: Record<Variant, string> = {
   primary: "bg-accent text-on-accent hover:brightness-95 shadow-sm",
   secondary: "bg-surface text-ink border border-line hover:bg-surface-2",
@@ -28,7 +28,7 @@ export function LinkButton({ variant = "secondary", className, ...props }: Compo
 }
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div {...props} className={cx("rounded-2xl border border-line bg-surface p-4 sm:p-5", className)} />;
+  return <div {...props} className={cx("rounded-lg border border-line bg-surface p-4 sm:p-5", className)} />;
 }
 
 export function Field({ label, hint, error, children, htmlFor, className }: { label: ReactNode; hint?: ReactNode; error?: string | null; children: ReactNode; htmlFor?: string; className?: string }) {
@@ -48,7 +48,7 @@ export function Field({ label, hint, error, children, htmlFor, className }: { la
   );
 }
 
-const inputCls = "w-full min-h-11 rounded-xl border border-line bg-surface px-3 py-2 text-[16px] text-ink placeholder:text-muted/70 focus:border-accent";
+const inputCls = "w-full min-h-11 rounded-md border border-line bg-surface px-3 py-2 text-[16px] text-ink placeholder:text-muted/70 focus:border-accent";
 
 export function Input(props: ComponentProps<"input">) {
   return <input {...props} className={cx(inputCls, props.className)} />;
@@ -99,7 +99,7 @@ export function PageHeader({ title, subtitle, actions }: { title: ReactNode; sub
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{title}</h1>
         {subtitle && <div className="mt-1 text-sm text-muted">{subtitle}</div>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
