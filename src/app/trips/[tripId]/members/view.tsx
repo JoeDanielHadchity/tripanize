@@ -6,7 +6,7 @@ import { useLocationSharing } from "@/components/location-sharing";
 import { Badge, Button, Card, EmptyState, Notice } from "@/components/ui";
 import { LOCATION_POLL_MS, type LocatedMember, type MemberLocations } from "@/lib/member-locations";
 
-const colors = ["#0e8388", "#bc5633", "#7a4f00", "#65416f", "#497559", "#a3261c"];
+const colors = ["#3e6a8c", "#c2502f", "#7a4f00", "#65416f", "#497559", "#a3261c"];
 
 export function MemberLocationsView({ tripId, userId }: { tripId: string; userId: string }) {
   const sharing = useLocationSharing();
@@ -91,7 +91,7 @@ function LiveMemberMap({ points, userId }: { points: LocatedMember[]; userId: st
     if (!ready || !L || !layer.current) return;
     layer.current.clearLayers();
     for (const [index, p] of points.entries()) {
-      const color = p.userId === userId ? "#0e8388" : colors[(index + 1) % colors.length];
+      const color = p.userId === userId ? "#3e6a8c" : colors[(index + 1) % colors.length];
       L.circle([p.lat, p.lng], { radius: p.accuracy, color, weight: 1, fillOpacity: 0.08 }).addTo(layer.current);
       const marker = L.circleMarker([p.lat, p.lng], { radius: 9, color: "white", weight: 2, fillColor: color, fillOpacity: 1 }).addTo(layer.current);
       const text = document.createElement("span"); text.textContent = `${p.name}${p.userId === userId ? " (you)" : ""} · accuracy ±${Math.round(p.accuracy)} m`;

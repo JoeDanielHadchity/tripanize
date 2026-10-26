@@ -20,7 +20,7 @@ export function AppHeader({ user, current }: { user: SessionUser; current?: "tri
     </Link>
   );
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b-2 border-dashed border-line bg-bg/90 backdrop-blur">
       {user.companyAdminEligible && <AccountModeSync />}
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
         <Link href="/start" aria-label="Tripanize home">
