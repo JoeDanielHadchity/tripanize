@@ -169,7 +169,16 @@ try {
     const votesMissing = await fetch(origin + "/trips/does-not-exist/votes", { headers: { Cookie: cookie } }); assert.equal(votesMissing.status, 404);
     await stop(child); child = await start();
     const restored = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(restored.status, 200); assert.equal(new URL(restored.url).pathname, "/trips");
-    console.log(JSON.stringify({ mode, companyAdminGuard: true, personalTravelerName: true, publicBrandUnchanged: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
+    const signout = await fetch(origin + "/api/auth/sign-out", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json", Cookie: cookie }, body: "{}" });
+    assert.equal(signout.status, 200);
+    // A browser can retain a signed cookie after its session is deleted/expired.
+    // Public invite pages must still render instead of failing before the router.
+    for (const path of ["/invite/expired-session-check", "/trial/expired-session-check", "/sign-in"]) {
+      const staleSession = await fetch(origin + path, { headers: { Cookie: cookie } });
+      assert.equal(staleSession.status, 200, `stale session: ${path}`);
+      assert.doesNotMatch(await staleSession.text(), /cookies\(\) can only be called|Worker threw exception/);
+    }
+    console.log(JSON.stringify({ mode, staleSessionInviteGuard: true, companyAdminGuard: true, personalTravelerName: true, publicBrandUnchanged: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
   }
 } catch (error) { await new Promise((resolve) => setTimeout(resolve, 200)); console.error(error.stack ?? error.message); console.error(logs.slice(-11000)); process.exitCode = 1; }
 finally { if (child) await stop(child); }

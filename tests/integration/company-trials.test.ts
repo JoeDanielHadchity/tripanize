@@ -67,7 +67,10 @@ it("includes Premium on company trips and joined trips without overriding editin
 
 it("binds invitations to the verified recipient and hides them from other accounts", async () => {
   const f = await fixture();
+  setTestRuntime({ ...currentRuntime(), appUrl: "https://tripanize.app/" });
   const inv = await invitation(f.admin.id, " TRAVELER@example.test ");
+  expect(inv.url).toBe(`https://www.tripanize.app/trial/${inv.token}`);
+  expect((await prisma.trialInvitation.findUniqueOrThrow({ where: { id: inv.id } })).emailText).toContain(inv.url);
   expect(await previewTrialInvitation(inv.token)).toMatchObject({ id: inv.id, maskedEmail: "tr•••@example.test" });
   expect(await pendingTrialInvitations(f.other.id)).toEqual([]);
   await expect(acceptTrialInvitation(f.other.id, { invitationId: inv.id, name: "Wrong account" })).rejects.toMatchObject({ code: "FORBIDDEN" });

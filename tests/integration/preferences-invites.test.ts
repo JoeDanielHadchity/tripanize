@@ -1,12 +1,15 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import { createInvitation, listPendingInvitations, acceptInvitationById, declineInvitation } from "@/server/invitations/service";
 import { getPlanQuestions, savePlanPrefs, STANDARD_QUESTIONS } from "@/server/planner/questions";
 import { buildContext } from "@/server/planner/context";
 import { buildPlannerInput } from "@/server/planner/prompt";
 import { makeTrip, makeUser, resetDb } from "./helpers";
+import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
 
+const runtime = currentRuntime();
 beforeEach(resetDb);
+afterEach(() => setTestRuntime(runtime));
 
 describe("pre-planning questions", () => {
   it("falls back to standard questions without AI, and saved answers reach the planner input", async () => {
@@ -37,6 +40,16 @@ describe("pre-planning questions", () => {
 });
 
 describe("invitations on the home screen", () => {
+  it("uses the runtime app URL and returns a www production link", async () => {
+    setTestRuntime({ ...runtime, appUrl: "https://tripanize.app/" });
+    const owner = await makeUser("Ana");
+    const tripId = await makeTrip(owner.id);
+    const inv = await createInvitation(owner.id, tripId, { role: "VIEWER" });
+    const url = new URL(inv.url);
+    expect(url.origin).toBe("https://www.tripanize.app");
+    expect(url.pathname).toMatch(/^\/invite\/[A-Za-z0-9_-]{43}$/);
+  });
+
   it("lists open email invitations for that email only; accept by id joins, decline closes it", async () => {
     const owner = await makeUser("Ana");
     const rita = await makeUser("Rita", "rita@example.test");

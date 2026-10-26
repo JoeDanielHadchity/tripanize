@@ -7,7 +7,7 @@ import { currentRuntime } from "@/server/cloudflare/runtime";
 import { sendEmail } from "@/server/notifications/email";
 import { accountDisplayName } from "@/server/admin/identity";
 
-function createAuth() { return betterAuth({
+function createAuth(frameworkCookies = true) { return betterAuth({
   appName: "Tripanize",
   baseURL: currentRuntime().appUrl ?? process.env.BETTER_AUTH_URL,
   secret: currentRuntime().authSecret,
@@ -84,10 +84,18 @@ function createAuth() { return betterAuth({
         if (res.status !== "sent") throw new Error(res.status === "not_configured" ? "EMAIL_NOT_CONFIGURED" : "EMAIL_FAILED");
       },
     }),
-    nextCookies(),
+    ...(frameworkCookies ? [nextCookies()] : []),
   ],
 });
 
+}
+let workerInstance: ReturnType<typeof createAuth> | undefined;
+/** The Worker checks sessions before the framework has a cookie context. Keep
+ * the same authentication rules, but leave browser cookie writes to the router.
+ */
+export async function getWorkerSession(headers: Headers) {
+  workerInstance ??= createAuth(false);
+  return workerInstance.api.getSession({ headers, query: { disableRefresh: true } });
 }
 let instance: ReturnType<typeof createAuth> | undefined;
 export const auth = new Proxy({} as ReturnType<typeof createAuth>, {

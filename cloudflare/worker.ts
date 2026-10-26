@@ -32,6 +32,7 @@ import { appRuntime } from "../src/server/cloudflare/runtime";
 import { DurableSqliteAdapter } from "../src/server/cloudflare/sqlite-adapter";
 import { AiTasks } from "../src/server/cloudflare/ai-tasks";
 import { serializedDatabase } from "../src/server/cloudflare/serialized-db";
+import { invitationRedirect } from "../src/lib/invitation-urls";
 
 /** Serialize application requests so relational transactions remain isolated.
  * Buffer each response before releasing the queue: streamed server components
@@ -224,6 +225,8 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
 }
 export default {
   async fetch(request: Request, env: CloudflareEnv): Promise<Response> {
+    const redirect = invitationRedirect(request);
+    if (redirect) return redirect;
     if (request.method === "GET" || request.method === "HEAD") { const asset = await env.ASSETS.fetch(request); if (asset.status !== 404) return asset; }
     return env.APP.getByName("tripanize-main").fetch(request);
   },
