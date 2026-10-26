@@ -1,6 +1,7 @@
 @import "tailwindcss";
-@import "./inter-font.css";
+@import "./nunito-font.css";
 @import "./fraunces-font.css";
+@import "./caveat-font.css";
 
 /* Tailwind dark: variant follows the same rule as the color tokens. */
 @custom-variant dark {
@@ -8,74 +9,90 @@
   @media (prefers-color-scheme: dark) { &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) { @slot; } }
 }
 
+/* "Window seat" handmade theme: warm paper, pen ink, sky blue and a coral secondary. */
 :root {
-  --bg: #faf7f1;
-  --surface: #ffffff;
-  --surface-2: #f1ece3;
-  --ink: #1b273b;
-  --muted: #5b6372;
-  --line: #dfe3eb;
-  --accent: #0e8388;
-  --accent-ink: #09666b;
-  --accent-soft: #ddf1ef;
+  --bg: #f7f2e8;
+  --surface: #fffdf8;
+  --surface-2: #efe7d8;
+  --ink: #2e2a26;
+  --muted: #5e574e;
+  --line: #ddd2bf;
+  --accent: #3e6a8c;
+  --accent-ink: #2f5674;
+  --accent-soft: #e1ebf2;
   --on-accent: #ffffff;
-  /* Legacy "sage" tokens hold the burnt orange secondary color. */
-  --sage: #bc5633;
-  --sage-ink: #9f3f1f;
-  --sage-soft: #fae6dc;
+  /* Legacy "sage" tokens hold the coral secondary color. */
+  --sage: #c2502f;
+  --sage-ink: #9e3b1e;
+  --sage-soft: #f8e2d8;
   --warn-ink: #7a4f00;
   --warn-soft: #fbefd5;
   --danger: #a3261c;
   --danger-soft: #f9e0dc;
-  --focus: #0e8388;
-  --brand-gradient: linear-gradient(150deg, #09666b 0%, #0c7177 55%, #9f3f1f 100%);
+  --focus: #3e6a8c;
+  --paper-shadow: #e3d8c4;
+  --tape: rgb(214 196 160 / 0.7);
+  --sky: #d6e6f0;
+  --cloud: #ffffff;
+  --sun: #f6cf95;
+  --brand-gradient: linear-gradient(155deg, #2f5674 0%, #3e6a8c 52%, #b85a3e 100%);
   color-scheme: light;
 }
 
-/* Dark colors: when the person picks Dark in Settings, or picks System (the default) on a device in dark mode. */
+/* Dark colors ("night flight"): when the person picks Dark in Settings, or picks System (the default) on a device in dark mode. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121a2b;
-    --surface: #1a2438;
-    --surface-2: #233049;
-    --ink: #f2f3f7;
-    --muted: #b1bbce;
-    --line: #35415a;
-    --accent: #55bec1;
-    --accent-ink: #93d9da;
-    --accent-soft: #173f46;
-    --on-accent: #092629;
-    --sage: #efa580;
-    --sage-ink: #f6b99c;
-    --sage-soft: #3b2925;
+    --bg: #1a1d24;
+    --surface: #23272f;
+    --surface-2: #2d323c;
+    --ink: #f4efe6;
+    --muted: #bdb5a8;
+    --line: #3d4350;
+    --accent: #8db4d3;
+    --accent-ink: #b5d0e5;
+    --accent-soft: #24384a;
+    --on-accent: #10202d;
+    --sage: #efa07f;
+    --sage-ink: #f5b89c;
+    --sage-soft: #3d2a23;
     --warn-ink: #f1c76b;
     --warn-soft: #3a2f17;
     --danger: #f08a7e;
     --danger-soft: #3d201c;
-    --focus: #74cccf;
+    --focus: #8db4d3;
+    --paper-shadow: #111318;
+    --tape: rgb(150 136 110 / 0.45);
+    --sky: #2b3c52;
+    --cloud: #3a4558;
+    --sun: #e7b878;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #121a2b;
-  --surface: #1a2438;
-  --surface-2: #233049;
-  --ink: #f2f3f7;
-  --muted: #b1bbce;
-  --line: #35415a;
-  --accent: #55bec1;
-  --accent-ink: #93d9da;
-  --accent-soft: #173f46;
-  --on-accent: #092629;
-  --sage: #efa580;
-  --sage-ink: #f6b99c;
-  --sage-soft: #3b2925;
+  --bg: #1a1d24;
+  --surface: #23272f;
+  --surface-2: #2d323c;
+  --ink: #f4efe6;
+  --muted: #bdb5a8;
+  --line: #3d4350;
+  --accent: #8db4d3;
+  --accent-ink: #b5d0e5;
+  --accent-soft: #24384a;
+  --on-accent: #10202d;
+  --sage: #efa07f;
+  --sage-ink: #f5b89c;
+  --sage-soft: #3d2a23;
   --warn-ink: #f1c76b;
   --warn-soft: #3a2f17;
   --danger: #f08a7e;
   --danger-soft: #3d201c;
-  --focus: #74cccf;
+  --focus: #8db4d3;
+  --paper-shadow: #111318;
+  --tape: rgb(150 136 110 / 0.45);
+  --sky: #2b3c52;
+  --cloud: #3a4558;
+  --sun: #e7b878;
   color-scheme: dark;
 }
 
@@ -97,8 +114,10 @@
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-paper-shadow: var(--paper-shadow);
+  --font-sans: "Nunito Variable", ui-rounded, ui-sans-serif, system-ui, sans-serif;
   --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
+  --font-hand: "Caveat Variable", "Segoe Print", "Bradley Hand", cursive;
 }
 
 html {
@@ -145,10 +164,72 @@ dialog[open] {
 .font-display {
   font-family: var(--font-display);
   font-optical-sizing: auto;
+  /* Fraunces' soft, slightly wonky cut reads as friendly and hand-set. */
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+}
+
+/* Handwriting, for short notes and labels only. */
+.font-hand {
+  font-family: var(--font-hand);
+  font-weight: 600;
+  letter-spacing: 0.005em;
 }
 
 .brand-backdrop {
   background: var(--brand-gradient);
+}
+
+/* Hand-drawn shapes: slightly uneven corners and a flat "paper" shadow. */
+.sketch {
+  border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
+}
+.sketch-alt {
+  border-radius: 18px 225px 18px 255px / 255px 18px 225px 18px;
+}
+.sketch-card {
+  border-radius: 26px 20px 28px 22px;
+}
+.paper-shadow {
+  box-shadow: 4px 5px 0 var(--paper-shadow);
+}
+.tape {
+  background: var(--tape);
+}
+
+/* Gentle motion for the homepage illustrations (disabled for reduced motion below). */
+@keyframes tp-drift {
+  to {
+    transform: translateX(-200px);
+  }
+}
+@keyframes tp-breathe {
+  50% {
+    transform: scale(1.08);
+  }
+}
+@keyframes tp-sway {
+  0%,
+  100% {
+    transform: rotate(-1.2deg);
+  }
+  50% {
+    transform: rotate(1.2deg);
+  }
+}
+.tp-drift {
+  animation: tp-drift 30s linear infinite;
+}
+.tp-drift-slow {
+  animation: tp-drift 48s linear infinite;
+}
+.tp-breathe {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tp-breathe 10s ease-in-out infinite;
+}
+.tp-sway {
+  transform-origin: 50% 0;
+  animation: tp-sway 7s ease-in-out infinite;
 }
 
 /* Bottom nav safe area on phones */
