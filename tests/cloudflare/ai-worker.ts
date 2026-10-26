@@ -1,3 +1,4 @@
+import mealOptions from "../../prisma/migrations/202610260020_meal_options/migration.sql";
 import adminEmailCode from "../../prisma/migrations/202610240019_admin_email_code/migration.sql";
 import adminAuthentication from "../../prisma/migrations/202610230018_admin_authentication/migration.sql";
 import adminNormalMode from "../../prisma/migrations/202610230017_admin_normal_mode/migration.sql";
@@ -104,6 +105,7 @@ export class AiProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "normalMode")) ctx.storage.sql.exec(adminNormalMode);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminVerifiedUntil")) ctx.storage.sql.exec(adminAuthentication);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminEmailUnlockedAt")) ctx.storage.sql.exec(adminEmailCode);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("ItineraryDay")').toArray().some(c => c.name === "mealOptions")) ctx.storage.sql.exec(mealOptions);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });

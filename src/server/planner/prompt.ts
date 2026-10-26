@@ -13,6 +13,10 @@ Hard rules:
 - Respect accommodation check-in/check-out times and luggage logistics on moving days.
 - Group stops by geography to avoid backtracking; use realistic visit durations and realistic travel estimates between consecutive stops.
 - Include meal opportunities (isMeal) at sensible times that fit dietary needs, and rest or free time (isFreeTime). Do not fill every hour; pace guide: relaxed ≈ 2–3 main activities/day, balanced ≈ 3–4, ambitious ≈ 5+.
+- Food recommendations: for EVERY date return meals.breakfast, meals.lunch and meals.dinner, each with TWO distinct real restaurant/café options matched to the food questionnaire, cuisine preferences, meal budget, dietary needs, children and accommodation. Use web search for current, source-backed venues; include exact consulted sourceUrls. Do not invent restaurants, menu prices, URLs or dietary guarantees. If two sourced venues cannot be found, return only the sourced options and explain the gap in the day's questions.
+- Keep food choices near that meal's part of the day's route, including an appropriate stopover area on driving days. Prefer variety across dates. Supply concise cuisine, area, address, whyFits, an estimated pricePerPerson in planningCurrency (null if unknown), officialUrl only if found, and a practical hoursNote. Check whether the venue serves that meal on the day, including seasonal/weekly closures. Explain unverified opening hours in hoursNote.
+- The two restaurant choices are ALTERNATIVES, not six consecutive itinerary stops. Keep sensible meal breaks in the schedule; if naming a restaurant in a meal stop, use the first recommendation for that meal and keep the second as an alternative. Never add both options to the schedule or sum their costs into the trip budget. For a meal outside arrival/departure hours, keep optional recommendations but clearly flag that meal as outside the trip schedule in hoursNote. If breakfast is included at accommodation, recommend two nearby backup cafés instead of scheduling breakfast out.
+- Treat every allergy and dietary requirement in trip.dietary and foodNotes as a constraint. Do not let general preferences or a 'No restrictions' answer override explicit restrictions. Never guarantee allergen safety; advise checking directly when a requirement cannot be verified.
 - Long driving days (over ~4 h) get driving, breaks and optional short stops only — not a full sightseeing day. Mention parking where relevant.
 - Include every must-see. If one cannot fit (closed on those dates, too far, conflicts), list it in unplacedMustSees with the reason and concrete options. Never silently drop a must-see.
 - Use optional places only where they fit naturally.
@@ -21,14 +25,14 @@ Hard rules:
 - Costs: estCost is the estimated total for the whole group in the planning currency (a number, no symbol). Use null if unknown.
 - Coordinates: give approximate lat/lng when you are confident; otherwise null.
 - Put open questions for the travelers in "questions" rather than guessing important facts.
-- "travelerPreferences" holds the travelers' own answers to pre-planning questions (pace, rhythm, activities, food, budget, getting around). Follow them closely; where they conflict with older trip settings, the answers win.`;
+- "travelerPreferences" holds the travelers' own answers to pre-planning questions (pace, rhythm, activities, food, budget, getting around). Follow them closely; where they conflict with older trip settings, the answers win, except that explicit allergies and dietary restrictions always remain constraints.`;
 
 const cut = (s: string | null | undefined, n = 600) => (s ? s.slice(0, n) : null);
 
 function prefsForPrompt(raw: unknown) {
   const p = raw as PlanPrefs | null;
-  if (!p?.answers?.length && !p?.note) return null;
-  return { answers: (p.answers ?? []).map((x) => ({ question: x.q, chosen: x.a })), extraNote: p.note };
+  if (!p?.answers?.length && !p?.note && !p?.foodNotes) return null;
+  return { answers: (p.answers ?? []).map((x) => ({ question: x.q, chosen: x.a })), extraNote: p.note, ...(p.foodNotes ? { foodNotes: p.foodNotes } : {}) };
 }
 
 export function buildPlannerInput(ctx: PlannerContext, opts: { chunkDates: string[]; previouslyPlanned: { date: string; titles: string[] }[]; extraInstruction?: string | null }) {

@@ -1,3 +1,5 @@
+import { readMealOptions, MEALS, type DayMeals } from "../../src/lib/meal-options";
+import mealOptions from "../../prisma/migrations/202610260020_meal_options/migration.sql";
 import adminEmailCode from "../../prisma/migrations/202610240019_admin_email_code/migration.sql";
 import adminAuthentication from "../../prisma/migrations/202610230018_admin_authentication/migration.sql";
 import { executeAdminSecurity, adminSecurityStatus } from "../../src/server/admin/security";
@@ -72,6 +74,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "normalMode")) ctx.storage.sql.exec(adminNormalMode);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminVerifiedUntil")) ctx.storage.sql.exec(adminAuthentication);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminEmailUnlockedAt")) ctx.storage.sql.exec(adminEmailCode);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("ItineraryDay")').toArray().some(c => c.name === "mealOptions")) ctx.storage.sql.exec(mealOptions);
       });
     });
   }
@@ -184,6 +187,21 @@ export class StorageProbe extends DurableObject<Env> {
           if (!state) throw new Error("Native travel tools fixture missing");
           const p = (await listPolls(state.userId, state.tripId)).polls[0];
           return Response.json({ reminders: await this.db.tripNotification.count({ where: { tripId: state.tripId, kind: "booking_reminder" } }) === 1, votes: p.status === "DECIDED" && p.totalVotes === 1, booking: Boolean((await this.db.booking.findUnique({ where: { id: state.bookingId } }))?.bookByAt) });
+        }
+        if (new URL(request.url).pathname === "/meal-options") {
+          const savedId = await this.ctx.storage.get<string>("mealOptionsDay");
+          if (savedId) {
+            const saved = await this.db.itineraryDay.findUniqueOrThrow({ where: { id: savedId } });
+            return Response.json({ persisted: MEALS.every(meal => readMealOptions(saved.mealOptions)[meal].length === 2) });
+          }
+          const ownerId = crypto.randomUUID();
+          await this.db.user.create({ data: { id: ownerId, email: `${ownerId}@example.test`, name: "Dining fixture" } });
+          const tripId = await createTrip(ownerId, { name: "Dining fixture", startDate: "2027-05-01", endDate: "2027-05-01", destinations: [{ name: "Lisbon" }], currency: "EUR", timezone: "Europe/Lisbon" });
+          const day = await this.db.itineraryDay.findFirstOrThrow({ where: { tripId } });
+          const meals = Object.fromEntries(MEALS.map(meal => [meal, [1, 2].map(n => ({ name: `${meal} ${n}`, cuisine: "Local", area: "Old town", address: null, whyFits: "Near the route", pricePerPerson: 15, officialUrl: "https://restaurant.example/menu", sourceUrls: ["https://restaurant.example/menu"], hoursNote: null }))])) as DayMeals;
+          await this.db.itineraryDay.update({ where: { id: day.id }, data: { mealOptions: meals } });
+          await this.ctx.storage.put("mealOptionsDay", day.id);
+          return Response.json({ persisted: MEALS.every(meal => readMealOptions(meals)[meal].length === 2) });
         }
         if (new URL(request.url).pathname === "/count") return Response.json({ users: await this.db.user.count() });
         if (new URL(request.url).pathname === "/billing-request") {

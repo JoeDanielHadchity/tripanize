@@ -1,3 +1,4 @@
+import { readMealOptions } from "@/lib/meal-options";
 import { prisma } from "@/server/db";
 import { appRuntime, currentRuntime, normalUserMode } from "@/server/cloudflare/runtime";
 import type { GenerationJob, Prisma } from "@/generated/prisma/client";
@@ -87,7 +88,7 @@ async function runJobInContext(job: GenerationJob, generate: Generator, checkpoi
     }
     const saved = await checkpoint?.load();
     if (saved) {
-      const restored = ProposalSchema.parse(saved.proposal);
+      const restored = ProposalSchema.parse({ ...saved.proposal, days: saved.proposal.days.map(day => ({ ...day, meals: readMealOptions(day.meals) })) });
       partialDays.push(...restored.days);
       partialMeta = { summary: restored.summary, unplacedMustSees: restored.unplacedMustSees, generalNotes: restored.generalNotes };
     }
@@ -138,7 +139,7 @@ async function runJobInContext(job: GenerationJob, generate: Generator, checkpoi
       await requirePlanDates(job.tripId, job.kind, ctx.dates);
       if (controller.signal.aborted || (await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } })).cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
       res.sources.forEach((s) => allSources.add(s));
-      partialDays.push(...res.data.days.filter((d) => chunk.includes(d.date)));
+      partialDays.push(...res.data.days.filter((d) => chunk.includes(d.date)).map(d => ({ ...d, ...(d.meals ? { meals: readMealOptions(d.meals, res.sources) } : {}) })));
       partialMeta = {
         summary: [partialMeta.summary, res.data.summary].filter(Boolean).join(" "),
         unplacedMustSees: [...partialMeta.unplacedMustSees, ...res.data.unplacedMustSees.filter((u) => !partialMeta.unplacedMustSees.some((x) => x.name === u.name))],

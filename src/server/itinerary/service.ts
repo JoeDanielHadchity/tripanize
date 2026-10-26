@@ -1,3 +1,4 @@
+import { readMealOptions, type DayMeals } from "@/lib/meal-options";
 import { z } from "zod";
 import { prisma, type Tx } from "@/server/db";
 import { AppError, conflictError } from "@/server/errors";
@@ -418,7 +419,7 @@ export async function replaceStop(userId: string, tripId: string, stopId: string
 // ───────────── Versions ─────────────
 
 type SnapshotStop = Omit<Prisma.StopUncheckedCreateInput, "id" | "tripId" | "dayId" | "createdAt" | "updatedAt"> & { date: string | null };
-type Snapshot = { days: { date: string; title: string | null; area: string | null; notes: string | null; questions: string[]; isTravelDay: boolean; driveMinutes: number | null; activePlan: string; planBNote: string | null; estCostMinor: number | null }[]; stops: SnapshotStop[] };
+type Snapshot = { days: { date: string; title: string | null; area: string | null; notes: string | null; questions: string[]; mealOptions?: DayMeals; isTravelDay: boolean; driveMinutes: number | null; activePlan: string; planBNote: string | null; estCostMinor: number | null }[]; stops: SnapshotStop[] };
 
 export async function snapshotItinerary(tx: Tx, tripId: string, reason: string, userId: string | null) {
   const days = await tx.itineraryDay.findMany({ where: { tripId }, include: { stops: true } });
@@ -427,7 +428,7 @@ export async function snapshotItinerary(tx: Tx, tripId: string, reason: string, 
     date, plan: s.plan, position: s.position, title: s.title, category: s.category, locationName: s.locationName, address: s.address, lat: s.lat, lng: s.lng, reason: s.reason, startTime: s.startTime, durationMin: s.durationMin, travelToNextMin: s.travelToNextMin, travelMode: s.travelMode, travelNote: s.travelNote, officialUrl: s.officialUrl, sourceUrls: s.sourceUrls, estCostMinor: s.estCostMinor, currency: s.currency, bookingRequired: s.bookingRequired, bookingNote: s.bookingNote, hoursNote: s.hoursNote, notes: s.notes, status: s.status, isFixed: s.isFixed, isMeal: s.isMeal, isFreeTime: s.isFreeTime, indoor: s.indoor, origin: s.origin, eventId: s.eventId, createdById: s.createdById,
   });
   const snapshot: Snapshot = {
-    days: days.map((d) => ({ date: d.date, title: d.title, area: d.area, notes: d.notes, questions: d.questions, isTravelDay: d.isTravelDay, driveMinutes: d.driveMinutes, activePlan: d.activePlan, planBNote: d.planBNote, estCostMinor: d.estCostMinor })),
+    days: days.map((d) => ({ date: d.date, title: d.title, area: d.area, notes: d.notes, questions: d.questions, mealOptions: readMealOptions(d.mealOptions), isTravelDay: d.isTravelDay, driveMinutes: d.driveMinutes, activePlan: d.activePlan, planBNote: d.planBNote, estCostMinor: d.estCostMinor })),
     // Booking projections are not snapshotted: bookings are the canonical record and are never rolled back here.
     stops: [...days.flatMap((d) => d.stops.filter((s) => !s.bookingId).map((s) => toSnap(s, d.date))), ...ideas.filter((s) => !s.bookingId).map((s) => toSnap(s, null))],
   };
@@ -451,7 +452,7 @@ export async function restoreVersion(userId: string, tripId: string, versionId: 
     const byDate = new Map(days.map((d) => [d.date, d]));
     for (const d of snap.days) {
       const day = byDate.get(d.date);
-      if (day) await tx.itineraryDay.update({ where: { id: day.id }, data: { title: d.title, area: d.area, notes: d.notes, questions: d.questions, isTravelDay: d.isTravelDay, driveMinutes: d.driveMinutes, activePlan: d.activePlan, planBNote: d.planBNote, estCostMinor: d.estCostMinor, version: { increment: 1 } } });
+      if (day) await tx.itineraryDay.update({ where: { id: day.id }, data: { title: d.title, area: d.area, notes: d.notes, questions: d.questions, mealOptions: readMealOptions(d.mealOptions), isTravelDay: d.isTravelDay, driveMinutes: d.driveMinutes, activePlan: d.activePlan, planBNote: d.planBNote, estCostMinor: d.estCostMinor, version: { increment: 1 } } });
     }
     const liveEvents = new Set((await tx.tripEvent.findMany({ where: { tripId }, select: { id: true } })).map((e) => e.id));
     const bookedEvents = new Set((await tx.booking.findMany({ where: { tripId, eventId: { not: null } }, select: { eventId: true } })).map(b => b.eventId));

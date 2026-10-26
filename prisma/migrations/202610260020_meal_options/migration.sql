@@ -1,0 +1,1 @@
+ALTER TABLE "ItineraryDay" ADD COLUMN "mealOptions" JSONB NOT NULL DEFAULT '{}';

@@ -47,7 +47,8 @@ try {
   await until(s => s.jobs.some(j => j.kind === "questions" && j.status === "SUCCEEDED"));
   const readyQuestions = await get("/questions?poll=1");
   assert.equal(readyQuestions.source, "ai");
-  assert.equal(readyQuestions.questions.length, 6);
+  assert.equal(readyQuestions.questions.length, 10);
+  assert.equal(readyQuestions.questions.filter(q => q.section === "food").length, 5);
   const cancelled = await get("/cancel");
   const cancelledState = await get("/state");
   assert.equal(cancelledState.jobs.find(j => j.id === cancelled.jobId).status, "CANCELLED");

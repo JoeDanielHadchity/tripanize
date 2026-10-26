@@ -117,14 +117,14 @@ export async function applyPlanAction(tripId: string, jobId: string, dates: stri
   });
 }
 
-export async function planQuestionsAction(tripId: string, refresh = false, poll = false) {
+export async function planQuestionsAction(tripId: string, refresh = false, poll = false, cachedOnly = false) {
   return runAction(async () => {
     const u = await requireUser();
-    return getPlanQuestions(u.id, tripId, { refresh, poll });
+    return getPlanQuestions(u.id, tripId, { refresh, poll, cachedOnly });
   });
 }
 
-export async function savePlanPrefsAction(tripId: string, input: { answers: { q: string; a: string[] }[]; note: string | null } | null) {
+export async function savePlanPrefsAction(tripId: string, input: { answers: { q: string; a: string[] }[]; note: string | null; foodNotes?: string | null } | null) {
   return runAction(async () => {
     const u = await requireUser();
     await savePlanPrefs(u.id, tripId, input);

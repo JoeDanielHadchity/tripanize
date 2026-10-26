@@ -1,3 +1,4 @@
+import { readMealOptions } from "@/lib/meal-options";
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
@@ -17,7 +18,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ tripId:
         syncedAt: new Date().toISOString(),
         trip,
         days: days.map((d) => ({
-          date: d.date, title: d.title, area: d.area, destination: d.destination, activePlan: d.activePlan, notes: d.notes,
+          mealOptions: readMealOptions(d.mealOptions), date: d.date, title: d.title, area: d.area, destination: d.destination, activePlan: d.activePlan, notes: d.notes,
           stops: d.stops.filter((s) => s.plan === d.activePlan).map((s) => {
             const e = effectiveStop(s);
             return { title: e.title, startTime: e.startTime, durationMin: e.durationMin, address: e.address, locationName: s.locationName, lat: s.lat, lng: s.lng, status: e.status, fixed: s.isFixed, booking: s.booking ? s.booking.status : null, officialUrl: e.officialUrl };

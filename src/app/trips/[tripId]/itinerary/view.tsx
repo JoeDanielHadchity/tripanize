@@ -1,4 +1,5 @@
 "use client";
+import { MealRecommendations } from "@/components/itinerary/meal-recommendations";
 import { PremiumStar } from "@/components/premium-star";
 
 import dynamic from "next/dynamic";
@@ -216,6 +217,7 @@ export function ItineraryView(p: Props) {
                       })}
                     </ol>
                   )}
+                  <MealRecommendations key={d.id} meals={d.mealOptions} currency={p.currency} mapsApp={p.mapsApp} preferencesHref={p.canEdit ? `/trips/${p.tripId}/plan#food-preferences` : undefined} />
                   {d.questions.length > 0 && (
                     <div className="mt-3 rounded-xl bg-accent-soft/60 px-3 py-2 text-sm">
                       <p className="font-medium text-accent-ink">Open questions</p>

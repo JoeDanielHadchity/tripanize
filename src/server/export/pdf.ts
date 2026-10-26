@@ -1,3 +1,4 @@
+import { MEALS, type DayMeals } from "@/lib/meal-options";
 import { PDFDocument, PDFString, rgb, type PDFPage, type RGB } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { safeUrl } from "@/lib/maps";
@@ -6,7 +7,7 @@ export const PDF_FONT_FILES = ["Inter-Regular.ttf", "Inter-SemiBold.ttf", "Fraun
 
 export type GuideLink = { label: string; url: string };
 export type GuideStop = { title: string; time: string; tag?: string; details?: string; address?: string | null; notes: string[]; links: GuideLink[] };
-export type GuideDay = { number: number; date: string; title: string; subtitle: string; labels: string[]; stops: GuideStop[]; notes?: string | null; questions: string[] };
+export type GuideDay = { number: number; date: string; title: string; subtitle: string; labels: string[]; stops: GuideStop[]; notes?: string | null; questions: string[]; meals?: DayMeals };
 export type GuideBooking = { title: string; when: string; status: string; address?: string | null; url?: string | null };
 export type TripGuide = { name: string; dates: string; destinations: string; days: GuideDay[]; bookings: GuideBooking[]; singleDay: boolean; exportedAt?: Date };
 
@@ -249,6 +250,10 @@ export async function renderTripGuide(guide: TripGuide, fontBytes: readonly Uint
       }
     }
     if (!day.stops.length) panel("Room to explore", "Nothing scheduled yet. Leave space for a slow morning, a local discovery or a change of plan.", continueDay);
+    for (const meal of MEALS) {
+      const options = day.meals?.[meal] ?? [];
+      if (options.length) panel(`${meal[0].toUpperCase()}${meal.slice(1)} · restaurant options`, options.map((r, index) => `${index + 1}. ${r.name} — ${r.cuisine}\n${r.area}\n${r.whyFits}${r.hoursNote ? `\n${r.hoursNote}` : ""}\n${r.officialUrl ?? r.sourceUrls[0] ?? ""}`).join("\n\n"), continueDay);
+    }
     if (day.notes) { y += 5; panel("Good to know", day.notes, continueDay); }
     if (day.questions.length) panel("Still to decide", day.questions.map((q) => `• ${q}`).join("\n"), continueDay, C.secondarySoft);
   }
