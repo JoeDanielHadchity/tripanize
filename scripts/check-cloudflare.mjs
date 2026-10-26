@@ -131,6 +131,8 @@ try {
     const changedName = await fetch(origin + "/api/auth/update-user", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin, Cookie: companyCookie }, body: JSON.stringify({ name: "Another personal label" }) }); assert.equal(changedName.status, 200);
     const companyAccountHtml = await (await fetch(origin + "/account", { headers: { Cookie: companyCookie } })).text(); assert.match(companyAccountHtml, /Tripanize\.app/); assert.doesNotMatch(companyAccountHtml, /Another personal label|Retired personal label/);
     const unauth = await fetch(origin + "/api/attachments/does-not-exist"); assert.equal(unauth.status, 401);
+    const coverUnauth = await fetch(origin + "/api/trips/does-not-exist/cover"); assert.equal(coverUnauth.status, 401);
+    const coverMissing = await fetch(origin + "/api/trips/does-not-exist/cover", { headers: { Cookie: cookie } }); assert.equal(coverMissing.status, 404);
     const locationUnauth = await fetch(origin + "/api/trips/does-not-exist/locations"); assert.equal(locationUnauth.status, 401); assert.equal(locationUnauth.headers.get("Cache-Control"), "private, no-store");
     const locationMissing = await fetch(origin + "/api/trips/does-not-exist/locations", { headers: { Cookie: cookie } }); assert.equal(locationMissing.status, 404);
     const locationCrossOrigin = await fetch(origin + "/api/trips/does-not-exist/locations", { method: "POST", headers: { Origin: "https://outside.example", "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ op: "stop" }) }); assert.equal(locationCrossOrigin.status, 403);
@@ -163,7 +165,7 @@ try {
     const votesMissing = await fetch(origin + "/trips/does-not-exist/votes", { headers: { Cookie: cookie } }); assert.equal(votesMissing.status, 404);
     await stop(child); child = await start();
     const restored = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(restored.status, 200); assert.equal(new URL(restored.url).pathname, "/trips");
-    console.log(JSON.stringify({ mode, companyAdminGuard: true, companyNamePrivate: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
+    console.log(JSON.stringify({ mode, companyAdminGuard: true, companyNamePrivate: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
   }
 } catch (error) { await new Promise((resolve) => setTimeout(resolve, 200)); console.error(error.stack ?? error.message); console.error(logs.slice(-11000)); process.exitCode = 1; }
 finally { if (child) await stop(child); }
