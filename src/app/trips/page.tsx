@@ -10,6 +10,7 @@ import { listPendingInvitations } from "@/server/invitations/service";
 import { PendingInvites } from "@/components/pending-invites";
 import { userTrialAccess } from "@/server/admin/trials";
 import { TrialAccessBanner } from "@/components/trial-access";
+import { TripCoverPhoto } from "@/components/trip-cover-photo";
 
 export const metadata: Metadata = { title: "My trips" };
 
@@ -66,9 +67,9 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
           <EmptyState title="No trips match" action={<LinkButton href="/trips">Clear filters</LinkButton>}>Try a different search or filter.</EmptyState>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {trips.map((t, index) => (
+            {trips.map((t) => (
               <li key={t.id}>
-                <TripTile trip={t} selected={t.id === selectedTrip?.id} fallbackPhoto={index === 0 && t.destinations.some(d => /porto|oporto/i.test(d)) ? "/editorial/trips.jpg" : undefined} />
+                <TripTile trip={t} selected={t.id === selectedTrip?.id} />
               </li>
             ))}
           </ul>
@@ -98,20 +99,15 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
   );
 }
 
-function TripTile({ trip, selected = false, fallbackPhoto }: { trip: TripCard; selected?: boolean; fallbackPhoto?: string }) {
+function TripTile({ trip, selected = false }: { trip: TripCard; selected?: boolean }) {
   const days = tripLength(trip.startDate, trip.endDate);
   const p = PHASE[trip.phase];
-  const image = trip.imageUrl || fallbackPhoto;
   return (
     <article className={cx("flex h-full flex-col overflow-hidden rounded-2xl border bg-surface", selected ? "border-accent ring-2 ring-accent/25" : "border-line")}>
       <div className="relative h-36 brand-backdrop">
-        {image && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={image} alt="" className="h-full w-full object-cover" loading="lazy" />
-        )}
+        <CardPlace destinations={trip.destinations} fallback={trip.name} />
+        {trip.destinations.length > 0 && <TripCoverPhoto key={`${trip.destinations.join("|")}:${trip.updatedAt.toISOString()}`} tripId={trip.id} destination={trip.destinations[0]} />}
         <Badge tone={p.tone} className="absolute left-3 top-3 shadow-sm">{p.label}</Badge>
-        {!image && <CardPlace destinations={trip.destinations} fallback={trip.name} />}
-        {trip.imageCredit && <span className="absolute bottom-1 right-2 text-[10px] text-white/90 drop-shadow">{trip.imageCredit}</span>}
       </div>
       <div className="flex flex-1 flex-col p-4">
         <h3 className="font-display text-lg font-semibold leading-tight">{trip.name}</h3>
