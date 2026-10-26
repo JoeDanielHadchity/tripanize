@@ -231,6 +231,7 @@ model Trip {
   imageUrl    String?
   imageCredit String?
   imagePageUrl String?
+  imageDestinationKey String?
   copiedFromExample String?
   // Pre-planning questions (AI-written multiple choice) and the travelers' answers, used by the planner.
   planQuestions Json?
