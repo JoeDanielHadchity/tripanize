@@ -5,9 +5,11 @@ import { currentRuntime, normalUserMode } from "@/server/cloudflare/runtime";
 
 // Private server configuration. Profile fields and invitation recipients cannot assign this role.
 function companyEmail() { return currentRuntime().companyAdminEmail?.trim().toLowerCase() || null; }
+// Personal identity inside shared trips; the public business identity stays OPERATOR_NAME.
+export const COMPANY_ACCOUNT_DISPLAY_NAME = "Joe Daniel Hadchity";
 export function isCompanyIdentity(user: { email: string }) { const email = companyEmail(); return Boolean(email && user.email.trim().toLowerCase() === email); }
 export function isCompanyAccount(user: { email: string; emailVerified: boolean }) { return user.emailVerified && isCompanyIdentity(user); }
-export function accountDisplayName(user: { email: string; name: string }) { return isCompanyIdentity(user) ? OPERATOR_NAME : user.name; }
+export function accountDisplayName(user: { email: string; name: string }) { return isCompanyIdentity(user) ? COMPANY_ACCOUNT_DISPLAY_NAME : user.name; }
 export async function companyAccount(userId: string, db: Pick<Tx, "user"> = prisma) {
   const user = await db.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true, suspendedAt: true } });
   return Boolean(user && !user.suspendedAt && isCompanyAccount(user));
@@ -32,24 +34,24 @@ export async function normalizeCompanyIdentity() {
   if (!email) return null;
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return null;
+  const displayName = accountDisplayName(user);
   await prisma.$transaction(async tx => {
     await tx.$executeRaw`UPDATE "TripNotification" SET "summary" = replace("summary",
-      (SELECT "actorName" FROM "AuditLog" WHERE "AuditLog"."id" = "TripNotification"."auditId"), ${OPERATOR_NAME})
+      (SELECT "actorName" FROM "AuditLog" WHERE "AuditLog"."id" = "TripNotification"."auditId"), ${displayName})
       WHERE "kind" = 'change' AND "auditId" IN (SELECT "id" FROM "AuditLog" WHERE "actorId" = ${user.id}
-      AND "actorName" IS NOT NULL AND "actorName" <> '' AND "actorName" <> ${OPERATOR_NAME})`;
-    // Keep attempted email payloads immutable and stop old personal labels from being sent.
-    await tx.tripNotification.updateMany({ where: { emailStatus: "queued", audit: { actorId: user.id, actorName: { not: OPERATOR_NAME } } }, data: { emailStatus: "cancelled", nextAttemptAt: null } });
-    await tx.auditLog.updateMany({ where: { actorId: user.id }, data: { actorName: OPERATOR_NAME } });
-    const travelers = await tx.traveler.findMany({ where: { userId: user.id, name: { not: OPERATOR_NAME } }, select: { tripId: true } });
-    await tx.traveler.updateMany({ where: { userId: user.id }, data: { name: OPERATOR_NAME } });
+      AND "actorName" IS NOT NULL AND "actorName" <> '' AND "actorName" <> ${displayName})`;
+    // Existing email payloads and delivery states remain immutable; only in-app labels change.
+    await tx.auditLog.updateMany({ where: { actorId: user.id, actorName: { not: displayName } }, data: { actorName: displayName } });
+    const travelers = await tx.traveler.findMany({ where: { userId: user.id, name: { not: displayName } }, select: { tripId: true } });
+    await tx.traveler.updateMany({ where: { userId: user.id, name: { not: displayName } }, data: { name: displayName } });
     const tripIds = [...new Set(travelers.map(t => t.tripId))];
     for (let i = 0; i < tripIds.length; i += 50) await tx.trip.updateMany({ where: { id: { in: tripIds.slice(i, i + 50) } }, data: { revision: { increment: 1 } } });
-    const chats = await tx.trip.findMany({ where: { chatMessages: { some: { senderId: user.id, senderName: { not: OPERATOR_NAME } } } }, select: { id: true } });
+    const chats = await tx.trip.findMany({ where: { chatMessages: { some: { senderId: user.id, senderName: { not: displayName } } } }, select: { id: true } });
     for (const chat of chats) {
       const trip = await tx.trip.update({ where: { id: chat.id }, data: { chatRevision: { increment: 1 }, revision: { increment: 1 } }, select: { chatRevision: true } });
-      await tx.chatMessage.updateMany({ where: { tripId: chat.id, senderId: user.id }, data: { senderName: OPERATOR_NAME, revision: trip.chatRevision } });
+      await tx.chatMessage.updateMany({ where: { tripId: chat.id, senderId: user.id, senderName: { not: displayName } }, data: { senderName: displayName, revision: trip.chatRevision } });
     }
-    await tx.user.update({ where: { id: user.id }, data: { name: OPERATOR_NAME } });
+    if (user.name !== displayName) await tx.user.update({ where: { id: user.id }, data: { name: displayName } });
   }, { timeout: 30000 });
   return user.id;
 }

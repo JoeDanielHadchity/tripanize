@@ -1,4 +1,3 @@
-import { OPERATOR_NAME } from "@/lib/legal";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
@@ -6,7 +5,7 @@ import { emailOTP } from "better-auth/plugins";
 import { prisma } from "@/server/db";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { sendEmail } from "@/server/notifications/email";
-import { accountDisplayName, isCompanyIdentity } from "@/server/admin/identity";
+import { accountDisplayName } from "@/server/admin/identity";
 
 function createAuth() { return betterAuth({
   appName: "Tripanize",
@@ -33,9 +32,10 @@ function createAuth() { return betterAuth({
   } } }, user: {
     create: { before: async user => ({ data: { ...user, name: accountDisplayName(user) } }) },
     update: { after: async user => {
-      if (isCompanyIdentity(user) && user.name !== OPERATOR_NAME) {
-        await prisma.user.update({ where: { id: user.id }, data: { name: OPERATOR_NAME } });
-        await prisma.traveler.updateMany({ where: { userId: user.id }, data: { name: OPERATOR_NAME } });
+      const name = accountDisplayName(user);
+      if (user.name !== name) {
+        await prisma.user.update({ where: { id: user.id }, data: { name } });
+        await prisma.traveler.updateMany({ where: { userId: user.id }, data: { name } });
       }
     } },
   } },
