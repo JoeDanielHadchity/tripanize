@@ -6,6 +6,8 @@ import { requireTrip } from "@/server/auth/permissions";
 import { recordChange } from "@/server/audit";
 import { rateLimit } from "@/server/ratelimit";
 import { sendEmail } from "@/server/notifications/email";
+import { currentRuntime } from "@/server/cloudflare/runtime";
+import { invitationOrigin } from "@/lib/invitation-urls";
 import type { TripRole } from "@/generated/prisma/enums";
 
 export const INVITE_TTL_DAYS = 7;
@@ -43,13 +45,14 @@ export async function createInvitation(
     await recordChange(tx, { tripId, actorId: userId, entity: "invitation", entityId: inv.id, action: "create", after: { role: input.role, email } });
     return inv;
   });
-  const url = `${process.env.APP_URL ?? "http://localhost:3000"}/invite/${token}`;
+  const origin = invitationOrigin(currentRuntime().appUrl ?? process.env.APP_URL ?? "http://localhost:3000");
+  const url = `${origin}/invite/${token}`;
   let emailStatus: string | null = null;
   if (email) {
     const res = await sendEmail({
       to: email,
       subject: `${accountDisplayName(inviter)} invited you to “${trip.name}” on Tripanize`,
-      text: `${accountDisplayName(inviter)} invited you to join the trip “${trip.name}” as a ${input.role === "COLLABORATOR" ? "collaborator (can edit)" : "viewer (read-only)"}.\n\nOpen this link to join:\n${url}\n\nOr go to ${process.env.APP_URL ?? "Tripanize"} and sign in with this email address (${email}) — we'll email you a sign-in code, no password needed. The invitation will be waiting on your trips page.\n\nThe invitation expires in ${INVITE_TTL_DAYS} days.`,
+      text: `${accountDisplayName(inviter)} invited you to join the trip “${trip.name}” as a ${input.role === "COLLABORATOR" ? "collaborator (can edit)" : "viewer (read-only)"}.\n\nOpen this link to join:\n${url}\n\nOr go to ${origin} and sign in with this email address (${email}) — we'll email you a sign-in code, no password needed. The invitation will be waiting on your trips page.\n\nThe invitation expires in ${INVITE_TTL_DAYS} days.`,
     });
     emailStatus = res.status === "failed" ? `failed: ${res.error}` : res.status;
     await prisma.invitation.update({ where: { id: inv.id }, data: { emailStatus } });

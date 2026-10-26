@@ -12,6 +12,7 @@ import { createTrip } from "@/server/trips/service";
 import { getTripPlan } from "@/server/plans/access";
 import { recordChange } from "@/server/audit";
 import { sendEmail } from "@/server/notifications/email";
+import { invitationOrigin } from "@/lib/invitation-urls";
 
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 const emailInput = z.string().trim().toLowerCase().email().max(254);
@@ -29,7 +30,7 @@ export async function createTrialInvitation(actorId: string, email: string, dura
   if (recipient === actor.email.toLowerCase()) throw new AppError("VALIDATION", `Your ${OPERATOR_NAME} administrator account already has all access.`);
   await rateLimit(`trial-invite:${actorId}`, 50, 3600, "Please wait before creating more trial invitations.");
   const token = randomBytes(32).toString("base64url");
-  const url = `${(currentRuntime().appUrl ?? process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/trial/${token}`;
+  const url = `${invitationOrigin(currentRuntime().appUrl ?? process.env.APP_URL ?? "http://localhost:3000")}/trial/${token}`;
   const expiresAt = new Date(Date.now() + 14 * 86400_000);
   const emailText = `${OPERATOR_NAME} invited you to try every Tripanize Premium feature for one trip, free of charge.\n\nAccept your invitation:\n${url}\n\nSign in with ${recipient} and verify your email using an email sign-in code. Then choose one trip you organize, or create a new trial trip. The invitation can only be used once and expires in 14 days.\n\nYour trial covers that trip and its members${durationDays === null ? " until revoked" : ` for ${durationDays} days after activation`}. It is not a subscription, needs no payment details, and never charges automatically. ${OPERATOR_NAME} can revoke trial access. Other trips keep their usual plans.\n\nIf you were not expecting this invitation, you can ignore it.`;
   const inv = await prisma.$transaction(async tx => {

@@ -1,4 +1,4 @@
-import { auth } from "@/server/auth/auth";
+import { getWorkerSession } from "@/server/auth/auth";
 import { prisma } from "@/server/db";
 import { isCompanyIdentity, isCompanyAccount, companyAccount, hasAdminAuthentication } from "./identity";
 import { AppError } from "@/server/errors";
@@ -11,7 +11,7 @@ import { invalidateAdminEmailChallenge } from "./security";
  */
 export async function resolveAccountMode(headers: Headers): Promise<AccountModeContext | undefined> {
   if (!headers.has("cookie")) return undefined;
-  const session = await auth.api.getSession({ headers, query: { disableRefresh: true } });
+  const session = await getWorkerSession(headers);
   if (!session || !isCompanyIdentity(session.user)) return undefined;
   return sessionAccountMode(session.user.id, session.session.id);
 }
