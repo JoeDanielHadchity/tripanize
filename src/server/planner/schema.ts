@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DayMealsSchema, type DayMeals } from "@/lib/meal-options";
 
 /**
  * Structured output contract for the AI planner. Every field is required (nullable where optional) so it can be
@@ -31,6 +32,7 @@ export const PlanStopSchema = z.object({
 });
 
 export const PlanDaySchema = z.object({
+  meals: DayMealsSchema.describe("Two sourced restaurant options for breakfast, lunch and dinner. These are alternatives, not additional scheduled stops."),
   date: z.string().describe("YYYY-MM-DD"),
   area: z.string().describe("Main destination or neighborhood for the day"),
   title: z.string().describe("Short theme for the day"),
@@ -83,7 +85,8 @@ export const EventsSchema = z.object({
 });
 
 export type PlanStop = z.infer<typeof PlanStopSchema>;
-export type PlanDay = z.infer<typeof PlanDaySchema>;
-export type Proposal = z.infer<typeof ProposalSchema>;
+// Stored drafts/checkpoints from before meal recommendations remain readable.
+export type PlanDay = Omit<z.infer<typeof PlanDaySchema>, "meals"> & { meals?: DayMeals };
+export type Proposal = Omit<z.infer<typeof ProposalSchema>, "days"> & { days: PlanDay[] };
 export type SwapResult = z.infer<typeof SwapSchema>;
 export type EventsResult = z.infer<typeof EventsSchema>;

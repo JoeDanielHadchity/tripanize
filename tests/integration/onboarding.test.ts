@@ -28,7 +28,7 @@ function generator(calls: string[], failPacking = false): Generator {
     if (opts.name === "events") return result({ events: [{ title: "Lisbon cultural evening", category: "cultural", date: "2027-05-02", endDate: null, startTime: "18:00", dateVerified: true, venue: "Test venue", city: "Lisbon", address: null, officialUrl: "https://example.test/event", bookingUrl: "https://example.test/tickets", priceText: null, availability: null, bookingDeadline: null, cancelled: false, soldOut: false, whyFits: "Culture preference", uncertainty: null, sources: [] }] });
     if (opts.name === "trip_packing") {
       if (failPacking) throw new Error("Synthetic packing interruption");
-      expect(input.answers.answers).toHaveLength(6); expect(input.weather[0].kind).toBe("typical"); expect(input.events[0].title).toBe("Lisbon cultural evening"); expect(input.destinations[0].country).toBe("Portugal");
+      expect(input.answers.answers).toHaveLength(STANDARD_QUESTIONS.length); expect(input.weather[0].kind).toBe("typical"); expect(input.events[0].title).toBe("Lisbon cultural evening"); expect(input.destinations[0].country).toBe("Portugal");
       return result({ items: [{ label: "Light linen layer", category: "Clothing", reason: "May's typical warm afternoons and your light-luggage preference", shared: false, quantity: 1 }] });
     }
     if (opts.name !== "trip_plan") throw new Error(`Unexpected model operation ${opts.name}`);

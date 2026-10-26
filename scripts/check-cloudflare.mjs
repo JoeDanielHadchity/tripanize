@@ -44,6 +44,7 @@ try {
     for (const [check, passed] of Object.entries(administration)) assert.equal(passed, true, `admin: ${check}`);
     const billing = await json("/billing-request");
     assert.deepEqual(billing, { nativeRequests: 2, rejectedRedirects: 2, pinnedHost: true });
+    assert.equal((await json("/meal-options")).persisted, true);
     const result = await json("/run");
     assert.equal(result.days, 3);
     assert.deepEqual(result.interests, ["architecture"]);
@@ -66,6 +67,7 @@ try {
     assert.equal(result.pdfHeader, "%PDF");
     await stop(child); child = await start();
     assert.equal((await json("/mode-state")).persisted, true);
+    assert.equal((await json("/meal-options")).persisted, true);
     const restoredTools = await json("/travel-tools-state");
     for (const [check, passed] of Object.entries(restoredTools)) assert.equal(passed, true, `restored travel tools: ${check}`);
     assert.equal((await json("/count")).users, result.users);

@@ -55,7 +55,7 @@ export async function saveOnboardingDetails(userId: string, tripId: string, inpu
   await getPlanQuestions(userId, tripId);
 }
 
-export async function startOnboardingPlan(userId: string, tripId: string, input: { answers: { q: string; a: string[] }[]; note: string | null }) {
+export async function startOnboardingPlan(userId: string, tripId: string, input: { answers: { q: string; a: string[] }[]; note: string | null; foodNotes?: string | null }) {
   await requireTrip(tripId, userId, "manage");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   if (trip.onboardingStage === "GENERATING" && trip.onboardingJobId) return { jobId: trip.onboardingJobId };

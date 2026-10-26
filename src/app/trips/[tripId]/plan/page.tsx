@@ -51,7 +51,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
       <div className="mb-6">
         <PlanQuestions tripId={tripId} canEdit={canEdit} aiReady={premium && aiConfigured()} prefs={(trip.planPrefs as PlanPrefs | null) ?? null} />
       </div>
-      <PlanPanel
+      <PlanPanel currency={trip.currency}
         tripId={tripId}
         premium={premium}
         canEdit={canEdit}

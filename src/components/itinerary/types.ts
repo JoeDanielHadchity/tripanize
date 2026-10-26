@@ -1,8 +1,9 @@
+import type { DayMeals } from "@/lib/meal-options";
 import type { StopView } from "@/server/itinerary/view";
 export type { StopView };
 
 export type DayView = {
-  id: string; date: string; title: string | null; area: string | null; notes: string | null; questions: string[]; isTravelDay: boolean; driveMinutes: number | null;
+  id: string; date: string; title: string | null; area: string | null; notes: string | null; questions: string[]; mealOptions?: DayMeals; isTravelDay: boolean; driveMinutes: number | null;
   activePlan: "A" | "B"; planBNote: string | null; version: number; estCostMinor: number | null;
   destination: { name: string; accommodationName: string | null; checkInTime: string | null; checkOutTime: string | null; parkingNotes: string | null } | null;
   stops: StopView[];

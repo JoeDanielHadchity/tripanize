@@ -1,3 +1,4 @@
+import { readMealOptions } from "@/lib/meal-options";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
@@ -73,6 +74,7 @@ export async function exportTripPdf(userId: string, tripId: string, opts: { date
           links: [...(directions ? [{ label: "Directions", url: directions }] : []), ...(e.officialUrl ? [{ label: "Official website", url: e.officialUrl }] : [])],
         };
       }),
+      meals: readMealOptions(day.mealOptions),
       notes: day.notes,
       questions: day.questions,
     })),

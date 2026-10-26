@@ -1,3 +1,4 @@
+import { readMealOptions } from "@/lib/meal-options";
 import { isDateStr, isTimeStr, toMinutes } from "@/lib/dates";
 import { safeUrl } from "@/lib/maps";
 import { findOverlaps, type SchedStop } from "@/server/itinerary/schedule";
@@ -85,7 +86,11 @@ export function checkProposal(p: Proposal, input: CheckInput): { proposal: Propo
     const stops = d.stops.map((s) => sanitizeStop(s, d.date, issues)).filter((s): s is PlanStop => Boolean(s));
     const planB = d.planB.map((s) => sanitizeStop(s, d.date, issues)).filter((s): s is PlanStop => Boolean(s));
     stops.sort((a, b) => (a.startTime || "99").localeCompare(b.startTime || "99"));
-    days.push({ ...d, stops, planB, title: d.title.slice(0, 120), area: d.area.slice(0, 120) });
+    const meals = readMealOptions(d.meals);
+    if (d.meals) for (const meal of ["breakfast", "lunch", "dinner"] as const) {
+      if (meals[meal].length < 2) issues.push({ date: d.date, severity: "info", message: `Only ${meals[meal].length} sourced ${meal} option(s) were found. Check local options before you go.` });
+    }
+    days.push({ ...d, meals, stops, planB, title: d.title.slice(0, 120), area: d.area.slice(0, 120) });
   }
   for (const date of input.dates) if (!seen.has(date)) issues.push({ date, severity: "conflict", message: `The AI did not return a plan for ${date}. That day was left unchanged.` });
   days.sort((a, b) => a.date.localeCompare(b.date));

@@ -26,7 +26,7 @@ export function assistantStateHash(state: AssistantState) {
 const protectedStop = (s: AssistantState["stops"][number]) => s.isFixed || Boolean(s.bookingId) || Boolean(s.eventId) || s.origin === "COMMITMENT";
 const schedule = (s: AssistantState["stops"][number]) => ({ ...toSched(s), anchored: protectedStop(s) });
 const fail = (message: string): never => { throw new AppError("VALIDATION", message); };
-const dayFields = ["title", "area", "notes", "questions", "activePlan", "planBNote", "estCostMinor"] as const;
+const dayFields = ["title", "area", "notes", "questions", "mealOptions", "activePlan", "planBNote", "estCostMinor"] as const;
 export function dayPatch(day: AssistantState["days"][number]) { return Object.fromEntries(dayFields.map(k => [k, day[k]])); }
 export function stopPatch(s: AssistantState["stops"][number]) {
   const { id: _id, tripId: _tripId, booking: _booking, event: _event, createdAt: _created, updatedAt: _updated, version: _version, ...data } = s;

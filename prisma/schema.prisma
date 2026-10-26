@@ -465,6 +465,7 @@ model ItineraryDay {
   area          String?
   notes         String?
   questions     Json @default("[]")
+  mealOptions   Json @default("{}")
   isTravelDay   Boolean  @default(false)
   driveMinutes  Int?
   activePlan    String   @default("A") // "A" | "B"

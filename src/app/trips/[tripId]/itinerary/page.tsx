@@ -1,3 +1,4 @@
+import { readMealOptions } from "@/lib/meal-options";
 import { PremiumStar } from "@/components/premium-star";
 import { getTripPlan } from "@/server/plans/access";
 import type { Metadata } from "next";
@@ -69,7 +70,7 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
         aiReady={premium && aiConfigured()}
         routingLive={routingConfigured()}
         days={days.map((d) => ({
-          id: d.id, date: d.date, title: d.title, area: d.area, notes: d.notes, questions: d.questions, isTravelDay: d.isTravelDay, driveMinutes: d.driveMinutes, activePlan: d.activePlan as "A" | "B", planBNote: d.planBNote, version: d.version, estCostMinor: d.estCostMinor,
+          id: d.id, date: d.date, title: d.title, area: d.area, notes: d.notes, questions: d.questions, mealOptions: readMealOptions(d.mealOptions), isTravelDay: d.isTravelDay, driveMinutes: d.driveMinutes, activePlan: d.activePlan as "A" | "B", planBNote: d.planBNote, version: d.version, estCostMinor: d.estCostMinor,
           destination: d.destination ? { name: d.destination.name, accommodationName: d.destination.accommodationName, checkInTime: d.destination.checkInTime, checkOutTime: d.destination.checkOutTime, parkingNotes: d.destination.parkingNotes } : null,
           stops: d.stops.map(toStopView),
           weather: weather?.byDate[d.date] ? { kind: weather.byDate[d.date].kind, summary: weather.byDate[d.date].summary, tMax: weather.byDate[d.date].tMax, tMin: weather.byDate[d.date].tMin, precipProb: weather.byDate[d.date].precipProb } : null,

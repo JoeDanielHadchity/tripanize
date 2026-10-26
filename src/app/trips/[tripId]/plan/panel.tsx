@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MealRecommendations } from "@/components/itinerary/meal-recommendations";
 import { PremiumStar } from "@/components/premium-star";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -36,7 +37,7 @@ export function PlanStopPreview({ s }: { s: PlanStop }) {
   );
 }
 
-function DayReview({ d, existingStops, checked, onToggle, issues, applied }: { d: PlanDay; existingStops: number; checked: boolean; onToggle: () => void; issues: Issue[]; applied: boolean }) {
+function DayReview({ d, currency, existingStops, checked, onToggle, issues, applied }: { d: PlanDay; currency: string; existingStops: number; checked: boolean; onToggle: () => void; issues: Issue[]; applied: boolean }) {
   return (
     <Card className={cx(checked && "ring-2 ring-accent")}>
       <div className="flex items-start justify-between gap-3">
@@ -64,6 +65,7 @@ function DayReview({ d, existingStops, checked, onToggle, issues, applied }: { d
           <ol className="mt-2 space-y-2">{d.planB.map((s, i) => <PlanStopPreview key={i} s={s} />)}</ol>
         </details>
       )}
+      <MealRecommendations meals={d.meals} currency={currency} />
       {(d.notes.length > 0 || d.questions.length > 0) && (
         <div className="mt-3 space-y-1 text-sm">
           {d.notes.map((n, i) => <p key={i} className="text-muted">• {n}</p>)}
@@ -74,7 +76,7 @@ function DayReview({ d, existingStops, checked, onToggle, issues, applied }: { d
   );
 }
 
-export function PlanPanel(props: { tripId: string; premium: boolean; canEdit: boolean; aiReady: boolean; model: string; webSearch: boolean; missing: { field: string; question: string }[]; days: { date: string; title: string | null; stops: number }[]; hasPlan: boolean; initialJobId: string | null; preselectDays: string[] }) {
+export function PlanPanel(props: { tripId: string; currency: string; premium: boolean; canEdit: boolean; aiReady: boolean; model: string; webSearch: boolean; missing: { field: string; question: string }[]; days: { date: string; title: string | null; stops: number }[]; hasPlan: boolean; initialJobId: string | null; preselectDays: string[] }) {
   const { tripId } = props;
   const router = useRouter();
   const { run, pending } = useAction();
@@ -239,7 +241,7 @@ export function PlanPanel(props: { tripId: string; premium: boolean; canEdit: bo
           {job.proposal.generalNotes.length > 0 && <Notice title="Notes">{job.proposal.generalNotes.map((n, i) => <p key={i}>{n}</p>)}</Notice>}
           <div className="grid gap-4">
             {job.proposal.days.map((d) => (
-              <DayReview key={d.date} d={d} existingStops={props.days.find((x) => x.date === d.date)?.stops ?? 0} checked={accept.includes(d.date)} applied={job.appliedDates.includes(d.date)} issues={issues.filter((i) => i.date === d.date)} onToggle={() => setAccept(accept.includes(d.date) ? accept.filter((x) => x !== d.date) : [...accept, d.date])} />
+              <DayReview currency={props.currency} key={d.date} d={d} existingStops={props.days.find((x) => x.date === d.date)?.stops ?? 0} checked={accept.includes(d.date)} applied={job.appliedDates.includes(d.date)} issues={issues.filter((i) => i.date === d.date)} onToggle={() => setAccept(accept.includes(d.date) ? accept.filter((x) => x !== d.date) : [...accept, d.date])} />
             ))}
           </div>
           {job.checks?.sources?.length ? (

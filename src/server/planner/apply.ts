@@ -1,3 +1,4 @@
+import { readMealOptions } from "@/lib/meal-options";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { requireTrip } from "@/server/auth/permissions";
@@ -82,6 +83,7 @@ export async function applyProposal(userId: string, tripId: string, jobId: strin
             area: d.area || null,
             notes: d.notes.join("\n") || null,
             questions: d.questions,
+            mealOptions: readMealOptions(d.meals),
             isTravelDay: d.isTravelDay || day.isTravelDay,
             driveMinutes: d.driveMinutes,
             planBNote: d.planBNote,

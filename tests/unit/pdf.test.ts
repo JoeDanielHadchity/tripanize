@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFString } from "pdf-lib";
 import { guideText, PDF_FONT_FILES, renderTripGuide } from "@/server/export/pdf";
+import type { DayMeals } from "@/lib/meal-options";
 import { tripGuideFixture } from "../fixtures/trip-guide";
 
 const fonts = PDF_FONT_FILES.map((name) => readFileSync(`public/fonts/${name}`));
@@ -33,6 +34,14 @@ describe("branded travel guide", () => {
     expect(urls).toContain("https://www.metmuseum.org/");
     expect(urls.some((url) => url.includes("maps/dir"))).toBe(true);
     expect(urls.every((url) => /^https?:\/\//.test(url))).toBe(true);
+  });
+  it("paginates daily restaurant choices in the branded guide", async () => {
+    const guide = tripGuideFixture(); guide.singleDay = true; guide.bookings = []; guide.days = [guide.days[0]];
+    const before = await PDFDocument.load(await renderTripGuide(guide, fonts));
+    guide.days[0].meals = Object.fromEntries(["breakfast", "lunch", "dinner"].map(meal => [meal, [1, 2].map(n => ({ name: `${meal} restaurant ${n}`, cuisine: "Local", area: "Old town", address: null, whyFits: "A nearby choice matching your food preferences", pricePerPerson: 15, officialUrl: "https://restaurant.example/menu", sourceUrls: ["https://restaurant.example/menu"], hoursNote: "Confirm opening hours" }))])) as DayMeals;
+    const after = await PDFDocument.load(await renderTripGuide(guide, fonts));
+    expect(after.getPageCount()).toBeGreaterThan(before.getPageCount());
+    expect(after.getTitle()).toBe(before.getTitle());
   });
   it("exports a single day without a cover or index and paginates long notes", async () => {
     const guide = tripGuideFixture();
