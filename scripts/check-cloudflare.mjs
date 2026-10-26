@@ -88,7 +88,7 @@ try {
     for (const path of ["/terms", "/privacy", "/refunds", "/contact"]) {
       assert.match(html, new RegExp(`href="${path}"`));
       const policy = await fetch(origin + path); assert.equal(policy.status, 200, path); assert.equal(new URL(policy.url).pathname, path);
-      const policyHtml = await policy.text(); assert.match(policyHtml, /Tripanize\.app/); assert.doesNotMatch(policyHtml, /an individual (?:operator )?based/i);
+      const policyHtml = await policy.text(); assert.match(policyHtml, /Tripanize\.app/); assert.doesNotMatch(policyHtml, /an individual (?:operator )?based|Joe Daniel Hadchity/i);
     }
     const unsupported = await fetch(origin + "/api/support", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ name: "Isolated test", email: "test@example.test", topic: "general", message: "An isolated test. No email should be sent.", website: "", requestId: crypto.randomUUID() }) });
     assert.equal(unsupported.status, 503); assert.equal((await unsupported.json()).sent, undefined);
@@ -129,11 +129,11 @@ try {
     const reauth = await fetch(origin + "/sign-in?reauth=1&next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(reauth.url).pathname, "/sign-in"); assert.match(await reauth.text(), /Sign in/);
     const companySignup = await fetch(origin + "/api/auth/sign-up/email", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ name: "Retired personal label", email: "company@example.test", password: crypto.randomUUID() + "Aa1!" }) });
     assert.equal(companySignup.status, 200, await companySignup.clone().text());
-    const companyUser = await companySignup.json(); assert.equal(companyUser.user.name, "Tripanize.app"); assert.equal(companyUser.user.emailVerified, false);
+    const companyUser = await companySignup.json(); assert.equal(companyUser.user.name, "Joe Daniel Hadchity"); assert.equal(companyUser.user.emailVerified, false);
     const companyCookie = companySignup.headers.getSetCookie().map(v => v.split(";")[0]).join("; ");
     assert.equal((await fetch(origin + "/company", { headers: { Cookie: companyCookie } })).status, 404);
     const changedName = await fetch(origin + "/api/auth/update-user", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin, Cookie: companyCookie }, body: JSON.stringify({ name: "Another personal label" }) }); assert.equal(changedName.status, 200);
-    const companyAccountHtml = await (await fetch(origin + "/account", { headers: { Cookie: companyCookie } })).text(); assert.match(companyAccountHtml, /Tripanize\.app/); assert.doesNotMatch(companyAccountHtml, /Another personal label|Retired personal label/);
+    const companyAccountHtml = await (await fetch(origin + "/account", { headers: { Cookie: companyCookie } })).text(); assert.match(companyAccountHtml, /Joe Daniel Hadchity/); assert.doesNotMatch(companyAccountHtml, /Another personal label|Retired personal label/);
     const unauth = await fetch(origin + "/api/attachments/does-not-exist"); assert.equal(unauth.status, 401);
     const coverUnauth = await fetch(origin + "/api/trips/does-not-exist/cover"); assert.equal(coverUnauth.status, 401);
     const coverMissing = await fetch(origin + "/api/trips/does-not-exist/cover", { headers: { Cookie: cookie } }); assert.equal(coverMissing.status, 404);
@@ -169,7 +169,7 @@ try {
     const votesMissing = await fetch(origin + "/trips/does-not-exist/votes", { headers: { Cookie: cookie } }); assert.equal(votesMissing.status, 404);
     await stop(child); child = await start();
     const restored = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(restored.status, 200); assert.equal(new URL(restored.url).pathname, "/trips");
-    console.log(JSON.stringify({ mode, companyAdminGuard: true, companyNamePrivate: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
+    console.log(JSON.stringify({ mode, companyAdminGuard: true, personalTravelerName: true, publicBrandUnchanged: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
   }
 } catch (error) { await new Promise((resolve) => setTimeout(resolve, 200)); console.error(error.stack ?? error.message); console.error(logs.slice(-11000)); process.exitCode = 1; }
 finally { if (child) await stop(child); }

@@ -16,6 +16,8 @@ import { getExpenseData } from "@/server/expenses/service";
 import { addStop } from "@/server/itinerary/service";
 import { updateProfile } from "@/server/profile";
 import { makeTrip, makeUser, resetDb, adminAuthenticationFixture } from "./helpers";
+import { createInvitation, previewInvitation } from "@/server/invitations/service";
+import { OPERATOR_NAME } from "@/lib/legal";
 
 const runtime = currentRuntime();
 beforeEach(async () => { await resetDb(); setTestRuntime({ ...runtime, planAccessEnabled: true, appUrl: "https://tripanize.example.test", companyAdminEmail: "company@example.test" }); });
@@ -272,6 +274,8 @@ it("retries trial emails with the same immutable payload and idempotency key", a
   expect(send.mock.calls[0][0]).toMatchObject({ to: f.recipient.email, idempotencyKey: `trial-invitation/${inv.id}` });
   expect(send.mock.calls[0][0].text).toContain(inv.url);
   expect(send.mock.calls[0][0].text).not.toContain("Retired personal label");
+  expect(send.mock.calls[0][0].subject).toContain("Tripanize.app invited you");
+  expect(send.mock.calls[0][0].text).not.toContain("Joe Daniel Hadchity");
   expect((await prisma.trialInvitation.findUniqueOrThrow({ where: { id: inv.id } })).emailStatus).toBe("sent");
 });
 
@@ -286,35 +290,48 @@ it("cancels unused invitation delivery after revocation and never grants from a 
   await expect(createTrialInvitation(f.recipient.id, f.other.email)).rejects.toMatchObject({ code: "FORBIDDEN" });
 });
 
-it("uses Tripanize.app in profile, traveler and audit labels and can continue included onboarding without payment", async () => {
+it("uses the owner's personal name in shared trips while preserving the public brand and included Premium", async () => {
   const f = await fixture();
-  expect(accountDisplayName(f.admin)).toBe("Tripanize.app");
+  expect(accountDisplayName(f.admin)).toBe("Joe Daniel Hadchity");
+  expect(accountDisplayName(f.other)).toBe(f.other.name);
+  expect(OPERATOR_NAME).toBe("Tripanize.app");
   await updateProfile(f.admin.id, { name: "A personal label", defaultCurrency: "EUR", pace: "BALANCED", interests: [], mapsApp: "GOOGLE" });
-  expect((await prisma.user.findUniqueOrThrow({ where: { id: f.admin.id } })).name).toBe("Tripanize.app");
+  expect((await prisma.user.findUniqueOrThrow({ where: { id: f.admin.id } })).name).toBe("Joe Daniel Hadchity");
   const draft = await createTripDraft(f.admin.id, "Company trip");
-  expect((await prisma.traveler.findFirstOrThrow({ where: { tripId: draft.id, userId: f.admin.id } })).name).toBe("Tripanize.app");
-  expect((await prisma.auditLog.findFirstOrThrow({ where: { tripId: draft.id } })).actorName).toBe("Tripanize.app");
+  expect((await prisma.traveler.findFirstOrThrow({ where: { tripId: draft.id, userId: f.admin.id } })).name).toBe("Joe Daniel Hadchity");
+  expect((await prisma.auditLog.findFirstOrThrow({ where: { tripId: draft.id } })).actorName).toBe("Joe Daniel Hadchity");
+  const message = await sendChatMessage(f.admin.id, draft.id, { clientId: crypto.randomUUID(), body: "Trip planning" });
+  expect(message.senderName).toBe("Joe Daniel Hadchity");
+  expect((await getMemberLocations(f.admin.id, draft.id)).members.find(m => m.userId === f.admin.id)?.name).toBe("Joe Daniel Hadchity");
+  const invite = await createInvitation(f.admin.id, draft.id, { role: "VIEWER" });
+  expect(await previewInvitation(new URL(invite.url).pathname.split("/").pop()!)).toMatchObject({ ok: true, inviterName: "Joe Daniel Hadchity" });
   expect(await chooseNormal(f.admin.id, draft.id)).toMatchObject({ next: `/trips/${draft.id}/onboarding` });
   expect((await prisma.trip.findUniqueOrThrow({ where: { id: draft.id } })).onboardingPlan).toBe("PREMIUM");
   expect(await prisma.premiumCheckout.count()).toBe(0);
 });
 
-it("migrates old company display labels without changing another member or resending old email payloads", async () => {
+it("restores existing traveler, chat and activity labels without changing other members or queued emails", async () => {
   const f = await fixture();
   const tripId = await makeTrip(f.admin.id);
   const otherTrip = await makeTrip(f.other.id);
   const audit = await prisma.auditLog.findFirstOrThrow({ where: { tripId } });
-  await prisma.auditLog.update({ where: { id: audit.id }, data: { actorName: "Retired personal label" } });
-  await prisma.traveler.updateMany({ where: { tripId, userId: f.admin.id }, data: { name: "Retired personal label" } });
-  await prisma.chatMessage.create({ data: { tripId, senderId: f.admin.id, senderName: "Retired personal label", clientId: "old-message", body: "Keep the message content", seq: 1, revision: 1 } });
-  await prisma.tripNotification.create({ data: { userId: f.recipient.id, tripId, auditId: audit.id, kind: "change", tripName: "Company trip", summary: "Retired personal label updated trip details.", href: "/trips", emailStatus: "queued", emailText: "Immutable old payload", nextAttemptAt: new Date() } });
+  await prisma.user.update({ where: { id: f.admin.id }, data: { name: "Tripanize.app" } });
+  await prisma.auditLog.update({ where: { id: audit.id }, data: { actorName: "Tripanize.app" } });
+  await prisma.traveler.updateMany({ where: { tripId, userId: f.admin.id }, data: { name: "Tripanize.app" } });
+  await prisma.chatMessage.create({ data: { tripId, senderId: f.admin.id, senderName: "Tripanize.app", clientId: "old-message", body: "Keep the message content", seq: 1, revision: 1 } });
+  const nextAttemptAt = new Date();
+  await prisma.tripNotification.create({ data: { userId: f.recipient.id, tripId, auditId: audit.id, kind: "change", tripName: "Company trip", summary: "Tripanize.app updated trip details.", href: "/trips", emailStatus: "queued", emailText: "Immutable old payload", attempts: 1, nextAttemptAt } });
   await normalizeCompanyIdentity();
+  const first = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   await normalizeCompanyIdentity();
+  const second = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
+  expect(second.revision).toBe(first.revision);
+  expect(second.chatRevision).toBe(first.chatRevision);
   const notification = await prisma.tripNotification.findFirstOrThrow({ where: { tripId } });
-  expect(notification).toMatchObject({ summary: "Tripanize.app updated trip details.", emailStatus: "cancelled", emailText: "Immutable old payload", nextAttemptAt: null });
-  expect((await prisma.user.findUniqueOrThrow({ where: { id: f.admin.id } })).name).toBe("Tripanize.app");
-  expect((await prisma.auditLog.findUniqueOrThrow({ where: { id: audit.id } })).actorName).toBe("Tripanize.app");
-  expect((await prisma.traveler.findFirstOrThrow({ where: { tripId, userId: f.admin.id } })).name).toBe("Tripanize.app");
-  expect(await prisma.chatMessage.findFirstOrThrow({ where: { tripId } })).toMatchObject({ senderName: "Tripanize.app", body: "Keep the message content" });
+  expect(notification).toMatchObject({ summary: "Joe Daniel Hadchity updated trip details.", emailStatus: "queued", emailText: "Immutable old payload", attempts: 1, nextAttemptAt });
+  expect((await prisma.user.findUniqueOrThrow({ where: { id: f.admin.id } })).name).toBe("Joe Daniel Hadchity");
+  expect((await prisma.auditLog.findUniqueOrThrow({ where: { id: audit.id } })).actorName).toBe("Joe Daniel Hadchity");
+  expect((await prisma.traveler.findFirstOrThrow({ where: { tripId, userId: f.admin.id } })).name).toBe("Joe Daniel Hadchity");
+  expect(await prisma.chatMessage.findFirstOrThrow({ where: { tripId } })).toMatchObject({ senderName: "Joe Daniel Hadchity", body: "Keep the message content" });
   expect((await prisma.traveler.findFirstOrThrow({ where: { tripId: otherTrip, userId: f.other.id } })).name).toBe(f.other.name);
 });

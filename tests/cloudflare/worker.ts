@@ -49,6 +49,7 @@ import { saveTripFeatures } from "../../src/server/plans/selection";
 import { getTripPlan } from "../../src/server/plans/access";
 import { planningScope } from "../../src/server/plans/planning";
 import { paddleRequest } from "../../src/server/billing/paddle";
+import { normalizeCompanyIdentity } from "../../src/server/admin/identity";
 
 interface Env { PROBE: DurableObjectNamespace; FILES: R2Bucket; ASSETS: Fetcher }
 export class StorageProbe extends DurableObject<Env> {
@@ -139,6 +140,18 @@ export class StorageProbe extends DurableObject<Env> {
             const codeHashOnly = Boolean(savedHash && savedHash !== firstCode && !JSON.stringify(sent).includes(firstCode));
             await appRuntime.run({ ...modeRuntime, accountMode: initial }, () => executeAdminSecurity(body.user.id, { op: "unlock", code: firstCode }));
             const tripId = await createTrip(body.user.id, { name: "Native mode fixture", startDate: "2027-05-01", endDate: "2027-05-04", timezone: "UTC" });
+            const message = await sendChatMessage(body.user.id, tripId, { clientId: crypto.randomUUID(), body: "Keep this message" });
+            const identityAudit = await this.db.auditLog.findFirstOrThrow({ where: { tripId, entity: "trip" } });
+            await this.db.user.update({ where: { id: body.user.id }, data: { name: "Tripanize.app" } });
+            await this.db.traveler.updateMany({ where: { tripId, userId: body.user.id }, data: { name: "Tripanize.app" } });
+            await this.db.chatMessage.update({ where: { id: message.id }, data: { senderName: "Tripanize.app" } });
+            await this.db.auditLog.update({ where: { id: identityAudit.id }, data: { actorName: "Tripanize.app" } });
+            const notice = await this.db.tripNotification.create({ data: { userId: body.user.id, tripId, auditId: identityAudit.id, tripName: "Native mode fixture", summary: "Tripanize.app updated trip details.", href: "/trips" } });
+            await normalizeCompanyIdentity();
+            const personalIdentity = (await this.db.user.findUniqueOrThrow({ where: { id: body.user.id } })).name === "Joe Daniel Hadchity"
+              && (await this.db.traveler.findFirstOrThrow({ where: { tripId, userId: body.user.id } })).name === "Joe Daniel Hadchity"
+              && (await this.db.chatMessage.findUniqueOrThrow({ where: { id: message.id } })).senderName === "Joe Daniel Hadchity"
+              && (await this.db.tripNotification.findUniqueOrThrow({ where: { id: notice.id } })).summary === "Joe Daniel Hadchity updated trip details.";
             await appRuntime.run({ ...modeRuntime, accountMode: initial }, () => setAccountMode(body.user.id, "NORMAL"));
             const normal = await resolveAccountMode(headers);
             let denied = false, premiumRetained = false;
@@ -157,14 +170,14 @@ export class StorageProbe extends DurableObject<Env> {
             const restored = !(await resolveAccountMode(headers))?.normal;
             const factorConfirmed = await appRuntime.run({ ...modeRuntime, accountMode: await resolveAccountMode(headers) }, async () => (await adminSecurityStatus(body.user.id)).unlocked);
             await appRuntime.run({ ...modeRuntime, accountMode: await resolveAccountMode(headers) }, () => setAccountMode(body.user.id, "NORMAL"));
-            await this.ctx.storage.put("modeFixture", { email, userId: body.user.id, sessionId: initial.sessionId });
-            return Response.json({ hiddenBeforeVerification, denied, premiumRetained, othersUnchanged, restored, requiresCode, factorConfirmed, codeHashOnly, replayDenied, defaultsAdmin: initial.normal === false, forgedCookieIgnored: !await resolveAccountMode(new Headers({ Cookie: "tripanize.mode=ADMIN; better-auth.session_token=fake" })) });
+            await this.ctx.storage.put("modeFixture", { email, userId: body.user.id, sessionId: initial.sessionId, tripId });
+            return Response.json({ personalIdentity, hiddenBeforeVerification, denied, premiumRetained, othersUnchanged, restored, requiresCode, factorConfirmed, codeHashOnly, replayDenied, defaultsAdmin: initial.normal === false, forgedCookieIgnored: !await resolveAccountMode(new Headers({ Cookie: "tripanize.mode=ADMIN; better-auth.session_token=fake" })) });
           });
         }
         if (new URL(request.url).pathname === "/mode-state") {
-          const state = await this.ctx.storage.get<{ email: string; userId: string; sessionId: string }>("modeFixture");
+          const state = await this.ctx.storage.get<{ email: string; userId: string; sessionId: string; tripId: string }>("modeFixture");
           if (!state) throw new Error("Mode fixture missing");
-          return appRuntime.run({ database: this.db, authSecret: "isolated-mode-fixture", companyAdminEmail: state.email, planAccessEnabled: true }, async () => Response.json({ persisted: (await sessionAccountMode(state.userId, state.sessionId))?.normal === true }));
+          return appRuntime.run({ database: this.db, authSecret: "isolated-mode-fixture", companyAdminEmail: state.email, planAccessEnabled: true }, async () => Response.json({ persisted: (await sessionAccountMode(state.userId, state.sessionId))?.normal === true && (await this.db.user.findUniqueOrThrow({ where: { id: state.userId } })).name === "Joe Daniel Hadchity" && (await this.db.traveler.findFirstOrThrow({ where: { tripId: state.tripId, userId: state.userId } })).name === "Joe Daniel Hadchity" }));
         }
         if (new URL(request.url).pathname === "/travel-tools") {
           const user = await this.db.user.create({ data: { id: crypto.randomUUID(), name: "Native trip tools", email: `tools-${crypto.randomUUID()}@example.test` } });

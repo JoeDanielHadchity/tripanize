@@ -1,5 +1,4 @@
 "use client";
-import { OPERATOR_NAME } from "@/lib/legal";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -22,7 +21,7 @@ export function AccountForm({ initial, company = false }: { initial: Initial; co
       <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); run(() => updateProfileAction({ ...v, homeCity: v.homeCity || null, dietary: v.dietary || null, accessibility: v.accessibility || null, timezone: v.timezone || null }), { success: "Preferences saved" }); }}>
         <Card className="space-y-4">
           <h2 className="font-display text-lg font-semibold">Profile</h2>
-          <Field label="Display name" htmlFor="a-name" hint={company ? `Your administrator account appears as ${OPERATOR_NAME} throughout Tripanize.` : "Shown to people you travel with."}><Input id="a-name" required maxLength={80} readOnly={company} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
+          <Field label="Display name" htmlFor="a-name" hint="Shown to people you travel with."><Input id="a-name" required maxLength={80} readOnly={company} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
           <Field label="Home city" htmlFor="a-home"><Input id="a-home" value={v.homeCity} onChange={(e) => setV({ ...v, homeCity: e.target.value })} /></Field>
         </Card>
         <Card className="space-y-4">
