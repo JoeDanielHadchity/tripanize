@@ -70,5 +70,25 @@
     "description": "Colorful Porto waterfront and traditional boats on the Douro River",
     "width": 1360,
     "height": 1920
+  },
+  "start-mont-saint-michel": {
+    "source": "https://images.unsplash.com/photo-1749106896887-d285e3cf88a9?fm=webp&fit=crop&w=2400&h=1200&q=88",
+    "pageUrl": "https://unsplash.com/photos/the-monastery-stands-majestic-under-the-golden-sunset-d6BtltOKbCU",
+    "photographer": "Keith H\u00e4sler",
+    "license": "Unsplash License",
+    "licenseUrl": "https://unsplash.com/license",
+    "description": "Mont Saint-Michel at golden hour in Normandy, France",
+    "width": 2400,
+    "height": 1200
+  },
+  "start-amalfi-coast": {
+    "source": "https://images.unsplash.com/photo-1782053491914-a5b04adeb7b4?fm=webp&fit=crop&w=2400&h=1200&q=78",
+    "pageUrl": "https://unsplash.com/photos/positano-coastal-town-with-boats-beach-and-blue-sea-pC_iHok3vac",
+    "photographer": "Rafael Peier",
+    "license": "Unsplash License",
+    "licenseUrl": "https://unsplash.com/license",
+    "description": "Positano and the Mediterranean Sea on Italy\u2019s Amalfi Coast",
+    "width": 2400,
+    "height": 1200
   }
 }
