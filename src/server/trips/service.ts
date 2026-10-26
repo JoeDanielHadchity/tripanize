@@ -7,6 +7,7 @@ import { parseMoney } from "@/lib/money";
 import { syncBookingProjection } from "@/server/bookings/service";
 import { formatZodError, tripInput, type TripInput, type TripParsed } from "./schemas";
 import { accountDisplayName } from "@/server/admin/identity";
+import { destinationImageKey, savedTripImage, scheduleTripCover } from "@/server/images";
 
 function parse(input: TripInput): TripParsed {
   const r = tripInput.safeParse(input);
@@ -153,7 +154,10 @@ export async function createTrip(userId: string, input: TripInput, destinationSe
     if (destinationSearchId) await tx.destinationSearch.update({ where: { id: destinationSearchId }, data: { selectedTripId: trip.id } });
     return trip.id;
   };
-  return transaction ? write(transaction) : prisma.$transaction(write);
+  if (transaction) return write(transaction);
+  const id = await prisma.$transaction(write);
+  if (t.destinations.length) scheduleTripCover(id);
+  return id;
 }
 
 /** Updates trip details. Destinations are replaced by the submitted list (matched by id). */
@@ -161,7 +165,10 @@ export async function updateTrip(userId: string, tripId: string, input: TripInpu
   await requireTrip(tripId, userId, "edit");
   const t = parse(input);
   await prisma.$transaction(async (tx) => {
-    const res = await tx.trip.updateMany({ where: { id: tripId, version: expectedVersion }, data: { ...scalarFields(t), version: { increment: 1 } } });
+    const previous = await tx.destination.findFirst({ where: { tripId }, orderBy: { position: "asc" } });
+    const first = t.destinations[0];
+    const coverChanged = (previous ? destinationImageKey(previous.name, previous.country) : null) !== (first ? destinationImageKey(first.name, first.country) : null);
+    const res = await tx.trip.updateMany({ where: { id: tripId, version: expectedVersion }, data: { ...scalarFields(t), version: { increment: 1 }, ...(coverChanged ? { imageUrl: null, imageCredit: null, imagePageUrl: null, imageDestinationKey: null } : {}) } });
     if (res.count === 0) throw conflictError("The trip details");
     const existing = await tx.destination.findMany({ where: { tripId } });
     const submittedIds = new Set(t.destinations.map((d) => d.id).filter(Boolean));
@@ -181,6 +188,7 @@ export async function updateTrip(userId: string, tripId: string, input: TripInpu
     await syncDays(tx, tripId);
     await recordChange(tx, { tripId, actorId: userId, entity: "trip", entityId: tripId, action: "update" });
   });
+  if (t.destinations.length) scheduleTripCover(tripId);
 }
 
 /**
@@ -231,7 +239,7 @@ export async function listTrips(userId: string, opts: { q?: string; phase?: stri
     include: {
       trip: {
         include: {
-          destinations: { orderBy: { position: "asc" }, select: { name: true } },
+          destinations: { orderBy: { position: "asc" }, select: { name: true, country: true } },
           travelers: { where: { leftAt: null }, select: { id: true, name: true } },
         },
       },
@@ -253,6 +261,7 @@ export async function listTrips(userId: string, opts: { q?: string; phase?: stri
         travelers: t.travelers.map((x) => x.name),
         imageUrl: t.imageUrl,
         imageCredit: t.imageCredit,
+        coverImage: savedTripImage(t, t.destinations[0]),
         phase: tripPhase(t.startDate, t.endDate, today),
         updatedAt: t.updatedAt,
       };

@@ -1,3 +1,4 @@
+import automaticTripCovers from "../prisma/migrations/202610260021_automatic_trip_covers/migration.sql?raw";
 import mealOptions from "../prisma/migrations/202610260020_meal_options/migration.sql?raw";
 import adminEmailCode from "../prisma/migrations/202610240019_admin_email_code/migration.sql?raw";
 import adminAuthentication from "../prisma/migrations/202610230018_admin_authentication/migration.sql?raw";
@@ -164,6 +165,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
         });
         await ctx.storage.put("schemaVersion", 20);
       }
+      if (version < 21) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "imageDestinationKey")) ctx.storage.sql.exec(automaticTripCovers);
+        });
+        await ctx.storage.put("schemaVersion", 21);
+      }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
       if (this.env.COMPANY_ADMIN_EMAIL && await ctx.storage.get("companyIdentity15") !== `${this.env.COMPANY_ADMIN_EMAIL}:${OPERATOR_NAME}`) {
@@ -178,8 +185,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     this.pending = result.then(() => undefined, () => undefined);
     return result;
   }
+  private background(run: () => Promise<void>) {
+    const runtime = this.runtime();
+    this.ctx.waitUntil(appRuntime.run({ ...runtime, database: serializedDatabase(runtime.database, task => this.serialize(task)) }, run));
+  }
   private runtime() {
-    return { database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, supportEmail: this.env.SUPPORT_EMAIL, companyAdminEmail: this.env.COMPANY_ADMIN_EMAIL, planAccessEnabled: this.env.PLAN_ACCESS_ENABLED === "true", paddle: paddleConfigFromEnv(this.env), wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
+    return { background: (run: () => Promise<void>) => this.background(run), database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, supportEmail: this.env.SUPPORT_EMAIL, companyAdminEmail: this.env.COMPANY_ADMIN_EMAIL, planAccessEnabled: this.env.PLAN_ACCESS_ENABLED === "true", paddle: paddleConfigFromEnv(this.env), wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
   }
   async alarm() { await this.ready; await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {

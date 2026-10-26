@@ -5,7 +5,6 @@ import { requireUser } from "@/server/auth/session";
 import { runAction } from "@/server/errors";
 import { createTrip, deleteTrip, previewTripChange, updateTrip } from "@/server/trips/service";
 import type { TripInput } from "@/server/trips/schemas";
-import { findDestinationImage } from "@/server/images";
 import { ensureDestinationCoords } from "@/server/weather/trip";
 import { prisma } from "@/server/db";
 import { addTask, deleteTask, toggleTask } from "@/server/trips/tasks";
@@ -19,19 +18,11 @@ async function detectTimezone(tripId: string) {
   if (trip && trip.timezone === "UTC" && tz) await prisma.trip.update({ where: { id: tripId }, data: { timezone: tz } });
 }
 
-async function attachImage(tripId: string) {
-  const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { destinations: { orderBy: { position: "asc" }, take: 1 } } });
-  const first = trip?.destinations[0];
-  if (!trip || !first || trip.imageUrl) return;
-  const img = await Promise.race([findDestinationImage(first.name), new Promise<null>((r) => setTimeout(() => r(null), 4000))]);
-  if (img) await prisma.trip.update({ where: { id: tripId }, data: { imageUrl: img.url, imageCredit: img.credit, imagePageUrl: img.pageUrl } });
-}
-
 export async function createTripAction(input: TripInput) {
   return runAction(async () => {
     const user = await requireUser();
     const id = await createTrip(user.id, input);
-    await Promise.all([attachImage(id).catch(() => undefined), detectTimezone(id).catch(() => undefined)]);
+    await detectTimezone(id).catch(() => undefined);
     revalidatePath("/trips");
     return { id };
   });
@@ -41,8 +32,7 @@ export async function updateTripAction(tripId: string, input: TripInput, version
   return runAction(async () => {
     const user = await requireUser();
     await updateTrip(user.id, tripId, input, version);
-    await prisma.trip.update({ where: { id: tripId }, data: { imageUrl: null } }).catch(() => undefined);
-    await Promise.all([attachImage(tripId).catch(() => undefined), detectTimezone(tripId).catch(() => undefined)]);
+    await detectTimezone(tripId).catch(() => undefined);
     revalidatePath(`/trips/${tripId}`, "layout");
   });
 }
@@ -66,7 +56,6 @@ export async function copyExampleAction(slug: string, startDate: string) {
   return runAction(async () => {
     const user = await requireUser();
     const id = await copyExample(user.id, slug, startDate);
-    await attachImage(id).catch(() => undefined);
     revalidatePath("/trips");
     return { id };
   });

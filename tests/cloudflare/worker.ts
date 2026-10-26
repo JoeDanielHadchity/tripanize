@@ -1,3 +1,4 @@
+import automaticTripCovers from "../../prisma/migrations/202610260021_automatic_trip_covers/migration.sql";
 import { readMealOptions, MEALS, type DayMeals } from "../../src/lib/meal-options";
 import mealOptions from "../../prisma/migrations/202610260020_meal_options/migration.sql";
 import adminEmailCode from "../../prisma/migrations/202610240019_admin_email_code/migration.sql";
@@ -33,7 +34,8 @@ import tripFeatures from "../../prisma/migrations/202610230009_trip_features/mig
 import { changeMemberLocation, getLocationSelf, getMemberLocations } from "../../src/server/locations/service";
 import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
-import { appRuntime } from "../../src/server/cloudflare/runtime";
+import { appRuntime, currentRuntime } from "../../src/server/cloudflare/runtime";
+import { destinationImageKey, getTripCover } from "../../src/server/images";
 import { createTrip } from "../../src/server/trips/service";
 import { createBooking } from "../../src/server/bookings/service";
 import { getItinerary } from "../../src/server/itinerary/service";
@@ -75,6 +77,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminVerifiedUntil")) ctx.storage.sql.exec(adminAuthentication);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminEmailUnlockedAt")) ctx.storage.sql.exec(adminEmailCode);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("ItineraryDay")').toArray().some(c => c.name === "mealOptions")) ctx.storage.sql.exec(mealOptions);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(c => c.name === "imageDestinationKey")) ctx.storage.sql.exec(automaticTripCovers);
       });
     });
   }
@@ -187,6 +190,28 @@ export class StorageProbe extends DurableObject<Env> {
           if (!state) throw new Error("Native travel tools fixture missing");
           const p = (await listPolls(state.userId, state.tripId)).polls[0];
           return Response.json({ reminders: await this.db.tripNotification.count({ where: { tripId: state.tripId, kind: "booking_reminder" } }) === 1, votes: p.status === "DECIDED" && p.totalVotes === 1, booking: Boolean((await this.db.booking.findUnique({ where: { id: state.bookingId } }))?.bookByAt) });
+        }
+        if (new URL(request.url).pathname === "/trip-cover") {
+          const saved = await this.ctx.storage.get<{ tripId: string; userId: string; updatedAt: string }>("automaticCover");
+          if (saved) {
+            const result = await getTripCover(saved.userId, saved.tripId);
+            const trip = await this.db.trip.findUniqueOrThrow({ where: { id: saved.tripId } });
+            return Response.json({ persisted: result.image?.url === "https://upload.wikimedia.org/automatic-1920.jpg" && trip.updatedAt.toISOString() === saved.updatedAt });
+          }
+          const userId = crypto.randomUUID();
+          await this.db.user.create({ data: { id: userId, email: `${userId}@example.test`, name: "Automatic cover fixture" } });
+          const key = destinationImageKey("Native City", "Fixture country");
+          const value = { image: { url: "https://upload.wikimedia.org/automatic-1920.jpg", credit: "Fixture photographer · CC BY-SA 4.0", pageUrl: "https://commons.wikimedia.org/wiki/File:automatic.jpg" } };
+          await this.db.externalCache.upsert({ where: { key }, create: { key, value }, update: { value, fetchedAt: new Date() } });
+          const tasks: (() => Promise<void>)[] = [];
+          const tripId = await appRuntime.run({ ...currentRuntime(), background: run => tasks.push(run) }, () => createTrip(userId, { name: "Automatic cover fixture", destinations: [{ name: "Native City", country: "Fixture country" }] }));
+          const before = await this.db.trip.findUniqueOrThrow({ where: { id: tripId } });
+          if (tasks.length !== 1) throw new Error("Trip creation did not schedule its cover");
+          await tasks[0]();
+          const trip = await this.db.trip.findUniqueOrThrow({ where: { id: tripId } });
+          await this.db.externalCache.delete({ where: { key } });
+          await this.ctx.storage.put("automaticCover", { tripId, userId, updatedAt: before.updatedAt.toISOString() });
+          return Response.json({ persisted: trip.imageUrl === value.image.url && trip.imageDestinationKey === key && trip.updatedAt.getTime() === before.updatedAt.getTime() });
         }
         if (new URL(request.url).pathname === "/meal-options") {
           const savedId = await this.ctx.storage.get<string>("mealOptionsDay");

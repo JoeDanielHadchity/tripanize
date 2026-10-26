@@ -106,7 +106,7 @@ function TripTile({ trip, selected = false }: { trip: TripCard; selected?: boole
     <article className={cx("flex h-full flex-col overflow-hidden rounded-2xl border bg-surface", selected ? "border-accent ring-2 ring-accent/25" : "border-line")}>
       <div className="relative h-36 brand-backdrop">
         <CardPlace destinations={trip.destinations} fallback={trip.name} />
-        {trip.destinations.length > 0 && <TripCoverPhoto key={`${trip.destinations.join("|")}:${trip.updatedAt.toISOString()}`} tripId={trip.id} destination={trip.destinations[0]} />}
+        {trip.destinations.length > 0 && <TripCoverPhoto key={`${trip.destinations.join("|")}:${trip.updatedAt.toISOString()}`} tripId={trip.id} destination={trip.destinations[0]} initialImage={trip.coverImage} />}
         <Badge tone={p.tone} className="absolute left-3 top-3 shadow-sm">{p.label}</Badge>
       </div>
       <div className="flex flex-1 flex-col p-4">
