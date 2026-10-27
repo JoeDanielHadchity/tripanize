@@ -50,6 +50,8 @@ import { getTripPlan } from "../../src/server/plans/access";
 import { planningScope } from "../../src/server/plans/planning";
 import { paddleRequest } from "../../src/server/billing/paddle";
 import { normalizeCompanyIdentity } from "../../src/server/admin/identity";
+import { copyExample } from "../../src/server/examples/copy";
+import { CITY_GUIDES } from "../../src/server/examples/city-guides";
 
 interface Env { PROBE: DurableObjectNamespace; FILES: R2Bucket; ASSETS: Fetcher }
 export class StorageProbe extends DurableObject<Env> {
@@ -85,6 +87,20 @@ export class StorageProbe extends DurableObject<Env> {
   async fetch(request: Request) {
     try {
       return await appRuntime.run({ database: this.db, files: this.env.FILES, assets: this.env.ASSETS, authSecret: "test-only-not-used-for-production" }, async () => {
+        if (new URL(request.url).pathname === "/city-guide-copy") {
+          const ownerId = crypto.randomUUID();
+          await this.db.user.create({ data: { id: ownerId, name: "Guide copy fixture", email: `${ownerId}@example.test` } });
+          for (const slug of ["bangkok", "london"]) {
+            const guide = CITY_GUIDES.find(city => city.slug === slug)!;
+            const id = await copyExample(ownerId, slug, "2030-07-10");
+            const trip = await this.db.trip.findUniqueOrThrow({ where: { id }, include: { days: { include: { stops: true } }, bookings: true } });
+            if (trip.timezone !== guide.timezone || trip.currency !== guide.currency || trip.budgetMinor !== null || trip.ownerId !== ownerId) throw new Error("Copied guide has incorrect trip settings");
+            if (trip.days.length !== 4 || trip.days.flatMap(day => day.stops).length !== guide.days.flatMap(day => day.stops).length) throw new Error("Guide copy lost itinerary stops");
+            if (trip.days.flatMap(day => day.stops).some(stop => stop.origin !== "MANUAL" || stop.estCostMinor !== null || stop.bookingId !== null)) throw new Error("Guide copy duplicated or charged itinerary stops");
+            if (trip.bookings.some(booking => booking.status !== "IDEA" || booking.date !== null || booking.estCostMinor !== null)) throw new Error("Guide ideas became confirmed bookings");
+          }
+          return Response.json({ copied: 2, days: 8, privateCopies: true, perPersonBudgetNotApplied: true, bookingsUnconfirmed: true });
+        }
         if (new URL(request.url).pathname === "/admin-check") {
           const adminEmail = `native-admin-${crypto.randomUUID()}@example.test`;
           const admin = await this.db.user.create({ data: { id: crypto.randomUUID(), name: "Administrator", email: adminEmail, emailVerified: true } });
