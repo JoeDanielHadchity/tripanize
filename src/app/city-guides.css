@@ -83,7 +83,7 @@
 .trip-idea { display:flex; flex-direction:column; min-width:0; grid-column:span 2; border:1px solid var(--line); background:var(--surface); border-radius:9px; overflow:hidden; box-shadow:0 3px 0 var(--paper-shadow); }
 .trip-idea:nth-last-child(-n+2) { grid-column:span 3; }
 .trip-idea:hover { border-color:var(--accent); }
-.trip-idea img { display:block; flex-shrink:0; width:100%; height:auto; aspect-ratio:3/2; object-fit:contain; object-position:center; background:var(--surface-2); border-bottom:1px solid var(--line); }
+.trip-idea img { display:block; flex-shrink:0; width:100%; height:auto; aspect-ratio:3/2; object-fit:cover; object-position:center; }
 .trip-idea:nth-last-child(-n+2) img { aspect-ratio:4/3; }
 .trip-idea>div { display:flex; flex-direction:column; flex:1; padding:17px 18px; }
 .trip-idea p { font-size:11px; color:var(--muted); }
