@@ -43,7 +43,7 @@ The main site's build creates `/mobile-preview/` from the very same React Native
 
 ## Signed builds
 
-Once the owner has an Expo account, initialize this app with `npx eas-cli@latest init` and commit the assigned project ID. Do not invent a project ID or developer-team identity.
+This app is linked to the owner's `tripanizeapp` Expo organization and project `dac6638c-94ea-4d44-9edb-3bebf71da3df`. Finish the Expo CLI device login before starting a cloud build. The repository-root `.easignore` limits uploads to the mobile client and its shared JSON contracts; backend code, local environment files, signing files, caches, and dependencies are excluded.
 
 ```sh
 npx eas-cli@latest build --profile preview --platform android
