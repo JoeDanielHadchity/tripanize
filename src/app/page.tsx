@@ -6,6 +6,7 @@ import { LinkButton } from "@/components/ui";
 import { FlightExplainer } from "@/components/flight-explainer";
 import { publicMetadata, PUBLIC_PAGES, SITE_STRUCTURED_DATA } from "@/lib/seo";
 import { FEATURE_PAGES } from "@/lib/feature-pages";
+import { TripIdeas } from "@/components/guides/trip-ideas";
 
 export const metadata = publicMetadata("/", PUBLIC_PAGES["/"]);
 
@@ -22,6 +23,7 @@ export default async function Home() {
         <aside className="hero-stub" aria-label="Example trip to Porto"><div className="hero-airports">LIS <span aria-hidden="true">→</span> OPO</div><div><p className="ticket-label">Destination</p><p className="font-display text-2xl font-medium">Porto</p><p className="mt-2 text-xs text-muted">4 days · 3 travelers</p><p className="text-xs text-muted">Example trip</p></div><div className="ticket-barcode" aria-hidden="true" /></aside>
       </section>
       <FlightExplainer />
+      <TripIdeas />
       <section className="home-features" aria-labelledby="features-title"><h2 id="features-title">Your trip, together.</h2><div>
         <article><span className="feature-number">01</span><h3>Plan each day</h3><p>Edit your itinerary, one day at a time.</p></article>
         <article><span className="feature-number">02</span><h3>Events & bookings</h3><p>Event suggestions linked to bookings.</p></article>

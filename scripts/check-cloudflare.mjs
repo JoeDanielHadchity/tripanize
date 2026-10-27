@@ -36,6 +36,7 @@ let child;
 try {
   child = await start();
   if (mode === "storage") {
+    assert.deepEqual(await json("/city-guide-copy"), { copied: 2, days: 8, privateCopies: true, perPersonBudgetNotApplied: true, bookingsUnconfirmed: true });
     const accountMode = await json("/mode-check");
     for (const [check, passed] of Object.entries(accountMode)) assert.equal(passed, true, `account mode: ${check}`);
     const travelTools = await json("/travel-tools");
@@ -93,7 +94,29 @@ try {
     const sitemap = await fetch(origin + "/sitemap.xml"); assert.equal(sitemap.status, 200); assert.match(sitemap.headers.get("Content-Type"), /xml/);
     const sitemapXml = await sitemap.text(); assert.match(sitemapXml, /https:\/\/www\.tripanize\.app\/examples\/lisbon-porto/); assert.doesNotMatch(sitemapXml, /\/(?:trips|account|company|checkout|invite|trial|api|mobile-preview)(?:\/|<)/);
     const robots = await fetch(origin + "/robots.txt"); assert.equal(robots.status, 200); assert.match(await robots.text(), /Sitemap: https:\/\/www\.tripanize\.app\/sitemap.xml/);
-    for (const path of ["/plans", "/contact", "/terms", "/privacy", "/refunds", "/examples/lisbon-porto", "/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"]) {
+    assert.match(html, /id="trip-ideas"/);
+    const guidePhotoHashes = new Set();
+    for (const slug of ["bangkok", "hong-kong", "london", "paris", "istanbul"]) {
+      const path = `/examples/${slug}`;
+      const guide = await fetch(origin + path); assert.equal(guide.status, 200, path);
+      const guideHtml = await guide.text();
+      assert.match(html, new RegExp(`href="${path}"`));
+      assert.match(sitemapXml, new RegExp(`https://www\\.tripanize\\.app${path}<`));
+      assert.match(guideHtml, new RegExp(`rel="canonical" href="https://www\\.tripanize\\.app${path}"`));
+      assert.match(guideHtml, /name="robots" content="index,\s*follow"/);
+      assert.equal([...guideHtml.matchAll(/class="guide-day-panel"/g)].length, 4);
+      assert.equal([...guideHtml.matchAll(/class="guide-day-panel"[^>]*hidden=""/g)].length, 3);
+      assert.match(guideHtml, /Per person/); assert.match(guideHtml, /not live quotes/);
+      assert.match(guideHtml, /href="\/sign-in\?next=%2Fexamples%2F[^\"]+%23use-itinerary"/);
+      assert.doesNotMatch(guideHtml, /id="copy-date"/);
+      for (const suffix of ["", "-card", "-small", "-card-small"]) {
+        const asset = await fetch(origin + `/editorial/city-guides/${slug}${suffix}.webp`); assert.equal(asset.status, 200);
+        if (["", "-card"].includes(suffix)) guidePhotoHashes.add(Buffer.from(await crypto.subtle.digest("SHA-256", await asset.arrayBuffer())).toString("hex"));
+        else await asset.arrayBuffer();
+      }
+    }
+    assert.equal(guidePhotoHashes.size, 10, "Guide and homepage photographs must all be different");
+    for (const path of ["/plans", "/contact", "/terms", "/privacy", "/refunds", "/examples", "/examples/lisbon-porto", "/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"]) {
       const publicPage = await fetch(origin + path); assert.equal(publicPage.status, 200, path);
       const publicHtml = await publicPage.text();
       assert.match(publicHtml, new RegExp(`rel="canonical" href="https://www\\.tripanize\\.app${path}"`));
@@ -136,6 +159,10 @@ try {
     assert.equal(signup.status, 200, await signup.clone().text());
     const cookie = signup.headers.getSetCookie().map((v) => v.split(";")[0]).join("; ");
     assert.ok(cookie);
+    const memberGuide = await (await fetch(origin + "/examples/paris", { headers: { Cookie: cookie } })).text();
+    assert.match(memberGuide, /id="copy-date"/); assert.match(memberGuide, /Save a copy to my trips/);
+    const returnToGuide = await fetch(origin + "/sign-in?next=%2Fexamples%2Fparis%23use-itinerary", { headers: { Cookie: cookie }, redirect: "manual" });
+    assert.equal(returnToGuide.status, 307); assert.equal(returnToGuide.headers.get("Location"), "/examples/paris#use-itinerary");
     for (const path of ["/api/mobile/session", "/api/mobile/trips", "/api/mobile/destinations", "/api/mobile/trips/not-a-member"]) {
       const anonymous = await fetch(origin + path); assert.equal(anonymous.status, 401, path);
       assert.equal(anonymous.headers.get("Cache-Control"), "private, no-store");

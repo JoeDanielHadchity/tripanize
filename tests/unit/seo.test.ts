@@ -5,7 +5,7 @@ import sitemap from "@/app/sitemap";
 describe("public SEO routing", () => {
   it("consolidates anonymous public pages without losing campaign parameters", () => {
     for (const method of ["GET", "HEAD"]) {
-      for (const path of ["/", "/plans", "/privacy", "/examples/lisbon-porto", "/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"]) {
+      for (const path of ["/", "/plans", "/privacy", "/examples/lisbon-porto", "/examples/bangkok", "/examples/hong-kong", "/examples/london", "/examples/paris", "/examples/istanbul", "/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"]) {
         const response = publicCanonicalRedirect(new Request(`https://tripanize.app${path}?utm_source=launch`, { method }));
         expect(response?.status).toBe(308);
         expect(response?.headers.get("Location")).toBe(`${SITE_ORIGIN}${path}?utm_source=launch`);
@@ -37,6 +37,7 @@ describe("public SEO routing", () => {
     expect(urls).toContain(`${SITE_ORIGIN}/`);
     expect(urls).toContain(`${SITE_ORIGIN}/plans`);
     expect(urls).toContain(`${SITE_ORIGIN}/examples/lisbon-porto`);
+    for (const slug of ["bangkok", "hong-kong", "london", "paris", "istanbul"]) expect(urls).toContain(`${SITE_ORIGIN}/examples/${slug}`);
     for (const path of ["/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"]) expect(urls).toContain(SITE_ORIGIN + path);
     expect(new Set(urls).size).toBe(urls.length);
     for (const value of urls) {

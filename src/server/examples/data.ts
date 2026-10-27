@@ -1,13 +1,14 @@
 // Curated example trip written by the Tripanize team (not AI output, not live data). Shown read-only and labeled
 // "Example"; travelers can save a copy as their own editable trip with their chosen start date.
+import { CITY_GUIDES, guideDuration } from "./city-guides";
 
-export type ExampleStop = { title: string; category: string; startTime: string; durationMin: number; travelToNextMin?: number; address?: string; reason: string; estCost?: number; isMeal?: boolean; isFreeTime?: boolean; officialUrl?: string; plan?: "B" };
+export type ExampleStop = { title: string; category: string; startTime: string; durationMin?: number; travelToNextMin?: number; address?: string; reason: string; notes?: string; estCost?: number; isMeal?: boolean; isFreeTime?: boolean; officialUrl?: string; plan?: "B" };
 export type ExampleDay = { offset: number; title: string; area: string; destination: number; isTravelDay?: boolean; notes?: string; stops: ExampleStop[] };
 export type Example = {
-  slug: string; name: string; summary: string; nights: number; currency: string; budget: number; image: string;
+  slug: string; name: string; summary: string; nights: number; timezone: string; currency: string; budget: number | null; image: string;
   destinations: { name: string; country: string; fromOffset: number; toOffset: number; neighborhood: string }[];
   interests: string[]; transport: string[]; mustSee: string[]; days: ExampleDay[];
-  bookings: { title: string; category: string; offset: number | null; startTime?: string; status: "IDEA" | "TO_BOOK"; whenToBook: string; estCost: number; url?: string }[];
+  bookings: { title: string; category: string; offset: number | null; startTime?: string; status: "IDEA" | "TO_BOOK"; whenToBook: string; estCost?: number; url?: string }[];
 };
 
 export const EXAMPLES: Example[] = [
@@ -16,6 +17,7 @@ export const EXAMPLES: Example[] = [
     name: "Lisbon & Porto by train",
     summary: "Six relaxed days: tiled hills and Belém in Lisbon, then port cellars and the Douro riverside in Porto.",
     nights: 5,
+    timezone: "Europe/Lisbon",
     currency: "EUR",
     budget: 1800,
     image: "var(--brand-gradient)",
@@ -64,4 +66,24 @@ export const EXAMPLES: Example[] = [
       { title: "Fado house dinner", category: "RESTAURANT", offset: null, status: "IDEA", whenToBook: "A few days ahead", estCost: 90 },
     ],
   },
+  ...CITY_GUIDES.map((guide): Example => ({
+    slug: guide.slug, name: guide.title, summary: guide.intro, nights: guide.days.length - 1, timezone: guide.timezone,
+    currency: guide.currency,
+    // The public allowance is per person; never silently make it the group's budget.
+    budget: null, image: "var(--brand-gradient)",
+    destinations: [{ name: guide.city, country: guide.slug === "hong-kong" ? "China" : guide.country, fromOffset: 0, toOffset: guide.days.length - 1, neighborhood: "" }],
+    interests: ["Culture", "Food & markets", "Architecture"], transport: ["Walking", "Public transit"], mustSee: [],
+    days: guide.days.map((day, offset) => ({
+      offset, title: day.title, area: day.area, destination: 0,
+      notes: [day.note, `Food nearby: ${day.food}`, `If plans change: ${day.planB}`, "Suggested times: adjust for closures, weather and arrival or departure."].join("\n\n"),
+      stops: day.stops.map(stop => ({
+        title: stop.title, category: /food/i.test(stop.kind) ? "food" : /ferry|transit/i.test(stop.kind) ? "transport" : /free time/i.test(stop.kind) ? "rest" : "sight",
+        startTime: stop.time, durationMin: guideDuration(stop.duration), reason: stop.detail,
+        notes: `${stop.kind} · suggested duration: ${stop.duration}. Check current access and availability.`,
+        isMeal: /food/i.test(stop.kind), isFreeTime: /free time|optional|choose one/i.test(stop.kind), officialUrl: stop.url,
+      })),
+    })),
+    // Undated ideas avoid duplicating the curated stops as booking projections.
+    bookings: guide.bookings.map(booking => ({ title: booking.label, category: /ferr/i.test(booking.label) ? "TRANSPORT" : "ATTRACTION", offset: null, status: "IDEA", whenToBook: booking.note, url: booking.url })),
+  })),
 ];

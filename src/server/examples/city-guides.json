@@ -1,0 +1,1244 @@
+{
+  "preparedOn": "2026-10-27",
+  "budgetBasis": "Illustrative planning allowances per person for 4 days and 3 nights, with 2 adults sharing a room. Excludes flights, shopping, insurance and Tripanize Premium. These are not live quotes.",
+  "scheduleBasis": "Suggested sightseeing times, not opening hours or confirmed reservations. Reorder days for closures, weather and arrival or departure times. Add an arrival night if you need four full sightseeing days.",
+  "guides": [
+    {
+      "slug": "bangkok",
+      "city": "Bangkok",
+      "country": "Thailand",
+      "timezone": "Asia/Bangkok",
+      "title": "Bangkok in 4 days",
+      "subtitle": "Golden temples. Riverside pauses. One more bite.",
+      "intro": "A first visit built around the river, the old city and Bangkok's food neighbourhoods. Start early, leave room for the heat, and give each part of the city its own time.",
+      "currency": "THB",
+      "budgetRange": "THB 9,000–15,000",
+      "budget": [
+        [
+          "Stay · 3 nights",
+          "THB 4,500–7,500"
+        ],
+        [
+          "Food · 4 days",
+          "THB 2,000–3,500"
+        ],
+        [
+          "Local transport",
+          "THB 800–1,500"
+        ],
+        [
+          "Sights & activities",
+          "THB 1,700–2,500"
+        ]
+      ],
+      "base": "Choose a hotel near a BTS or MRT station. Silom, Asok and the riverside offer different starting points; check the walk from the actual hotel to the station.",
+      "transport": "Use the MRT and BTS between districts, river boats for riverside stops, and a taxi when the last stretch is inconvenient. Leave generous transfer time rather than crossing town repeatedly.",
+      "packing": "Comfortable walking shoes, a refillable bottle, sun protection and a compact rain layer. Carry clothing that meets the Grand Palace and temple dress rules.",
+      "days": [
+        {
+          "title": "The royal city & the river",
+          "area": "Rattanakosin → Tha Tien → Wat Arun",
+          "pace": "Temples first, a slower afternoon",
+          "note": "Check the palace's official calendar and dress rules before visiting. Leave the hottest part of the day for lunch and a break.",
+          "stops": [
+            {
+              "time": "08:30",
+              "title": "Grand Palace & Wat Phra Kaew",
+              "detail": "Give the palace courtyards and temple your full morning rather than squeezing them between other stops.",
+              "duration": "2–2½ hr",
+              "kind": "Ticket",
+              "url": "https://www.royalgrandpalace.th/en/visit/practical-information"
+            },
+            {
+              "time": "11:15",
+              "title": "Wat Pho",
+              "detail": "Continue to the nearby temple complex and its reclining Buddha. Keep shoulders and knees covered.",
+              "duration": "1–1½ hr",
+              "kind": "Ticket",
+              "url": "https://watpho.com/index.php/en/contact/plan"
+            },
+            {
+              "time": "13:00",
+              "title": "Lunch & a pause around Tha Tien",
+              "detail": "Choose a sit-down meal and cool off before crossing the river.",
+              "duration": "1½ hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:45",
+              "title": "Wat Arun",
+              "detail": "Cross to the Thonburi bank and take time with the temple's ceramic details and river views.",
+              "duration": "1–1½ hr",
+              "kind": "Ticket"
+            },
+            {
+              "time": "18:00",
+              "title": "A riverside dinner",
+              "detail": "Keep the evening close to the river. Reserve a terrace if a particular view matters to you.",
+              "duration": "Unhurried",
+              "kind": "Food"
+            }
+          ],
+          "food": "Around Tha Tien, choose a Thai curry with rice or a simple vegetable stir-fry. For dinner, stay by the river instead of adding another long transfer.",
+          "planB": "If the palace closes for a ceremony, keep Wat Pho and the river, then move the palace to another morning. In heavy rain, postpone the crossing."
+        },
+        {
+          "title": "Old trading streets & Chinatown",
+          "area": "Talat Noi → Charoen Krung → Yaowarat",
+          "pace": "A neighbourhood day with a food-focused finish",
+          "note": "Treat this as a walking route with frequent café stops. Street-food stalls and small businesses keep their own hours.",
+          "stops": [
+            {
+              "time": "10:00",
+              "title": "Talat Noi lanes",
+              "detail": "Look for small shrines, workshop streets and glimpses of the river. Keep clear of working doorways.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "12:00",
+              "title": "Lunch near Charoen Krung",
+              "detail": "Take a proper lunch break, then explore the surrounding shopfronts at your own pace.",
+              "duration": "1½ hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:00",
+              "title": "River City & a café break",
+              "detail": "Browse whatever exhibitions are on, or use the afternoon for a shaded pause by the river.",
+              "duration": "1½ hr",
+              "kind": "Culture",
+              "url": "https://rivercitybangkok.com/"
+            },
+            {
+              "time": "16:30",
+              "title": "Chinatown before dinner",
+              "detail": "Explore the streets around Yaowarat before choosing what to eat. Order a little at a time.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "18:30",
+              "title": "A Yaowarat food evening",
+              "detail": "Make dinner a few small dishes rather than one large meal, with time to sit between stops.",
+              "duration": "Flexible",
+              "kind": "Food"
+            }
+          ],
+          "food": "Try a noodle soup or rice dish for lunch, then choose cooked-to-order dishes and a dessert in Chinatown. Ask about ingredients to suit your preferences.",
+          "planB": "Use indoor exhibitions and cafés around Charoen Krung during a downpour; return to the walking lanes when it clears."
+        },
+        {
+          "title": "Design, shopping & a green escape",
+          "area": "National Stadium → Siam → Sukhumvit",
+          "pace": "Indoors at midday, outdoors later",
+          "note": "Bangkok Art and Culture Centre normally closes on Mondays. Check the current programme and swap in the Siam shops if needed.",
+          "stops": [
+            {
+              "time": "10:00",
+              "title": "Jim Thompson House",
+              "detail": "Start with the house museum and gardens. Check the visit arrangements before choosing your morning slot.",
+              "duration": "1½ hr",
+              "kind": "Ticket",
+              "url": "https://jimthompsonhouse.org/"
+            },
+            {
+              "time": "12:00",
+              "title": "Bangkok Art and Culture Centre",
+              "detail": "Choose a current exhibition rather than trying to see every floor.",
+              "duration": "1 hr",
+              "kind": "Culture",
+              "url": "https://www.bacc.or.th/"
+            },
+            {
+              "time": "13:30",
+              "title": "Lunch & browsing in Siam",
+              "detail": "Use the hottest part of the afternoon for food, design shops or an air-conditioned break.",
+              "duration": "2 hr",
+              "kind": "Food"
+            },
+            {
+              "time": "16:30",
+              "title": "Benchakitti Park",
+              "detail": "Take the train towards Sukhumvit, then slow down with a walk through the park as the heat eases.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "19:00",
+              "title": "Dinner near your return route",
+              "detail": "Choose a neighbourhood restaurant around Sukhumvit or head back towards your hotel.",
+              "duration": "Flexible",
+              "kind": "Food"
+            }
+          ],
+          "food": "A Siam food court gives the group different lunch choices. At dinner, pick a shared Thai meal or a simpler noodle-and-rice option near your hotel.",
+          "planB": "If rain persists, keep the museum, exhibitions and Siam. Move the park to a clearer afternoon."
+        },
+        {
+          "title": "Markets & a flexible finish",
+          "area": "Chatuchak → Or Tor Kor → Ari",
+          "pace": "A lighter day with room for departure",
+          "note": "Use the main Chatuchak market on a weekend. On a weekday, give the food market and Ari more time; confirm individual market and shop hours.",
+          "stops": [
+            {
+              "time": "09:30",
+              "title": "Chatuchak, if it is the weekend",
+              "detail": "Browse a few sections with a meeting point agreed in advance. Weekday alternative: start with the food-market stop below.",
+              "duration": "Up to 2 hr",
+              "kind": "Weekend option"
+            },
+            {
+              "time": "12:00",
+              "title": "Or Tor Kor food market",
+              "detail": "Explore produce and prepared food, then choose an easy lunch rather than booking another attraction.",
+              "duration": "1½ hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:30",
+              "title": "Ari cafés & side streets",
+              "detail": "Take a final neighbourhood wander and a coffee break, keeping luggage and departure logistics in mind.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "16:30",
+              "title": "Leave a real departure buffer",
+              "detail": "Return for bags or take a longer break if you are staying on. Plan the airport journey separately.",
+              "duration": "As needed",
+              "kind": "Free time"
+            }
+          ],
+          "food": "Choose a market lunch and fruit, or a café meal in Ari. The last day is deliberately flexible rather than another reservation-heavy route.",
+          "planB": "Replace outdoor browsing with a café and an indoor shopping stop. Shorten this day first if your flight is early."
+        }
+      ],
+      "bookings": [
+        {
+          "label": "Grand Palace admission",
+          "note": "Check the official calendar and dress code.",
+          "url": "https://www.royalgrandpalace.th/en/visit/practical-information"
+        },
+        {
+          "label": "Wat Pho visit",
+          "note": "Confirm current visitor information.",
+          "url": "https://watpho.com/index.php/en/contact/plan"
+        },
+        {
+          "label": "Jim Thompson House",
+          "note": "Check current visit and ticket arrangements.",
+          "url": "https://jimthompsonhouse.org/"
+        }
+      ],
+      "sources": [
+        {
+          "label": "Tourism Authority of Thailand",
+          "url": "https://www.tourismthailand.org/"
+        },
+        {
+          "label": "Grand Palace visitor information",
+          "url": "https://www.royalgrandpalace.th/en/visit/practical-information"
+        },
+        {
+          "label": "Wat Pho visitor information",
+          "url": "https://watpho.com/index.php/en/contact/plan"
+        },
+        {
+          "label": "Tourism Authority of Thailand · Talat Noi",
+          "url": "https://www.tourismthailand.org/Attraction/talat-noi"
+        },
+        {
+          "label": "Tourism Authority of Thailand · Chatuchak",
+          "url": "https://www.tourismthailand.org/Attraction/chatuchak-weekend-market"
+        },
+        {
+          "label": "Tourism Authority of Thailand · Or To Ko",
+          "url": "https://www.tourismthailand.org/Attraction/or-to-ko-market"
+        },
+        {
+          "label": "Jim Thompson House visitor information",
+          "url": "https://jimthompsonhouse.org/"
+        }
+      ]
+    },
+    {
+      "slug": "hong-kong",
+      "city": "Hong Kong",
+      "country": "Hong Kong SAR, China",
+      "timezone": "Asia/Hong_Kong",
+      "title": "Hong Kong in 4 days",
+      "subtitle": "Harbour lights. Hilltop views. Dim sum between stops.",
+      "intro": "A first visit that balances the skyline with street-level Hong Kong: Central, Kowloon, an island day and a quieter neighbourhood finish. Let the weather decide when you go up high.",
+      "currency": "HKD",
+      "budgetRange": "HK$4,000–6,500",
+      "budget": [
+        [
+          "Stay · 3 nights",
+          "HK$2,200–3,600"
+        ],
+        [
+          "Food · 4 days",
+          "HK$1,000–1,600"
+        ],
+        [
+          "Local transport",
+          "HK$300–500"
+        ],
+        [
+          "Sights & activities",
+          "HK$500–800"
+        ]
+      ],
+      "base": "Central or Sheung Wan suits Hong Kong Island exploring; Tsim Sha Tsui is convenient for the Kowloon waterfront. Choose proximity to an MTR station over a long daily taxi ride.",
+      "transport": "Use the MTR for longer hops and ferries when the crossing is part of the day. Leave extra time for Lantau; check the cable car and ferry operators before setting out.",
+      "packing": "Walking shoes for steep streets, a light layer for air-conditioned interiors, a compact umbrella and sun protection. The Lantau day includes steps and outdoor time.",
+      "days": [
+        {
+          "title": "Old Town Central & the Peak",
+          "area": "Sheung Wan → Central → the Peak",
+          "pace": "Street-level exploring, then a view",
+          "note": "Put the Peak on your clearest day. In low cloud, keep exploring Central and move the viewpoint to another afternoon.",
+          "stops": [
+            {
+              "time": "09:30",
+              "title": "Sheung Wan & Man Mo Temple",
+              "detail": "Start with the older streets around Hollywood Road and a respectful visit to the temple.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "11:30",
+              "title": "PMQ & the Central lanes",
+              "detail": "Browse design shops and small streets without turning the morning into a shopping checklist.",
+              "duration": "1½ hr",
+              "kind": "Design"
+            },
+            {
+              "time": "13:00",
+              "title": "Dim sum or a café lunch",
+              "detail": "Take a lunch break around Central or Soho before heading uphill.",
+              "duration": "1½ hr",
+              "kind": "Food"
+            },
+            {
+              "time": "15:30",
+              "title": "The Peak",
+              "detail": "Choose the tram or another transport option, then allow time to enjoy the view instead of immediately returning.",
+              "duration": "2 hr",
+              "kind": "Ticket option",
+              "url": "https://www.thepeak.com.hk/en"
+            },
+            {
+              "time": "19:00",
+              "title": "Dinner back in Central",
+              "detail": "Keep the last meal near your return route, with time for a harbourfront stroll if you still have energy.",
+              "duration": "Flexible",
+              "kind": "Food"
+            }
+          ],
+          "food": "Choose dim sum or wonton noodles at lunch. For dinner, Central gives you Cantonese dishes or a wide choice of other cuisines.",
+          "planB": "Stay in Central's galleries, shops and cafés when visibility is poor. Save the Peak for a clearer window."
+        },
+        {
+          "title": "Kowloon, from the harbour to the streets",
+          "area": "Star Ferry → Tsim Sha Tsui → Jordan",
+          "pace": "Waterfront first, a lively evening later",
+          "note": "Museum exhibitions and small businesses have separate opening calendars. Check the current programme before committing to an indoor visit.",
+          "stops": [
+            {
+              "time": "10:00",
+              "title": "Cross Victoria Harbour",
+              "detail": "Take the Star Ferry to Tsim Sha Tsui as part of the journey, not just a way to tick off a view.",
+              "duration": "Allow 45 min",
+              "kind": "Ferry",
+              "url": "https://www.starferry.com.hk/"
+            },
+            {
+              "time": "11:00",
+              "title": "Tsim Sha Tsui promenade",
+              "detail": "Walk the waterfront and the Avenue of Stars with the skyline across the water.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "13:00",
+              "title": "Lunch in Tsim Sha Tsui",
+              "detail": "Step back from the waterfront for a sit-down meal and a break from walking.",
+              "duration": "1 hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:30",
+              "title": "Hong Kong Museum of Art or a slow afternoon",
+              "detail": "Choose an exhibition that interests you, or keep the afternoon for neighbourhood exploring.",
+              "duration": "2 hr",
+              "kind": "Culture",
+              "url": "https://hk.art.museum/en/web/ma/home.html"
+            },
+            {
+              "time": "18:30",
+              "title": "Temple Street & Jordan",
+              "detail": "Explore the evening streets, then choose dinner rather than trying to fit every market into one night.",
+              "duration": "Flexible",
+              "kind": "Food & walk"
+            }
+          ],
+          "food": "Try a cha chaan teng lunch or a noodle shop. Around Jordan, compare menus for claypot rice or a shared Cantonese dinner.",
+          "planB": "Use the museum and an indoor meal during rain, then return to the harbour when conditions improve."
+        },
+        {
+          "title": "A day on Lantau",
+          "area": "Tung Chung → Ngong Ping → optional Tai O",
+          "pace": "A full island day; keep the evening free",
+          "note": "Ngong Ping 360 has announced a cable-car maintenance closure on 10 November 2026. Check current notices for your dates. Skip Tai O if you prefer a slower return.",
+          "stops": [
+            {
+              "time": "09:00",
+              "title": "Travel to Tung Chung",
+              "detail": "Leave room for the MTR journey and queues before your cable-car reservation.",
+              "duration": "From your hotel",
+              "kind": "Transit"
+            },
+            {
+              "time": "10:30",
+              "title": "Ngong Ping 360",
+              "detail": "Ride up towards Ngong Ping if the service is running and conditions are suitable.",
+              "duration": "Allow 1 hr",
+              "kind": "Ticket",
+              "url": "https://www.np360.com.hk/en"
+            },
+            {
+              "time": "11:45",
+              "title": "Big Buddha & Po Lin Monastery",
+              "detail": "Explore the monastery area and decide whether the steps up to the Buddha suit your group.",
+              "duration": "1½ hr",
+              "kind": "Culture"
+            },
+            {
+              "time": "13:30",
+              "title": "A relaxed lunch",
+              "detail": "Eat around Ngong Ping before deciding how much more you want to do.",
+              "duration": "1 hr",
+              "kind": "Food"
+            },
+            {
+              "time": "15:00",
+              "title": "Tai O, or return at your own pace",
+              "detail": "Optional: continue by local transport to the fishing village. Otherwise head back without adding another leg.",
+              "duration": "2–3 hr extra",
+              "kind": "Optional"
+            }
+          ],
+          "food": "A vegetarian meal around the monastery is one option. If continuing to Tai O, try a village snack or a sit-down meal before returning.",
+          "planB": "For cable-car closures, assess the official alternative transport and the weather. In severe weather, swap the entire island day for indoor city activities."
+        },
+        {
+          "title": "Neighbourhood finds & a harbour farewell",
+          "area": "Sham Shui Po → West Kowloon",
+          "pace": "Small shops, good food, an open afternoon",
+          "note": "Choose either a museum visit or a longer waterfront break in the afternoon. Shorten this route around your departure.",
+          "stops": [
+            {
+              "time": "10:00",
+              "title": "Sham Shui Po's market streets",
+              "detail": "Explore a few specialist streets and watch the neighbourhood go about its morning.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "11:45",
+              "title": "Tai Nan Street cafés & makers",
+              "detail": "Browse independent shops and pause for a drink rather than rushing between districts.",
+              "duration": "1 hr",
+              "kind": "Design"
+            },
+            {
+              "time": "13:00",
+              "title": "A neighbourhood lunch",
+              "detail": "Choose a local café or noodle shop before making your way towards West Kowloon.",
+              "duration": "1 hr",
+              "kind": "Food"
+            },
+            {
+              "time": "15:00",
+              "title": "West Kowloon waterfront or M+",
+              "detail": "Finish outdoors in good weather, or book an exhibition if that is more your pace.",
+              "duration": "Flexible",
+              "kind": "Choose one",
+              "url": "https://www.mplus.org.hk/en/"
+            }
+          ],
+          "food": "Try a Hong Kong-style café breakfast, then a noodle lunch or dim sum. Keep the final afternoon flexible for the journey home.",
+          "planB": "Book an indoor museum visit after checking its opening day, or stay with the cafés and shops near your hotel."
+        }
+      ],
+      "bookings": [
+        {
+          "label": "The Peak & Peak Tram",
+          "note": "Choose a clear-weather window; compare ticket options.",
+          "url": "https://www.thepeak.com.hk/en"
+        },
+        {
+          "label": "Ngong Ping 360",
+          "note": "Check maintenance and weather notices first.",
+          "url": "https://www.np360.com.hk/en"
+        },
+        {
+          "label": "M+ exhibitions",
+          "note": "Optional on the final day; check opening times.",
+          "url": "https://www.mplus.org.hk/en/"
+        }
+      ],
+      "sources": [
+        {
+          "label": "Hong Kong Tourism Board · Old Town Central",
+          "url": "https://www.discoverhongkong.com/eng/neighbourhoods/old-town-central.html"
+        },
+        {
+          "label": "Hong Kong Tourism Board · Lantau",
+          "url": "https://www.discoverhongkong.com/eng/neighbourhoods/outlying-islands/the-best-things-to-do-on-lantau-island.html"
+        },
+        {
+          "label": "Hong Kong Tourism Board · Sham Shui Po",
+          "url": "https://www.discoverhongkong.com/eng/neighbourhoods/sham-shui-po.html"
+        },
+        {
+          "label": "MTR visitor information",
+          "url": "https://www.mtr.com.hk/en/customer/tourist/index.html"
+        },
+        {
+          "label": "Ngong Ping 360 · current service notices",
+          "url": "https://www.np360.com.hk/en"
+        }
+      ]
+    },
+    {
+      "slug": "london",
+      "city": "London",
+      "country": "United Kingdom",
+      "timezone": "Europe/London",
+      "title": "London in 4 days",
+      "subtitle": "Royal landmarks. Riverside walks. A night at the theatre.",
+      "intro": "Four days organised by area: Westminster, the City and South Bank, the West End, then Greenwich. Mix a few booked highlights with the freedom to stop at a market or stay longer in a museum.",
+      "currency": "GBP",
+      "budgetRange": "£650–1,000",
+      "budget": [
+        [
+          "Stay · 3 nights",
+          "£330–540"
+        ],
+        [
+          "Food · 4 days",
+          "£160–240"
+        ],
+        [
+          "Local transport",
+          "£40–60"
+        ],
+        [
+          "Sights & activities",
+          "£120–160"
+        ]
+      ],
+      "base": "Look near a useful Tube station in Bloomsbury, Covent Garden or Southwark. Compare the actual route to your first stop rather than hotel distance from a single landmark.",
+      "transport": "Use the Tube between neighbourhood clusters, walk within each area, and consider a river boat for Greenwich. Check TfL for your dates and use the same payment method consistently.",
+      "packing": "Comfortable walking shoes, a waterproof layer and something warmer for the river. Keep an indoor alternative ready for changeable weather.",
+      "days": [
+        {
+          "title": "Royal London & the South Bank",
+          "area": "Buckingham Palace → Westminster → South Bank",
+          "pace": "A classic first day, mostly outdoors",
+          "note": "Buckingham Palace is an exterior stop here. Book separately for any palace interior or Abbey visit, checking the dates and service schedule.",
+          "stops": [
+            {
+              "time": "09:30",
+              "title": "Buckingham Palace, from outside",
+              "detail": "Begin with the palace frontage, then leave time to enjoy the surrounding streets and park.",
+              "duration": "45 min",
+              "kind": "Walk"
+            },
+            {
+              "time": "10:30",
+              "title": "St James's Park",
+              "detail": "Take the park route towards Westminster rather than adding another transfer.",
+              "duration": "1 hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "12:00",
+              "title": "Westminster & Big Ben",
+              "detail": "See Parliament Square and the river. Choose an Abbey interior visit only if you have allowed for its ticket slot.",
+              "duration": "1–2 hr",
+              "kind": "Ticket option",
+              "url": "https://www.westminster-abbey.org/visit-us/"
+            },
+            {
+              "time": "14:30",
+              "title": "Lunch & a South Bank stroll",
+              "detail": "Cross Westminster Bridge, then make the afternoon a relaxed walk with places to sit along the river.",
+              "duration": "2 hr",
+              "kind": "Food & walk"
+            },
+            {
+              "time": "18:00",
+              "title": "Dinner around Waterloo or Covent Garden",
+              "detail": "Pick the area that suits your hotel and energy rather than another attraction-heavy evening.",
+              "duration": "Flexible",
+              "kind": "Food"
+            }
+          ],
+          "food": "A café breakfast and a South Bank lunch keep the route simple. For dinner, choose a pub meal or one of Covent Garden's many cuisines.",
+          "planB": "Book an indoor Westminster visit or spend longer in an indoor gallery; leave the riverside walk for a clearer spell."
+        },
+        {
+          "title": "The Tower, the bridge & Bankside",
+          "area": "Tower Hill → Tower Bridge → Borough → Bankside",
+          "pace": "One major ticket, then a riverside afternoon",
+          "note": "Reserve the Tower of London and leave a substantial morning for it. Tower Bridge's exterior and paid exhibition are different experiences.",
+          "stops": [
+            {
+              "time": "09:30",
+              "title": "Tower of London",
+              "detail": "Give the fortress and Crown Jewels a proper morning; queues can change the pace.",
+              "duration": "2½–3 hr",
+              "kind": "Ticket",
+              "url": "https://www.hrp.org.uk/tower-of-london/visit/"
+            },
+            {
+              "time": "12:45",
+              "title": "Tower Bridge",
+              "detail": "Walk across for the river views. Add the exhibition only if you want a longer stop.",
+              "duration": "45 min",
+              "kind": "Ticket option",
+              "url": "https://www.towerbridge.org.uk/"
+            },
+            {
+              "time": "14:00",
+              "title": "Lunch around Borough Market",
+              "detail": "Browse before choosing lunch, and check the market calendar for the day of your visit.",
+              "duration": "1½ hr",
+              "kind": "Food",
+              "url": "https://boroughmarket.org.uk/"
+            },
+            {
+              "time": "16:00",
+              "title": "Bankside & Tate Modern",
+              "detail": "Keep walking by the river or choose a gallery visit that matches your interests.",
+              "duration": "1½–2 hr",
+              "kind": "Culture",
+              "url": "https://www.tate.org.uk/visit/tate-modern"
+            }
+          ],
+          "food": "Make Borough your food stop, with something from a market trader or a nearby seated restaurant. Dinner can stay around Bankside or your hotel.",
+          "planB": "Keep the Tower and Tate, connecting by public transport if the long river walk is unappealing in the rain."
+        },
+        {
+          "title": "Museum morning, West End evening",
+          "area": "Bloomsbury → Covent Garden → Soho → Theatreland",
+          "pace": "Culture with a proper break before the show",
+          "note": "The British Museum recommends booking ahead; its general collection is free, while some exhibitions charge. Confirm the actual performance time for your chosen show.",
+          "stops": [
+            {
+              "time": "10:00",
+              "title": "British Museum",
+              "detail": "Choose a few galleries before arriving. Two focused hours are more enjoyable than trying to see everything.",
+              "duration": "2–2½ hr",
+              "kind": "Reserve entry",
+              "url": "https://www.britishmuseum.org/visit"
+            },
+            {
+              "time": "13:00",
+              "title": "Lunch in Covent Garden",
+              "detail": "Wander through the area, then stop for lunch away from your museum visit.",
+              "duration": "1½ hr",
+              "kind": "Food"
+            },
+            {
+              "time": "15:00",
+              "title": "Soho & a free afternoon",
+              "detail": "Browse, take a café break or head back to rest before the evening.",
+              "duration": "Flexible",
+              "kind": "Free time"
+            },
+            {
+              "time": "18:00",
+              "title": "Early dinner, then your West End show",
+              "detail": "Choose a nearby pre-theatre meal and arrive for the time printed on your ticket.",
+              "duration": "Your performance",
+              "kind": "Ticket",
+              "url": "https://officiallondontheatre.com/"
+            }
+          ],
+          "food": "Pick a Covent Garden lunch, then choose a pre-theatre menu or an early meal in Soho. Keep time for the walk to the correct theatre.",
+          "planB": "This is already an indoor-friendly day. Replace the shopping wander with an extra gallery or a longer café break."
+        },
+        {
+          "title": "A slower day in Greenwich",
+          "area": "Greenwich town centre → park → river",
+          "pace": "An easy final day, shortened for departure",
+          "note": "The Royal Observatory has announced renovation closure from 2 November 2026; this route uses the park and other museums instead. Check current museum and boat schedules, and shorten the day for departure.",
+          "stops": [
+            {
+              "time": "10:00",
+              "title": "Arrive in Greenwich",
+              "detail": "Use a river boat if the journey appeals, or rail and the DLR if that suits your route better.",
+              "duration": "From your hotel",
+              "kind": "Transit"
+            },
+            {
+              "time": "11:00",
+              "title": "National Maritime Museum or Queen's House",
+              "detail": "Choose one indoor visit rather than trying to complete every Greenwich attraction.",
+              "duration": "1½ hr",
+              "kind": "Culture",
+              "url": "https://www.rmg.co.uk/plan-your-visit"
+            },
+            {
+              "time": "13:00",
+              "title": "Greenwich lunch",
+              "detail": "Browse the market area and choose lunch according to the day's opening stalls.",
+              "duration": "1 hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:30",
+              "title": "Greenwich Park & the view",
+              "detail": "Walk uphill only if it suits your group; leave a generous margin for bags and your onward journey.",
+              "duration": "1–1½ hr",
+              "kind": "Walk"
+            }
+          ],
+          "food": "Choose a market lunch or a café meal in Greenwich. If you have an early departure, move this whole day earlier in the trip.",
+          "planB": "Choose the museums and a seated lunch. Use rail for the return if weather or schedules make the boat inconvenient."
+        }
+      ],
+      "bookings": [
+        {
+          "label": "Tower of London",
+          "note": "Reserve a morning and allow for queues.",
+          "url": "https://www.hrp.org.uk/tower-of-london/visit/"
+        },
+        {
+          "label": "British Museum entry",
+          "note": "Book a free general-entry slot; exhibitions may charge.",
+          "url": "https://www.britishmuseum.org/visit"
+        },
+        {
+          "label": "West End theatre",
+          "note": "Choose a show, date and seats before planning dinner.",
+          "url": "https://officiallondontheatre.com/"
+        }
+      ],
+      "sources": [
+        {
+          "label": "Visit London · first-time visitor itinerary",
+          "url": "https://www.visitlondon.com/things-to-do/visiting-london-for-the-first-time/firsttime-visitors-itinerary"
+        },
+        {
+          "label": "Historic Royal Palaces · Tower of London",
+          "url": "https://www.hrp.org.uk/tower-of-london/visit/"
+        },
+        {
+          "label": "British Museum · visit",
+          "url": "https://www.britishmuseum.org/visit"
+        },
+        {
+          "label": "Royal Museums Greenwich",
+          "url": "https://www.rmg.co.uk/plan-your-visit"
+        },
+        {
+          "label": "TfL journey planning",
+          "url": "https://tfl.gov.uk/"
+        },
+        {
+          "label": "Royal Observatory · renovation notice",
+          "url": "https://www.rmg.co.uk/royal-observatory/plan-your-visit"
+        }
+      ]
+    },
+    {
+      "slug": "paris",
+      "city": "Paris",
+      "country": "France",
+      "timezone": "Europe/Paris",
+      "title": "Paris in 4 days",
+      "subtitle": "Big landmarks. Small streets. Time for another coffee.",
+      "intro": "A first Paris trip with space between the highlights. Give the Louvre its own morning, pair landmarks by neighbourhood, and keep some time for the city beyond its ticket queues.",
+      "currency": "EUR",
+      "budgetRange": "€600–950",
+      "budget": [
+        [
+          "Stay · 3 nights",
+          "€300–510"
+        ],
+        [
+          "Food · 4 days",
+          "€160–220"
+        ],
+        [
+          "Local transport",
+          "€40–60"
+        ],
+        [
+          "Sights & activities",
+          "€100–160"
+        ]
+      ],
+      "base": "The Marais, Latin Quarter and areas near a useful Métro line make different but practical bases. Compare room size, station access and the actual journey to your booked visits.",
+      "transport": "Walk within each neighbourhood and use the Métro for bigger jumps. Airport journeys and tickets can differ from ordinary city travel; check the official route before buying.",
+      "packing": "Comfortable shoes, a compact umbrella and layers. Keep booked entry times available offline and leave room in the day for security queues and café breaks.",
+      "days": [
+        {
+          "title": "The Eiffel Tower & the Left Bank",
+          "area": "Trocadéro → Eiffel Tower → Musée d'Orsay",
+          "pace": "One booked morning, an optional museum afternoon",
+          "note": "Book the Eiffel Tower if going up matters to you. Orsay closes on Mondays; swap this afternoon with another day when needed.",
+          "stops": [
+            {
+              "time": "09:00",
+              "title": "Trocadéro views",
+              "detail": "Start across the river for a first look at the tower, then walk towards your booked entry.",
+              "duration": "45 min",
+              "kind": "Walk"
+            },
+            {
+              "time": "10:00",
+              "title": "Eiffel Tower or Champ de Mars",
+              "detail": "Go up with a reservation, or enjoy the tower from ground level and keep the morning flexible.",
+              "duration": "Up to 2 hr",
+              "kind": "Ticket option",
+              "url": "https://www.toureiffel.paris/en"
+            },
+            {
+              "time": "13:00",
+              "title": "Lunch around Rue Cler",
+              "detail": "Take a proper lunch and a neighbourhood stroll before deciding on the afternoon.",
+              "duration": "1½ hr",
+              "kind": "Food"
+            },
+            {
+              "time": "15:00",
+              "title": "Musée d'Orsay",
+              "detail": "Choose a focused museum visit, or replace it with a Seine walk if you prefer a lighter day.",
+              "duration": "2 hr",
+              "kind": "Ticket option",
+              "url": "https://www.musee-orsay.fr/en/visit"
+            }
+          ],
+          "food": "A boulangerie breakfast and a café or market-street lunch fit the route. Choose a bistro dinner near your hotel rather than another long transfer.",
+          "planB": "Keep your booked indoor visits, but move the tower viewpoint or riverside stroll to a clearer spell."
+        },
+        {
+          "title": "The Louvre & the grand perspective",
+          "area": "Louvre → Tuileries → Champs-Élysées → Arc de Triomphe",
+          "pace": "Museum first, then an adjustable city walk",
+          "note": "The Louvre closes on Tuesdays. Choose a timed entry and a few priority galleries; use the Métro to shorten the afternoon if needed.",
+          "stops": [
+            {
+              "time": "09:30",
+              "title": "A focused Louvre visit",
+              "detail": "Pick the galleries you most want to see instead of treating the museum as a race.",
+              "duration": "2½–3 hr",
+              "kind": "Ticket",
+              "url": "https://www.louvre.fr/en/visit/hours-admission"
+            },
+            {
+              "time": "13:00",
+              "title": "Lunch near Palais Royal",
+              "detail": "Step away from the museum for a seated lunch before returning to the gardens.",
+              "duration": "1 hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:30",
+              "title": "Tuileries & Place de la Concorde",
+              "detail": "Take the garden route west, with time to sit rather than walking straight through.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "16:30",
+              "title": "Champs-Élysées & Arc de Triomphe",
+              "detail": "Walk part of the avenue or use the Métro. The rooftop is a separate ticket choice.",
+              "duration": "1½ hr",
+              "kind": "Ticket option",
+              "url": "https://www.paris-arc-de-triomphe.fr/en"
+            }
+          ],
+          "food": "Choose a casual lunch around Palais Royal or the surrounding streets. Keep dinner simple after a full museum-and-walking day.",
+          "planB": "Use the covered passages and cafés around the Palais Royal and Opéra area instead of the long outdoor axis."
+        },
+        {
+          "title": "The islands & the Latin Quarter",
+          "area": "Île de la Cité → Latin Quarter → Saint-Germain",
+          "pace": "Historic sights with a long afternoon break",
+          "note": "Check current entry arrangements for Notre-Dame and reserve Sainte-Chapelle if visiting inside. Leave time for security and worship-related access changes.",
+          "stops": [
+            {
+              "time": "09:30",
+              "title": "Notre-Dame & Île de la Cité",
+              "detail": "Begin around the cathedral and the island. Add an interior visit according to the official visitor arrangements.",
+              "duration": "1 hr",
+              "kind": "Visit option",
+              "url": "https://www.notredamedeparis.fr/en/visit/"
+            },
+            {
+              "time": "11:00",
+              "title": "Sainte-Chapelle",
+              "detail": "Choose a timed visit for the stained glass, then cross towards the Left Bank.",
+              "duration": "1 hr",
+              "kind": "Ticket",
+              "url": "https://www.sainte-chapelle.fr/en/"
+            },
+            {
+              "time": "13:00",
+              "title": "Lunch & the Latin Quarter",
+              "detail": "Explore a few streets, stop for lunch and resist filling every gap with another monument.",
+              "duration": "2 hr",
+              "kind": "Food & walk"
+            },
+            {
+              "time": "15:30",
+              "title": "Luxembourg Gardens",
+              "detail": "Take a chair, enjoy the gardens and give your feet a break before dinner.",
+              "duration": "1 hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "18:00",
+              "title": "Saint-Germain evening",
+              "detail": "Finish with a café or bistro meal and a shorter walk through the neighbourhood.",
+              "duration": "Flexible",
+              "kind": "Food"
+            }
+          ],
+          "food": "Choose a crêpe or café lunch in the Latin Quarter, then a bistro dinner in Saint-Germain. Booking is useful if you have a particular restaurant in mind.",
+          "planB": "Use the booked Sainte-Chapelle visit and a longer indoor café stop, shortening the garden walk if the weather turns."
+        },
+        {
+          "title": "Montmartre morning, Marais afternoon",
+          "area": "Montmartre → Abbesses → Le Marais",
+          "pace": "Two neighbourhoods, with one Métro transfer",
+          "note": "Montmartre involves slopes and steps. Adjust the approach for your group, then leave the afternoon flexible around departure.",
+          "stops": [
+            {
+              "time": "09:00",
+              "title": "Sacré-Cœur & Montmartre",
+              "detail": "Start with the hilltop and quieter streets before settling into the neighbourhood.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "11:00",
+              "title": "Abbesses & a late breakfast",
+              "detail": "Browse small streets and stop at a bakery or café instead of rushing to the next district.",
+              "duration": "1½ hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:00",
+              "title": "Le Marais",
+              "detail": "Take the Métro across town, then explore the shops, courtyards and streets at your own pace.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "16:00",
+              "title": "Place des Vosges or Musée Carnavalet",
+              "detail": "Choose an outdoor pause or an indoor history visit after checking the museum calendar.",
+              "duration": "Flexible",
+              "kind": "Choose one",
+              "url": "https://www.carnavalet.paris.fr/en"
+            }
+          ],
+          "food": "Start with a Montmartre bakery or café, then choose falafel, a sandwich or a seated lunch in the Marais. Leave a final coffee stop if time permits.",
+          "planB": "Choose the museum and covered shopping streets after checking opening days. Move this day earlier if departure is in the morning."
+        }
+      ],
+      "bookings": [
+        {
+          "label": "Eiffel Tower",
+          "note": "Choose stairs or lift and the level you want.",
+          "url": "https://www.toureiffel.paris/en"
+        },
+        {
+          "label": "Louvre timed entry",
+          "note": "Closed Tuesdays; select the right visitor category.",
+          "url": "https://www.louvre.fr/en/visit/hours-admission"
+        },
+        {
+          "label": "Musée d'Orsay",
+          "note": "Optional on day 1; closed Mondays.",
+          "url": "https://www.musee-orsay.fr/en/visit"
+        },
+        {
+          "label": "Sainte-Chapelle",
+          "note": "Book a slot and allow for security.",
+          "url": "https://www.sainte-chapelle.fr/en/"
+        }
+      ],
+      "sources": [
+        {
+          "label": "Paris je t'aime · essential sights",
+          "url": "https://parisjetaime.com/eng/article/the-essentials-a264"
+        },
+        {
+          "label": "Paris je t'aime · Louvre to Arc route",
+          "url": "https://parisjetaime.com/eng/article/mythical-paris-a894"
+        },
+        {
+          "label": "Louvre hours and admission",
+          "url": "https://www.louvre.fr/en/visit/hours-admission"
+        },
+        {
+          "label": "Musée d'Orsay visitor information",
+          "url": "https://www.musee-orsay.fr/en/visit"
+        }
+      ]
+    },
+    {
+      "slug": "istanbul",
+      "city": "Istanbul",
+      "country": "Türkiye",
+      "timezone": "Europe/Istanbul",
+      "title": "Istanbul in 4 days",
+      "subtitle": "Two continents. Ferry rides. Layers of history.",
+      "intro": "Start with the historic peninsula, then give the bazaars, Beyoğlu and the Asian side their own days. A few ferry crossings and long meal breaks make the city easier to enjoy.",
+      "currency": "EUR",
+      "budgetRange": "€500–800",
+      "budget": [
+        [
+          "Stay · 3 nights",
+          "€210–360"
+        ],
+        [
+          "Food · 4 days",
+          "€120–190"
+        ],
+        [
+          "Local transport",
+          "€30–50"
+        ],
+        [
+          "Sights & activities",
+          "€140–200"
+        ]
+      ],
+      "currencyNote": "Budget shown in EUR as a planning reference; local prices and payments are generally in Turkish lira (TRY). Check exchange rates and current admission prices before booking.",
+      "base": "Sultanahmet suits an early start at the historic sights. Karaköy or Galata suits café and ferry access, but check slopes and the walk with luggage before choosing a hotel.",
+      "transport": "Combine walking, trams and scheduled ferries. Check the operator's actual route and departure time; a useful cross-city ferry can also provide some of the trip's best views.",
+      "packing": "Walking shoes with grip for slopes and cobbles, layers for ferry decks, and modest clothing for mosque visits. Follow each religious site's visitor instructions.",
+      "days": [
+        {
+          "title": "The historic peninsula",
+          "area": "Sultanahmet → Hagia Sophia → Basilica Cistern",
+          "pace": "A compact route with time for the major sights",
+          "note": "Mosque access changes around prayers. Hagia Sophia's visitor route and admission arrangements differ from worship access; verify current instructions before visiting.",
+          "stops": [
+            {
+              "time": "09:00",
+              "title": "Sultanahmet Square & the Hippodrome",
+              "detail": "Begin outdoors to understand the area before stepping into its busiest sights.",
+              "duration": "45 min",
+              "kind": "Walk"
+            },
+            {
+              "time": "10:00",
+              "title": "Blue Mosque",
+              "detail": "Visit respectfully outside prayer closures, following the current dress and access rules.",
+              "duration": "45–60 min",
+              "kind": "Religious site"
+            },
+            {
+              "time": "11:30",
+              "title": "Hagia Sophia",
+              "detail": "Choose the official visitor experience or enjoy the exterior if a lighter day suits your group.",
+              "duration": "1–1½ hr",
+              "kind": "Ticket option",
+              "url": "https://goturkiye.com/istanbul/historic-peninsula"
+            },
+            {
+              "time": "13:15",
+              "title": "A Sultanahmet lunch break",
+              "detail": "Pause for a meal and rest before another indoor visit.",
+              "duration": "1 hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:45",
+              "title": "Basilica Cistern",
+              "detail": "Allow time for the underground space and its atmosphere, checking the operator's current tickets.",
+              "duration": "1 hr",
+              "kind": "Ticket",
+              "url": "https://yerebatan.com/en/"
+            }
+          ],
+          "food": "Try a simple köfte or vegetable-based lunch, then choose a relaxed dinner near your hotel. There is no need to add a cross-city food trip on this first day.",
+          "planB": "Keep the cistern and a longer indoor lunch during rain. Move mosque visits around the actual prayer and visitor schedules."
+        },
+        {
+          "title": "Palace courtyards & the bazaars",
+          "area": "Topkapı → Gülhane → Grand Bazaar → Eminönü",
+          "pace": "A long palace morning, an adjustable afternoon",
+          "note": "Topkapı closes on Tuesdays. Bazaar trading days can vary; keep market stops flexible and check holiday arrangements before setting out.",
+          "stops": [
+            {
+              "time": "09:00",
+              "title": "Topkapı Palace",
+              "detail": "Choose the ticket that covers the sections you want, then allow a generous morning for the palace.",
+              "duration": "3 hr",
+              "kind": "Ticket",
+              "url": "https://www.millisaraylar.gov.tr/Lokasyon/2/Topkapi-Sarayi?culture=en"
+            },
+            {
+              "time": "12:30",
+              "title": "Gülhane & a lunch break",
+              "detail": "Slow down after the palace with some greenery and a meal nearby.",
+              "duration": "1½ hr",
+              "kind": "Food & walk"
+            },
+            {
+              "time": "14:30",
+              "title": "Grand Bazaar",
+              "detail": "Browse a few lanes with a meeting point agreed in advance. Shopping is optional, not another task to complete.",
+              "duration": "1½ hr",
+              "kind": "Market"
+            },
+            {
+              "time": "16:30",
+              "title": "Spice Bazaar & Eminönü",
+              "detail": "Continue towards the waterfront, with a short tram ride or a walk depending on your energy.",
+              "duration": "1½ hr",
+              "kind": "Market"
+            }
+          ],
+          "food": "A lokanta lunch is an easy way to compare dishes. Finish with tea and something sweet near Eminönü, or choose a waterfront meal after checking the menu.",
+          "planB": "Give the palace and covered market areas more time, leaving the park and waterfront for a clearer day."
+        },
+        {
+          "title": "Galata, Karaköy & Beyoğlu",
+          "area": "Galata → Karaköy → Tophane → İstiklal",
+          "pace": "A neighbourhood day with an optional art stop",
+          "note": "This route includes hills. Use public transport for an uphill stretch and check museum opening days if choosing the indoor visit.",
+          "stops": [
+            {
+              "time": "09:30",
+              "title": "Galata streets & the tower exterior",
+              "detail": "Explore around the tower before the busiest part of the day. Going inside is an optional paid addition.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "12:00",
+              "title": "Karaköy cafés & lunch",
+              "detail": "Walk down towards the water and take a long lunch break in the neighbourhood.",
+              "duration": "1½ hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:00",
+              "title": "Istanbul Modern or the waterfront",
+              "detail": "Choose a current exhibition or keep the afternoon outdoors, rather than automatically doing both.",
+              "duration": "1½–2 hr",
+              "kind": "Choose one",
+              "url": "https://www.istanbulmodern.org/en"
+            },
+            {
+              "time": "17:00",
+              "title": "Beyoğlu & İstiklal Avenue",
+              "detail": "Return uphill using transport if useful, then explore the avenue and its side streets before dinner.",
+              "duration": "Flexible",
+              "kind": "Walk"
+            }
+          ],
+          "food": "Choose a Karaköy café meal or a simple local lunch, then compare meyhane-style shared plates and other dinner options around Beyoğlu.",
+          "planB": "Choose Istanbul Modern and indoor café stops, replacing the longer outdoor wander if it is wet or windy."
+        },
+        {
+          "title": "Across to Kadıköy & Moda",
+          "area": "European-side ferry → Kadıköy → Moda",
+          "pace": "Food, neighbourhood streets and a seaside pause",
+          "note": "Check Şehir Hatları's current sailing times and allow a large return buffer if departing today. Ferry services can change with weather.",
+          "stops": [
+            {
+              "time": "09:30",
+              "title": "A scheduled ferry to Kadıköy",
+              "detail": "Choose a departure pier that suits your hotel and let the crossing be part of the morning.",
+              "duration": "Check sailing",
+              "kind": "Ferry",
+              "url": "https://sehirhatlari.istanbul/en/seferler"
+            },
+            {
+              "time": "11:00",
+              "title": "Kadıköy market streets",
+              "detail": "Browse food shops and local streets before settling on lunch.",
+              "duration": "1½ hr",
+              "kind": "Walk"
+            },
+            {
+              "time": "12:30",
+              "title": "A long Kadıköy lunch",
+              "detail": "Choose a lokanta meal, a café lunch or shared dishes according to the group's preferences.",
+              "duration": "1½ hr",
+              "kind": "Food"
+            },
+            {
+              "time": "14:30",
+              "title": "Moda waterfront & a final tea",
+              "detail": "Finish with a seaside walk, then return with plenty of time for luggage and onward travel.",
+              "duration": "Flexible",
+              "kind": "Walk"
+            }
+          ],
+          "food": "This is the day to leave room for snacks: a market lunch, tea and a pastry or dessert in Moda. Pick what suits your diet rather than ordering every local speciality.",
+          "planB": "If ferry conditions are poor, swap with the palace or museum day. For an early flight, move Kadıköy earlier rather than rushing the return."
+        }
+      ],
+      "bookings": [
+        {
+          "label": "Topkapı Palace",
+          "note": "Closed Tuesdays; compare the official ticket inclusions.",
+          "url": "https://www.millisaraylar.gov.tr/Lokasyon/2/Topkapi-Sarayi?culture=en"
+        },
+        {
+          "label": "Basilica Cistern",
+          "note": "Check the operator's current tickets and visitor hours.",
+          "url": "https://yerebatan.com/en/"
+        },
+        {
+          "label": "Istanbul Modern",
+          "note": "Optional; check exhibition dates and opening days.",
+          "url": "https://www.istanbulmodern.org/en"
+        },
+        {
+          "label": "Şehir Hatları ferries",
+          "note": "Use current timetables for your actual travel date.",
+          "url": "https://sehirhatlari.istanbul/en/seferler"
+        }
+      ],
+      "sources": [
+        {
+          "label": "Go Türkiye · historic peninsula",
+          "url": "https://goturkiye.com/istanbul/historic-peninsula"
+        },
+        {
+          "label": "Go Türkiye · Beyoğlu",
+          "url": "https://goturkiye.com/istanbul/beyoglu"
+        },
+        {
+          "label": "Go Türkiye · Asian side",
+          "url": "https://goturkiye.com/istanbul/asian-side"
+        },
+        {
+          "label": "National Palaces · Topkapı",
+          "url": "https://www.millisaraylar.gov.tr/Lokasyon/2/Topkapi-Sarayi?culture=en"
+        },
+        {
+          "label": "Şehir Hatları timetables",
+          "url": "https://sehirhatlari.istanbul/en/seferler"
+        }
+      ]
+    }
+  ]
+}
