@@ -5,6 +5,7 @@ import { Logo, SettingsLink } from "@/components/shell";
 import { LinkButton } from "@/components/ui";
 import { FlightExplainer } from "@/components/flight-explainer";
 import { publicMetadata, PUBLIC_PAGES, SITE_STRUCTURED_DATA } from "@/lib/seo";
+import { FEATURE_PAGES } from "@/lib/feature-pages";
 
 export const metadata = publicMetadata("/", PUBLIC_PAGES["/"]);
 
@@ -26,6 +27,7 @@ export default async function Home() {
         <article><span className="feature-number">02</span><h3>Events & bookings</h3><p>Event suggestions linked to bookings.</p></article>
         <article><span className="feature-number">03</span><h3>Travel together</h3><p>Share plans, chat and split expenses.</p></article>
       </div></section>
+      <nav className="home-tool-links" aria-label="Explore trip planning tools">{FEATURE_PAGES.map(feature => <Link key={feature.href} href={feature.href}>{feature.label} <span aria-hidden="true">↗</span></Link>)}</nav>
       <section className="home-fare"><div><h2>Start free. Upgrade for $15.</h2><p>One payment. All travelers.</p></div><p className="home-price">$15 <small>/ trip</small></p><LinkButton href="/plans">Compare plans <span aria-hidden="true">→</span></LinkButton></section>
     </main>
   </div>;
