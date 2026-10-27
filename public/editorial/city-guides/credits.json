@@ -55,53 +55,62 @@
     "previewBytes": 51400
   },
   "bangkok-card": {
-    "source": "https://images.unsplash.com/photo-1678915545553-4f06f36791de?auto=format&fm=webp&w=2000&h=1250&fit=crop&q=82",
-    "pageUrl": "https://unsplash.com/photos/a-large-gold-spire-in-the-middle-of-a-building-7MY-XJEalCU",
+    "source": "https://images.unsplash.com/photo-1768392810963-017c92313d79?auto=format&fm=webp&w=2000&fit=max&q=85",
+    "pageUrl": "https://unsplash.com/photos/wat-arun-temple-on-the-chao-phraya-river-bangkok-7KSiPWt82us",
+    "author": "Martijn Vonk",
+    "description": "Wat Arun and the Chao Phraya River in Bangkok",
+    "width": 2000,
+    "height": 1333,
+    "bytes": 497650,
     "license": "Unsplash License",
     "licenseUrl": "https://unsplash.com/license",
-    "description": "Grand Palace architecture in Bangkok",
-    "width": 2000,
-    "height": 1250,
-    "bytes": 719430
+    "previewBytes": 56618
   },
   "hong-kong-card": {
-    "source": "https://images.unsplash.com/photo-1775119222921-641a304ef582?auto=format&fm=webp&w=2000&h=1250&fit=crop&q=82",
-    "pageUrl": "https://unsplash.com/photos/view-of-hong-kong-harbor-with-star-ferry-and-buildings-sAVHIElKx8M",
+    "source": "https://images.unsplash.com/photo-1761735490234-cf3843e6341d?auto=format&fm=webp&w=2000&fit=max&q=85",
+    "pageUrl": "https://unsplash.com/photos/city-skyline-with-tall-buildings-and-a-harbor-cxAkYeY-LN8",
+    "author": "Maximus Beaumont",
+    "description": "Hong Kong skyline and ferries across Victoria Harbour",
+    "width": 2000,
+    "height": 1125,
+    "bytes": 339030,
     "license": "Unsplash License",
     "licenseUrl": "https://unsplash.com/license",
-    "description": "Star Ferry and Hong Kong harbour",
-    "width": 2000,
-    "height": 1250,
-    "bytes": 612472
+    "previewBytes": 34838
   },
   "london-card": {
-    "source": "https://images.unsplash.com/photo-1598875791852-8bb153e713f0?auto=format&fm=webp&w=2000&h=1250&fit=crop&q=82",
+    "source": "https://images.unsplash.com/photo-1598875791852-8bb153e713f0?auto=format&fm=webp&w=2000&fit=max&q=85",
     "pageUrl": "https://unsplash.com/photos/gray-concrete-bridge-under-blue-sky-and-white-clouds-during-daytime-BtJUTrjnSw4",
-    "license": "Unsplash License",
-    "licenseUrl": "https://unsplash.com/license",
     "description": "Tower Bridge above the River Thames in London",
     "width": 2000,
-    "height": 1250,
-    "bytes": 548620
+    "height": 1154,
+    "bytes": 549440,
+    "license": "Unsplash License",
+    "licenseUrl": "https://unsplash.com/license",
+    "previewBytes": 62346
   },
   "paris-card": {
-    "source": "https://images.unsplash.com/photo-1753523080829-3d01fdab4270?auto=format&fm=webp&w=2000&h=1250&fit=crop&q=82",
-    "pageUrl": "https://unsplash.com/photos/the-sacre-coeur-basilica-rises-above-the-rooftops-DV3e6VdyfQc",
-    "license": "Unsplash License",
-    "licenseUrl": "https://unsplash.com/license",
-    "description": "Sacre-Coeur and the rooftops of Montmartre, Paris",
+    "source": "https://images.pexels.com/photos/37783985/pexels-photo-37783985/free-photo-of-eiffel-tower-and-seine-river-in-paris.jpeg?auto=compress&w=2000",
+    "pageUrl": "https://www.pexels.com/photo/eiffel-tower-and-seine-river-in-paris-37783985/",
+    "author": "Ludovic Delot",
+    "description": "Eiffel Tower and boats on the Seine in Paris",
     "width": 2000,
-    "height": 1250,
-    "bytes": 731450
+    "height": 1500,
+    "bytes": 217756,
+    "license": "Pexels License",
+    "licenseUrl": "https://www.pexels.com/license/",
+    "previewBytes": 38084
   },
   "istanbul-card": {
-    "source": "https://images.unsplash.com/photo-1660963723130-4f3bb384635b?auto=format&fm=webp&w=2000&h=1250&fit=crop&q=82",
-    "pageUrl": "https://unsplash.com/photos/mpLtQT4aD7M",
-    "license": "Unsplash License",
-    "licenseUrl": "https://unsplash.com/license",
-    "description": "Galata Tower above the rooftops of Istanbul",
+    "source": "https://images.unsplash.com/photo-1696711166450-e832504ae186?auto=format&fm=webp&w=2000&fit=max&q=85",
+    "pageUrl": "https://unsplash.com/photos/a-large-blue-and-white-building-surrounded-by-trees-81GdRjJOzVo",
+    "author": "Joshua Kettle",
+    "description": "Blue Mosque and the Istanbul skyline",
     "width": 2000,
     "height": 1250,
-    "bytes": 266088
+    "bytes": 270516,
+    "license": "Unsplash License",
+    "licenseUrl": "https://unsplash.com/license",
+    "previewBytes": 25608
   }
 }
