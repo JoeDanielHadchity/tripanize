@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 3000",
-    "build": "prisma generate && vite build",
+    "build": "node scripts/build-mobile-preview.mjs && prisma generate && vite build",
     "start": "wrangler dev --local --config dist/server/wrangler.json",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -20,6 +20,7 @@
     "test:cloudflare:ai": "node scripts/check-cloudflare-ai.mjs"
   },
   "dependencies": {
+    "@better-auth/expo": "1.7.11",
     "@better-auth/utils": "0.5.0",
     "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
