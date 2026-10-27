@@ -3,10 +3,9 @@ import { OPERATOR_NAME } from "@/lib/legal";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, LinkButton, Notice } from "./ui";
-import { PremiumStar } from "./premium-star";
+import { Button, LinkButton, Notice } from "./ui";
 import { chooseNormalAction } from "@/app/actions/onboarding";
-import { PlanComparison } from "./plan-comparison";
+import { PremiumPass } from "./premium-pass";
 import type { billingSummary } from "@/server/billing/service";
 import type { UserTrialAccess } from "@/server/admin/trials";
 import { ActivateTrialButton } from "./trial-access";
@@ -70,16 +69,27 @@ export function PremiumCheckout({ tripId, initial, trial }: { tripId: string; in
       paddle.Checkout.open({ transactionId: data.transactionId, settings: { displayMode: "overlay", showAddDiscounts: false, showAddTaxId: true } });
     } catch (e) { setError(e instanceof Error ? e.message : "Checkout could not be opened."); } finally { setBusy(false); }
   }
+  const standardAction = <Button disabled={busy || !summary.canPurchase || hasPremium} onClick={normal}>{hasPremium ? "Premium is already active" : summary.onboardingStage === "COMPLETE" ? "Continue with Standard" : "Continue free"}</Button>;
+  const premiumAction = offer ? <ActivateTrialButton invitationId={offer.invitationId} tripId={tripId} durationDays={offer.durationDays} />
+    : hasPremium ? summary.onboardingStage === "PLAN" && summary.canPurchase ? <Button onClick={normal} disabled={busy} variant="primary">Continue to trip questions</Button>
+      : <LinkButton href={`/trips/${tripId}`} variant="primary">{summary.onboardingStage === "COMPLETE" ? "Premium active · open trip" : "Continue to trip questions"}</LinkButton>
+    : <Button variant="primary" disabled={busy || awaiting || !summary.canPurchase || !summary.available || summary.reviewRequired} onClick={checkout}>{busy ? "Opening checkout…" : awaiting ? "Confirming payment…" : "Unlock Premium"}</Button>;
   return <div className="space-y-6">
     {included && <Notice title={summary.source === "company" ? `${OPERATOR_NAME} all-access` : "Your one-trip trial is active"}>Every Premium feature is included for this trip and its members. No payment is needed, and no charge happens automatically.{summary.source === "trial" && summary.validUntil && <> Trial access ends on {new Date(summary.validUntil).toLocaleDateString("en-GB", { timeZone: "Asia/Riyadh" })}.</>}</Notice>}
-    <div className="grid gap-4 sm:grid-cols-2">
-      <Card><Badge>Standard</Badge><h2 className="mt-4 font-display text-4xl font-semibold">Free</h2><p className="mt-3 text-sm text-muted">AI planning for 2 days. Add other days, bookings and packing manually.</p><Button className="mt-5 w-full" disabled={busy || !summary.canPurchase || hasPremium} onClick={normal}>{hasPremium ? "Premium is already active" : summary.onboardingStage === "COMPLETE" ? "Continue with Standard" : "Continue free"}</Button><p className="mt-2 text-xs text-muted">Upgrade any time.</p></Card>
-      <Card className="border-accent bg-accent-soft/30"><Badge tone="accent"><PremiumStar /> Premium</Badge><h2 className="mt-4 font-display text-4xl font-semibold">{offer ? "$0" : included ? "Included" : "$15"}<span className="ml-2 font-sans text-sm font-normal text-muted">{offer ? offer.durationDays ? `${offer.durationDays}-day Premium trial` : "Premium trial" : included ? summary.source === "company" ? `${OPERATOR_NAME} access` : "one-trip trial" : "USD / trip"}</span></h2><p className="mt-3 text-sm text-muted">Full AI planning, events, packing and shared trip tools.</p>{offer ? <div className="mt-5"><ActivateTrialButton invitationId={offer.invitationId} tripId={tripId} durationDays={offer.durationDays} /></div> : hasPremium ? summary.onboardingStage === "PLAN" && summary.canPurchase ? <Button onClick={normal} disabled={busy} variant="primary" className="mt-5 w-full">Continue to trip questions</Button> : <LinkButton href={`/trips/${tripId}`} variant="primary" className="mt-5 w-full">{summary.onboardingStage === "COMPLETE" ? "Premium active · open trip" : "Continue to trip questions"}</LinkButton> : <Button className="mt-5 w-full" variant="primary" disabled={busy || awaiting || !summary.canPurchase || !summary.available || summary.reviewRequired} onClick={checkout}>{busy ? "Opening checkout…" : awaiting ? "Confirming payment…" : "Upgrade · $15"}</Button>}<p className="mt-2 text-xs text-muted">{included || offer ? "No payment required." : "One-time payment. Applicable tax is shown before you pay."}</p></Card>
-    </div>
-    <PlanComparison />
+    <PremiumPass
+      standardAction={standardAction}
+      premiumAction={premiumAction}
+      price={offer ? "$0" : included ? "Included" : hasPremium ? "Active" : undefined}
+      priceLabel={offer ? offer.durationDays ? `${offer.durationDays}-day Premium trial` : "Premium trial" : included ? summary.source === "company" ? `${OPERATOR_NAME} access` : "one-trip trial" : hasPremium ? "Premium for this trip" : "USD / trip"}
+      priceIsStatus={included || hasPremium}
+      priceNote={included || offer || hasPremium ? "Every Premium feature for this trip and its group." : "One payment for the whole group."}
+      premiumFooter={included || offer ? "No payment required." : hasPremium ? "Premium is already active for this trip." : "Any group size. No subscription."}
+      standardNote={hasPremium ? "This trip already has Premium." : "Upgrade this trip anytime."}
+      groupNote={hasPremium ? "Premium is active for everyone on this trip." : offer ? "Your trial includes everyone on this trip." : undefined}
+    />
 
     {!summary.canPurchase && <Notice>Only the trip organizer can choose or pay for the plan. Your role is managed in Trip settings.</Notice>}
-    {!summary.available && !hasPremium && !offer && <Notice>Premium checkout is temporarily unavailable. You can continue with Normal.</Notice>}
+    {!summary.available && !hasPremium && !offer && <Notice>Premium checkout is temporarily unavailable. You can continue with Standard.</Notice>}
     {summary.reviewRequired && <Notice tone="warn">A payment adjustment needs review. Contact support before making another purchase.</Notice>}
     {summary.environment === "sandbox" && <Notice tone="warn">Payment test environment. No real charges.</Notice>}
     <p className="text-xs text-muted">No subscription. Premium covers this trip and every member. Usage limits apply to AI requests. Location sharing is optional. Suggested events and booking links are not confirmed reservations. <Link href="/terms" className="underline">Terms</Link> · <Link href="/privacy" className="underline">Privacy</Link> · <Link href="/refunds" className="underline">Refunds</Link></p>
