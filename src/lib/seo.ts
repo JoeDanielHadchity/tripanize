@@ -6,6 +6,9 @@ export const SITE_DESCRIPTION = "Plan trips together with AI itineraries, linked
 export const PUBLIC_PAGES = {
   "/": { title: "AI Trip Planner & Group Travel Organizer", description: SITE_DESCRIPTION },
   "/plans": { title: "Free Trip Planning & Premium — $15 per Trip", description: "Compare Tripanize Standard and Premium. Start with 2 AI-planned days for free, or unlock full AI planning and group tools for $15 per trip, all travelers included." },
+  "/ai-trip-planner": { title: "AI Trip Planner — Build Your Travel Itinerary", description: "Create an editable itinerary around your dates, interests and travel pace. Start with 2 AI-planned days free; Premium is $15 per trip for your whole group." },
+  "/group-trip-planner": { title: "Group Trip Planner — Plan a Trip with Friends", description: "Plan a group trip with shared itineraries, bookings and editor or viewer roles. Start free. Premium adds chat and expenses for $15 per trip, for everyone." },
+  "/travel-expense-splitter": { title: "Travel Expense Splitter — Split Costs & Settle Up", description: "Track group travel expenses, attach receipts and see who owes whom. Keep actual spending separate from estimates. Included in Premium: $15 per trip." },
   "/contact": { title: "Contact & Support", description: "Contact Tripanize.app for help with trip planning, your account, Premium access, payments or privacy questions." },
   "/terms": { title: "Terms of Service", description: "Read the terms for using Tripanize.app, including accounts, shared trips, AI suggestions and Premium access." },
   "/privacy": { title: "Privacy Policy", description: "Learn how Tripanize.app handles accounts, shared trip information, receipts, optional location sharing and AI planning requests." },

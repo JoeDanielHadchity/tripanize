@@ -93,11 +93,21 @@ try {
     const sitemap = await fetch(origin + "/sitemap.xml"); assert.equal(sitemap.status, 200); assert.match(sitemap.headers.get("Content-Type"), /xml/);
     const sitemapXml = await sitemap.text(); assert.match(sitemapXml, /https:\/\/www\.tripanize\.app\/examples\/lisbon-porto/); assert.doesNotMatch(sitemapXml, /\/(?:trips|account|company|checkout|invite|trial|api|mobile-preview)(?:\/|<)/);
     const robots = await fetch(origin + "/robots.txt"); assert.equal(robots.status, 200); assert.match(await robots.text(), /Sitemap: https:\/\/www\.tripanize\.app\/sitemap.xml/);
-    for (const path of ["/plans", "/contact", "/terms", "/privacy", "/refunds", "/examples/lisbon-porto"]) {
+    for (const path of ["/plans", "/contact", "/terms", "/privacy", "/refunds", "/examples/lisbon-porto", "/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"]) {
       const publicPage = await fetch(origin + path); assert.equal(publicPage.status, 200, path);
       const publicHtml = await publicPage.text();
       assert.match(publicHtml, new RegExp(`rel="canonical" href="https://www\\.tripanize\\.app${path}"`));
       assert.doesNotMatch(publicHtml, /name="robots" content="[^"]*noindex/, path);
+      if (["/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"].includes(path)) {
+        assert.match(sitemapXml, new RegExp(`https://www\\.tripanize\\.app${path}<`));
+        assert.match(html, new RegExp(`href="${path}"`));
+        assert.match(publicHtml, /<h1[^>]*id="feature-title"/);
+        assert.match(publicHtml, /<details/);
+        assert.match(publicHtml, /Illustrative/);
+        assert.match(publicHtml, /href="\/sign-up"/);
+        assert.match(publicHtml, /\$15/);
+        for (const related of ["/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"].filter(value => value !== path)) assert.match(publicHtml, new RegExp(`href="${related}"`));
+      }
     }
     const signinSeo = await (await fetch(origin + "/sign-in")).text(); assert.match(signinSeo, /name="robots" content="noindex,\s*nofollow"/);
     const plansPage = await fetch(origin + "/plans"); assert.equal(plansPage.status, 200); assert.match(await plansPage.text(), /First 2 days per trip/);
