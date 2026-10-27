@@ -14,7 +14,16 @@ export default async function Home() {
   if (await getSessionUser()) redirect("/start");
   return <div className="home-page">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_STRUCTURED_DATA).replace(/</g, "\\u003c") }} />
-    <header className="public-header"><Link href="/" aria-label="Tripanize home"><Logo /></Link><nav aria-label="Main"><Link href="/plans">Plans</Link><SettingsLink /><Link href="/sign-in">Sign in</Link><LinkButton href="/sign-up" variant="primary">Create a trip</LinkButton></nav></header>
+    <header className="public-header home-public-header">
+      <Link href="/" aria-label="Tripanize home"><Logo /></Link>
+      <nav aria-label="Main">
+        <Link href="/plans">Plans</Link>
+        {FEATURE_PAGES.map(feature => <Link key={feature.href} href={feature.href}>{feature.label}</Link>)}
+        <SettingsLink />
+        <Link href="/sign-in">Sign in</Link>
+        <LinkButton href="/sign-up" variant="primary">Create a trip</LinkButton>
+      </nav>
+    </header>
     <main id="main" className="home-content">
       <section className="hero-ticket" aria-labelledby="home-title"><span className="ticket-tape" aria-hidden="true" />
         <div className="hero-ticket-main"><div className="travel-window"><img decoding="async" src="/editorial/home.webp" alt="Porto waterfront on the Douro River" width={340} height={480} fetchPriority="high" /></div>
@@ -29,7 +38,6 @@ export default async function Home() {
         <article><span className="feature-number">02</span><h3>Events & bookings</h3><p>Event suggestions linked to bookings.</p></article>
         <article><span className="feature-number">03</span><h3>Travel together</h3><p>Share plans, chat and split expenses.</p></article>
       </div></section>
-      <nav className="home-tool-links" aria-label="Explore trip planning tools">{FEATURE_PAGES.map(feature => <Link key={feature.href} href={feature.href}>{feature.label} <span aria-hidden="true">↗</span></Link>)}</nav>
       <section className="home-fare"><div><h2>Start free. Upgrade for $15.</h2><p>One payment. All travelers.</p></div><p className="home-price">$15 <small>/ trip</small></p><LinkButton href="/plans">Compare plans <span aria-hidden="true">→</span></LinkButton></section>
     </main>
   </div>;
