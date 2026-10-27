@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { publicMetadata, PUBLIC_PAGES } from "@/lib/seo";
 import Link from "next/link";
 import { PublicHeader } from "@/components/public-page";
 import { Card, PageHeader } from "@/components/ui";
@@ -7,7 +7,7 @@ import { SUPPORT_TOPICS, type SupportTopic } from "@/lib/support";
 import { supportConfigured } from "@/server/support/service";
 import { ContactForm } from "./form";
 
-export const metadata: Metadata = { title: "Contact and support" };
+export const metadata = publicMetadata("/contact", PUBLIC_PAGES["/contact"]);
 export default async function ContactPage({ searchParams }: { searchParams: Promise<{ topic?: string }> }) {
   const { topic } = await searchParams;
   const initialTopic: SupportTopic = topic && Object.hasOwn(SUPPORT_TOPICS, topic) ? topic as SupportTopic : "general";

@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import { publicMetadata, PUBLIC_PAGES } from "@/lib/seo";
 import { getSessionUser } from "@/server/auth/session";
 import { AppHeader, Logo } from "@/components/shell";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { PlanComparison } from "@/components/plan-comparison";
 import { userTrialAccess } from "@/server/admin/trials";
 import { TrialAccessBanner } from "@/components/trial-access";
-export const metadata: Metadata = { title: "Normal or Premium — $15 per trip" };
+export const metadata = publicMetadata("/plans", PUBLIC_PAGES["/plans"]);
 export default async function PlansPage() {
   const user = await getSessionUser(); const create = user ? "/trips/new" : "/sign-up";
   const trial = user ? await userTrialAccess(user.id) : null;

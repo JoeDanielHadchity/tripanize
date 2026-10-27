@@ -1,9 +1,9 @@
+import { publicMetadata, PUBLIC_PAGES } from "@/lib/seo";
 import { OPERATOR_NAME } from "@/lib/legal";
-import type { Metadata } from "next";
 import Link from "next/link";
 import { PolicyPage, PolicySection as Section } from "@/components/public-page";
 
-export const metadata: Metadata = { title: "Privacy policy" };
+export const metadata = publicMetadata("/privacy", PUBLIC_PAGES["/privacy"]);
 export default function PrivacyPage() {
   return <PolicyPage title="Privacy policy" intro="What Tripanize uses to help you plan, who can see it, and how to contact us about your information.">
     <Section title={`1. ${OPERATOR_NAME} and your choices`}><p>{OPERATOR_NAME}, based in Lebanon, operates Tripanize and is responsible for its processing of personal information. Use our <Link href="/contact?topic=privacy">privacy contact form</Link> for questions or requests. You can use manual planning without enabling optional location sharing. AI features process the trip information relevant to the request.</p></Section>

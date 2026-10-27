@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+import { publicMetadata, PUBLIC_PAGES } from "@/lib/seo";
 import Link from "next/link";
 import { PolicyPage, PolicySection as Section } from "@/components/public-page";
 import { OPERATOR_NAME } from "@/lib/legal";
 
-export const metadata: Metadata = { title: "Terms of service" };
+export const metadata = publicMetadata("/terms", PUBLIC_PAGES["/terms"]);
 export default function TermsPage() {
   return <PolicyPage title="Terms of service" intro="The terms for using Tripanize to plan and share your trips.">
     <Section title="1. Who provides Tripanize"><p>Tripanize is travel planning software provided by {OPERATOR_NAME}, based in Lebanon. These terms cover your use of the application. You can reach {OPERATOR_NAME} through our <Link href="/contact">contact form</Link>. By creating an account or using Tripanize, you agree to these terms.</p><p>Tripanize helps organize plans; it does not sell flights, accommodation, event tickets or travel packages. Reservations and payments made with travel providers are separate from a Tripanize Premium purchase.</p></Section>

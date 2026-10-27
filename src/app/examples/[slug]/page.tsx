@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSessionUser } from "@/server/auth/session";
@@ -11,7 +12,7 @@ import { CopyExample } from "./copy";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const ex = EXAMPLES.find((e) => e.slug === slug);
-  return { title: ex ? `Example: ${ex.name}` : "Example" };
+  return ex ? publicMetadata(`/examples/${ex.slug}`, { title: `${ex.nights + 1}-Day ${ex.name} — Example Itinerary`, description: `${ex.summary} Explore this public sample itinerary, then save a copy to plan your own trip with Tripanize.` }) : { title: "Example not found", robots: { index: false, follow: false } };
 }
 
 export default async function ExamplePage({ params }: { params: Promise<{ slug: string }> }) {
