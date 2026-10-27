@@ -5,10 +5,14 @@ import { ToastProvider, ConfirmProvider } from "@/components/client";
 import { OfflineBanner, ServiceWorker } from "@/components/offline";
 import { THEME_SCRIPT } from "@/lib/theme";
 import { LegalFooter } from "@/components/legal-footer";
+import { SITE_ORIGIN, SITE_DESCRIPTION } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: { default: "Tripanize — A little less planning. A lot more going.", template: "%s · Tripanize" },
-  description: "Plan trips with AI, share them with your travel companions, and keep bookings, expenses and packing in one calm place.",
+  metadataBase: new URL(SITE_ORIGIN),
+  title: { default: "Tripanize", template: "%s · Tripanize" },
+  description: SITE_DESCRIPTION,
+  // Public pages explicitly opt into indexing with their own canonical URL.
+  robots: { index: false, follow: false },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: { url: "/brand/tripanize-favicon-transparent.png", type: "image/png", sizes: "192x192" },
