@@ -133,7 +133,13 @@ try {
       }
     }
     const signinSeo = await (await fetch(origin + "/sign-in")).text(); assert.match(signinSeo, /name="robots" content="noindex,\s*nofollow"/);
-    const plansPage = await fetch(origin + "/plans"); assert.equal(plansPage.status, 200); assert.match(await plansPage.text(), /First 2 days per trip/);
+    const plansPage = await fetch(origin + "/plans"); assert.equal(plansPage.status, 200);
+    const plansHtml = await plansPage.text();
+    assert.match(plansHtml, /id="premium-pass-title"/);
+    assert.match(plansHtml, /One payment for the whole group/);
+    assert.match(plansHtml, /AI for the first 2 days/);
+    assert.equal([...plansHtml.matchAll(/class="premium-pass-step"/g)].length, 4);
+    assert.doesNotMatch(plansHtml, /<table/);
     for (const path of ["/terms", "/privacy", "/refunds", "/contact"]) {
       assert.match(html, new RegExp(`href="${path}"`));
       const policy = await fetch(origin + path); assert.equal(policy.status, 200, path); assert.equal(new URL(policy.url).pathname, path);

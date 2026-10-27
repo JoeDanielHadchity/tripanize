@@ -5,6 +5,7 @@
 @import "./window-seat.css";
 @import "./feature-pages.css";
 @import "./city-guides.css";
+@import "./premium-pass.css";
 
 /* Tailwind dark: variant follows the same rule as the color tokens. */
 @custom-variant dark {
