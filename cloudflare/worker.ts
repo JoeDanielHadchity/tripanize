@@ -227,6 +227,16 @@ export default {
   async fetch(request: Request, env: CloudflareEnv): Promise<Response> {
     const redirect = invitationRedirect(request);
     if (redirect) return redirect;
+    const url = new URL(request.url);
+    if ((request.method === "GET" || request.method === "HEAD") && (url.pathname === "/mobile-preview" || url.pathname.startsWith("/mobile-preview/"))) {
+      // The same React Native screens can be reviewed on the website. This
+      // fallback belongs only to this SPA, never to API or existing web routes.
+      const asset = await env.ASSETS.fetch(request);
+      if (asset.status !== 404) return asset;
+      if (/\.[a-z0-9]+$/i.test(url.pathname)) return asset;
+      url.pathname = "/mobile-preview/";
+      return env.ASSETS.fetch(new Request(url, request));
+    }
     if (request.method === "GET" || request.method === "HEAD") { const asset = await env.ASSETS.fetch(request); if (asset.status !== 404) return asset; }
     return env.APP.getByName("tripanize-main").fetch(request);
   },

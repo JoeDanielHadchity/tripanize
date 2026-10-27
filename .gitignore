@@ -17,3 +17,4 @@ next-env.d.ts
 *.sqlite-*
 /dist/
 .vinext/
+/public/mobile-preview/

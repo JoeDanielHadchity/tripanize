@@ -110,6 +110,23 @@ try {
     assert.equal(signup.status, 200, await signup.clone().text());
     const cookie = signup.headers.getSetCookie().map((v) => v.split(";")[0]).join("; ");
     assert.ok(cookie);
+    for (const path of ["/api/mobile/session", "/api/mobile/trips", "/api/mobile/destinations", "/api/mobile/trips/not-a-member"]) {
+      const anonymous = await fetch(origin + path); assert.equal(anonymous.status, 401, path);
+      assert.equal(anonymous.headers.get("Cache-Control"), "private, no-store");
+    }
+    const mobileSession = await json("/api/mobile/session", { headers: { Cookie: cookie } });
+    assert.equal(mobileSession.name, "Hosting check");
+    assert.deepEqual(await json("/api/mobile/trips", { headers: { Cookie: cookie } }), { trips: [] });
+    assert.deepEqual(await json("/api/mobile/destinations", { headers: { Cookie: cookie } }), { searches: [] });
+    assert.equal((await fetch(origin + "/api/mobile/trips/not-a-member", { headers: { Cookie: cookie } })).status, 404);
+    const nativeSignup = await fetch(origin + "/api/auth/sign-up/email", { method: "POST", headers: { "Content-Type": "application/json", "expo-origin": "tripanize://" }, body: JSON.stringify({ name: "Native mobile check", email: `native-${crypto.randomUUID()}@example.test`, password: crypto.randomUUID() + "Aa1!" }) });
+    assert.equal(nativeSignup.status, 200, await nativeSignup.clone().text());
+    const nativeCookie = nativeSignup.headers.getSetCookie().map(value => value.split(";")[0]).join("; ");
+    assert.ok(nativeCookie);
+    assert.equal((await json("/api/mobile/session", { headers: { Cookie: nativeCookie } })).name, "Native mobile check");
+    const badNativeOrigin = await fetch(origin + "/api/auth/sign-in/email", { method: "POST", headers: { "Content-Type": "application/json", "expo-origin": "other-app://" }, body: JSON.stringify({ email: "nobody@example.test", password: "No account was created" }) });
+    assert.equal(badNativeOrigin.status, 403);
+    const mobilePreview = await fetch(origin + "/mobile-preview/trips"); assert.equal(mobilePreview.status, 200); assert.equal(new URL(mobilePreview.url).pathname, "/mobile-preview/trips"); assert.match(await mobilePreview.text(), /noindex,nofollow/);
     for (const path of ["/", "/sign-in", "/sign-up"]) {
       const landing = await fetch(origin + path, { headers: { Cookie: cookie } });
       assert.equal(new URL(landing.url).pathname, "/start", path);

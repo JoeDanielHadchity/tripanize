@@ -6,6 +6,7 @@ import { prisma } from "@/server/db";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { sendEmail } from "@/server/notifications/email";
 import { accountDisplayName } from "@/server/admin/identity";
+import { expo } from "@better-auth/expo";
 
 function createAuth(frameworkCookies = true) { return betterAuth({
   appName: "Tripanize",
@@ -18,7 +19,7 @@ function createAuth(frameworkCookies = true) { return betterAuth({
     try {
       const u = new URL(base);
       const alt = u.hostname.startsWith("www.") ? u.hostname.slice(4) : `www.${u.hostname}`;
-      const origins = [u.origin, `${u.protocol}//${alt}`];
+      const origins = [u.origin, `${u.protocol}//${alt}`, "tripanize://"];
       return origins;
     } catch {
       return [];
@@ -65,6 +66,7 @@ function createAuth(frameworkCookies = true) { return betterAuth({
   } },
   rateLimit: { enabled: true, window: 60, max: 30 },
   plugins: [
+    expo(),
     // Passwordless sign-in: a 6-digit code by email (delivered through Resend or SMTP). The first successful
     // code sign-in creates the account, already email-verified.
     emailOTP({
