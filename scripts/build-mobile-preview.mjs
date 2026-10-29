@@ -10,7 +10,8 @@ if (!existsSync(resolve(mobile, "node_modules/expo/bin/cli")) || !existsSync(sta
   execFileSync("npm", ["ci", "--include=dev", "--no-audit", "--no-fund"], { cwd: mobile, stdio: "inherit" });
   mkdirSync(resolve(mobile, ".expo"), { recursive: true }); writeFileSync(stamp, fingerprint);
 }
-execFileSync(process.execPath, [resolve(mobile, "node_modules/expo/bin/cli"), "export", "--platform", "web", "--max-workers", "2"], {
+// Rebuild the published preview from the current mobile sources on every deploy.
+execFileSync(process.execPath, [resolve(mobile, "node_modules/expo/bin/cli"), "export", "--clear", "--platform", "web", "--max-workers", "2"], {
   cwd: mobile, stdio: "inherit", env: { ...process.env, CI: "1", EXPO_OFFLINE: "1", EXPO_NO_DOTENV: "1", EXPO_PUBLIC_MOBILE_PREVIEW: "1" },
 });
 const target = resolve("public/mobile-preview");
