@@ -10,8 +10,9 @@ import { pickFiles, uploadFiles, shareDownload, type PickedFile } from "../lib/f
 import { saveOfflineItinerary, clearOfflineItineraries } from "../lib/offline";
 import { useTheme, useAppearance } from "./theme";
 import { Fields } from "./form-fields";
+import { NativePublicHeader } from "./public-header";
 import { NativeLocation } from "./native-location";
-import { Brand, Button, Card, ErrorNotice, Heading, Icon, Loading, Muted, Screen, T, styles } from "./ui";
+import { Button, Card, ErrorNotice, Heading, Icon, Loading, Muted, Screen, T, styles } from "./ui";
 
 function navigate(to: MobileTarget, replace = false) {
   if (to.screen === "trips") { router.replace("/trips"); return; }
@@ -55,8 +56,8 @@ export function WorkspaceScreen({ target, account = false }: { target: MobileTar
     } catch (e) { setActionError(e instanceof Error ? e.message : "Could not complete this action."); }
     finally { setBusy(false); }
   }
-  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen style={{ maxWidth: 640, padding: 20, gap: 18 }}>
-    <View style={styles.row}><Pressable accessibilityRole="button" accessibilityLabel="Go to home" onPress={() => router.replace("/")}><Brand /></Pressable><View style={{ flexDirection: "row", gap: 16 }}><Pressable accessibilityRole="button" accessibilityLabel="My trips" onPress={() => router.replace("/trips")}><Icon name="briefcase-outline" /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Notifications" onPress={() => navigate({ screen: "notifications" })}><Icon name="notifications-outline" /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace("/")}><Icon name="arrow-back" /></Pressable></View></View>
+  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen header={<NativePublicHeader active={account ? "account" : "workspace"} />} style={{ maxWidth: 640, padding: 20, gap: 18 }}>
+    <View style={[styles.row, { justifyContent: "flex-end" }]}><View style={{ flexDirection: "row", gap: 16 }}><Pressable accessibilityRole="button" accessibilityLabel="My trips" onPress={() => router.replace("/trips")}><Icon name="briefcase-outline" /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Notifications" onPress={() => navigate({ screen: "notifications" })}><Icon name="notifications-outline" /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace("/")}><Icon name="arrow-back" /></Pressable></View></View>
     {data?.tripId && <Muted>{data.role === "OWNER" ? "Organizer" : data.role === "COLLABORATOR" ? "Editor" : "Viewer"}{data.premium ? " · ★ Premium" : " · Standard"}</Muted>}
     <Heading>{data?.title ?? "Your trip."}</Heading>{data?.subtitle && <Muted>{data.subtitle}</Muted>}
     {data?.tabs && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{data.tabs.map(tab => <Pressable key={tab.to.screen} accessibilityRole="button" accessibilityState={{ selected: tab.to.screen === target.screen }} onPress={() => navigate(tab.to, true)} style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: c.line, backgroundColor: tab.to.screen === target.screen ? c.accent : c.paper }}><T style={{ color: tab.to.screen === target.screen ? c.accentText : c.ink, fontSize: 13 }}>{tab.label}{tab.premium ? " ★" : ""}</T></Pressable>)}</ScrollView>}

@@ -8,7 +8,7 @@ import { photo } from "../lib/auth";
 
 export default function DestinationChoicesScreen() {
   const c = useTheme();
-  return <Screen><NativePublicHeader /><View style={{ gap: 10, marginTop: 20 }}><Eyebrow>Your next chapter</Eyebrow><Heading>Where do you{"\n"}want to go?</Heading></View>
+  return <Screen header={<NativePublicHeader active="start" />}><View style={{ gap: 10, marginTop: 20 }}><Eyebrow>Your next chapter</Eyebrow><Heading>Where do you{"\n"}want to go?</Heading></View>
     {[{ title: "I have a destination", subtitle: "Open my trips", image: "/editorial/start-mont-saint-michel.webp", alt: "Mont Saint-Michel at sunset", href: "/trips" as const },
       { title: "Help me choose", subtitle: "Explore destination ideas", image: "/editorial/start-amalfi-coast.webp", alt: "Positano on the Amalfi Coast", href: "/destinations" as const }].map(choice =>
       <Pressable key={choice.href} accessibilityRole="button" accessibilityLabel={choice.title} onPress={() => router.push(choice.href)} style={({ pressed }) => ({ backgroundColor: c.paper, borderRadius: 22, overflow: "hidden", borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.85 : 1 })}>

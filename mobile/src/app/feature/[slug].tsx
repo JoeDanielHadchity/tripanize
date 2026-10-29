@@ -12,7 +12,7 @@ const FEATURES = {
 export default function FeatureScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const feature = Object.hasOwn(FEATURES, slug) ? FEATURES[slug as keyof typeof FEATURES] : null;
-  return <Screen><NativePublicHeader active={slug} />{!feature ? <Heading>Page not found.</Heading> : <><Eyebrow>{feature.title}</Eyebrow><Heading>{feature.emphasis}</Heading><T>{feature.intro}</T><Muted>{feature.note}</Muted><CreateTripButton />
+  return <Screen header={<NativePublicHeader active={slug} />}>{!feature ? <Heading>Page not found.</Heading> : <><Eyebrow>{feature.title}</Eyebrow><Heading>{feature.emphasis}</Heading><T>{feature.intro}</T><Muted>{feature.note}</Muted><CreateTripButton />
     <View style={{ gap: 16 }}>{feature.steps.map(([title, text], i) => <Card key={title}><Eyebrow>0{i + 1}</Eyebrow><Heading small>{title}</Heading><Muted>{text}</Muted></Card>)}</View>
   </>}</Screen>;
 }

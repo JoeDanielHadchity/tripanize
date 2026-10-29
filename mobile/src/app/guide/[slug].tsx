@@ -36,7 +36,7 @@ function Guide({ slug }: { slug: string }) {
     } catch (e) { setSaveError(e instanceof Error ? e.message : "Could not save a copy."); }
     finally { setBusy(false); }
   }
-  return <Screen><NativePublicHeader />{error ? <ErrorNotice message={error} retry={retry} /> : !data ? <Loading /> : <>
+  return <Screen header={<NativePublicHeader active="guides" />}>{error ? <ErrorNotice message={error} retry={retry} /> : !data ? <Loading /> : <>
     <Image source={photo(data.image)} accessibilityLabel={data.alt} style={{ width: "100%", aspectRatio: 1.5, borderRadius: 20 }} contentFit="cover" />
     <Eyebrow>Example trip · {data.days.length} days</Eyebrow><Heading>{data.title}</Heading><T>{data.intro}</T><Muted>Suggested times and planning estimates. Check current hours, weather and prices before you travel.</Muted>
     <Card><Heading small>Make it your trip.</Heading><Muted>Save an editable copy with your own dates. Nothing is booked for you.</Muted>{session && <><T style={{ fontFamily: "InterSemibold", fontSize: 13 }}>Trip start date</T><TextInput accessibilityLabel="Trip start date, YYYY-MM-DD" value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={c.muted} autoCapitalize="none" maxLength={10} style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 15, color: c.ink, fontFamily: "Inter", fontSize: 16 }} /></>}{saveError && <ErrorNotice message={saveError} />}<Button busy={busy} onPress={() => void saveCopy()}>{session ? "Save a copy" : "Sign in to save a copy"}</Button></Card>
