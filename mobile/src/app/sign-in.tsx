@@ -45,6 +45,7 @@ export default function SignInScreen() {
       {sent && !passwordMode && <Pressable accessibilityRole="button" disabled={busy || cooldown > 0} onPress={async () => { setBusy(true); try { const result = await authClient.emailOtp.sendVerificationOtp({ email: email.trim().toLowerCase(), type: "sign-in" }); if (result.error) throw new Error(result.error.message); setCooldown(60); setError(null); } catch (e) { setError(e instanceof Error ? e.message : "Could not resend."); } finally { setBusy(false); } }}><T style={{ textAlign: "center", color: c.accent, padding: 8 }}>{cooldown ? `Resend in ${cooldown}s` : "Resend code"}</T></Pressable>}
       <Pressable accessibilityRole="button" onPress={() => { setPasswordMode(!passwordMode); setSent(false); setCode(""); setError(null); }}><T style={{ textAlign: "center", color: c.accent, padding: 8, fontSize: 13 }}>{passwordMode ? "Use an email code instead" : "Use a password instead"}</T></Pressable>
       {sent && <Pressable accessibilityRole="button" onPress={() => { setSent(false); setCode(""); }}><Muted>Use another email</Muted></Pressable>}
+      <Button secondary onPress={() => router.push("/offline")}>Saved offline itineraries</Button>
     </View>
   </Screen></KeyboardAvoidingView>;
 }

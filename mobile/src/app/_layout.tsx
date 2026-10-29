@@ -15,8 +15,9 @@ function Navigation() {
   return <><StatusBar style={c.bg === "#f6f2e9" ? "dark" : "light"} /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
     <Stack.Protected guard={!session}><Stack.Screen name="sign-in" /></Stack.Protected>
     <Stack.Protected guard={!!session}>
-      <Stack.Screen name="(tabs)" /><Stack.Screen name="trip/[id]" /><Stack.Screen name="destinations" />
+      <Stack.Screen name="(tabs)" /><Stack.Screen name="trip/[id]" /><Stack.Screen name="destinations" /><Stack.Screen name="workspace" />
     </Stack.Protected>
+    <Stack.Screen name="offline" />
   </Stack></>;
 }
 export default function RootLayout() { return <SafeAreaProvider><ThemeProvider><Navigation /></ThemeProvider></SafeAreaProvider>; }

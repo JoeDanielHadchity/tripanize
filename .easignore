@@ -6,6 +6,7 @@
 !/src/lib
 /src/lib/*
 !/src/lib/mobile-contracts.ts
+!/src/lib/mobile-workspace.ts
 
 # EAS replaces all .gitignore files with these rules.
 .git

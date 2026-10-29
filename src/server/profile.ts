@@ -7,7 +7,7 @@ import { isValidTimeZone } from "@/lib/dates";
 import { formatZodError } from "@/server/trips/schemas";
 import { accountDisplayName } from "@/server/admin/identity";
 
-const profileInput = z.object({
+export const profileInput = z.object({
   name: z.string().trim().min(1, "Enter a display name").max(80),
   homeCity: z.string().trim().max(120).optional().nullable(),
   defaultCurrency: z.string().regex(/^[A-Z]{3}$/),

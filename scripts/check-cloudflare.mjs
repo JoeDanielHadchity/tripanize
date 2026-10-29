@@ -186,7 +186,7 @@ try {
     assert.match(memberGuide, /id="copy-date"/); assert.match(memberGuide, /Save a copy to my trips/);
     const returnToGuide = await fetch(origin + "/sign-in?next=%2Fexamples%2Fparis%23use-itinerary", { headers: { Cookie: cookie }, redirect: "manual" });
     assert.equal(returnToGuide.status, 307); assert.equal(returnToGuide.headers.get("Location"), "/examples/paris#use-itinerary");
-    for (const path of ["/api/mobile/session", "/api/mobile/trips", "/api/mobile/destinations", "/api/mobile/trips/not-a-member"]) {
+    for (const path of ["/api/mobile/session", "/api/mobile/trips", "/api/mobile/destinations", "/api/mobile/trips/not-a-member", "/api/mobile/workspace?screen=trips", "/api/mobile/files?tripId=private&kind=json", "/api/mobile/location?tripId=private"]) {
       const anonymous = await fetch(origin + path); assert.equal(anonymous.status, 401, path);
       assert.equal(anonymous.headers.get("Cache-Control"), "private, no-store");
     }
@@ -200,6 +200,27 @@ try {
     const nativeCookie = nativeSignup.headers.getSetCookie().map(value => value.split(";")[0]).join("; ");
     assert.ok(nativeCookie);
     assert.equal((await json("/api/mobile/session", { headers: { Cookie: nativeCookie } })).name, "Native mobile check");
+    const nativeCommand = (action, tripId, values = {}) => json("/api/mobile/workspace", { method: "POST", headers: { Cookie: nativeCookie, Origin: "tripanize://", "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(tripId ? { tripId } : {}), values }) });
+    const mobileDraft = await nativeCommand("trip.create", undefined, { name: "Isolated mobile trip" });
+    const nativeTripId = mobileDraft.to.tripId;
+    await nativeCommand("trip.standard", nativeTripId);
+    const detailsDoc = await json(`/api/mobile/workspace?screen=setup&tripId=${nativeTripId}`, { headers: { Cookie: nativeCookie } });
+    const detailsForm = detailsDoc.blocks.find(block => block.form?.action === "trip.details").form;
+    await nativeCommand("trip.details", nativeTripId, { ...detailsForm.values, name: "Isolated mobile trip", startDate: "2027-05-01", endDate: "2027-05-04", timezone: "Europe/Paris", destinations: [{ name: "Paris", country: "France" }], currency: "EUR", budget: "500" });
+    await nativeCommand("setup.manual", nativeTripId);
+    const itinerary = await json(`/api/mobile/trips/${nativeTripId}`, { headers: { Cookie: nativeCookie } });
+    await nativeCommand("stop.save", nativeTripId, { title: "Mobile manual stop", dayId: itinerary.days[0].id, plan: "A" });
+    const workspaceDoc = await json(`/api/mobile/workspace?screen=itinerary&tripId=${nativeTripId}&item=${itinerary.days[0].id}`, { headers: { Cookie: nativeCookie } });
+    assert.ok(workspaceDoc.blocks.some(block => block.title === "Mobile manual stop"));
+    assert.equal(workspaceDoc.tabs.length, 6);
+    const deniedMobileEdit = await fetch(origin + "/api/mobile/workspace", { method: "POST", headers: { Cookie: nativeCookie, Origin: "https://attacker.test", "Content-Type": "application/json" }, body: JSON.stringify({ action: "stop.save", tripId: nativeTripId, values: { title: "Rejected" } }) });
+    assert.equal(deniedMobileEdit.status, 403);
+    const privateExport = await fetch(origin + `/api/mobile/files?tripId=${nativeTripId}&kind=json`, { headers: { Cookie: nativeCookie } });
+    assert.equal(privateExport.status, 200); assert.equal(privateExport.headers.get("Cache-Control"), "private, no-store");
+    assert.equal((await privateExport.json()).trip.name, "Isolated mobile trip");
+    const lockedWorkspace = await json(`/api/mobile/workspace?screen=expenses&tripId=${nativeTripId}`, { headers: { Cookie: nativeCookie } });
+    assert.equal(lockedWorkspace.blocks[0].id, "locked");
+    await nativeCommand("trip.delete", nativeTripId, { name: "Isolated mobile trip" });
     const badNativeOrigin = await fetch(origin + "/api/auth/sign-in/email", { method: "POST", headers: { "Content-Type": "application/json", "expo-origin": "other-app://" }, body: JSON.stringify({ email: "nobody@example.test", password: "No account was created" }) });
     assert.equal(badNativeOrigin.status, 403);
     const mobilePreview = await fetch(origin + "/mobile-preview/trips"); assert.equal(mobilePreview.status, 200); assert.equal(new URL(mobilePreview.url).pathname, "/mobile-preview/trips"); assert.match(await mobilePreview.text(), /noindex,nofollow/);
@@ -276,7 +297,7 @@ try {
       assert.equal(staleSession.status, 200, `stale session: ${path}`);
       assert.doesNotMatch(await staleSession.text(), /cookies\(\) can only be called|Worker threw exception/);
     }
-    console.log(JSON.stringify({ mode, memberMainNavigation: true, staleSessionInviteGuard: true, companyAdminGuard: true, personalTravelerName: true, publicBrandUnchanged: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
+    console.log(JSON.stringify({ mode, nativeWorkspace: true, memberMainNavigation: true, staleSessionInviteGuard: true, companyAdminGuard: true, personalTravelerName: true, publicBrandUnchanged: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
   }
 } catch (error) { await new Promise((resolve) => setTimeout(resolve, 200)); console.error(error.stack ?? error.message); console.error(logs.slice(-11000)); process.exitCode = 1; }
 finally { if (child) await stop(child); }

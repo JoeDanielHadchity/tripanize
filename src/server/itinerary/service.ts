@@ -75,7 +75,7 @@ function simulate(before: StopWithRefs[], after: StopWithRefs[], mode: "sequence
 
 // ───────────── Stop input ─────────────
 
-const stopFields = z.object({
+export const stopFields = z.object({
   title: z.string().trim().min(1, "Give the stop a title").max(160),
   category: z.string().trim().max(40).default("sight"),
   locationName: z.string().trim().max(160).optional().nullable(),
