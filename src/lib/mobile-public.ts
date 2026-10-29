@@ -12,14 +12,23 @@ export type MobilePublicGuide = {
   sources: { label: string; url: string }[];
 };
 
-/** Only a trip start or one of our public examples can be a login destination. */
+/** Only known local destinations can survive sign-in. */
 export function publicLoginDestination(next: unknown): string {
   if (next === "start") return "/start";
+  if (next === "trips") return "/trips";
+  if (next === "account") return "/account";
   if (typeof next === "string" && next.startsWith("guide:")) {
     const slug = next.slice(6);
     if (PUBLIC_GUIDE_SLUGS.some(allowed => allowed === slug)) return `/guide/${slug}`;
   }
   return "/";
+}
+
+/** Navigation state only; it never grants access to a private screen. */
+export function mobileNavigationSection(pathname: string, screen?: string): "home" | "trips" | "account" {
+  if (pathname === "/account" || (pathname === "/workspace" && (screen === "account" || screen === "notifications" || screen === "admin" || screen?.startsWith("admin-")))) return "account";
+  if (pathname === "/trips" || pathname.startsWith("/trip/") || pathname === "/workspace") return "trips";
+  return "home";
 }
 
 export function publicHttpsLink(value?: string): string | null {

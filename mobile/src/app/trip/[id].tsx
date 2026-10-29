@@ -1,4 +1,3 @@
-import { NativePublicHeader } from "../../components/public-header";
 import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -28,7 +27,7 @@ export default function ItineraryScreen() {
   const [selection, setSelection] = useState<{ tripId: string; date: string } | null>(null);
   const date = selection?.tripId === id ? selection.date : null;
   const day = data?.days.find(d => d.date === date) ?? data?.days.find(d => d.date === data.today) ?? data?.days[0];
-  return <Screen header={<NativePublicHeader active="trip" />}><View style={styles.row}><Pressable accessibilityRole="button" accessibilityLabel="Back to my trips" onPress={() => router.canGoBack() ? router.back() : router.replace("/trips")} style={{ padding: 8, marginLeft: -8 }}><Icon name="arrow-back" /></Pressable><Eyebrow>Itinerary</Eyebrow><Pressable accessibilityRole="button" accessibilityLabel="Refresh itinerary" onPress={() => void reload()} style={{ padding: 8 }}><Icon name="refresh-outline" /></Pressable></View>
+  return <Screen><View style={styles.row}><Pressable accessibilityRole="button" accessibilityLabel="Back to my trips" onPress={() => router.canGoBack() ? router.back() : router.replace("/trips")} style={{ padding: 8, marginLeft: -8 }}><Icon name="arrow-back" /></Pressable><Eyebrow>Itinerary</Eyebrow><Pressable accessibilityRole="button" accessibilityLabel="Refresh itinerary" onPress={() => void reload()} style={{ padding: 8 }}><Icon name="refresh-outline" /></Pressable></View>
     {!live && saved && mayUseOffline && <Muted>Saved offline · {saved.savedAt}. Read-only; refresh when connected.</Muted>}{error && (!saved || !mayUseOffline) && <ErrorNotice message={error} retry={() => void reload()} />}{loading && !data && <Loading />}
     {data && <>
       {data.trip.image && <Image source={data.trip.image.url} accessibilityLabel={data.trip.destinations.join(", ")} contentFit="cover" style={{ height: 185, width: "100%", borderRadius: 22 }} />}

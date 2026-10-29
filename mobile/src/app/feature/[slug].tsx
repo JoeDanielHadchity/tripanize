@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
 import { Card, Eyebrow, Heading, Muted, Screen, T } from "../../components/ui";
-import { NativePublicHeader, CreateTripButton } from "../../components/public-header";
+import { CreateTripButton } from "../../components/public-header";
 
 const FEATURES = {
   "ai-trip-planner": { title: "Trip Planner.", emphasis: "Your kind of trip.", intro: "Turn your dates, interests and travel pace into an editable day-by-day itinerary.", note: "Free: the first 2 AI-planned days. Premium: all trip days.", steps: [["Tell us about your trip", "Add your destination, dates, budget, food preferences and travel pace."], ["Get your itinerary", "Find suggested stops and time to explore. Premium adds event suggestions and customized packing."], ["Make it yours", "Open one day at a time. Edit manually, or review updates from your Premium assistant."]] },
@@ -12,7 +12,7 @@ const FEATURES = {
 export default function FeatureScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const feature = Object.hasOwn(FEATURES, slug) ? FEATURES[slug as keyof typeof FEATURES] : null;
-  return <Screen header={<NativePublicHeader active={slug} />}>{!feature ? <Heading>Page not found.</Heading> : <><Eyebrow>{feature.title}</Eyebrow><Heading>{feature.emphasis}</Heading><T>{feature.intro}</T><Muted>{feature.note}</Muted><CreateTripButton />
+  return <Screen>{!feature ? <Heading>Page not found.</Heading> : <><Eyebrow>{feature.title}</Eyebrow><Heading>{feature.emphasis}</Heading><T>{feature.intro}</T><Muted>{feature.note}</Muted><CreateTripButton />
     <View style={{ gap: 16 }}>{feature.steps.map(([title, text], i) => <Card key={title}><Eyebrow>0{i + 1}</Eyebrow><Heading small>{title}</Heading><Muted>{text}</Muted></Card>)}</View>
   </>}</Screen>;
 }
