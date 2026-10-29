@@ -1,16 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getSessionUser } from "@/server/auth/session";
-import { AppHeader, Logo } from "./shell";
-import { LinkButton } from "./ui";
+import { PublicHeader as SiteHeader } from "./public-header";
 import { LEGAL_LINKS, OPERATOR_COUNTRY, OPERATOR_NAME, POLICY_UPDATED } from "@/lib/legal";
 
 export async function PublicHeader() {
   const user = await getSessionUser();
-  return user ? <AppHeader user={user} /> : <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-4">
-    <Link href="/" aria-label="Tripanize home"><Logo /></Link>
-    <nav aria-label="Main" className="flex items-center gap-3"><Link href="/plans" className="text-sm text-muted hover:text-ink">Pricing</Link><LinkButton href="/sign-in">Sign in</LinkButton></nav>
-  </header>;
+  return <SiteHeader authenticated={Boolean(user)} />;
 }
 
 export function PolicySection({ title, children }: { title: string; children: ReactNode }) {

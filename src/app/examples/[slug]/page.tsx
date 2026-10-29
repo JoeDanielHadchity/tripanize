@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { publicMetadata } from "@/lib/seo";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSessionUser } from "@/server/auth/session";
 import { EXAMPLES } from "@/server/examples/data";
-import { Logo } from "@/components/shell";
+import { PublicHeader } from "@/components/public-header";
 import { Badge, LinkButton, Notice } from "@/components/ui";
 import { formatDuration } from "@/lib/dates";
 import { CopyExample } from "./copy";
@@ -34,10 +33,7 @@ export default async function ExamplePage({ params }: { params: Promise<{ slug: 
   if (guide) return <CityGuidePage guide={guide} authenticated={Boolean(user)} />;
   return (
     <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-        <Link href={user ? "/trips" : "/"}><Logo small /></Link>
-        {user ? <LinkButton href="/trips" variant="ghost">My trips</LinkButton> : <LinkButton href="/sign-up" variant="primary">Get started</LinkButton>}
-      </header>
+      <PublicHeader currentPath={`/examples/${slug}`} authenticated={Boolean(user)} />
       <main id="main" className="mx-auto max-w-4xl px-4 pb-16">
         <div className="relative overflow-hidden rounded-3xl p-6 text-white sm:p-10" style={{ background: ex.slug === "lisbon-porto" ? "linear-gradient(90deg,#102c36ed,#102c3699),url(/editorial/guide.webp) center / cover" : ex.image }}>
           <Badge tone="warn" className="mb-3">Example trip — not one of your trips</Badge>

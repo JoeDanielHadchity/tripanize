@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getSessionUser } from "@/server/auth/session";
 import { FEATURE_PAGES, type FeaturePath } from "@/lib/feature-pages";
-import { Logo, SettingsLink } from "./shell";
+import { PublicHeader } from "./public-header";
 import { LinkButton } from "./ui";
 
 type FeaturePageProps = {
@@ -21,9 +21,8 @@ export async function FeaturePage({ path, eyebrow, title, emphasis, intro, planN
   const user = await getSessionUser();
   const create = user ? "/trips/new" : "/sign-up";
   return <div className="feature-page">
-    <header className="public-header"><Link href="/" aria-label="Tripanize home"><Logo /></Link><nav aria-label="Main"><Link href="/plans">Plans</Link><SettingsLink /><Link href={user ? "/trips" : "/sign-in"}>{user ? "My trips" : "Sign in"}</Link><LinkButton href={create} variant="primary">Create a trip</LinkButton></nav></header>
+    <PublicHeader currentPath={path} authenticated={Boolean(user)} />
     <main id="main" className="feature-content">
-      <nav className="feature-paths" aria-label="Trip planning tools">{FEATURE_PAGES.map(feature => <Link key={feature.href} href={feature.href} aria-current={path === feature.href ? "page" : undefined}>{feature.label}</Link>)}</nav>
       <section className="feature-hero" aria-labelledby="feature-title">
         <div className="feature-hero-copy"><p className="feature-eyebrow">{eyebrow}</p><h1 id="feature-title">{title} <em>{emphasis}</em></h1><p className="feature-intro">{intro}</p><div className="hero-actions"><LinkButton href={create} variant="primary">Create a trip <span aria-hidden="true">→</span></LinkButton><LinkButton href="/examples/lisbon-porto">View example itinerary</LinkButton></div><p className="feature-plan-note">{planNote} <Link href="/plans">Compare plans</Link></p></div>
         {preview}

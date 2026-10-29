@@ -17,11 +17,12 @@
 
 .public-header { max-width:1120px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:22px 24px; }
 .public-header nav { display:flex; align-items:center; gap:19px; font-size:14px; }
-.home-public-header { flex-wrap:wrap; }
-.home-public-header nav { min-width:0; flex:1; flex-wrap:wrap; justify-content:flex-end; gap:4px 19px; }
-.home-public-header nav>a { display:inline-flex; align-items:center; min-height:44px; white-space:nowrap; }
-.home-public-header nav>a:not([class]):hover { color:var(--accent-ink); text-decoration:underline; text-underline-offset:5px; }
-@media(max-width:700px){.home-public-header nav{flex-basis:100%;justify-content:flex-start;margin-left:0;gap:4px 16px}}
+.public-site-header { flex-wrap:wrap; }
+.public-site-header nav { min-width:0; flex:1; flex-wrap:wrap; justify-content:flex-end; gap:4px 19px; }
+.public-site-header nav>a { display:inline-flex; align-items:center; min-height:44px; white-space:nowrap; }
+.public-site-header .public-nav-link:hover { color:var(--accent-ink); text-decoration:underline; text-underline-offset:5px; }
+.public-site-header .public-nav-link[aria-current="page"] { color:var(--accent-ink); text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:7px; }
+@media(max-width:700px){.public-site-header nav{flex-basis:100%;justify-content:flex-start;margin-left:0;gap:4px 16px}}
 .home-content { max-width:1120px; margin:auto; padding:30px 24px 40px; }
 .hero-ticket { display:grid; grid-template-columns:minmax(0,1fr) 166px; position:relative; border:1px solid var(--ink); border-radius:17px; background:var(--surface); box-shadow:0 5px 0 var(--paper-shadow); }
 .ticket-tape { position:absolute; width:80px; height:22px; background:var(--tape); top:-10px; left:44px; transform:rotate(-6deg); z-index:1; }
