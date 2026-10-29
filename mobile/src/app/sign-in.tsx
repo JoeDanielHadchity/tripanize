@@ -5,7 +5,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { authClient, photo } from "../lib/auth";
 import { Button, ErrorNotice, Eyebrow, Heading, Muted, Screen, T } from "../components/ui";
 import { publicLoginDestination } from "../lib/public-data";
-import { NativePublicHeader } from "../components/public-header";
 import { useTheme } from "../components/theme";
 
 export default function SignInScreen() {
@@ -35,11 +34,13 @@ export default function SignInScreen() {
         const result = await authClient.signIn.emailOtp({ email: address, otp: code });
         if (result.error) throw new Error(result.error.message || "Check your code and try again.");
       }
-      await authClient.getSession(); router.replace(publicLoginDestination(next));
+      // The session effect navigates after protected routes have unlocked.
+      const current = await authClient.getSession();
+      if (!current.data?.user) throw new Error(current.error?.message || "Could not finish signing in. Please try again.");
     } catch (e) { setError(e instanceof Error ? e.message : "Could not connect. Please try again."); }
     finally { setBusy(false); }
   }
-  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen header={<NativePublicHeader active="sign-in" />}>
+  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen>
     <Image source={photo("/editorial/auth.webp")} accessibilityLabel="A new journey awaits" style={{ height: 185, width: "100%", borderRadius: 24, marginTop: 6 }} contentFit="cover" />
     <View style={{ gap: 9 }}><Eyebrow>A little more going</Eyebrow><Heading>{sent && !passwordMode ? "Check your inbox." : "Good trips\nstart here."}</Heading><Muted>{sent && !passwordMode ? `We sent a code to ${email.trim()}.` : "Sign in or create your Tripanize account."}</Muted></View>
     {error && <ErrorNotice message={error} />}

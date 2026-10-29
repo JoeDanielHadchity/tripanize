@@ -1,12 +1,12 @@
 import { View } from "react-native";
-import { NativePublicHeader, CreateTripButton } from "../components/public-header";
+import { CreateTripButton } from "../components/public-header";
 import { Card, Eyebrow, Heading, Icon, Muted, Screen, T, styles } from "../components/ui";
 import { useTheme } from "../components/theme";
 import { PREMIUM_PRICE_MINOR, premiumPrice } from "../../../src/lib/plans";
 
 export default function PlansScreen() {
   const c = useTheme();
-  return <Screen header={<NativePublicHeader active="plans" />}><Eyebrow>Choose your plan</Eyebrow><Heading>Your trip,{"\n"}thoughtfully organized.</Heading><Muted>A full itinerary, places you’ll enjoy, and shared tools to keep your group together.</Muted>
+  return <Screen><Eyebrow>Choose your plan</Eyebrow><Heading>Your trip,{"\n"}thoughtfully organized.</Heading><Muted>A full itinerary, places you’ll enjoy, and shared tools to keep your group together.</Muted>
     <Card style={{ backgroundColor: c.soft, borderColor: c.accent }}><View style={styles.row}><Heading small>Premium pass</Heading><Icon name="star" /></View><T style={{ fontFamily: "Fraunces", fontSize: 48, lineHeight: 60 }}>{premiumPrice(PREMIUM_PRICE_MINOR)} <T style={{ fontSize: 14 }}>USD / trip</T></T><T>One payment for the whole group.</T><Muted>Any group size. No subscription.</Muted><CreateTripButton /><Muted>New purchases in the app are not enabled yet. Existing Premium trips, trial invitations and company access work.</Muted></Card>
     <Heading small>Help for every part of the trip.</Heading>
     {[

@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it } from "vitest";
 import { GET as publicPage } from "@/app/api/mobile/public/route";
 import { POST as privateCommand } from "@/app/api/mobile/workspace/route";
-import { PUBLIC_GUIDE_SLUGS, publicHttpsLink, publicLoginDestination, type MobilePublicHome, type MobilePublicGuide } from "@/lib/mobile-public";
+import { PUBLIC_GUIDE_SLUGS, publicHttpsLink, publicLoginDestination, mobileNavigationSection, type MobilePublicHome, type MobilePublicGuide } from "@/lib/mobile-public";
 import { CITY_GUIDES } from "@/server/examples/city-guides";
 import { EXAMPLES } from "@/server/examples/data";
 import { mobileCommand } from "@/server/mobile/commands";
@@ -43,8 +43,10 @@ it("cannot use the public feed as a private screen or arbitrary file dispatcher"
 
 it("allows only known local login destinations and safe public provider links", () => {
   expect(publicLoginDestination("start")).toBe("/start");
+  expect(publicLoginDestination("trips")).toBe("/trips");
+  expect(publicLoginDestination("account")).toBe("/account");
   for (const slug of PUBLIC_GUIDE_SLUGS) expect(publicLoginDestination(`guide:${slug}`)).toBe(`/guide/${slug}`);
-  for (const next of ["https://attacker.test", "//attacker.test", "/admin", "guide:../../account", "guide:%2fadmin", ["start"], null, undefined]) expect(publicLoginDestination(next)).toBe("/");
+  for (const next of ["https://attacker.test", "//attacker.test", "/admin", "/trips", "/account", "account/../../admin", "guide:../../account", "guide:%2fadmin", ["start"], null, undefined]) expect(publicLoginDestination(next)).toBe("/");
   expect(publicHttpsLink("https://www.paris.fr/")).toBe("https://www.paris.fr/");
   for (const url of ["javascript:alert(1)", "file:///private", "http://insecure.test", "https://name:password@example.com", "tripanize://admin", "//example.com", undefined]) expect(publicHttpsLink(url)).toBeNull();
 });
@@ -66,4 +68,14 @@ it("requires a session to save a public example and preserves the Standard entit
   expect(await prisma.itineraryDay.count({ where: { tripId } })).toBe(4);
   const other = await makeUser("Another traveler");
   expect((await getMobileTrips(other.id)).trips).toEqual([]);
+});
+
+
+it("keeps navigation selection tied to the active page and workspace context", () => {
+  for (const path of ["/", "/plans", "/feature/ai-trip-planner", "/guide/paris", "/start", "/destinations", "/sign-in"]) expect(mobileNavigationSection(path)).toBe("home");
+  for (const path of ["/trips", "/trip/trip-123", "/workspace"]) expect(mobileNavigationSection(path)).toBe("trips");
+  expect(mobileNavigationSection("/account")).toBe("account");
+  for (const screen of ["account", "notifications", "admin", "admin-trials"]) expect(mobileNavigationSection("/workspace", screen)).toBe("account");
+  expect(mobileNavigationSection("/workspace", "itinerary")).toBe("trips");
+  expect(mobileNavigationSection("/plans", "admin")).toBe("home");
 });

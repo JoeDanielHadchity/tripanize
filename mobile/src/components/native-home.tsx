@@ -7,7 +7,7 @@ import { usePublicData, type MobilePublicHome } from "../lib/public-data";
 import { HOME_SCENES } from "../../../src/lib/home-content";
 import { Brand, Button, Card, ErrorNotice, Eyebrow, Heading, Icon, Loading, Muted, Screen, T, styles } from "./ui";
 import { useTheme } from "./theme";
-import { CreateTripButton, NativeLegalLinks, NativePublicHeader } from "./public-header";
+import { CreateTripButton, NativeLegalLinks } from "./public-header";
 
 function NativeExplainer() {
   const c = useTheme(); const [scene, setScene] = useState(0);
@@ -38,7 +38,7 @@ function NativeExplainer() {
 
 export function NativeHome() {
   const c = useTheme(); const { data, error, retry } = usePublicData<MobilePublicHome>();
-  return <Screen header={<NativePublicHeader />} style={{ gap: 30 }}>
+  return <Screen style={{ gap: 30 }}>
     <Card style={{ padding: 0, overflow: "hidden" }}>
       <Image source={photo("/editorial/home.webp")} accessibilityLabel="Porto waterfront on the Douro River" style={{ width: "100%", height: 245 }} contentFit="cover" />
       <View style={{ padding: 23, gap: 16 }}><Eyebrow>A little more going</Eyebrow>

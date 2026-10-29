@@ -3,7 +3,6 @@ import { Pressable, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { Button, Card, ErrorNotice, Eyebrow, Heading, Icon, Loading, Muted, Screen, T, styles } from "../../components/ui";
-import { NativePublicHeader } from "../../components/public-header";
 import { useTheme } from "../../components/theme";
 import { roleLabel, tripDates, useApi } from "../../lib/data";
 import type { MobileTripCard } from "../../lib/types";
@@ -13,7 +12,7 @@ export default function TripsScreen() {
   useFocusEffect(useCallback(() => { reload(); }, [reload]));
   const [search, setSearch] = useState(""); const [filter, setFilter] = useState("Upcoming");
   const trips = data?.trips.filter(t => (filter === "All" || (filter === "Past" ? t.phase === "past" : t.phase !== "past")) && [t.name, ...t.destinations].join(" ").toLowerCase().includes(search.toLowerCase().trim())) ?? [];
-  return <Screen header={<NativePublicHeader active="trips" />}><View style={{ gap: 9, marginTop: 12 }}><Eyebrow>Keep the good plans</Eyebrow><Heading>My trips.</Heading></View>
+  return <Screen><View style={{ gap: 9, marginTop: 12 }}><Eyebrow>Keep the good plans</Eyebrow><Heading>My trips.</Heading></View>
     <Button onPress={() => router.push({ pathname: "/workspace", params: { screen: "new" } })}>Create a trip</Button><Button secondary onPress={() => router.push({ pathname: "/workspace", params: { screen: "trips" } })}>Invitations & trials</Button>
     <TextInput accessibilityLabel="Search trips" placeholder="Search a trip or destination" placeholderTextColor={c.muted} value={search} onChangeText={setSearch} style={{ backgroundColor: c.paper, color: c.ink, fontFamily: "Inter", borderWidth: 1, borderColor: c.line, borderRadius: 14, padding: 16, fontSize: 15 }} />
     <View style={{ flexDirection: "row", gap: 9 }}>{["Upcoming", "Past", "All"].map(label => <Pressable key={label} accessibilityRole="button" accessibilityState={{ selected: filter === label }} onPress={() => setFilter(label)} style={{ paddingVertical: 10, paddingHorizontal: 17, borderRadius: 24, backgroundColor: filter === label ? c.accent : c.soft }}><T style={{ color: filter === label ? c.accentText : c.ink, fontSize: 13, fontFamily: "InterSemibold" }}>{label}</T></Pressable>)}</View>
