@@ -18,17 +18,18 @@ export function CreateTripButton({ secondary = false }: { secondary?: boolean })
 
 export function NativePublicHeader() {
   const c = useTheme(); const appearance = useAppearance();
-  const home = usePathname() === "/";
+  const pathname = usePathname();
   const { data: session } = authClient.useSession();
-  const links = [{ label: "Home", slug: "home", go: () => router.navigate("/") }, { label: "Plans", slug: "plans", go: () => router.push("/plans") }, ...FEATURE_PAGES.map(f => ({ label: f.label, slug: f.href.slice(1), go: () => router.push({ pathname: "/feature/[slug]", params: { slug: f.href.slice(1) } }) }))];
+  const links = [{ label: "Home", slug: "home", path: "/", go: () => router.navigate("/") }, { label: "Plans", slug: "plans", path: "/plans", go: () => router.push("/plans") }, ...FEATURE_PAGES.map(f => ({ label: f.label, slug: f.href.slice(1), path: `/feature${f.href}`, go: () => router.push({ pathname: "/feature/[slug]", params: { slug: f.href.slice(1) } }) }))];
+  const showMenu = links.some(link => link.path === pathname);
   return <View style={{ gap: 12, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: c.line }}>
     <View style={styles.row}>
       <Pressable accessibilityRole="button" accessibilityLabel="Home" onPress={() => router.navigate("/")}><Brand /></Pressable>
-      {home && <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+      {showMenu && <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
         <Pressable accessibilityRole="button" accessibilityLabel={appearance.choice === "dark" ? "Switch to light mode" : "Switch to dark mode"} onPress={() => appearance.set(appearance.choice === "dark" ? "light" : "dark")} style={{ paddingVertical: 10 }}><Icon name={appearance.choice === "dark" ? "sunny-outline" : "moon-outline"} /></Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.push(session ? "/trips" : "/sign-in")} style={{ paddingVertical: 10 }}><T style={{ color: c.accent, fontSize: 13, fontFamily: "InterSemibold" }}>{session ? "My trips" : "Sign in"}</T></Pressable>
       </View>}
     </View>
-    {home && <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 2 }}>{links.map(link => <Pressable key={link.slug} accessibilityRole="button" accessibilityState={{ selected: link.slug === "home" }} onPress={link.go} style={{ paddingVertical: 10, borderBottomWidth: link.slug === "home" ? 2 : 0, borderBottomColor: c.accent }}><T style={{ fontSize: 13, fontFamily: link.slug === "home" ? "InterSemibold" : "Inter", color: c.accent }}>{link.label}</T></Pressable>)}</View>}
+    {showMenu && <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 2 }}>{links.map(link => <Pressable key={link.slug} accessibilityRole="button" accessibilityState={{ selected: link.path === pathname }} onPress={link.go} style={{ paddingVertical: 10, borderBottomWidth: link.path === pathname ? 2 : 0, borderBottomColor: c.accent }}><T style={{ fontSize: 13, fontFamily: link.path === pathname ? "InterSemibold" : "Inter", color: c.accent }}>{link.label}</T></Pressable>)}</View>}
   </View>;
 }
