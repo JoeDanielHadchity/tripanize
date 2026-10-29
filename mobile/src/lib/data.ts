@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, authClient } from "./auth";
+import { api, authClient, ApiError } from "./auth";
 
 /** Cancel old reads on navigation/sign-out so another account never sees them. */
 export function useApi<T>(path: string) {
   const { data: session } = authClient.useSession();
   const owner = session?.user.id;
   const [cycle, setCycle] = useState(0);
-  const [result, setResult] = useState<{ owner: string; path: string; cycle: number; data: T | null; error: string | null } | null>(null);
+  const [result, setResult] = useState<{ owner: string; path: string; cycle: number; data: T | null; error: string | null; status?: number } | null>(null);
   const reload = useCallback(() => setCycle(value => value + 1), []);
   useEffect(() => {
     if (!owner) return;
@@ -14,13 +14,13 @@ export function useApi<T>(path: string) {
     void api<T>(path, controller.signal).then(data => {
       if (!controller.signal.aborted) setResult({ owner, path, cycle, data, error: null });
     }).catch(e => {
-      if (!controller.signal.aborted) setResult({ owner, path, cycle, data: null, error: e instanceof Error ? e.message : "Please try again." });
+      if (!controller.signal.aborted) setResult({ owner, path, cycle, data: null, error: e instanceof Error ? e.message : "Please try again.", status: e instanceof ApiError ? e.status : undefined });
     });
     return () => controller.abort();
   }, [owner, path, cycle]);
   const current = result?.owner === owner && result?.path === path;
   return { data: current ? result.data : null, error: current && result.cycle === cycle ? result.error : null,
-    loading: Boolean(owner && (!current || result.cycle !== cycle)), reload };
+    loading: Boolean(owner && (!current || result.cycle !== cycle)), status: current ? result.status : undefined, reload };
 }
 
 export const dayLabel = (date: string, options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) => new Date(date + "T12:00:00Z").toLocaleDateString("en", { timeZone: "UTC", ...options });

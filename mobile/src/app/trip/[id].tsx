@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
 import { Button, Card, ErrorNotice, Eyebrow, Heading, Icon, Loading, Muted, Screen, T, styles } from "../../components/ui";
 import { useTheme } from "../../components/theme";
 import { dayLabel, roleLabel, tripDates, useApi } from "../../lib/data";
+import { authClient } from "../../lib/auth";
+import { readOfflineItinerary } from "../../lib/offline";
 import type { MobileItinerary, MobileStop } from "../../lib/types";
 
 function safeOpen(url: string | null) { if (!url) return; try { const parsed = new URL(url); if (["https:", "http:"].includes(parsed.protocol) && !parsed.username && !parsed.password) void Linking.openURL(parsed.href); } catch {} }
@@ -15,12 +17,18 @@ function openMap(stop: MobileStop) {
 
 export default function ItineraryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>(); const c = useTheme();
-  const { data, error, loading, reload } = useApi<MobileItinerary>(`/api/mobile/trips/${encodeURIComponent(typeof id === "string" && id ? id : "invalid")}`);
+  const { data: live, error, loading, reload, status } = useApi<MobileItinerary>(`/api/mobile/trips/${encodeURIComponent(typeof id === "string" && id ? id : "invalid")}`);
+  const { data: session } = authClient.useSession();
+  const [offline, setOffline] = useState<{ owner: string; saved: { savedAt: string; data: MobileItinerary } | null } | null>(null);
+  useEffect(() => { let cancelled = false; if (session?.user.id) void readOfflineItinerary(session.user.id, id).then(value => { if (!cancelled) setOffline({ owner: session.user.id, saved: value }); }); return () => { cancelled = true; }; }, [session?.user.id, id]);
+  const saved = offline?.owner === session?.user.id && offline?.saved?.data.trip.id === id ? offline.saved : null;
+  const mayUseOffline = Boolean(error && ![401, 403, 404].includes(status ?? 0));
+  const data = live ?? (mayUseOffline ? saved?.data ?? null : null);
   const [selection, setSelection] = useState<{ tripId: string; date: string } | null>(null);
   const date = selection?.tripId === id ? selection.date : null;
   const day = data?.days.find(d => d.date === date) ?? data?.days.find(d => d.date === data.today) ?? data?.days[0];
   return <Screen><View style={styles.row}><Pressable accessibilityRole="button" accessibilityLabel="Back to my trips" onPress={() => router.canGoBack() ? router.back() : router.replace("/trips")} style={{ padding: 8, marginLeft: -8 }}><Icon name="arrow-back" /></Pressable><Eyebrow>Itinerary</Eyebrow><Pressable accessibilityRole="button" accessibilityLabel="Refresh itinerary" onPress={() => void reload()} style={{ padding: 8 }}><Icon name="refresh-outline" /></Pressable></View>
-    {error && <ErrorNotice message={error} retry={() => void reload()} />}{loading && !data && <Loading />}
+    {!live && saved && mayUseOffline && <Muted>Saved offline · {saved.savedAt}. Read-only; refresh when connected.</Muted>}{error && (!saved || !mayUseOffline) && <ErrorNotice message={error} retry={() => void reload()} />}{loading && !data && <Loading />}
     {data && <>
       {data.trip.image && <Image source={data.trip.image.url} accessibilityLabel={data.trip.destinations.join(", ")} contentFit="cover" style={{ height: 185, width: "100%", borderRadius: 22 }} />}
       <View style={{ gap: 9 }}><View style={styles.row}><Eyebrow>{data.trip.destinations.join(" · ") || "Your adventure"}</Eyebrow>{data.trip.premium && <T style={{ fontSize: 12, color: c.accent }}>★ Premium</T>}</View><Heading>{data.trip.name}</Heading><Muted>{tripDates(data.trip.startDate, data.trip.endDate)}</Muted><Muted>{roleLabel(data.trip.role)} · {data.trip.travelers.join(", ")}</Muted></View>

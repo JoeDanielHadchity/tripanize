@@ -14,24 +14,31 @@ export const authClient = createAuthClient({
 });
 
 export class ApiError extends Error { constructor(message: string, public status: number) { super(message); } }
-export async function api<T>(path: string, signal?: AbortSignal): Promise<T> {
+export async function apiResponse(path: string, init: RequestInit = {}, signal?: AbortSignal): Promise<Response> {
   if (!path.startsWith("/api/mobile/")) throw new Error("Invalid mobile API path.");
   const cookie = Platform.OS === "web" ? "" : await authClient.getCookie();
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal?.addEventListener("abort", abort, { once: true });
   if (signal?.aborted) controller.abort();
-  const timeout = setTimeout(abort, 20_000);
+  const timeout = setTimeout(abort, init.method === "POST" ? 120_000 : 30_000);
   try {
-    const response = await fetch(API_URL + path, { signal: controller.signal, headers: { Accept: "application/json", ...(cookie ? { Cookie: cookie } : {}) }, credentials: Platform.OS === "web" ? "include" : "omit" });
-    const data = await response.json().catch(() => null);
+    const response = await fetch(API_URL + path, { ...init, signal: controller.signal, headers: { Accept: "application/json", ...(cookie ? { Cookie: cookie } : {}), ...(init.method && init.method !== "GET" && Platform.OS !== "web" ? { Origin: "tripanize://" } : {}), ...init.headers }, credentials: Platform.OS === "web" ? "include" : "omit" });
     if (!response.ok) {
+      const data = await response.json().catch(() => null);
       if (response.status === 401) void authClient.signOut();
       throw new ApiError(data?.error ?? "Could not connect. Please try again.", response.status);
     }
-    if (data === null) throw new ApiError("Could not load this page. Please try again.", 502);
-    return data as T;
+    return response;
   } finally { clearTimeout(timeout); signal?.removeEventListener("abort", abort); }
+}
+export async function api<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await apiResponse(path, {}, signal);
+  return response.json() as Promise<T>;
+}
+export async function post<T>(path: string, input: unknown): Promise<T> {
+  const response = await apiResponse(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  return response.json() as Promise<T>;
 }
 
 export const photo = (path: string) => API_URL + path;
