@@ -10,9 +10,10 @@ export function Heading({ children, small = false }: { children: ReactNode; smal
 export function Button({ children, onPress, busy, disabled, secondary = false }: { children: ReactNode; onPress: () => void; busy?: boolean; disabled?: boolean; secondary?: boolean }) {
   const c = useTheme(); return <Pressable accessibilityRole="button" disabled={busy || disabled} onPress={onPress} style={({ pressed }) => ({ minHeight: 54, borderRadius: 15, justifyContent: "center", alignItems: "center", paddingHorizontal: 20, opacity: busy || disabled ? 0.55 : pressed ? 0.8 : 1, backgroundColor: secondary ? c.soft : c.accent })}>{busy ? <ActivityIndicator color={secondary ? c.accent : c.accentText} /> : <T style={{ fontFamily: "InterSemibold", color: secondary ? c.ink : c.accentText }}>{children}</T>}</Pressable>;
 }
-export function Screen({ children, scroll = true, style }: { children: ReactNode; scroll?: boolean; style?: StyleProp<ViewStyle> }) {
+export function Screen({ children, header, scroll = true, style }: { children: ReactNode; header?: ReactNode; scroll?: boolean; style?: StyleProp<ViewStyle> }) {
   const c = useTheme(); return <SafeAreaView edges={["top", "left", "right"]} style={{ flex: 1, backgroundColor: c.bg }}>
-    {scroll ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, style]}>{children}</ScrollView> : <View style={[styles.content, { flex: 1 }, style]}>{children}</View>}
+    {header && <View style={[styles.content, style, { paddingBottom: 0, gap: 0, flexShrink: 0, zIndex: 1, backgroundColor: c.bg }]}>{header}</View>}
+    {scroll ? <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, style]}>{children}</ScrollView> : <View style={[styles.content, { flex: 1 }, style]}>{children}</View>}
   </SafeAreaView>;
 }
 export function Brand() { return <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Image accessibilityLabel="Tripanize" source={require("../../assets/mark.png")} style={{ width: 37, height: 37 }} contentFit="contain" /><T style={{ fontFamily: "InterSemibold", fontSize: 21, letterSpacing: -0.8 }}>Tripanize</T></View>; }

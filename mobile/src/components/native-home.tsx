@@ -38,7 +38,7 @@ function NativeExplainer() {
 
 export function NativeHome() {
   const c = useTheme(); const { data, error, retry } = usePublicData<MobilePublicHome>();
-  return <Screen style={{ gap: 30 }}><NativePublicHeader />
+  return <Screen header={<NativePublicHeader />} style={{ gap: 30 }}>
     <Card style={{ padding: 0, overflow: "hidden" }}>
       <Image source={photo("/editorial/home.webp")} accessibilityLabel="Porto waterfront on the Douro River" style={{ width: "100%", height: 245 }} contentFit="cover" />
       <View style={{ padding: 23, gap: 16 }}><Eyebrow>A little more going</Eyebrow>

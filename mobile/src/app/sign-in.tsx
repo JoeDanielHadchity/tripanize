@@ -39,8 +39,8 @@ export default function SignInScreen() {
     } catch (e) { setError(e instanceof Error ? e.message : "Could not connect. Please try again."); }
     finally { setBusy(false); }
   }
-  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen>
-    <NativePublicHeader active="sign-in" /><Image source={photo("/editorial/auth.webp")} accessibilityLabel="A new journey awaits" style={{ height: 185, width: "100%", borderRadius: 24, marginTop: 6 }} contentFit="cover" />
+  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen header={<NativePublicHeader active="sign-in" />}>
+    <Image source={photo("/editorial/auth.webp")} accessibilityLabel="A new journey awaits" style={{ height: 185, width: "100%", borderRadius: 24, marginTop: 6 }} contentFit="cover" />
     <View style={{ gap: 9 }}><Eyebrow>A little more going</Eyebrow><Heading>{sent && !passwordMode ? "Check your inbox." : "Good trips\nstart here."}</Heading><Muted>{sent && !passwordMode ? `We sent a code to ${email.trim()}.` : "Sign in or create your Tripanize account."}</Muted></View>
     {error && <ErrorNotice message={error} />}
     <View style={{ gap: 12 }}>
