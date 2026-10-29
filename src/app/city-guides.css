@@ -100,7 +100,6 @@
 .guide-index-list h2 span { color:var(--accent-ink); font-family:var(--font-sans); font-size:22px; }
 .guide-index-list>a>p:last-child { color:var(--muted); margin-top:10px; font-size:14px; line-height:1.8; }
 .guide-index-list>a:hover h2 { text-decoration:underline; text-underline-offset:5px; }
-.city-guide-page .public-header nav>a:last-child,.guide-index-header nav>a:last-child { display:inline-flex; }
 @media(max-width:520px){.guide-index-list{grid-template-columns:1fr;gap:5px}.guide-index-heading h1{font-size:37px}}
 @media(max-width:900px){.guide-hero{gap:28px}.guide-hero h1{font-size:41px}.guide-subtitle{font-size:21px}.guide-layout{gap:25px}.guide-budget{padding:21px 18px}.guide-budget-total{font-size:29px}.guide-photo img{height:310px;border-radius:90px 90px 8px 8px}.guide-day-buttons button{padding:12px}.guide-day-buttons button>strong{font-size:12px}.trip-idea-grid{gap:15px}}
 @media(max-width:700px){.guide-hero{grid-template-columns:1fr;gap:25px;padding-top:29px}.guide-hero h1{font-size:43px}.guide-photo img{height:280px;max-width:550px}.guide-photo figcaption{text-align:left}.guide-layout{grid-template-columns:1fr}.guide-day-buttons{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.guide-day-buttons button{min-height:75px}.guide-practical>div{grid-template-columns:1fr;gap:23px}.guide-copy{align-items:flex-start}.trip-idea-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.trip-idea,.trip-idea:nth-last-child(-n+2){grid-column:span 1}.trip-idea:last-child{grid-column:span 2}.trip-idea:nth-last-child(-n+2) img{aspect-ratio:3/2}}

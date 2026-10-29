@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSessionUser } from "@/server/auth/session";
-import { AppHeader, Logo } from "@/components/shell";
+import { AppHeader } from "@/components/shell";
+import { PublicHeader } from "@/components/public-header";
 import { Card, PageHeader } from "@/components/ui";
 import { SignOutButton } from "@/components/signout";
 import { AppearanceSetting } from "./appearance";
@@ -15,9 +16,7 @@ export default async function SettingsPage() {
       {user ? (
         <AppHeader user={user} current="settings" />
       ) : (
-        <header className="border-b border-line">
-          <div className="mx-auto flex h-14 max-w-6xl items-center px-4"><Link href="/" aria-label="Tripanize home"><Logo small /></Link></div>
-        </header>
+        <PublicHeader currentPath="/settings" />
       )}
       <main id="main" className="mx-auto max-w-2xl space-y-5 px-4 pb-16 pt-6">
         <PageHeader title="Settings" subtitle="How Tripanize looks and works for you." />

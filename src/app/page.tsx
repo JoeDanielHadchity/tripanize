@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/server/auth/session";
-import { Logo, SettingsLink } from "@/components/shell";
+import { PublicHeader } from "@/components/public-header";
 import { LinkButton } from "@/components/ui";
 import { FlightExplainer } from "@/components/flight-explainer";
 import { publicMetadata, PUBLIC_PAGES, SITE_STRUCTURED_DATA } from "@/lib/seo";
-import { FEATURE_PAGES } from "@/lib/feature-pages";
 import { TripIdeas } from "@/components/guides/trip-ideas";
 
 export const metadata = publicMetadata("/", PUBLIC_PAGES["/"]);
@@ -14,16 +12,7 @@ export default async function Home() {
   if (await getSessionUser()) redirect("/start");
   return <div className="home-page">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_STRUCTURED_DATA).replace(/</g, "\\u003c") }} />
-    <header className="public-header home-public-header">
-      <Link href="/" aria-label="Tripanize home"><Logo /></Link>
-      <nav aria-label="Main">
-        <Link href="/plans">Plans</Link>
-        {FEATURE_PAGES.map(feature => <Link key={feature.href} href={feature.href}>{feature.label}</Link>)}
-        <SettingsLink />
-        <Link href="/sign-in">Sign in</Link>
-        <LinkButton href="/sign-up" variant="primary">Create a trip</LinkButton>
-      </nav>
-    </header>
+    <PublicHeader currentPath="/" />
     <main id="main" className="home-content">
       <section className="hero-ticket" aria-labelledby="home-title"><span className="ticket-tape" aria-hidden="true" />
         <div className="hero-ticket-main"><div className="travel-window"><img decoding="async" src="/editorial/home.webp" alt="Porto waterfront on the Douro River" width={340} height={480} fetchPriority="high" /></div>

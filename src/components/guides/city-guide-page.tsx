@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo, SettingsLink } from "@/components/shell";
+import { PublicHeader } from "@/components/public-header";
 import { LinkButton } from "@/components/ui";
 import { CopyExample } from "@/app/examples/[slug]/copy";
 import { CITY_GUIDES, GUIDE_BUDGET_BASIS, GUIDE_SCHEDULE_BASIS, GUIDE_PHOTOS, guideImage, type CityGuide } from "@/server/examples/city-guides";
@@ -10,7 +10,7 @@ export function CityGuidePage({ guide, authenticated }: { guide: CityGuide; auth
   const use = authenticated ? "#use-itinerary" : signIn;
   const photo = GUIDE_PHOTOS[guide.slug];
   return <div className="city-guide-page">
-    <header className="public-header"><Link href={authenticated ? "/start" : "/"} aria-label="Tripanize home"><Logo /></Link><nav aria-label="Main"><Link href="/examples">Trip ideas</Link><Link href="/plans">Plans</Link><SettingsLink /><LinkButton href={authenticated ? "/trips" : signIn}>{authenticated ? "My trips" : "Sign in"}</LinkButton></nav></header>
+    <PublicHeader currentPath={`/examples/${guide.slug}`} authenticated={authenticated} signInHref={signIn} />
     <main id="main" className="guide-content">
       <nav className="guide-city-nav" aria-label="Destination guides">{CITY_GUIDES.map(city => <Link key={city.slug} href={`/examples/${city.slug}`} aria-current={city.slug === guide.slug ? "page" : undefined}>{city.city}</Link>)}</nav>
       <section className="guide-hero" aria-labelledby="guide-title"><div><p className="guide-eyebrow">{guide.country} · First visit</p><h1 id="guide-title">{guide.title}</h1><p className="guide-subtitle">{guide.subtitle}</p><p className="guide-intro">{guide.intro}</p><LinkButton href={use} variant="primary" className="mt-5">Use this itinerary <span aria-hidden="true">→</span></LinkButton><p className="guide-small-note">An editable starting point for your own trip.</p></div><figure className="guide-photo"><img src={`/editorial/city-guides/${guide.slug}-small.webp`} srcSet={`/editorial/city-guides/${guide.slug}-small.webp 1200w, ${guideImage(guide.slug)} 2400w`} sizes="(max-width: 700px) calc(100vw - 34px), (max-width: 1120px) calc(50vw - 45px), 515px" alt={photo.description} width={photo.width} height={photo.height} fetchPriority="high" decoding="async" /><figcaption>{guide.city} · Destination photograph</figcaption></figure></section>
