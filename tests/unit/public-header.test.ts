@@ -18,7 +18,7 @@ it.each([...destinations, "/examples/paris", "/settings"])("keeps the same main 
   const html = renderToStaticMarkup(createElement(PublicHeader, { currentPath }));
   const nav = links(html);
   expect(nav.slice(0, 5).map(link => link.href)).toEqual(destinations);
-  expect(nav[0].text).toBe("Home");
+  expect(nav.slice(0, 5).map(link => link.text)).toEqual(["Home", "Plans", "Trip Planner", "Group Travel", "Expense splitter"]);
   expect(nav.filter(link => link.active).map(link => link.href)).toEqual(destinations.includes(currentPath) || currentPath === "/settings" ? [currentPath] : []);
   expect(html.match(/<nav/g)).toHaveLength(1);
 });

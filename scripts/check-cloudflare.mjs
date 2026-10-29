@@ -85,7 +85,7 @@ try {
     console.log(JSON.stringify({ mode, ...result, survivesRestart: true, plans, billing, administration, travelTools, accountMode }));
   } else {
     const home = await fetch(origin); assert.equal(home.status, 200); const html = await home.text(); assert.match(html, /Tripanize/);
-    assert.match(html, /<title>AI Trip Planner &amp; Group Travel Organizer \| Tripanize<\/title>/);
+    assert.match(html, /<title>Trip Planner &amp; Group Travel Organizer \| Tripanize<\/title>/);
     assert.match(html, /rel="canonical" href="https:\/\/www\.tripanize\.app\/?"/);
     assert.match(html, /name="robots" content="index,\s*follow"/);
     assert.doesNotMatch(html, /name="robots" content="[^"]*noindex/);

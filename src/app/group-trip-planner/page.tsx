@@ -4,7 +4,7 @@ import { publicMetadata, PUBLIC_PAGES } from "@/lib/seo";
 export const metadata = publicMetadata("/group-trip-planner", PUBLIC_PAGES["/group-trip-planner"]);
 
 export default function GroupTripPlannerPage() {
-  return <FeaturePage path="/group-trip-planner" eyebrow="Less back-and-forth. More going together." title="A group trip planner." emphasis="Everyone on the same page."
+  return <FeaturePage path="/group-trip-planner" eyebrow="Less back-and-forth. More going together." title="Group Travel." emphasis="Everyone on the same page."
     intro="Share one itinerary, keep bookings together and choose who can edit. Your group has a plan everyone can find."
     planNote="Free: shared plans and member roles. Premium adds chat, expenses and optional location sharing."
     preview={<figure className="feature-preview group-preview"><figcaption><span className="feature-eyebrow">Illustrative travel group</span><strong>One trip. Three roles.</strong><span>You decide who can change the plan.</span></figcaption><ul className="preview-members"><li><span className="preview-avatar">A</span><div><strong>Amina</strong><span>Manages the trip and member roles</span></div><b>Organizer</b></li><li><span className="preview-avatar">M</span><div><strong>Maya</strong><span>Helps update the shared plan</span></div><b>Editor</b></li><li><span className="preview-avatar">L</span><div><strong>Leo</strong><span>Follows along without editing</span></div><b>Viewer</b></li></ul><p className="preview-handwritten">Same trip. Room for everyone.</p><p className="preview-footnote">Example members. Invitations and roles are managed inside your trip.</p></figure>}
