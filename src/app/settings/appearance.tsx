@@ -2,28 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { cx } from "@/components/ui";
-import { THEME_KEY, type ThemeChoice } from "@/lib/theme";
+import { DEFAULT_THEME, type ThemeChoice } from "@/lib/theme";
 
 const OPTIONS: { value: ThemeChoice; label: string; hint: string }[] = [
   { value: "system", label: "System", hint: "Match this device" },
-  { value: "light", label: "Light", hint: "Always light" },
-  { value: "dark", label: "Dark", hint: "Always dark" },
+  { value: "light", label: "Light", hint: "Light appearance" },
+  { value: "dark", label: "Dark", hint: "Dark appearance" },
 ];
 
 function apply(choice: ThemeChoice) {
   const root = document.documentElement;
   if (choice === "system") root.removeAttribute("data-theme");
   else root.setAttribute("data-theme", choice);
-  try {
-    if (choice === "system") localStorage.removeItem(THEME_KEY);
-    else localStorage.setItem(THEME_KEY, choice);
-  } catch {
-    // Storage blocked (private mode): the choice still applies until the page is closed.
-  }
 }
 
 export function AppearanceSetting() {
-  const [choice, setChoice] = useState<ThemeChoice>("system");
+  const [choice, setChoice] = useState<ThemeChoice>(DEFAULT_THEME);
   useEffect(() => {
     const t = document.documentElement.getAttribute("data-theme");
     setChoice(t === "light" || t === "dark" ? t : "system");
@@ -44,7 +38,7 @@ export function AppearanceSetting() {
           );
         })}
       </div>
-      <p className="mt-3 text-xs text-muted">Saved on this device. Changes apply right away.</p>
+      <p className="mt-3 text-xs text-muted">Changes apply right away. Each fresh visit or reload starts in light mode.</p>
     </fieldset>
   );
 }
