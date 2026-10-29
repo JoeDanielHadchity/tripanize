@@ -6,7 +6,7 @@ import { LEGAL_LINKS, OPERATOR_COUNTRY, OPERATOR_NAME, POLICY_UPDATED } from "@/
 
 export async function PublicHeader() {
   const user = await getSessionUser();
-  return <SiteHeader authenticated={Boolean(user)} />;
+  return <SiteHeader user={user} />;
 }
 
 export function PolicySection({ title, children }: { title: string; children: ReactNode }) {

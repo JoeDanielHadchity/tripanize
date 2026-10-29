@@ -39,6 +39,10 @@ function assertMemberNavigation(html) {
   assert.deepEqual(links.map(([, attrs]) => attrs.match(/href="([^"]+)"/)?.[1]), ["/", "/plans", "/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"]);
   assert.deepEqual(links.map(([, , label]) => label.replace(/<[^>]*>/g, "")), ["Home", "Plans", "Trip Planner", "Group Travel", "Expense splitter"]);
   assert.match(html, /aria-label="Account"/);
+  assert.match(html, /class="app-header-bar"/);
+  assert.match(html, /href="\/account"/);
+  assert.match(html, /aria-label="Notifications"/);
+  assert.match(html, /Sign out/);
 }
 
 let child;
@@ -174,7 +178,11 @@ try {
     assert.equal(signup.status, 200, await signup.clone().text());
     const cookie = signup.headers.getSetCookie().map((v) => v.split(";")[0]).join("; ");
     assert.ok(cookie);
+    for (const path of ["/plans", "/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter", "/examples", "/examples/lisbon-porto", "/contact", "/terms", "/privacy", "/refunds"]) {
+      const tab = await fetch(origin + path, { headers: { Cookie: cookie } }); assert.equal(tab.status, 200, path); assertMemberNavigation(await tab.text());
+    }
     const memberGuide = await (await fetch(origin + "/examples/paris", { headers: { Cookie: cookie } })).text();
+    assertMemberNavigation(memberGuide);
     assert.match(memberGuide, /id="copy-date"/); assert.match(memberGuide, /Save a copy to my trips/);
     const returnToGuide = await fetch(origin + "/sign-in?next=%2Fexamples%2Fparis%23use-itinerary", { headers: { Cookie: cookie }, redirect: "manual" });
     assert.equal(returnToGuide.status, 307); assert.equal(returnToGuide.headers.get("Location"), "/examples/paris#use-itinerary");

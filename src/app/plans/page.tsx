@@ -9,7 +9,7 @@ export const metadata = publicMetadata("/plans", PUBLIC_PAGES["/plans"]);
 export default async function PlansPage() {
   const user = await getSessionUser(); const create = user ? "/trips/new" : "/sign-up";
   const trial = user ? await userTrialAccess(user.id) : null;
-  return <><PublicHeader currentPath="/plans" authenticated={Boolean(user)} />
+  return <><PublicHeader currentPath="/plans" user={user} />
     <main id="main" className="mx-auto max-w-5xl space-y-6 px-4 pb-16 pt-8">
       {trial && <TrialAccessBanner access={trial} />}
       <PremiumPass premiumAction={<LinkButton href={create} variant="primary">Create a trip →</LinkButton>} standardAction={<LinkButton href={create}>Start free</LinkButton>} />

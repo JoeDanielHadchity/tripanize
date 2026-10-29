@@ -30,10 +30,10 @@ export default async function ExamplePage({ params }: { params: Promise<{ slug: 
   if (!ex) notFound();
   const user = await getSessionUser();
   const guide = CITY_GUIDES.find(city => city.slug === slug);
-  if (guide) return <CityGuidePage guide={guide} authenticated={Boolean(user)} />;
+  if (guide) return <CityGuidePage guide={guide} user={user} />;
   return (
     <div className="min-h-dvh">
-      <PublicHeader currentPath={`/examples/${slug}`} authenticated={Boolean(user)} />
+      <PublicHeader currentPath={`/examples/${slug}`} user={user} />
       <main id="main" className="mx-auto max-w-4xl px-4 pb-16">
         <div className="relative overflow-hidden rounded-3xl p-6 text-white sm:p-10" style={{ background: ex.slug === "lisbon-porto" ? "linear-gradient(90deg,#102c36ed,#102c3699),url(/editorial/guide.webp) center / cover" : ex.image }}>
           <Badge tone="warn" className="mb-3">Example trip — not one of your trips</Badge>
