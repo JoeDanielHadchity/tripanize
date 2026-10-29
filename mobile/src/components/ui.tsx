@@ -15,7 +15,13 @@ export function Screen({ children, scroll = true, style }: { children: ReactNode
     {scroll ? <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, style]}>{children}</ScrollView> : <View style={[styles.content, { flex: 1 }, style]}>{children}</View>}
   </SafeAreaView>;
 }
-export function Brand() { return <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Image accessibilityLabel="Tripanize" source={require("../../assets/mark.png")} style={{ width: 37, height: 37 }} contentFit="contain" /><T style={{ fontFamily: "InterSemibold", fontSize: 21, letterSpacing: -0.8 }}>Tripanize</T></View>; }
+export function Brand() {
+  const c = useTheme();
+  return <View accessible accessibilityRole="image" accessibilityLabel="Tripanize" style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "transparent" }}>
+    <Image accessible={false} source={require("../../assets/mark.png")} style={{ width: 37, height: 37, backgroundColor: "transparent" }} contentFit="contain" />
+    <Image accessible={false} source={require("../../assets/wordmark.png")} tintColor={c.ink} style={{ width: 95, height: 24, backgroundColor: "transparent" }} contentFit="contain" />
+  </View>;
+}
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) { const c = useTheme(); return <View style={[{ backgroundColor: c.paper, borderRadius: 20, borderWidth: 1, borderColor: c.line, padding: 20, gap: 12 }, style]}>{children}</View>; }
 export function Eyebrow({ children }: { children: ReactNode }) { const c = useTheme(); return <T style={{ color: c.coral, fontSize: 11, fontFamily: "InterSemibold", letterSpacing: 2, textTransform: "uppercase" }}>{children}</T>; }
 export function Muted({ children }: { children: ReactNode }) { const c = useTheme(); return <T style={{ color: c.muted, fontSize: 13, lineHeight: 20 }}>{children}</T>; }

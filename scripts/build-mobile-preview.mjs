@@ -17,5 +17,8 @@ execFileSync(process.execPath, [resolve(mobile, "node_modules/expo/bin/cli"), "e
 const target = resolve("public/mobile-preview");
 rmSync(target, { recursive: true, force: true });
 cpSync(resolve(mobile, "dist"), target, { recursive: true });
+cpSync(resolve(mobile, "assets/favicon-transparent.png"), resolve(target, "favicon-transparent.png"));
 const index = resolve(target, "index.html");
-writeFileSync(index, readFileSync(index, "utf8").replace("</head>", '<meta name="robots" content="noindex,nofollow" /></head>'));
+writeFileSync(index, readFileSync(index, "utf8")
+  .replace(/<link rel="icon"[^>]*>/g, "")
+  .replace("</head>", '<link rel="icon" href="/mobile-preview/favicon-transparent.png" type="image/png" /><meta name="robots" content="noindex,nofollow" /></head>'));
