@@ -1,12 +1,18 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { PublicHeader } from "@/components/public-header";
+import { AppHeader } from "@/components/shell";
+
+vi.mock("@/components/notifications", () => ({ NotificationBell: () => createElement("button", { "aria-label": "Notifications" }) }));
+vi.mock("@/components/account-mode", () => ({ AccountModeSync: () => null }));
+
+const user = { id: "member", name: "Alex Traveler", email: "alex@example.test" };
 
 const destinations = ["/", "/plans", "/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"];
 
 function links(html: string) {
-  const main = html.match(/<nav aria-label="Main">([\s\S]*?)<\/nav>/)![1];
+  const main = html.match(/<nav\b(?=[^>]*aria-label="Main")[^>]*>([\s\S]*?)<\/nav>/)![1];
   return [...main.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].map(([, attributes, content]) => ({
     href: attributes.match(/href="([^"]+)"/)![1],
     active: attributes.includes('aria-current="page"'),
@@ -29,11 +35,23 @@ it("keeps sign-in and trip creation available to visitors", () => {
   expect(nav.find(link => link.text === "Create a trip")?.href).toBe("/sign-up");
 });
 
-it("routes signed-in travelers to their trips and new trip form", () => {
-  const nav = links(renderToStaticMarkup(createElement(PublicHeader, { authenticated: true })));
-  expect(nav.find(link => link.text === "My trips")?.href).toBe("/trips");
-  expect(nav.find(link => link.text === "Create a trip")?.href).toBe("/trips/new");
-  expect(nav.some(link => link.text === "Sign in")).toBe(false);
+it("keeps full account controls on signed-in public pages", () => {
+  const html = renderToStaticMarkup(createElement(PublicHeader, { user }));
+  expect(html).toContain('href="/trips"');
+  expect(html).toContain('href="/account"');
+  expect(html).toContain('aria-label="Notifications"');
+  expect(html).toContain('aria-label="Settings"');
+  expect(html).toContain("Sign out");
+  expect(html).not.toContain('public-site-header');
+  expect(html).not.toContain("Create a trip");
+  expect(html).not.toContain("Sign in");
+});
+
+it.each(destinations)("uses the exact workspace header on the signed-in %s tab", currentPath => {
+  const actual = renderToStaticMarkup(createElement(PublicHeader, { user, currentPath }));
+  const expected = renderToStaticMarkup(createElement(AppHeader, { user, currentPath }));
+  expect(actual.match(/<header[\s\S]*<\/header>/)?.[0]).toBe(expected.match(/<header[\s\S]*<\/header>/)?.[0]);
+  expect(links(actual).filter(link => link.active).map(link => link.href)).toEqual([currentPath]);
 });
 
 it("preserves a guide's return URL when signing in", () => {

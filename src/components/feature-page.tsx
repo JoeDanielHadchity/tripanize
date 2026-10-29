@@ -21,7 +21,7 @@ export async function FeaturePage({ path, eyebrow, title, emphasis, intro, planN
   const user = await getSessionUser();
   const create = user ? "/trips/new" : "/sign-up";
   return <div className="feature-page">
-    <PublicHeader currentPath={path} authenticated={Boolean(user)} />
+    <PublicHeader currentPath={path} user={user} />
     <main id="main" className="feature-content">
       <section className="feature-hero" aria-labelledby="feature-title">
         <div className="feature-hero-copy"><p className="feature-eyebrow">{eyebrow}</p><h1 id="feature-title">{title} <em>{emphasis}</em></h1><p className="feature-intro">{intro}</p><div className="hero-actions"><LinkButton href={create} variant="primary">Create a trip <span aria-hidden="true">→</span></LinkButton><LinkButton href="/examples/lisbon-porto">View example itinerary</LinkButton></div><p className="feature-plan-note">{planNote} <Link href="/plans">Compare plans</Link></p></div>

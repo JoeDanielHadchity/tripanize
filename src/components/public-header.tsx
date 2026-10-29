@@ -1,21 +1,23 @@
 import Link from "next/link";
-import { Logo, SettingsLink } from "./shell";
+import type { SessionUser } from "@/server/auth/session";
+import { AppHeader, Logo, SettingsLink } from "./shell";
 import { LinkButton } from "./ui";
 import { SiteNavigation } from "./site-navigation";
 
-export function PublicHeader({ currentPath, authenticated = false, signInHref = "/sign-in" }: {
+export function PublicHeader({ currentPath, user, signInHref = "/sign-in" }: {
   currentPath?: string;
-  authenticated?: boolean;
+  user?: SessionUser | null;
   signInHref?: string;
 }) {
+  if (user) return <AppHeader user={user} currentPath={currentPath} />;
   return (
     <header className="public-header public-site-header">
       <Link href="/" aria-label="Tripanize home"><Logo /></Link>
       <nav aria-label="Main">
         <SiteNavigation currentPath={currentPath} />
         <SettingsLink active={currentPath === "/settings"} />
-        <Link href={authenticated ? "/trips" : signInHref} className="public-nav-link">{authenticated ? "My trips" : "Sign in"}</Link>
-        <LinkButton href={authenticated ? "/trips/new" : "/sign-up"} variant="primary">Create a trip</LinkButton>
+        <Link href={signInHref} className="public-nav-link">Sign in</Link>
+        <LinkButton href="/sign-up" variant="primary">Create a trip</LinkButton>
       </nav>
     </header>
   );
