@@ -39,7 +39,7 @@ export function WorkspaceScreen({ target, account = false }: { target: MobileTar
   async function result(r: MobileCommandResult) {
     if (r.review) { setReview(r.review); return; }
     setReview(null);
-    if (r.signedOut) { await clearOfflineItineraries(); await authClient.signOut(); router.replace("/sign-in"); return; }
+    if (r.signedOut) { await clearOfflineItineraries(); await authClient.signOut(); router.replace("/"); return; }
     setNotice(r.message ?? null); setSharedUrl(r.url ?? null);
     if (r.to) navigate(r.to, true); else reload();
   }
@@ -72,7 +72,7 @@ export function WorkspaceScreen({ target, account = false }: { target: MobileTar
       {block.location && <NativeLocation key={block.location.tripId} tripId={block.location.tripId} onChange={reload} />}
       {block.form && <NativeForm key={`${path}-${block.id}`} block={block} tripId={data.tripId} disabled={busy} onResult={result} />}
     </Card>)}
-    {account && <Card><Heading small>Appearance</Heading><View style={{ gap: 8 }}>{(["light", "dark", "system"] as const).map(value => <Button key={value} secondary onPress={() => appearance.set(value)}>{appearance.choice === value ? "✓ " : ""}{value[0].toUpperCase() + value.slice(1)}</Button>)}</View><Button secondary onPress={() => void clearOfflineItineraries().then(() => setNotice("Saved offline itineraries removed.")).catch(e => setActionError(e.message))}>Remove saved offline itineraries</Button><Button secondary onPress={async () => { await clearOfflineItineraries(); await authClient.signOut(); router.replace("/sign-in"); }}>Sign out</Button></Card>}
+    {account && <Card><Heading small>Appearance</Heading><View style={{ gap: 8 }}>{(["light", "dark", "system"] as const).map(value => <Button key={value} secondary onPress={() => appearance.set(value)}>{appearance.choice === value ? "✓ " : ""}{value[0].toUpperCase() + value.slice(1)}</Button>)}</View><Button secondary onPress={() => void clearOfflineItineraries().then(() => setNotice("Saved offline itineraries removed.")).catch(e => setActionError(e.message))}>Remove saved offline itineraries</Button><Button secondary onPress={async () => { await clearOfflineItineraries(); await authClient.signOut(); router.replace("/"); }}>Sign out</Button></Card>}
     {data && <Button secondary busy={loading} onPress={reload}>Refresh</Button>}
   </Screen></KeyboardAvoidingView>;
 }

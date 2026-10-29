@@ -7,6 +7,10 @@
 /src/lib/*
 !/src/lib/mobile-contracts.ts
 !/src/lib/mobile-workspace.ts
+!/src/lib/mobile-public.ts
+!/src/lib/home-content.ts
+!/src/lib/feature-pages.ts
+!/src/lib/plans.ts
 
 # EAS replaces all .gitignore files with these rules.
 .git
