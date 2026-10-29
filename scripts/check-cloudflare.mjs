@@ -32,6 +32,15 @@ async function start() {
 async function stop(child) { if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); } }
 async function json(path, init) { const response = await fetch(origin + path, init); const data = await response.json(); assert.equal(response.status, 200, JSON.stringify(data)); return data; }
 
+function assertMemberNavigation(html) {
+  const main = html.match(/<nav\b(?=[^>]*aria-label="Main")[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+  assert.ok(main, "Signed-in pages must retain the main navigation");
+  const links = [...main.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)];
+  assert.deepEqual(links.map(([, attrs]) => attrs.match(/href="([^"]+)"/)?.[1]), ["/", "/plans", "/ai-trip-planner", "/group-trip-planner", "/travel-expense-splitter"]);
+  assert.deepEqual(links.map(([, , label]) => label.replace(/<[^>]*>/g, "")), ["Home", "Plans", "Trip Planner", "Group Travel", "Expense splitter"]);
+  assert.match(html, /aria-label="Account"/);
+}
+
 let child;
 try {
   child = await start();
@@ -190,16 +199,21 @@ try {
       const landing = await fetch(origin + path, { headers: { Cookie: cookie } });
       assert.equal(new URL(landing.url).pathname, "/start", path);
       const landingHtml = await landing.text();
+      assertMemberNavigation(landingHtml);
       assert.match(landingHtml, /I have a destination/);
       assert.match(landingHtml, /Help me choose/);
       assert.match(landingHtml, /href="\/destinations"/);
       assert.doesNotMatch(landingHtml, /Search trips/);
     }
-    const directAccount = await fetch(origin + "/sign-in?next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(directAccount.url).pathname, "/account");
-    const destinationPage = await fetch(origin + "/destinations", { headers: { Cookie: cookie } }); assert.equal(new URL(destinationPage.url).pathname, "/destinations"); assert.match(await destinationPage.text(), /Saved searches/);
+    const directAccount = await fetch(origin + "/sign-in?next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(directAccount.url).pathname, "/account"); assertMemberNavigation(await directAccount.text());
+    const destinationPage = await fetch(origin + "/destinations", { headers: { Cookie: cookie } }); assert.equal(new URL(destinationPage.url).pathname, "/destinations"); const destinationHtml = await destinationPage.text(); assert.match(destinationHtml, /Saved searches/); assertMemberNavigation(destinationHtml);
     const privateDiscovery = await fetch(origin + "/destinations"); assert.equal(new URL(privateDiscovery.url).pathname, "/sign-in");
     const trips = await fetch(origin + "/trips", { headers: { Cookie: cookie } }); assert.equal(trips.status, 200); assert.equal(new URL(trips.url).pathname, "/trips"); const tripsHtml = await trips.text(); assert.match(tripsHtml, /trips/i); assert.doesNotMatch(tripsHtml, /Choose how to start|Saved searches/);
     const newTrip = await fetch(origin + "/trips/new", { headers: { Cookie: cookie } }); assert.equal(newTrip.status, 200); assert.equal(new URL(newTrip.url).pathname, "/trips/new");
+    assertMemberNavigation(tripsHtml); assertMemberNavigation(await newTrip.text());
+    for (const path of ["/settings", "/notifications"]) {
+      const page = await fetch(origin + path, { headers: { Cookie: cookie } }); assert.equal(page.status, 200, path); assertMemberNavigation(await page.text());
+    }
     const deniedCompany = await fetch(origin + "/company", { headers: { Cookie: cookie } }); assert.equal(deniedCompany.status, 404);
     const unverifiedTrial = await fetch(origin + "/trial?invitation=not-yours", { headers: { Cookie: cookie } }); assert.equal(unverifiedTrial.status, 200); assert.match(await unverifiedTrial.text(), /Verify your invited email/);
     const reauth = await fetch(origin + "/sign-in?reauth=1&next=%2Faccount", { headers: { Cookie: cookie } }); assert.equal(new URL(reauth.url).pathname, "/sign-in"); assert.match(await reauth.text(), /Sign in/);
@@ -254,7 +268,7 @@ try {
       assert.equal(staleSession.status, 200, `stale session: ${path}`);
       assert.doesNotMatch(await staleSession.text(), /cookies\(\) can only be called|Worker threw exception/);
     }
-    console.log(JSON.stringify({ mode, staleSessionInviteGuard: true, companyAdminGuard: true, personalTravelerName: true, publicBrandUnchanged: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
+    console.log(JSON.stringify({ mode, memberMainNavigation: true, staleSessionInviteGuard: true, companyAdminGuard: true, personalTravelerName: true, publicBrandUnchanged: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
   }
 } catch (error) { await new Promise((resolve) => setTimeout(resolve, 200)); console.error(error.stack ?? error.message); console.error(logs.slice(-11000)); process.exitCode = 1; }
 finally { if (child) await stop(child); }
