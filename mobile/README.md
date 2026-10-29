@@ -2,6 +2,10 @@
 
 The first native milestone uses Expo SDK 57, React Native, and Expo Router. iOS and Android share native screens, not a website WebView. The Cloudflare app remains the single backend and database.
 
+## Native Home
+
+Home is public before sign-in and stays available afterwards in the Home tab. It includes the Porto ticket hero, shared three-second explainer, city trip ideas, example itineraries and the Premium pass. Home, Plans, Trip Planner, Group Travel and Expense splitter use native screens. Create a trip opens the two destination choices after sign-in. Public guides use a GET-only static editorial feed without cookies or database access; saving a dated copy goes through the authenticated service and creates a Standard trip with no Premium entitlement. Only allowlisted local destinations survive sign-in. The explainer stops in the background, away from Home, after manual step selection, for screen readers and for reduced motion.
+
 ## Full trip workspace (0.2)
 
 Native screens now cover trip drafts and Standard/Premium selection, guided details and food questions, AI planning jobs and reviewed application, manual itinerary editing, day selection and Plan A/B, stop alternatives, itinerary history/restore, numbered destination research, restaurant suggestions, linked events/bookings, automatic discovery settings, expense budgets and projections, splitting/settlements, receipt attachments and reviewed scanning, chat, optional foreground location, personal/shared packing, prep tasks, voting, invitations/roles, account preferences, support, PDF/JSON exports and account deletion.

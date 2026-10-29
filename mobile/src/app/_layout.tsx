@@ -13,9 +13,9 @@ function Navigation() {
   const c = useTheme();
   if ((!loaded && !error) || isPending) return <Screen><Loading /></Screen>;
   return <><StatusBar style={c.bg === "#f6f2e9" ? "dark" : "light"} /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
-    <Stack.Protected guard={!session}><Stack.Screen name="sign-in" /></Stack.Protected>
+    <Stack.Screen name="(tabs)" /><Stack.Screen name="sign-in" /><Stack.Screen name="plans" /><Stack.Screen name="feature/[slug]" /><Stack.Screen name="guide/[slug]" />
     <Stack.Protected guard={!!session}>
-      <Stack.Screen name="(tabs)" /><Stack.Screen name="trip/[id]" /><Stack.Screen name="destinations" /><Stack.Screen name="workspace" />
+      <Stack.Screen name="start" /><Stack.Screen name="trip/[id]" /><Stack.Screen name="destinations" /><Stack.Screen name="workspace" />
     </Stack.Protected>
     <Stack.Screen name="offline" />
   </Stack></>;

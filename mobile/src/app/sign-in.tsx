@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from "react-native";
 import { Image } from "expo-image";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { authClient, photo } from "../lib/auth";
-import { Brand, Button, ErrorNotice, Eyebrow, Heading, Muted, Screen, T } from "../components/ui";
+import { Button, ErrorNotice, Eyebrow, Heading, Muted, Screen, T } from "../components/ui";
+import { publicLoginDestination } from "../lib/public-data";
+import { NativePublicHeader } from "../components/public-header";
 import { useTheme } from "../components/theme";
 
 export default function SignInScreen() {
   const c = useTheme();
+  const { next } = useLocalSearchParams<{ next?: string }>();
+  const { data: session } = authClient.useSession();
   const [email, setEmail] = useState(""); const [code, setCode] = useState(""); const [password, setPassword] = useState("");
   const [sent, setSent] = useState(false); const [passwordMode, setPasswordMode] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null); const [cooldown, setCooldown] = useState(0);
   useEffect(() => { if (!cooldown) return; const timer = setTimeout(() => setCooldown(cooldown - 1), 1000); return () => clearTimeout(timer); }, [cooldown]);
+  useEffect(() => { if (session && !busy) router.replace(publicLoginDestination(next)); }, [session, busy, next]);
   const inputStyle = { backgroundColor: c.paper, borderColor: c.line, color: c.ink, borderWidth: 1, borderRadius: 14, minHeight: 56, paddingHorizontal: 16, fontFamily: "Inter", fontSize: 16 };
   async function submit() {
     const address = email.trim().toLowerCase();
@@ -30,12 +35,12 @@ export default function SignInScreen() {
         const result = await authClient.signIn.emailOtp({ email: address, otp: code });
         if (result.error) throw new Error(result.error.message || "Check your code and try again.");
       }
-      await authClient.getSession(); router.replace("/");
+      await authClient.getSession(); router.replace(publicLoginDestination(next));
     } catch (e) { setError(e instanceof Error ? e.message : "Could not connect. Please try again."); }
     finally { setBusy(false); }
   }
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen>
-    <Brand /><Image source={photo("/editorial/auth.webp")} accessibilityLabel="A new journey awaits" style={{ height: 185, width: "100%", borderRadius: 24, marginTop: 6 }} contentFit="cover" />
+    <NativePublicHeader active="sign-in" /><Image source={photo("/editorial/auth.webp")} accessibilityLabel="A new journey awaits" style={{ height: 185, width: "100%", borderRadius: 24, marginTop: 6 }} contentFit="cover" />
     <View style={{ gap: 9 }}><Eyebrow>A little more going</Eyebrow><Heading>{sent && !passwordMode ? "Check your inbox." : "Good trips\nstart here."}</Heading><Muted>{sent && !passwordMode ? `We sent a code to ${email.trim()}.` : "Sign in or create your Tripanize account."}</Muted></View>
     {error && <ErrorNotice message={error} />}
     <View style={{ gap: 12 }}>

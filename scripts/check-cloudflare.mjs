@@ -173,6 +173,13 @@ try {
     }
     assert.equal(photoHashes.size, photos.length, "Editorial photos must all be different");
     assert.match(html, /id="how-it-works"/); assert.match(html, /Plan less/);
+    const publicCatalogResponse = await fetch(origin + "/api/mobile/public");
+    assert.equal(publicCatalogResponse.status, 200); assert.equal(publicCatalogResponse.headers.get("Cache-Control"), "public, max-age=300");
+    const publicCatalog = await publicCatalogResponse.json(); assert.deepEqual(publicCatalog.guides.map(g => g.slug), ["bangkok", "hong-kong", "london", "paris", "istanbul"]);
+    const publicGuide = await json("/api/mobile/public?guide=paris"); assert.equal(publicGuide.days.length, 4); assert.ok(publicGuide.days[0].stops.length);
+    assert.equal((await fetch(origin + "/api/mobile/public?screen=admin")).status, 400);
+    assert.equal((await fetch(origin + "/api/mobile/public?guide=private-trip")).status, 404);
+    assert.equal((await fetch(origin + "/api/mobile/public", { method: "POST" })).status, 405);
     const signupPage = await fetch(origin + "/sign-up"); assert.equal(signupPage.status, 200);
     const signup = await fetch(origin + "/api/auth/sign-up/email", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ name: "Hosting check", email: `hosting-${crypto.randomUUID()}@example.test`, password: crypto.randomUUID() + "Aa1!" }) });
     assert.equal(signup.status, 200, await signup.clone().text());
@@ -201,6 +208,11 @@ try {
     assert.ok(nativeCookie);
     assert.equal((await json("/api/mobile/session", { headers: { Cookie: nativeCookie } })).name, "Native mobile check");
     const nativeCommand = (action, tripId, values = {}) => json("/api/mobile/workspace", { method: "POST", headers: { Cookie: nativeCookie, Origin: "tripanize://", "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(tripId ? { tripId } : {}), values }) });
+    const copiedExample = await nativeCommand("example.copy", undefined, { slug: "paris", startDate: "2027-05-01" });
+    const copiedTrip = await json(`/api/mobile/trips/${copiedExample.to.tripId}`, { headers: { Cookie: nativeCookie } });
+    assert.equal(copiedTrip.days.length, 4); assert.equal(copiedTrip.trip.premium, false);
+    assert.equal((await fetch(origin + `/api/mobile/trips/${copiedExample.to.tripId}`)).status, 401);
+    await nativeCommand("trip.delete", copiedExample.to.tripId, { name: copiedTrip.trip.name });
     const mobileDraft = await nativeCommand("trip.create", undefined, { name: "Isolated mobile trip" });
     const nativeTripId = mobileDraft.to.tripId;
     await nativeCommand("trip.standard", nativeTripId);
@@ -297,7 +309,7 @@ try {
       assert.equal(staleSession.status, 200, `stale session: ${path}`);
       assert.doesNotMatch(await staleSession.text(), /cookies\(\) can only be called|Worker threw exception/);
     }
-    console.log(JSON.stringify({ mode, nativeWorkspace: true, memberMainNavigation: true, staleSessionInviteGuard: true, companyAdminGuard: true, personalTravelerName: true, publicBrandUnchanged: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
+    console.log(JSON.stringify({ mode, nativeHomePublicContent: true, nativeWorkspace: true, memberMainNavigation: true, staleSessionInviteGuard: true, companyAdminGuard: true, personalTravelerName: true, publicBrandUnchanged: true, reauthAvailable: true, home: 200, signup: 200, authenticatedTrips: 200, newTripForm: 200, privateFileGuard: 401, tripCoverGuard: true, staticAssets: true, sessionSurvivesRestart: true, aiConnected: false }));
   }
 } catch (error) { await new Promise((resolve) => setTimeout(resolve, 200)); console.error(error.stack ?? error.message); console.error(logs.slice(-11000)); process.exitCode = 1; }
 finally { if (child) await stop(child); }
