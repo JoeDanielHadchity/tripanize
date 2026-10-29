@@ -3,7 +3,7 @@
 // - Trip snapshots (/api/trips/:id/snapshot) are cached by the page while online and served when offline.
 // - Page navigations fall back to /offline when the network is unavailable.
 // - Mutations are never queued: editing requires a connection (the UI says so).
-const STATIC = "tripanize-static-v6";
+const STATIC = "tripanize-static-v7";
 const SNAPSHOTS = "tripanize-trip-snapshots";
 
 self.addEventListener("install", (e) => {
