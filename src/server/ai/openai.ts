@@ -11,6 +11,7 @@ export class AIError extends Error {
   constructor(
     public code: "NOT_CONFIGURED" | "AUTH" | "RATE_LIMITED" | "QUOTA" | "TIMEOUT" | "CANCELLED" | "UPSTREAM" | "UNREACHABLE" | "INVALID_RESPONSE" | "INCOMPLETE" | "REFUSED",
     message: string,
+    public retryAfterMs?: number,
   ) {
     super(message);
     this.name = "AIError";
@@ -83,7 +84,9 @@ async function requestStructured<S extends z.ZodType>(opts: StructuredOptions<S>
         max_output_tokens: opts.maxOutputTokens ?? 24000,
         store: false,
       },
-      { signal: opts.signal, timeout: opts.timeoutMs ?? 6 * 60_000 },
+      { signal: opts.signal, timeout: opts.timeoutMs ?? 6 * 60_000,
+        // Guided packing is retried by durable alarms, never nested SDK loops.
+        ...(opts.name === "trip_packing" && opts.metering?.jobId ? { maxRetries: 0 } : {}) },
     );
   } catch (err) {
     // Operational metadata only: never log the prompt, response body or credentials.
@@ -152,10 +155,21 @@ function classify(err: unknown, signal?: AbortSignal): AIError {
     const status = err.status;
     const code = (err as { code?: string | null }).code;
     if (status === 401 || status === 403) return new AIError("AUTH", "The server's OpenAI API key was rejected. An administrator needs to update it.");
-    if (status === 429 && code === "insufficient_quota") return new AIError("QUOTA", "The OpenAI account for this app has run out of quota. An administrator needs to add credit.");
-    if (status === 429) return new AIError("RATE_LIMITED", "OpenAI is rate-limiting requests right now. Please try again in a minute.");
+    if (status === 429 && (/quota|billing|spend|usage_limit/.test(code ?? "") || /exceeded your current quota|billing hard limit|credit balance/i.test(err.message))) return new AIError("QUOTA", "The app's AI account has reached its credit or spending limit. An administrator needs to check API billing and limits.");
+    if (status === 429 && /request too large|reduce (?:the )?(?:length|size|tokens)/i.test(err.message)) return new AIError("UPSTREAM", "This AI request exceeds the account's token limit. An administrator needs to check the model's API limits.");
+    if (status === 429 && ["rate_limit_exceeded", "slow_down"].includes(code ?? "")) return new AIError("RATE_LIMITED", "AI preparation is temporarily busy. Please wait before retrying.", retryDelay(err.headers));
+    if (status === 429) return new AIError("UPSTREAM", "The AI provider rejected this request. An administrator needs to check the API error and account limits.");
     if (status === 400) return new AIError("UPSTREAM", `OpenAI rejected the request: ${err.message.slice(0, 200)}`);
     return new AIError("UPSTREAM", `OpenAI returned an error (HTTP ${status ?? "?"}). Please try again.`);
   }
   return new AIError("UPSTREAM", "Unexpected error while contacting OpenAI.");
+}
+
+function retryDelay(headers?: Headers): number | undefined {
+  const milliseconds = headers?.get("retry-after-ms");
+  if (milliseconds && /^\d+(\.\d+)?$/.test(milliseconds)) return Number(milliseconds);
+  const value = headers?.get("retry-after");
+  if (!value) return undefined;
+  const delay = /^\d+(\.\d+)?$/.test(value) ? Number(value) * 1000 : Date.parse(value) - Date.now();
+  return Number.isFinite(delay) && delay >= 0 ? delay : undefined;
 }

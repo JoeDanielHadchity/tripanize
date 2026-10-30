@@ -16,7 +16,7 @@ import { planningScope, requirePlanDates } from "@/server/plans/planning";
 
 export type Generator = typeof generateStructured;
 export type PlanCheckpoint = { dates: string[]; completedDates: string[]; proposal: Proposal; sources: string[] };
-export type Checkpoints = { load: () => Promise<PlanCheckpoint | undefined>; save: (value: PlanCheckpoint) => Promise<void> };
+export type Checkpoints = { load: () => Promise<PlanCheckpoint | undefined>; save: (value: PlanCheckpoint) => Promise<void>; retrySetup?: (error: AIError) => Promise<boolean> };
 
 const CHUNK_DAYS = 5;
 
@@ -169,6 +169,7 @@ async function runJobInContext(job: GenerationJob, generate: Generator, checkpoi
     await progress(jobId, "Draft ready for review");
   } catch (err) {
     const e = err instanceof AIError ? err : new AIError("UPSTREAM", err instanceof AppError ? err.message : "Unexpected error while planning.");
+    if (job.kind === "setup" && e.code === "RATE_LIMITED" && !controller.signal.aborted && await checkpoint?.retrySetup?.(e)) return;
     if (err instanceof AppError && err.code === "FORBIDDEN") partialDays.length = 0;
     if (!(err instanceof AIError) && !(err instanceof AppError)) console.error("[planner] unexpected", err instanceof Error ? err.message : err);
     const cancelled = e.code === "CANCELLED";

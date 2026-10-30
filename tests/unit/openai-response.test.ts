@@ -47,3 +47,18 @@ it("sends receipt image/PDF inputs through the SDK without search or provider re
   const body = JSON.parse(String(call[1]?.body));
   expect(body.store).toBe(false); expect(body.tools).toBeUndefined(); expect(body.input[0].content[1].type).toBe("input_image"); expect(body.input[0].content[2].type).toBe("input_file");
 });
+
+it.each([
+  ["rate_limit_exceeded", "Rate limit reached for tokens per minute", "RATE_LIMITED", 125000],
+  ["slow_down", "Traffic increased too quickly", "RATE_LIMITED", 125000],
+  ["insufficient_quota", "You exceeded your current quota", "QUOTA", undefined],
+  ["billing_hard_limit_reached", "Billing hard limit", "QUOTA", undefined],
+  ["rate_limit_exceeded", "Request too large for tokens per minute", "UPSTREAM", undefined],
+  ["unknown_rejection", "Contact the administrator", "UPSTREAM", undefined],
+])("distinguishes provider 429 failures and preserves a retry delay (%s: %s)", async (code, message, expected, retryAfterMs) => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { code, message, type: "rate_limit_error" } }), { status: 429, headers: { "Content-Type": "application/json", "Retry-After": "125" } })));
+  const { generateStructured } = await import("@/server/ai/openai");
+  await expect(generateStructured({ name: "trip_packing", metering: { jobId: "isolated-job" }, schema: z.object({ ready: z.boolean() }), instructions: "Synthetic", input: "Synthetic" })).rejects.toMatchObject({ code: expected, retryAfterMs });
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
