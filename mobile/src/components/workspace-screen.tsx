@@ -10,6 +10,8 @@ import { pickFiles, uploadFiles, shareDownload, type PickedFile } from "../lib/f
 import { saveOfflineItinerary, clearOfflineItineraries } from "../lib/offline";
 import { useTheme, useAppearance } from "./theme";
 import { Fields } from "./form-fields";
+import { NativeItinerary } from "./native-itinerary";
+import { ActionRow, TripNavigation, TripSummary } from "./trip-ui";
 import { NativeLocation } from "./native-location";
 import { Button, Card, ErrorNotice, Heading, Icon, Loading, Muted, Screen, T, styles } from "./ui";
 
@@ -24,6 +26,7 @@ function confirmAction(message?: string): Promise<boolean> {
   return new Promise(resolve => Alert.alert("Confirm change", message, [{ text: "Cancel", style: "cancel", onPress: () => resolve(false) }, { text: "Continue", onPress: () => resolve(true) }], { cancelable: true, onDismiss: () => resolve(false) }));
 }
 export function WorkspaceScreen({ target, account = false }: { target: MobileTarget; account?: boolean }) {
+  const content = useRef<ScrollView>(null);
   const path = workspacePath(target), { data, error, loading, reload, status } = useApi<MobileWorkspace>(path);
   const [actionError, setActionError] = useState<string | null>(null), [notice, setNotice] = useState<string | null>(null), [sharedUrl, setSharedUrl] = useState<string | null>(null), [busy, setBusy] = useState(false);
   const [review, setReview] = useState<MobileCommandResult["review"] | null>(null);
@@ -37,7 +40,7 @@ export function WorkspaceScreen({ target, account = false }: { target: MobileTar
     return () => { listener.remove(); if (timer) clearInterval(timer); };
   }, [pollMs, reload]));
   async function result(r: MobileCommandResult) {
-    if (r.review) { setReview(r.review); return; }
+    if (r.review) { setReview(r.review); content.current?.scrollTo({ y: 0, animated: true }); return; }
     setReview(null);
     if (r.signedOut) { await clearOfflineItineraries(); await authClient.signOut(); router.replace("/"); return; }
     setNotice(r.message ?? null); setSharedUrl(r.url ?? null);
@@ -52,29 +55,34 @@ export function WorkspaceScreen({ target, account = false }: { target: MobileTar
       else if (action.device === "file" && action.url) await shareDownload(action.url, action.fileName ?? "Tripanize-document.pdf");
       else if (action.url) { const u = new URL(action.url); if (!["https:", "http:"].includes(u.protocol) || u.username || u.password) throw new Error("Invalid link."); await Linking.openURL(u.href); }
       else if (action.action) await result(await post<MobileCommandResult>("/api/mobile/workspace", { action: action.action, tripId: data?.tripId, values: cleanValues(action.values ?? {}) }));
-    } catch (e) { setActionError(e instanceof Error ? e.message : "Could not complete this action."); }
+    } catch (e) { setActionError(e instanceof Error ? e.message : "Could not complete this action."); content.current?.scrollTo({ y: 0, animated: true }); }
     finally { setBusy(false); }
   }
-  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen style={{ maxWidth: 640, padding: 20, gap: 18 }}>
-    <View style={[styles.row, { justifyContent: "flex-end" }]}><View style={{ flexDirection: "row", gap: 16 }}><Pressable accessibilityRole="button" accessibilityLabel="My trips" onPress={() => router.replace("/trips")}><Icon name="briefcase-outline" /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Notifications" onPress={() => navigate({ screen: "notifications" })}><Icon name="notifications-outline" /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace("/")}><Icon name="arrow-back" /></Pressable></View></View>
-    {data?.tripId && <Muted>{data.role === "OWNER" ? "Organizer" : data.role === "COLLABORATOR" ? "Editor" : "Viewer"}{data.premium ? " · ★ Premium" : " · Standard"}</Muted>}
-    <Heading>{data?.title ?? (account || target.screen === "account" ? "Account" : "Your trip.")}</Heading>{data?.subtitle && <Muted>{data.subtitle}</Muted>}
-    {data?.tabs && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{data.tabs.map(tab => <Pressable key={tab.to.screen} accessibilityRole="button" accessibilityState={{ selected: tab.to.screen === target.screen }} onPress={() => navigate(tab.to, true)} style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: c.line, backgroundColor: tab.to.screen === target.screen ? c.accent : c.paper }}><T style={{ color: tab.to.screen === target.screen ? c.accentText : c.ink, fontSize: 13 }}>{tab.label}{tab.premium ? " ★" : ""}</T></Pressable>)}</ScrollView>}
-    {(error || actionError) && <ErrorNotice message={actionError ?? error!} retry={reload} />}{loading && !data && <Loading />}
-    {error && ![401, 403, 404].includes(status ?? 0) && target.tripId && <Button secondary onPress={() => router.push({ pathname: "/trip/[id]", params: { id: target.tripId! } })}>Open saved itinerary</Button>}
-    {review && <Card style={{ borderColor: c.accent }}><Heading small>{review.title}</Heading>{review.lines.map((line, i) => <T key={i}>{line}</T>)}<Button disabled={busy} onPress={() => void run({ label: "Apply changes", action: review.action, values: review.values })}>Apply reviewed changes</Button><Button secondary onPress={() => setReview(null)}>Keep editing</Button></Card>}
-    {notice && <Card><T>{notice}</T></Card>}{sharedUrl && <Card><T selectable>{sharedUrl}</T><Button secondary onPress={() => void Share.share({ message: sharedUrl, url: sharedUrl })}>Share invitation link</Button></Card>}
-    {data?.blocks.map(block => <Card key={block.id} style={{ gap: 13, ...(block.tone === "accent" ? { backgroundColor: c.soft, borderColor: c.accent } : block.tone === "warning" ? { borderColor: c.coral } : {}) }}>
-      {block.image && <><Image source={block.image.url} style={{ height: 180, borderRadius: 14, width: "100%" }} contentFit="cover" />{block.image.credit && <Muted>{block.image.credit}</Muted>}</>}
-      {block.title && <Heading small>{block.title}</Heading>}{block.meta && <Muted>{block.meta}</Muted>}{block.text && <T selectable>{block.text}</T>}
-      {block.lines?.map((line, i) => <T key={i} style={{ fontSize: 14 }}>{line}</T>)}
-      {block.actions?.map((a, i) => <Button key={`${a.label}-${i}`} secondary disabled={busy} onPress={() => void run(a)}>{a.label}</Button>)}
-      {block.location && <NativeLocation key={block.location.tripId} tripId={block.location.tripId} onChange={reload} />}
-      {block.form && <NativeForm key={`${path}-${block.id}`} block={block} tripId={data.tripId} disabled={busy} onResult={result} />}
-    </Card>)}
-    {account && <Card><Heading small>Appearance</Heading><View style={{ gap: 8 }}>{(["light", "dark", "system"] as const).map(value => <Button key={value} secondary onPress={() => appearance.set(value)}>{appearance.choice === value ? "✓ " : ""}{value[0].toUpperCase() + value.slice(1)}</Button>)}</View><Button secondary onPress={() => void clearOfflineItineraries().then(() => setNotice("Saved offline itineraries removed.")).catch(e => setActionError(e.message))}>Remove saved offline itineraries</Button><Button secondary onPress={async () => { await clearOfflineItineraries(); await authClient.signOut(); router.replace("/"); }}>Sign out</Button></Card>}
-    {data && <Button secondary busy={loading} onPress={reload}>Refresh</Button>}
-  </Screen></KeyboardAvoidingView>;
+  const onAction = (action: MobileAction) => { void run(action); };
+  const renderBlock = (block: MobileBlock) => <Card key={block.id} style={{ gap: 13, ...(block.tone === "accent" ? { backgroundColor: c.soft, borderColor: c.accent } : block.tone === "warning" ? { borderColor: c.coral } : {}) }}>
+    {block.image && <><Image source={block.image.url} style={{ height: 180, borderRadius: 12, width: "100%" }} contentFit="cover" />{block.image.credit && <Muted>{block.image.credit}</Muted>}</>}
+    {block.title && <Heading small>{block.title}</Heading>}{block.meta && <Muted>{block.meta}</Muted>}{block.text && <T selectable>{block.text}</T>}
+    {block.lines?.map((line, i) => <T key={i} style={{ fontSize: 14 }}>{line}</T>)}
+    {block.actions?.length ? <ActionRow actions={block.actions} onAction={onAction} busy={busy} /> : null}
+    {block.location && <NativeLocation key={block.location.tripId} tripId={block.location.tripId} onChange={reload} />}
+    {block.form && <NativeForm key={`${path}-${block.id}`} block={block} tripId={data?.tripId} disabled={busy} onResult={result} />}
+  </Card>;
+  const showAssistant = data?.premium && data.tripId && !["assistant", "setup", "premium"].includes(target.screen);
+  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <View style={{ flex: 1 }}><Screen scrollRef={content} style={{ maxWidth: 640, padding: 16, gap: 18, paddingBottom: showAssistant ? 100 : 32 }}>
+      {!target.tripId && <View style={[styles.row, { justifyContent: "flex-end" }]}><View style={{ flexDirection: "row", gap: 10 }}><Pressable accessibilityRole="button" accessibilityLabel="Notifications" onPress={() => navigate({ screen: "notifications" })} style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" }}><Icon name="notifications-outline" /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace("/")} style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" }}><Icon name="arrow-back" /></Pressable></View></View>}
+      {data?.trip ? <TripSummary data={data} onAction={onAction} /> : data?.tripId ? <Muted>{data.role === "OWNER" ? "Organizer" : data.role === "COLLABORATOR" ? "Editor" : "Viewer"}{data.premium ? " · Premium" : " · Standard"}</Muted> : null}
+      <View style={{ gap: 5 }}><Heading small={Boolean(target.tripId)}>{data?.title ?? (account || target.screen === "account" ? "Account" : "Your trip.")}</Heading>{data?.subtitle && <Muted>{data.subtitle}</Muted>}</View>
+      {(error || actionError) && <ErrorNotice message={actionError ?? error!} retry={reload} />}{loading && !data && <Loading />}
+      {error && ![401, 403, 404].includes(status ?? 0) && target.tripId && <Button secondary onPress={() => router.push({ pathname: "/trip/[id]", params: { id: target.tripId! } })}>Open saved itinerary</Button>}
+      {review && <Card style={{ borderColor: c.accent }}><Heading small>{review.title}</Heading>{review.lines.map((line, i) => <T key={i}>{line}</T>)}<Button disabled={busy} onPress={() => void run({ label: "Apply changes", action: review.action, values: review.values })}>Apply reviewed changes</Button><Button secondary onPress={() => setReview(null)}>Keep editing</Button></Card>}
+      {notice && <Card><T>{notice}</T></Card>}{sharedUrl && <Card><T selectable>{sharedUrl}</T><Button secondary onPress={() => void Share.share({ message: sharedUrl, url: sharedUrl })}>Share invitation link</Button></Card>}
+      {data?.itinerary?.selectedDay && target.screen === "itinerary" ? <NativeItinerary data={data} onAction={onAction} busy={busy} renderBlock={renderBlock} /> : data?.blocks.map(renderBlock)}
+      {account && <Card><Heading small>Appearance</Heading><View style={{ gap: 8 }}>{(["light", "dark", "system"] as const).map(value => <Button key={value} secondary onPress={() => appearance.set(value)}>{appearance.choice === value ? "✓ " : ""}{value[0].toUpperCase() + value.slice(1)}</Button>)}</View><Button secondary onPress={() => void clearOfflineItineraries().then(() => setNotice("Saved offline itineraries removed.")).catch(e => setActionError(e.message))}>Remove saved offline itineraries</Button><Button secondary onPress={async () => { await clearOfflineItineraries(); await authClient.signOut(); router.replace("/"); }}>Sign out</Button></Card>}
+      {data && <Button secondary compact leadingIcon="refresh-outline" busy={loading} onPress={reload}>Refresh</Button>}
+    </Screen>{showAssistant && <View pointerEvents="box-none" style={{ position: "absolute", bottom: 12, right: 16 }}><Button leadingIcon="sparkles-outline" disabled={busy} style={{ borderRadius: 28 }} onPress={() => navigate({ screen: "assistant", tripId: data.tripId, day: data.itinerary?.selectedDay?.date })}>AI assistant</Button></View>}</View>
+    {target.tripId && <TripNavigation tripId={target.tripId} screen={target.screen} premium={data?.premium} onAction={action => { if (action.to) navigate(action.to, true); }} />}
+  </KeyboardAvoidingView>;
 }
 function NativeForm({ block, tripId, onResult, disabled }: { block: MobileBlock; tripId?: string; onResult: (r: MobileCommandResult) => Promise<void>; disabled: boolean }) {
   const spec = block.form!;

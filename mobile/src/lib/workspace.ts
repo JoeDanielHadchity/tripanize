@@ -1,5 +1,6 @@
 import type { MobileField, MobileTarget, MobileValue, MobileValues } from "../../../src/lib/mobile-workspace";
-export type { MobileWorkspace, MobileBlock, MobileField, MobileTarget, MobileAction, MobileValue, MobileValues, MobileCommandResult } from "../../../src/lib/mobile-workspace";
+export { mobileTripTabs } from "../../../src/lib/mobile-workspace";
+export type { MobileItinerary, MobileWorkspace, MobileBlock, MobileField, MobileTarget, MobileAction, MobileValue, MobileValues, MobileCommandResult } from "../../../src/lib/mobile-workspace";
 /** Keep workspace views out of Expo Router's reserved `screen` parameter. */
 export function workspaceHref({ screen, ...params }: MobileTarget, refresh?: string) {
   return { pathname: "/workspace" as const, params: { ...params, view: screen, ...(refresh ? { refresh } : {}) } };

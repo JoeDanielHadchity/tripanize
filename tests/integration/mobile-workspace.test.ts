@@ -252,3 +252,36 @@ it("lets viewers manage personal event alerts without granting shared discovery 
   expect(await prisma.notificationPreference.findUnique({ where: { userId_tripId: { userId: viewer.id, tripId } } })).toMatchObject({ emailEnabled: true, frequency: "daily" });
   await expect(cmd(viewer.id, tripId, "events.settings", { autoDiscovery: true })).rejects.toMatchObject({ code: "FORBIDDEN" });
 });
+
+it("provides the reference-style trip layout without mixing days, plans or viewer permissions", async () => {
+  const owner = await makeUser("Layout owner"), viewer = await makeUser("Layout viewer"), outsider = await makeUser("Layout outsider");
+  const tripId = await makeTrip(owner.id);
+  await prisma.tripMembership.create({ data: { tripId, userId: viewer.id, role: "VIEWER" } });
+  const days = await prisma.itineraryDay.findMany({ where: { tripId }, orderBy: { date: "asc" } });
+  await cmd(owner.id, tripId, "stop.save", { dayId: days[0].id, plan: "A", title: "Morning river walk", startTime: "09:00", durationMin: 60, locationName: "Riverside", category: "sight" });
+  await cmd(owner.id, tripId, "stop.save", { dayId: days[0].id, plan: "B", title: "Rainy day museum", startTime: "10:00", durationMin: 90 });
+  await cmd(owner.id, tripId, "stop.save", { dayId: days[1].id, plan: "A", title: "Another day only" });
+  const restaurant = { name: "Test café", cuisine: "French breakfast", area: "Old town", address: "1 Test Street", whyFits: "Before the morning walk", pricePerPerson: 15, officialUrl: "https://example.test/cafe", sourceUrls: ["https://example.test/cafe"], hoursNote: "Opens at 07:00" };
+  await prisma.itineraryDay.update({ where: { id: days[0].id }, data: { title: "A relaxed first day", area: "Old town", isTravelDay: true, driveMinutes: 165, estCostMinor: 9450, mealOptions: { breakfast: [restaurant, { ...restaurant, name: "Second café" }], lunch: [], dinner: [] } } });
+  const doc = await page(owner.id, "itinerary", tripId, days[0].id);
+  expect(doc.trip).toMatchObject({ name: "Lisbon long weekend", destinations: ["Lisbon"], startDate: "2027-05-01" });
+  expect(doc.itinerary?.days).toHaveLength(4);
+  expect(doc.itinerary?.selectedDay).toMatchObject({ id: days[0].id, title: "A relaxed first day", activePlan: "A", travelMinutes: 165 });
+  expect(doc.itinerary?.selectedDay?.estimatedCost).toContain("94.50");
+  expect(doc.itinerary?.checklist).toHaveLength(6);
+  expect(doc.blocks.filter(b => b.stop).map(b => b.title)).toEqual(["Morning river walk"]);
+  expect(doc.blocks.find(b => b.stop)?.stop).toMatchObject({ time: "09:00", durationMin: 60, place: "Riverside" });
+  expect(doc.blocks.filter(b => b.restaurant).map(b => b.restaurant?.name)).toEqual(["Test café", "Second café"]);
+  expect(doc.blocks.find(b => b.restaurant)?.actions?.map(a => a.label)).toEqual(["Directions", "Website", "Source"]);
+  // Legacy blocks remain available to the installed 0.2.2 client.
+  expect(doc.blocks.find(b => b.id === "days")?.actions).toHaveLength(4);
+  const readonly = await page(viewer.id, "itinerary", tripId, days[0].id);
+  expect(readonly.itinerary?.selectedDay?.planActions).toEqual([]);
+  expect(readonly.blocks.find(b => b.stop)?.actions?.some(a => a.label === "Edit")).toBe(false);
+  expect(readonly.blocks.find(b => b.id === "tools")?.actions?.some(a => a.to?.screen === "plan")).toBe(false);
+  await cmd(owner.id, tripId, "day.plan", { id: days[0].id, plan: "B" });
+  const alternative = await page(owner.id, "itinerary", tripId, days[0].id);
+  expect(alternative.itinerary?.selectedDay?.activePlan).toBe("B");
+  expect(alternative.blocks.filter(b => b.stop).map(b => b.title)).toEqual(["Rainy day museum"]);
+  await expect(page(outsider.id, "itinerary", tripId, days[0].id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+});

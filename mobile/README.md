@@ -12,6 +12,12 @@ In 0.2.1, the product menu stays on one horizontally scrollable row. The bottom 
 
 In 0.2.2, all workspace links use the `view` query parameter and translate it to the existing backend `screen` contract. Expo Router reserves and removes `screen` from navigation payloads; using it for trip views caused trip cards to reopen the list instead of their itinerary or setup. The LIS–OPO hero route now uses a separate arrow icon, independent of the heading font.
 
+## Reference-style trip layout (0.2.3)
+
+The native trip workspace uses the website's cream/blue/serif design: a compact trip summary, outlined actions, a readiness checklist, horizontal day cards, one selected day, Plan A/B, timed stop cards with expandable advice, and breakfast/lunch/dinner restaurant tabs with directions and source links. Trip sections stay fixed above the existing Home/My trips/Account bar. More includes packing, settings, sharing, voting and history. A floating Premium assistant leaves enough scroll space to reach the last control. Narrow-screen day arrows have explicit accessible labels; all arrows remain icons.
+
+The presentation API adds metadata after the existing membership checks, preserving legacy blocks for installed 0.2.2 clients. Viewer actions remain read-only and estimates stay separate from expense records. No payment, plan or invitation rules change. Font scaling, keyboard, navigation and visual review still require the actual Android/iPhone build.
+
 ## Full trip workspace (0.2)
 
 Native screens now cover trip drafts and Standard/Premium selection, guided details and food questions, AI planning jobs and reviewed application, manual itinerary editing, day selection and Plan A/B, stop alternatives, itinerary history/restore, numbered destination research, restaurant suggestions, linked events/bookings, automatic discovery settings, expense budgets and projections, splitting/settlements, receipt attachments and reviewed scanning, chat, optional foreground location, personal/shared packing, prep tasks, voting, invitations/roles, account preferences, support, PDF/JSON exports and account deletion.
@@ -29,7 +35,7 @@ Location is off by default, requests foreground permission on the user's action,
 - Native Apple/Google purchases have **not** been integrated or enabled. The Premium screen clearly states this; it never redirects a native buyer to web checkout. Existing server-verified purchases, trials and company access work. Store products, server purchase verification and refund/revocation handling must be implemented and tested before a public paid release. The $15 website checkout and all payment settings remain unchanged.
 - Notifications have the existing in-app inbox and email alerts. OS push delivery and APNs/FCM credentials still need implementation/setup; no claim of background phone push is made.
 - Universal Links/App Links still require the actual Apple team and Android signing identities.
-- Android 0.2.1 has an internal APK. The 0.2.2 trip-navigation/hero-arrow fixes require a new APK. Apple membership/signing and the iOS binary remain pending. JavaScript export is not an APK/IPA or physical-device test.
+- Android 0.2.2 has an internal APK. The 0.2.3 reference-style layout requires a new APK. Apple membership/signing and the iOS binary remain pending. JavaScript export is not an APK/IPA or physical-device test.
 - Test the actual iPhone/Android build: keyboard/safe areas, photo/PDF pickers, camera permissions, signed-in downloads/share sheet, location permission/blur/background behavior, offline restart, screen readers and complete Standard/Premium journeys. Browser/device visual testing has not been performed by this change.
 - Finish store listings, privacy/data-safety declarations, billing agreements, Android required testing and App Review. This app has not been submitted or published to either store.
 

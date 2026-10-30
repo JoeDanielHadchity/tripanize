@@ -12,9 +12,9 @@ import { formatMoney, minorToDecimalString } from "@/lib/money";
 import { STOP_CATEGORIES } from "@/lib/constants";
 import { ProposalSchema, SwapSchema } from "@/server/planner/schema";
 import { f, act, go, form, options, link, wire } from "./presentation";
-import type { MobileBlock } from "@/lib/mobile-workspace";
+import type { MobileBlock, MobileItinerary } from "@/lib/mobile-workspace";
 
-export async function itineraryBlocks(userId: string, tripId: string, screen: string, query: URLSearchParams, canEdit: boolean): Promise<{ blocks: MobileBlock[]; pollMs?: number }> {
+export async function itineraryBlocks(userId: string, tripId: string, screen: string, query: URLSearchParams, canEdit: boolean): Promise<{ blocks: MobileBlock[]; pollMs?: number; itinerary?: MobileItinerary }> {
   const item = query.get("item");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   const premium = (await getTripPlan(tripId)).premium;
@@ -82,7 +82,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   }
   const destination = await prisma.destination.findFirst({ where: { tripId }, orderBy: { position: "asc" } });
   const cover = savedTripImage(trip, destination ?? undefined);
-  const blocks: MobileBlock[] = [...(cover ? [{ id: "cover", image: { url: cover.url, credit: cover.credit } }] : []), { id: "tools", title: trip.name, meta: premium ? "★ Premium" : "Standard", actions: [go("Plan with AI", "plan", tripId), ...(premium ? [go("Trip assistant", "assistant", tripId)] : []), go("Group voting", "votes", tripId), go("History & undo", "versions", tripId), { label: "Save itinerary offline", device: "offline" }, { label: "Download trip PDF", device: "file", url: `/api/mobile/files?tripId=${encodeURIComponent(tripId)}&kind=pdf`, fileName: "Tripanize-trip.pdf" }] },
+  const blocks: MobileBlock[] = [...(cover ? [{ id: "cover", image: { url: cover.url, credit: cover.credit } }] : []), { id: "tools", title: trip.name, meta: premium ? "★ Premium" : "Standard", actions: [...(canEdit ? [go("Plan with AI", "plan", tripId)] : []), ...(premium ? [go("Trip assistant", "assistant", tripId)] : []), go("Group voting", "votes", tripId), go("History & undo", "versions", tripId), { label: "Save itinerary offline", device: "offline" }, { label: "Download trip PDF", device: "file", url: `/api/mobile/files?tripId=${encodeURIComponent(tripId)}&kind=pdf`, fileName: "Tripanize-trip.pdf" }] },
     { id: "days", actions: days.map((d, i) => go(`Day ${i + 1} · ${d.date.slice(5)}`, "itinerary", tripId, d.id)) },
   ];
   if (!day) { blocks.push({ id: "dates", text: "Add your trip dates to start planning each day.", actions: [go("Trip settings", "settings", tripId)] }); return { blocks }; }
@@ -91,14 +91,31 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   for (const [i, stop] of active.entries()) {
     const s = effectiveStop(stop);
     const reordered = (delta: number) => { const ids = active.map(s => s.id); const at = i + delta; [ids[i], ids[at]] = [ids[at], ids[i]]; return [...ids, ...day.stops.filter(s => s.plan === day.activePlan && s.status === "SKIPPED").map(s => s.id)]; };
-    blocks.push({ id: stop.id, title: s.title, meta: [s.startTime ?? "Anytime", s.durationMin ? `${s.durationMin} min` : "", s.estCostMinor === null ? "" : `Est. ${formatMoney(s.estCostMinor, s.currency ?? trip.currency)}`, stop.booking ? stop.booking.status : ""].filter(Boolean).join(" · "), text: s.reason ?? undefined, lines: [s.address, s.notes, stop.hoursNote, stop.bookingNote].filter((v): v is string => Boolean(v)), actions: [
+    blocks.push({ id: stop.id, title: s.title, stop: { time: s.startTime, durationMin: s.durationMin, place: s.locationName ?? s.address, status: stop.booking ? stop.booking.status : s.status, category: s.category, travelToNextMin: s.travelToNextMin, travelMode: s.travelMode }, meta: [s.startTime ?? "Anytime", s.durationMin ? `${s.durationMin} min` : "", s.estCostMinor === null ? "" : `Est. ${formatMoney(s.estCostMinor, s.currency ?? trip.currency)}`, stop.booking ? stop.booking.status : ""].filter(Boolean).join(" · "), text: s.reason ?? undefined, lines: [s.address, s.notes, stop.hoursNote, stop.bookingNote].filter((v): v is string => Boolean(v)), actions: [
       { label: "Directions", url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([s.title, s.address].filter(Boolean).join(", "))}` }, ...link("Official website", s.officialUrl),
       ...(canEdit ? [go("Edit", "stop", tripId, stop.id), ...(i > 0 ? [act("Move up", "stop.reorder", { dayId: day.id, plan: day.activePlan, ids: reordered(-1) })] : []), ...(i < active.length - 1 ? [act("Move down", "stop.reorder", { dayId: day.id, plan: day.activePlan, ids: reordered(1) })] : [])] : []),
     ] });
   }
   const meals = readMealOptions(day.mealOptions);
-  for (const meal of ["breakfast", "lunch", "dinner"] as const) for (const [i, r] of meals[meal].entries()) blocks.push({ id: `${meal}-${i}`, title: `${meal[0].toUpperCase()}${meal.slice(1)} · Option ${i + 1}`, meta: `${r.name} · ${r.cuisine} · ${r.area}`, text: r.whyFits, actions: link("Restaurant website", r.officialUrl) });
+  for (const meal of ["breakfast", "lunch", "dinner"] as const) for (const [i, r] of meals[meal].entries()) blocks.push({ id: `${meal}-${i}`, title: `${meal[0].toUpperCase()}${meal.slice(1)} · Option ${i + 1}`, meta: `${r.name} · ${r.cuisine} · ${r.area}`, text: r.whyFits, restaurant: { meal, option: i + 1, name: r.name, cuisine: r.cuisine, area: r.area, hoursNote: r.hoursNote }, actions: [{ label: "Directions", url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([r.name, r.address ?? r.area].filter(Boolean).join(", "))}` }, ...link("Website", r.officialUrl), ...r.sourceUrls.flatMap((url, index) => link(index === 0 ? "Source" : `Source ${index + 1}`, url))] });
   if (day.planBNote) blocks.push({ id: "plan-b-note", title: "Plan B", text: day.planBNote });
   for (const s of [...day.stops.filter(s => s.status === "SKIPPED"), ...ideas]) blocks.push({ id: s.id, title: s.title, meta: s.status === "SKIPPED" ? "Skipped" : "Unscheduled idea", actions: canEdit ? [go("Edit / schedule", "stop", tripId, s.id)] : [] });
-  return { blocks };
+  const [destinations, bookings, travelers] = await Promise.all([
+    prisma.destination.findMany({ where: { tripId }, select: { accommodationName: true, accommodationAddress: true } }),
+    prisma.booking.findMany({ where: { tripId }, select: { status: true } }),
+    prisma.traveler.count({ where: { tripId, leftAt: null } }),
+  ]);
+  const itinerary: MobileItinerary = {
+    days: days.map(d => ({ id: d.id, date: d.date, stops: d.stops.filter(s => s.plan === d.activePlan && s.status !== "SKIPPED").length, travel: d.isTravelDay })),
+    selectedDay: { id: day.id, date: day.date, title: day.title ?? day.destination?.name ?? "Your day", area: day.area ?? day.destination?.name ?? undefined, activePlan: day.activePlan === "B" ? "B" : "A", ...(day.isTravelDay && day.driveMinutes !== null ? { travelMinutes: day.driveMinutes } : {}), ...(day.estCostMinor !== null ? { estimatedCost: formatMoney(day.estCostMinor, trip.currency) } : {}), planActions: canEdit ? [act("Plan A", "day.plan", { id: day.id, plan: "A" }), act("Plan B", "day.plan", { id: day.id, plan: "B" })] : [] },
+    checklist: [
+      { label: "Daily plans", done: days.length > 0 && days.every(d => d.stops.some(s => s.plan === d.activePlan && s.status !== "SKIPPED")), to: { screen: "itinerary", tripId } },
+      { label: "Stay details", done: destinations.length > 0 && destinations.every(d => Boolean(d.accommodationName || d.accommodationAddress)), to: { screen: "settings", tripId } },
+      { label: "Arrival & departure", done: Boolean(trip.arrivalLocation && trip.arrivalAt && trip.departureLocation && trip.departureAt), to: { screen: "settings", tripId } },
+      { label: "Trip budget", done: trip.budgetMinor !== null, to: { screen: premium ? "expenses" : "settings", tripId } },
+      { label: "Booking follow-ups", done: bookings.some(b => ["BOOKED", "PAID"].includes(b.status)) && !bookings.some(b => ["TO_BOOK", "REQUESTED"].includes(b.status)), to: { screen: "bookings", tripId } },
+      { label: "Travelers", done: travelers > 0, to: { screen: "sharing", tripId } },
+    ],
+  };
+  return { blocks, itinerary };
 }
