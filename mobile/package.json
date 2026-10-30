@@ -1,6 +1,6 @@
 {
   "name": "tripanize-mobile",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "main": "expo-router/entry",
   "dependencies": {
     "@better-auth/expo": "1.7.11",

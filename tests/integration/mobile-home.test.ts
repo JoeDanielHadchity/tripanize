@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it } from "vitest";
 import { GET as publicPage } from "@/app/api/mobile/public/route";
 import { POST as privateCommand } from "@/app/api/mobile/workspace/route";
-import { PUBLIC_GUIDE_SLUGS, publicHttpsLink, publicLoginDestination, mobileNavigationSection, type MobilePublicHome, type MobilePublicGuide } from "@/lib/mobile-public";
+import { PUBLIC_GUIDE_SLUGS, publicHttpsLink, publicLoginDestination, mobileNavigationSection, isMobileTripRoute, type MobilePublicHome, type MobilePublicGuide } from "@/lib/mobile-public";
 import { CITY_GUIDES } from "@/server/examples/city-guides";
 import { EXAMPLES } from "@/server/examples/data";
 import { mobileCommand } from "@/server/mobile/commands";
@@ -78,4 +78,10 @@ it("keeps navigation selection tied to the active page and workspace context", (
   for (const screen of ["account", "notifications", "admin", "admin-trials"]) expect(mobileNavigationSection("/workspace", screen)).toBe("account");
   expect(mobileNavigationSection("/workspace", "itinerary")).toBe("trips");
   expect(mobileNavigationSection("/plans", "admin")).toBe("home");
+  expect(isMobileTripRoute("/workspace", "trip-123")).toBe(true);
+  expect(isMobileTripRoute("/workspace", ["trip-123", "ignored"])).toBe(true);
+  expect(isMobileTripRoute("/trip/trip-123")).toBe(true);
+  for (const path of ["/", "/plans", "/trips", "/account", "/feature/ai-trip-planner"]) expect(isMobileTripRoute(path, "trip-123")).toBe(false);
+  for (const id of [undefined, null, "", " ", []]) expect(isMobileTripRoute("/workspace", id)).toBe(false);
+  expect(isMobileTripRoute("/trip/")).toBe(false);
 });
