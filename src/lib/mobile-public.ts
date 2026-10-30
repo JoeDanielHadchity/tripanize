@@ -24,6 +24,12 @@ export function publicLoginDestination(next: unknown): string {
   return "/";
 }
 
+/** Layout context only. Public pages with a tripId query remain public layouts. */
+export function isMobileTripRoute(pathname: string, tripId?: unknown): boolean {
+  const id = Array.isArray(tripId) ? tripId[0] : tripId;
+  return /^\/trip\/[^/]+\/?$/.test(pathname) || pathname === "/workspace" && typeof id === "string" && id.trim().length > 0;
+}
+
 /** Navigation state only; it never grants access to a private screen. */
 export function mobileNavigationSection(pathname: string, screen?: string): "home" | "trips" | "account" {
   if (pathname === "/account" || (pathname === "/workspace" && (screen === "account" || screen === "notifications" || screen === "admin" || screen?.startsWith("admin-")))) return "account";

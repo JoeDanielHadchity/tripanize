@@ -30,11 +30,11 @@ export function Screen({ children, scroll = true, style, scrollRef }: { children
     {scroll ? <ScrollView ref={scrollRef} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, style]}>{children}</ScrollView> : <View style={[styles.content, { flex: 1 }, style]}>{children}</View>}
   </SafeAreaView>;
 }
-export function Brand() {
+export function Brand({ compact = false }: { compact?: boolean }) {
   const c = useTheme();
   return <View accessible accessibilityRole="image" accessibilityLabel="Tripanize" style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "transparent" }}>
-    <Image accessible={false} source={require("../../assets/mark.png")} style={{ width: 37, height: 37, backgroundColor: "transparent" }} contentFit="contain" />
-    <Image accessible={false} source={require("../../assets/wordmark.png")} tintColor={c.ink} style={{ width: 95, height: 24, backgroundColor: "transparent" }} contentFit="contain" />
+    <Image accessible={false} source={require("../../assets/mark.png")} style={{ width: compact ? 32 : 37, height: compact ? 32 : 37, backgroundColor: "transparent" }} contentFit="contain" />
+    {!compact && <Image accessible={false} source={require("../../assets/wordmark.png")} tintColor={c.ink} style={{ width: 95, height: 24, backgroundColor: "transparent" }} contentFit="contain" />}
   </View>;
 }
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) { const c = useTheme(); return <View style={[{ backgroundColor: c.paper, borderRadius: 15, borderWidth: 1, borderColor: c.line, padding: 18, gap: 12 }, style]}>{children}</View>; }
