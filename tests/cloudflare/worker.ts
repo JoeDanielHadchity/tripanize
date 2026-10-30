@@ -1,3 +1,4 @@
+import deleteDestinationSearches from "../../prisma/migrations/202610310022_delete_destination_searches/migration.sql";
 import automaticTripCovers from "../../prisma/migrations/202610260021_automatic_trip_covers/migration.sql";
 import { readMealOptions, MEALS, type DayMeals } from "../../src/lib/meal-options";
 import mealOptions from "../../prisma/migrations/202610260020_meal_options/migration.sql";
@@ -81,6 +82,7 @@ export class StorageProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminEmailUnlockedAt")) ctx.storage.sql.exec(adminEmailCode);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("ItineraryDay")').toArray().some(c => c.name === "mealOptions")) ctx.storage.sql.exec(mealOptions);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(c => c.name === "imageDestinationKey")) ctx.storage.sql.exec(automaticTripCovers);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("DestinationSearch")').toArray().some(c => c.name === "deletedAt")) ctx.storage.sql.exec(deleteDestinationSearches);
       });
     });
   }

@@ -175,6 +175,7 @@ export async function mobileCommand(userId: string, raw: unknown, sessionId?: st
     case "poll.vote": { const d = parse(edit.extend({ optionId: id.nullable() })); await votes.castVote(userId, tripId, d.id, d.optionId, d.version); return done; }
     case "poll.decide": { const d = parse(edit.extend({ command: z.enum(["DECIDE", "REOPEN", "ARCHIVE"]), optionId: id.nullable(), note: maybeText })); await votes.decidePoll(userId, tripId, d.id, d.command, d.optionId, d.note ?? null, d.version); return done; }
     case "discovery.draft": { const r = await discovery.createDestinationDraft(userId); return to("discovery", r.id); }
+    case "discovery.delete": await discovery.deleteDestinationSearch(userId, parse(z.object({ id })).id); return { to: { screen: "discovery" }, message: "Search deleted." };
     case "discovery.run": { const d = parse(z.object({ id: id.optional() })); const r = await discovery.startDestinationSearch(userId, v, d.id); return to("discovery", r.id); }
     case "discovery.choose": { const d = parse(z.object({ id, index: z.number().int().min(0).max(4) })); const r = await discovery.chooseDestination(userId, d.id, d.index); return { to: { screen: "settings", tripId: r.id } }; }
     case "profile.save": await updateProfile(userId, profileInput.parse(v)); return done;

@@ -57,7 +57,7 @@ export async function getMobileItinerary(userId: string, tripId: string): Promis
 
 export async function getMobileDestinations(userId: string): Promise<{ searches: MobileDestinationSearch[] }> {
   await getMobileUser(userId);
-  const searches = await prisma.destinationSearch.findMany({ where: { userId }, orderBy: { number: "desc" }, take: 50 });
+  const searches = await prisma.destinationSearch.findMany({ where: { userId, deletedAt: null }, orderBy: { number: "desc" }, take: 50 });
   return { searches: searches.map(search => {
     const parsed = discoveryWireResult.safeParse(search.result);
     const result = parsed.success ? normalizeDiscoveryResult(parsed.data) : null;

@@ -31,7 +31,7 @@ export class AiTasks {
 
   private async pendingAi() {
     const db = this.context().database;
-    return await db.destinationSearch.count({ where: { status: { in: ["QUEUED", "RUNNING"] } } }) > 0 ||
+    return await db.destinationSearch.count({ where: { deletedAt: null, status: { in: ["QUEUED", "RUNNING"] } } }) > 0 ||
       await db.generationJob.count({ where: { status: { in: ["QUEUED", "RUNNING"] } } }) > 0 ||
       await db.discoveryRun.count({ where: { status: { in: ["queued", "running"] } } }) > 0;
   }
@@ -94,7 +94,7 @@ export class AiTasks {
           });
           return;
         }
-        const search = await db.destinationSearch.findFirst({ where: { status: { in: ["QUEUED", "RUNNING"] } }, orderBy: [{ queuedAt: "asc" }, { createdAt: "asc" }] });
+        const search = await db.destinationSearch.findFirst({ where: { deletedAt: null, status: { in: ["QUEUED", "RUNNING"] } }, orderBy: [{ queuedAt: "asc" }, { createdAt: "asc" }] });
         if (search) { await runDestinationSearch(search.id, this.generate); return; }
         // An interrupted event search is reported honestly instead of being left
         // running forever or automatically repeating external notifications.

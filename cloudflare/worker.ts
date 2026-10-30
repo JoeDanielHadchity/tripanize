@@ -1,3 +1,4 @@
+import deleteDestinationSearches from "../prisma/migrations/202610310022_delete_destination_searches/migration.sql?raw";
 import automaticTripCovers from "../prisma/migrations/202610260021_automatic_trip_covers/migration.sql?raw";
 import mealOptions from "../prisma/migrations/202610260020_meal_options/migration.sql?raw";
 import adminEmailCode from "../prisma/migrations/202610240019_admin_email_code/migration.sql?raw";
@@ -171,6 +172,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
           if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(column => column.name === "imageDestinationKey")) ctx.storage.sql.exec(automaticTripCovers);
         });
         await ctx.storage.put("schemaVersion", 21);
+      }
+      if (version < 22) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("DestinationSearch")').toArray().some(column => column.name === "deletedAt")) ctx.storage.sql.exec(deleteDestinationSearches);
+        });
+        await ctx.storage.put("schemaVersion", 22);
       }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }

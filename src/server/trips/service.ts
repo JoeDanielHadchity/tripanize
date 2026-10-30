@@ -124,7 +124,7 @@ export async function createTrip(userId: string, input: TripInput, destinationSe
   const name = accountDisplayName(user);
   const write = async (tx: Tx) => {
     if (destinationSearchId) {
-      const search = await tx.destinationSearch.findFirst({ where: { id: destinationSearchId, userId, status: "SUCCEEDED" } });
+      const search = await tx.destinationSearch.findFirst({ where: { id: destinationSearchId, userId, deletedAt: null, status: "SUCCEEDED" } });
       if (!search) throw new AppError("NOT_FOUND", "Destination ideas not found.");
       if (search.selectedTripId && await tx.trip.findFirst({ where: { id: search.selectedTripId, ownerId: userId } })) return search.selectedTripId;
     }
