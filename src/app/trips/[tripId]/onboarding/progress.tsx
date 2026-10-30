@@ -13,6 +13,14 @@ export function OnboardingProgress({ tripId }: { tripId: string }) {
     void poll(); return () => { stop = true; clearTimeout(timer); };
   }, [tripId, router]);
   const failed = state?.job && ["FAILED", "CANCELLED"].includes(state.job.status);
-  const progress = (state?.job?.progress ?? []) as { at: string; message: string }[];
-  return <Card><h2 className="font-display text-xl font-semibold">{failed ? "Preparation needs another try" : "Preparing your trip"}</h2><div className="mt-4 space-y-3" aria-live="polite">{!failed && <Spinner label="Planning, researching and preparing your trip…" />}<ol className="space-y-2 text-sm text-muted">{progress.slice(-8).map((p, i) => <li key={`${p.at}-${i}`}>{p.message}</li>)}</ol></div>{error && <Notice className="mt-4">{error} We will keep checking.</Notice>}{failed && <Notice tone="warn" className="mt-4"><p>{state?.job?.error} Saved information is kept. Retry to finish preparing your trip.</p><Button disabled={busy} className="mt-2" onClick={async () => { setBusy(true); const r = await retryOnboardingAction(tripId); if (!r.ok) setError(r.error); setBusy(false); }}>Retry preparation</Button></Notice>}<p className="mt-4 text-xs text-muted">Nothing is reserved or purchased from travel providers. Suggested events, prices, opening hours and weather remain subject to verification.</p><LinkButton href={`/trips/${tripId}/itinerary`} className="mt-4" variant="ghost">View trip while it is being prepared</LinkButton></Card>;
+  const progress = [...new Set(((state?.job?.progress ?? []) as { at: string; message: string }[]).map(p => p.message).filter(message => !message.startsWith("Preparation stopped:")))].slice(-5);
+  return <Card><h2 className="font-display text-xl font-semibold">{failed ? "Preparation needs another try" : "Preparing your trip"}</h2><div className="mt-4 space-y-3" aria-live="polite">{!failed && <Spinner label="Planning, researching and preparing your trip…" />}<ol className="space-y-2 text-sm text-muted">{progress.map(message => <li key={message}>{message}</li>)}</ol></div>{error && <Notice className="mt-4">{error}</Notice>}{failed && <Notice tone="warn" className="mt-4"><p>{state?.job?.error} Your saved itinerary is available below.</p><Button disabled={busy} className="mt-2" onClick={async () => {
+    setBusy(true); setError("");
+    try {
+      const r = await retryOnboardingAction(tripId);
+      if (!r.ok) setError(r.error);
+      else setState(previous => previous?.job ? { ...previous, job: { ...previous.job, status: "QUEUED", error: null, progress: [] } } : previous);
+    } catch { setError("Could not restart preparation. Please try again."); }
+    finally { setBusy(false); }
+  }}>Retry preparation</Button></Notice>}<p className="mt-4 text-xs text-muted">Nothing is reserved or purchased from travel providers. Suggested events, prices, opening hours and weather remain subject to verification.</p><LinkButton href={`/trips/${tripId}/itinerary`} className="mt-4" variant="ghost">Open saved itinerary</LinkButton></Card>;
 }

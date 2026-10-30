@@ -25,6 +25,8 @@ AI planning uses OpenAI Responses with strict structured output and web research
 
 External AI calls run outside the application's database queue; individual background database operations still share the HTTP transaction lock. Cloudflare cron and durable alarms run automatic event discovery and opted-in event email digests, including after a restart. No separate Node polling process is required.
 
+Guided Premium packing recovers from recognized temporary provider rate limits using at most three delayed durable retries (about one, two and four minutes, respecting a longer provider delay up to fifteen minutes). The provider cooldown and retry count survive restarts; notification/reminder/location maintenance continues during the wait. Guided packing disables nested SDK retries. Billing/quota, authentication, oversized requests and longer delays remain explicit failures. Completed itineraries are kept and are never regenerated or reapplied by packing retries. Travelers can open the saved itinerary while setup finishes.
+
 ### Automatic event discovery
 
 Verified Premium trips with completed setup, dates and a destination search for events using their interests, questionnaire answers, accessibility/dietary needs, budget, pace, group and saved preferences. The schedule adjusts using the departure date in the trip's timezone:

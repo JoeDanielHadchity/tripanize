@@ -90,8 +90,17 @@ try {
   await untilSetup(s => s.jobs.some(j => j.kind === "questions" && j.status === "SUCCEEDED"));
   await get("/onboarding/answers");
   await untilSetup(s => s.jobs.some(j => j.kind === "setup"));
+  const waiting = await untilSetup(s => s.retry?.attempts === 1);
+  assert.equal(waiting.packingAttempts, 1);
+  assert.equal(waiting.jobs.find(j => j.kind === "setup").status, "QUEUED");
+  assert.ok(waiting.notBefore > Date.now() + 100000);
   await stop(child); child = await start();
+  const resumedWait = await get("/onboarding/state");
+  assert.equal(resumedWait.retry.attempts, 1);
+  assert.equal(resumedWait.packingAttempts, 1);
+  await get("/onboarding/retry-due");
   const prepared = await untilSetup(s => s.stage === "COMPLETE");
+  assert.equal(prepared.packingAttempts, 2);
   assert.ok(prepared.jobs.find(j => j.kind === "full").appliedAt);
   assert.ok(prepared.packing > 0);
   await get("/destinations/start");

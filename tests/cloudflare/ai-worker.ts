@@ -31,6 +31,7 @@ import { createDatabase } from "../../src/server/db";
 import { DurableSqliteAdapter } from "../../src/server/cloudflare/sqlite-adapter";
 import { appRuntime, currentRuntime } from "../../src/server/cloudflare/runtime";
 import { AiTasks } from "../../src/server/cloudflare/ai-tasks";
+import { AIError } from "../../src/server/ai/openai";
 import { createTripDraft, saveOnboardingDetails, startOnboardingPlan } from "../../src/server/trips/onboarding";
 import { createTrip } from "../../src/server/trips/service";
 import { enqueueJob, cancelJob } from "../../src/server/planner/jobs";
@@ -62,7 +63,15 @@ export class AiProbe extends DurableObject<Env> {
     });
     await new Promise(resolve => setTimeout(resolve, 1200));
     if (opts.name === "events") return { model: "isolated-stub", sources: ["https://example.test/event"], usage: null, data: { events: data.destinations[0].city === "Scheduled events fixture" ? [{ title: "Native local culture evening", category: "cultural", date: data.destinations[0].from, endDate: null, startTime: "18:00", dateVerified: true, venue: "Fixture venue", city: "Scheduled events fixture", address: null, officialUrl: "https://example.test/event", bookingUrl: "https://example.test/tickets", priceText: "Free", availability: "Available", bookingDeadline: null, cancelled: false, soldOut: false, whyFits: "Local culture preference", uncertainty: null, sources: [{ url: "https://example.test/event", title: "Fixture source" }] }] : [] } };
-    if (opts.name === "trip_packing") return { model: "isolated-stub", sources: [], usage: null, data: { items: [{ label: "Custom weather layer", category: "Clothing", reason: "Test fixture for this destination and season", shared: false, quantity: 1 }] } };
+    if (opts.name === "trip_packing") {
+      const attempts = await this.serialize(async () => {
+        const count = await this.ctx.storage.get<number>("packing-attempts") ?? 0;
+        await this.ctx.storage.put("packing-attempts", count + 1);
+        return count + 1;
+      });
+      if (attempts === 1) throw new AIError("RATE_LIMITED", "Synthetic temporary limit", 125_000);
+      return { model: "isolated-stub", sources: [], usage: null, data: { items: [{ label: "Custom weather layer", category: "Clothing", reason: "Test fixture for this destination and season", shared: false, quantity: 1 }] } };
+    }
     return { model: "isolated-stub", sources: ["https://example.test/source"], usage: null, data: opts.name === "trip_assistant" ? { reply: "Proposed day swap", edits: [{ type: "swap_days", date: data.trip.days[1].date, otherDate: data.trip.days[2].date }] } : opts.name === "plan_questions" ? { questions: STANDARD_QUESTIONS } : {
       summary: "Local test draft", generalNotes: [], unplacedMustSees: [],
       days: data.datesToPlan.map((date: string) => ({ date, area: "Lisbon", title: "Explore", isTravelDay: false, driveMinutes: null, stops: [], planB: [], planBNote: null, notes: [], questions: [], estCost: null })),
@@ -228,7 +237,13 @@ export class AiProbe extends DurableObject<Env> {
           const tripId = (await this.ctx.storage.get<string>("onboarding-fixture"))!;
           const trip = await this.db.trip.findUniqueOrThrow({ where: { id: tripId } });
           const jobs = await this.db.generationJob.findMany({ where: { tripId }, select: { kind: true, status: true, appliedAt: true } });
-          return Response.json({ stage: trip.onboardingStage, jobs, packing: await this.db.packingItem.count({ where: { tripId } }) });
+          return Response.json({ stage: trip.onboardingStage, jobs, packing: await this.db.packingItem.count({ where: { tripId } }), packingAttempts: await this.ctx.storage.get<number>("packing-attempts") ?? 0, retry: await this.ctx.storage.get(`ai-retry:${trip.onboardingJobId}`), notBefore: await this.ctx.storage.get("ai-not-before") });
+        }
+        if (url.pathname === "/onboarding/retry-due") {
+          // Local stub only: advance a synthetic provider cooldown without waiting two minutes.
+          await this.ctx.storage.put("ai-not-before", Date.now());
+          await this.tasks.wake();
+          return Response.json({ advanced: true });
         }
         if (url.pathname === "/locations/state") return Response.json(await this.db.memberLocation.findMany({ select: { lat: true, leaseHash: true, expiresAt: true } }));
         if (url.pathname === "/notifications/start") {

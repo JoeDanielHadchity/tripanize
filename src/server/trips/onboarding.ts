@@ -80,7 +80,8 @@ export async function retryOnboarding(userId: string, tripId: string) {
   await requireTrip(tripId, userId, "manage");
   const state = await onboardingState(userId, tripId);
   if (!state.job || !["FAILED", "CANCELLED"].includes(state.job.status)) throw new AppError("CONFLICT", "This trip is already being prepared.");
-  await prisma.generationJob.update({ where: { id: state.job.id }, data: { status: "QUEUED", requestedById: userId, error: null, errorCode: null, finishedAt: null, cancelRequested: false } });
+  const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: state.job.id } });
+  await prisma.generationJob.update({ where: { id: job.id }, data: { status: "QUEUED", requestedById: userId, params: { ...(job.params as Prisma.JsonObject), retryCycle: crypto.randomUUID() }, error: null, errorCode: null, finishedAt: null, cancelRequested: false } });
   await currentRuntime().wakeAi?.();
 }
 
@@ -114,7 +115,7 @@ export async function finishOnboarding(jobId: string, generate: Generator) {
   }
   if ((await getTripPlan(job.tripId)).premium) {
     await log("Customizing packing for the weather, season, local customs, events and your preferences.");
-    await refreshSuggestions(job.requestedById, job.tripId, { laundry: null, personalized: true, generate });
+    await refreshSuggestions(job.requestedById, job.tripId, { laundry: null, personalized: true, generate, jobId });
   }
   await prisma.$transaction(async tx => {
     await tx.generationJob.update({ where: { id: jobId }, data: { status: "SUCCEEDED", finishedAt: new Date() } });

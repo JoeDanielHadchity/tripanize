@@ -4,7 +4,8 @@ import { runDestinationSearch } from "@/server/destinations/service";
 import { appRuntime, type AppRuntime } from "./runtime";
 import { serializedDatabase, type Serialize } from "./serialized-db";
 import { claimJob, runJob, type Generator, type PlanCheckpoint } from "@/server/planner/run";
-import { generateStructured } from "@/server/ai/openai";
+import { AIError, generateStructured } from "@/server/ai/openai";
+import type { GenerationJob, Prisma } from "@/generated/prisma/client";
 import { runDiscovery } from "@/server/events/discovery";
 import { nextChangeEmailAt, sendNextChangeEmail } from "@/server/notifications/changes";
 import { expireMemberLocations } from "@/server/locations/service";
@@ -39,6 +40,28 @@ export class AiTasks {
     return Boolean(await appRuntime.run(this.context(), () => nextBookingReminderAt())) || await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: { in: ["queued", "digest"] } } }) > 0 || await this.context().database.trialInvitation.count({ where: { emailStatus: "queued" } }) > 0 || await this.context().database.memberLocation.count({ where: { expiresAt: { not: null } } }) > 0;
   }
 
+  private async retrySetup(job: GenerationJob, error: AIError) {
+    if (job.kind !== "setup" || error.code !== "RATE_LIMITED") return false;
+    return this.serialize(async () => {
+      const key = `ai-retry:${job.id}`;
+      const cycle = (job.params as { retryCycle?: string }).retryCycle ?? "initial";
+      const previous = await this.storage.get<{ cycle: string; attempts: number }>(key);
+      const attempts = previous?.cycle === cycle ? previous.attempts : 0;
+      const delay = Math.max(60_000 * 2 ** attempts, error.retryAfterMs ?? 0) + Math.floor(Math.random() * 5000);
+      // Never retry billing/quota failures, loop forever, or ignore a long server delay.
+      if (attempts >= 3 || !Number.isFinite(delay) || delay > 15 * 60_000) return false;
+      const db = this.context().database;
+      const current = await db.generationJob.findUniqueOrThrow({ where: { id: job.id } });
+      if (current.cancelRequested || current.status !== "RUNNING") return false;
+      const notBefore = Date.now() + delay;
+      const progress = Array.isArray(current.progress) ? current.progress : [];
+      await db.generationJob.update({ where: { id: job.id }, data: { status: "QUEUED", error: null, errorCode: null, finishedAt: null, progress: [...progress, { at: new Date().toISOString(), message: `AI preparation is busy. Packing will retry automatically in about ${Math.max(1, Math.round(delay / 60_000))} minute(s) (${attempts + 1}/3). Your itinerary is saved.` }] as Prisma.InputJsonValue } });
+      await this.storage.put(key, { cycle, attempts: attempts + 1 });
+      await this.storage.put("ai-not-before", notBefore);
+      return true;
+    });
+  }
+
   async alarm() {
     if (this.running) return;
     this.running = true;
@@ -55,6 +78,9 @@ export class AiTasks {
         await this.sendChanges();
         const nextEmail = await nextChangeEmailAt();
         if (nextEmail && nextEmail.getTime() <= Date.now()) return;
+        // Keep email/reminder/location work responsive while upstream AI cools down.
+        const notBefore = await this.serialize(() => this.storage.get<number>("ai-not-before"));
+        if (notBefore && notBefore > Date.now()) return;
         const db = appRuntime.getStore()!.database;
         const job = await db.generationJob.findFirst({ where: { status: { in: ["QUEUED", "RUNNING"] } }, orderBy: { createdAt: "asc" } });
         if (job) {
@@ -64,6 +90,7 @@ export class AiTasks {
           await runJob(job.id, this.generate, {
             load: () => this.serialize(() => this.storage.get<PlanCheckpoint>(key)),
             save: (checkpoint) => this.serialize(() => this.storage.put(key, checkpoint)),
+            retrySetup: error => this.retrySetup(job, error),
           });
           return;
         }
@@ -80,13 +107,17 @@ export class AiTasks {
         await this.serialize(async () => {
           if (jobId) {
             const job = await this.context().database.generationJob.findUnique({ where: { id: jobId }, select: { status: true } });
-            if (!job || !["QUEUED", "RUNNING"].includes(job.status)) await this.storage.delete(`ai-checkpoint:${jobId}`);
+            if (!job || !["QUEUED", "RUNNING"].includes(job.status)) {
+              await this.storage.delete(`ai-checkpoint:${jobId}`);
+              await this.storage.delete(`ai-retry:${jobId}`);
+            }
           }
           const nextEmail = await this.context().database.tripNotification.findFirst({ where: { emailStatus: { in: ["queued", "digest"] } }, orderBy: { nextAttemptAt: "asc" }, select: { nextAttemptAt: true } });
           const location = await this.context().database.memberLocation.findFirst({ where: { expiresAt: { not: null } }, orderBy: { expiresAt: "asc" }, select: { expiresAt: true } });
           const trialEmail = await this.context().database.trialInvitation.findFirst({ where: { emailStatus: "queued" }, orderBy: { nextEmailAttemptAt: "asc" }, select: { nextEmailAttemptAt: true } });
           const bookingReminder = await appRuntime.run(this.context(), () => nextBookingReminderAt());
-          const candidates = [bookingReminder?.getTime(), await this.pendingAi() ? Date.now() + 1000 : undefined, nextEmail?.nextAttemptAt?.getTime(), trialEmail?.nextEmailAttemptAt?.getTime(), location?.expiresAt?.getTime()].filter((n): n is number => n !== undefined);
+          const notBefore = await this.storage.get<number>("ai-not-before") ?? 0;
+          const candidates = [bookingReminder?.getTime(), await this.pendingAi() ? Math.max(Date.now() + 1000, notBefore) : undefined, nextEmail?.nextAttemptAt?.getTime(), trialEmail?.nextEmailAttemptAt?.getTime(), location?.expiresAt?.getTime()].filter((n): n is number => n !== undefined);
           const next = candidates.length ? Math.min(...candidates) : undefined;
           if (next !== undefined) await this.storage.setAlarm(Math.max(Date.now() + 1000, next));
           else await this.storage.deleteAlarm();
