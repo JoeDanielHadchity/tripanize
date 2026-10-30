@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View, type TextProps, type ViewStyle, type StyleProp, type ColorValue } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -13,14 +13,21 @@ function withArrowFont(children: ReactNode): ReactNode {
   return children;
 }
 export function T({ style, children, ...props }: TextProps) { const c = useTheme(); return <Text {...props} style={[{ fontFamily: "Inter", fontSize: 15, lineHeight: 23, color: c.ink }, style]}>{withArrowFont(children)}</Text>; }
-export function Heading({ children, small = false }: { children: ReactNode; small?: boolean }) { return <T accessibilityRole="header" style={{ fontFamily: "Fraunces", fontSize: small ? 25 : 36, lineHeight: small ? 32 : 43, letterSpacing: -0.7 }}>{children}</T>; }
-export function Button({ children, onPress, busy, disabled, secondary = false, trailingIcon }: { children: ReactNode; onPress: () => void; busy?: boolean; disabled?: boolean; secondary?: boolean; trailingIcon?: keyof typeof Ionicons.glyphMap }) {
-  const c = useTheme(); const color = secondary ? c.ink : c.accentText;
-  return <Pressable accessibilityRole="button" disabled={busy || disabled} onPress={onPress} style={({ pressed }) => ({ minHeight: 54, borderRadius: 15, justifyContent: "center", alignItems: "center", paddingHorizontal: 20, opacity: busy || disabled ? 0.55 : pressed ? 0.8 : 1, backgroundColor: secondary ? c.soft : c.accent })}>{busy ? <ActivityIndicator color={secondary ? c.accent : c.accentText} /> : <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}><T style={{ fontFamily: "InterSemibold", color, flexShrink: 1, textAlign: "center" }}>{children}</T>{trailingIcon && <Ionicons accessible={false} name={trailingIcon} color={color} size={19} />}</View>}</Pressable>;
+export function Heading({ children, small = false }: { children: ReactNode; small?: boolean }) {
+  const c = useTheme(); const marker = typeof children === "string" ? /^([★✓])\s*/u.exec(children) : null;
+  const label = <T accessibilityRole="header" style={{ flexShrink: 1, fontFamily: "Fraunces", fontSize: small ? 25 : 36, lineHeight: small ? 32 : 43, letterSpacing: -0.7 }}>{marker ? (children as string).slice(marker[0].length) : children}</T>;
+  return marker ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Ionicons accessible={false} name={marker[1] === "★" ? "star" : "checkmark"} color={c.accent} size={small ? 21 : 27} />{label}</View> : label;
 }
-export function Screen({ children, scroll = true, style }: { children: ReactNode; scroll?: boolean; style?: StyleProp<ViewStyle> }) {
+export function Button({ children, onPress, busy, disabled, secondary = false, trailingIcon, leadingIcon, style, compact = false }: { children: ReactNode; onPress: () => void; busy?: boolean; disabled?: boolean; secondary?: boolean; trailingIcon?: keyof typeof Ionicons.glyphMap; leadingIcon?: keyof typeof Ionicons.glyphMap; style?: StyleProp<ViewStyle>; compact?: boolean }) {
+  const c = useTheme(); const color = secondary ? c.ink : c.accentText;
+  const marker = typeof children === "string" ? /^([★✓])\s*/u.exec(children) : null;
+  const icon = leadingIcon ?? (marker ? marker[1] === "★" ? "star" : "checkmark" : undefined);
+  const label = marker ? (children as string).slice(marker[0].length) : children;
+  return <Pressable accessibilityRole="button" disabled={busy || disabled} onPress={onPress} style={({ pressed }) => [{ minHeight: compact ? 44 : 52, borderRadius: 11, borderWidth: 1, borderColor: secondary ? c.line : c.accent, justifyContent: "center", alignItems: "center", paddingHorizontal: compact ? 12 : 18, opacity: busy || disabled ? 0.55 : pressed ? 0.8 : 1, backgroundColor: secondary ? c.paper : c.accent }, style]}>{busy ? <ActivityIndicator color={secondary ? c.accent : c.accentText} /> : <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>{icon && <Ionicons accessible={false} name={icon} color={color} size={19} />}<T style={{ fontFamily: "InterSemibold", fontSize: compact ? 14 : 15, lineHeight: compact ? 22 : 23, color, flexShrink: 1, textAlign: "center" }}>{label}</T>{trailingIcon && <Ionicons accessible={false} name={trailingIcon} color={color} size={19} />}</View>}</Pressable>;
+}
+export function Screen({ children, scroll = true, style, scrollRef }: { children: ReactNode; scroll?: boolean; style?: StyleProp<ViewStyle>; scrollRef?: Ref<ScrollView> }) {
   const c = useTheme(); return <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: c.bg }}>
-    {scroll ? <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, style]}>{children}</ScrollView> : <View style={[styles.content, { flex: 1 }, style]}>{children}</View>}
+    {scroll ? <ScrollView ref={scrollRef} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, style]}>{children}</ScrollView> : <View style={[styles.content, { flex: 1 }, style]}>{children}</View>}
   </SafeAreaView>;
 }
 export function Brand() {
@@ -30,7 +37,7 @@ export function Brand() {
     <Image accessible={false} source={require("../../assets/wordmark.png")} tintColor={c.ink} style={{ width: 95, height: 24, backgroundColor: "transparent" }} contentFit="contain" />
   </View>;
 }
-export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) { const c = useTheme(); return <View style={[{ backgroundColor: c.paper, borderRadius: 20, borderWidth: 1, borderColor: c.line, padding: 20, gap: 12 }, style]}>{children}</View>; }
+export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) { const c = useTheme(); return <View style={[{ backgroundColor: c.paper, borderRadius: 15, borderWidth: 1, borderColor: c.line, padding: 18, gap: 12 }, style]}>{children}</View>; }
 export function Eyebrow({ children }: { children: ReactNode }) { const c = useTheme(); return <T style={{ color: c.coral, fontSize: 11, fontFamily: "InterSemibold", letterSpacing: 2, textTransform: "uppercase" }}>{children}</T>; }
 export function Muted({ children }: { children: ReactNode }) { const c = useTheme(); return <T style={{ color: c.muted, fontSize: 13, lineHeight: 20 }}>{children}</T>; }
 export function ErrorNotice({ message, retry }: { message: string; retry?: () => void }) { const c = useTheme(); return <View accessibilityRole="alert" style={{ padding: 18, borderRadius: 14, borderColor: c.danger, borderWidth: 1, gap: 12 }}><T style={{ color: c.danger }}>{message}</T>{retry && <Button onPress={retry} secondary>Try again</Button>}</View>; }

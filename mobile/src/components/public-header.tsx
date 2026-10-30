@@ -1,6 +1,7 @@
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { router, usePathname } from "expo-router";
+import { workspaceHref } from "../lib/workspace";
 import { authClient } from "../lib/auth";
 import { Brand, Button, Icon, T, styles } from "./ui";
 import { useAppearance, useTheme } from "./theme";
@@ -34,6 +35,7 @@ export function NativePublicHeader() {
         <Pressable accessibilityRole="button" accessibilityLabel={appearance.choice === "dark" ? "Switch to light mode" : "Switch to dark mode"} onPress={() => appearance.set(appearance.choice === "dark" ? "light" : "dark")} style={{ paddingVertical: 10 }}><Icon name={appearance.choice === "dark" ? "sunny-outline" : "moon-outline"} /></Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.push(session ? "/trips" : "/sign-in")} style={{ paddingVertical: 10 }}><T style={{ color: c.accent, fontSize: 13, fontFamily: "InterSemibold" }}>{session ? "My trips" : "Sign in"}</T></Pressable>
       </View>}
+      {!showMenu && session && <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Pressable accessibilityRole="button" accessibilityLabel="Notifications" onPress={() => router.push(workspaceHref({ screen: "notifications" }))} style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" }}><Icon name="notifications-outline" size={22} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Account" onPress={() => router.navigate("/account")} style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" }}><Icon name="person-circle-outline" size={24} /></Pressable></View>}
     </View>
     {showMenu && <ScrollView ref={menu} horizontal showsHorizontalScrollIndicator={false} bounces={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ alignItems: "center", gap: 18 }}>
       {links.map(link => <Pressable key={link.slug} accessibilityRole="button" accessibilityState={{ selected: link.path === pathname }} onPress={link.go} onLayout={event => {

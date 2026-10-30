@@ -19,7 +19,7 @@ import { travelBlocks } from "./workspace-travel";
 import { expenseBlocks } from "./workspace-expenses";
 import { peopleBlocks, adminBlocks } from "./workspace-people";
 import { f, act, go, form, options, tripFields, tripFormValues, wire } from "./presentation";
-import type { MobileWorkspace, MobileBlock } from "@/lib/mobile-workspace";
+import { mobileTripTabs, type MobileWorkspace, type MobileBlock } from "@/lib/mobile-workspace";
 
 const titles: Record<string, string> = { itinerary: "Itinerary", stop: "Edit your stop", day: "Day details", plan: "Plan your trip", job: "Your itinerary draft", versions: "Itinerary history", expenses: "Expenses", expense: "Record a payment", settlement: "Record a repayment", chat: "Chat & locations", locations: "Member locations", assistant: "Trip assistant", events: "Events & bookings", event: "Add an event", bookings: "Bookings", booking: "Booking details", packing: "Packing & prep", settings: "Trip settings", sharing: "Travelers & sharing", votes: "Group decisions", setup: "Create your trip", premium: "Premium pass" };
 export async function workspace(userId: string, query: URLSearchParams): Promise<MobileWorkspace> {
@@ -71,9 +71,8 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
   }
   if (!tripId || !titles[screen]) throw new AppError("NOT_FOUND", "App screen not found.");
   const access = await requireTrip(tripId, userId), plan = await getTripPlan(tripId), canEdit = access.role !== "VIEWER";
-  const doc: MobileWorkspace = { title: titles[screen], tripId, premium: plan.premium, role: access.role, blocks: [], tabs: [
-    { label: "Itinerary", to: { screen: "itinerary", tripId } }, { label: "Expenses", to: { screen: "expenses", tripId }, premium: true }, { label: "Chat & locations", to: { screen: "chat", tripId }, premium: true }, { label: "Events & bookings", to: { screen: "bookings", tripId } }, { label: "Packing", to: { screen: "packing", tripId } }, { label: "Trip settings", to: { screen: "settings", tripId } },
-  ] };
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { name: true, startDate: true, endDate: true, destinations: { orderBy: { position: "asc" }, select: { name: true } } } });
+  const doc: MobileWorkspace = { title: titles[screen], tripId, premium: plan.premium, role: access.role, trip: { ...trip, destinations: trip.destinations.map(d => d.name) }, blocks: [], tabs: mobileTripTabs(tripId) };
   if (screen === "premium" || (screen === "setup" && (await onboardingState(userId, tripId)).onboardingStage === "PLAN")) {
     doc.blocks = [{ id: "premium", title: "Premium pass · $15 per trip", text: plan.premium ? `Premium is active${plan.validUntil ? ` until ${plan.validUntil}` : ""}. Everyone in this trip is included.` : "One payment covers your whole group. No subscription.", tone: "accent", lines: PLAN_COMPARISON.map(row => `${row.feature}: ${row.premium}`) },
       { id: "standard", title: "Standard · Free", text: "AI planning for the first 2 days. Edit all days and add bookings and packing manually. Group roles and voting included." },
@@ -97,7 +96,7 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
       doc.blocks = [{ id: "progress", title: "Preparing your trip…", text: state.job?.error ?? undefined, lines: Array.isArray(state.job?.progress) ? state.job.progress.flatMap(p => p && typeof p === "object" && "message" in p && typeof p.message === "string" ? [p.message] : []) : [], actions: state.job && ["FAILED", "CANCELLED"].includes(state.job.status) ? [act("Try again", "setup.retry")] : [] }]; doc.pollMs = 3000;
     } return doc;
   }
-  if (["itinerary", "stop", "day", "versions", "plan", "job", "assistant"].includes(screen)) { const result = await itineraryBlocks(userId, tripId, screen, query, canEdit); doc.blocks = result.blocks; doc.pollMs = result.pollMs; }
+  if (["itinerary", "stop", "day", "versions", "plan", "job", "assistant"].includes(screen)) { const result = await itineraryBlocks(userId, tripId, screen, query, canEdit); doc.blocks = result.blocks; doc.pollMs = result.pollMs; doc.itinerary = result.itinerary; }
   else if (["expenses", "expense", "settlement"].includes(screen)) doc.blocks = await expenseBlocks(userId, tripId, screen, item, canEdit);
   else if (["events", "event", "bookings", "booking", "packing"].includes(screen)) doc.blocks = await travelBlocks(userId, tripId, screen, query, canEdit, plan.premium);
   else { const result = await peopleBlocks(userId, tripId, screen, query, access.role); doc.blocks = result.blocks; doc.pollMs = result.pollMs; }
