@@ -15,9 +15,9 @@ const ITEMS = [
 /** Lives outside the route stack, so pushed pages keep the same bottom bar. */
 export function NativeBottomNavigation() {
   const c = useTheme(); const pathname = usePathname();
-  const params = useGlobalSearchParams<{ screen?: string | string[] }>();
+  const params = useGlobalSearchParams<{ view?: string | string[] }>();
   const { data: session } = authClient.useSession();
-  const selected = mobileNavigationSection(pathname, Array.isArray(params.screen) ? params.screen[0] : params.screen);
+  const selected = mobileNavigationSection(pathname, Array.isArray(params.view) ? params.view[0] : params.view);
   const items = ITEMS.filter(item => item.id !== "account" || !!session);
   return <SafeAreaView edges={["bottom", "left", "right"]} style={{ flexShrink: 0, backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.line }}>
     <View accessibilityRole="tablist" accessibilityLabel="Main app navigation" style={{ width: "100%", maxWidth: 640, alignSelf: "center", flexDirection: "row" }}>{items.map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: item.id === selected }} onPress={() => {

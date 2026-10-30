@@ -54,7 +54,7 @@ export function NativeHome() {
         <Heading>Plan less.{"\n"}<T style={{ fontFamily: "Fraunces", fontSize: 36, lineHeight: 43, color: c.accent }}>Travel more.</T></Heading>
         <Muted>Your trip planner, bookings and group in one place.</Muted>
         <CreateTripButton /><Button secondary onPress={() => router.push({ pathname: "/guide/[slug]", params: { slug: "lisbon-porto" } })}>View example trip</Button>
-        <View style={{ borderTopWidth: 1, borderStyle: "dashed", borderColor: c.line, paddingTop: 16, gap: 8 }}><View style={styles.row}><T style={{ fontFamily: "Fraunces", fontSize: 25 }}>LIS → OPO</T><Icon name="airplane-outline" /></View><Muted>Porto · 4 days · 3 travelers · Example trip</Muted></View>
+        <View style={{ borderTopWidth: 1, borderStyle: "dashed", borderColor: c.line, paddingTop: 16, gap: 8 }}><View style={styles.row}><View accessible accessibilityLabel="Lisbon to Porto" style={{ flexDirection: "row", alignItems: "center", gap: 12 }}><T style={{ fontFamily: "Fraunces", fontSize: 25 }}>LIS</T><Icon name="arrow-forward" size={24} /><T style={{ fontFamily: "Fraunces", fontSize: 25 }}>OPO</T></View><Icon name="airplane-outline" /></View><Muted>Porto · 4 days · 3 travelers · Example trip</Muted></View>
       </View>
     </Card>
     <NativeExplainer />

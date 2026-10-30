@@ -5,7 +5,7 @@ import * as Crypto from "expo-crypto";
 import { router, useFocusEffect } from "expo-router";
 import { authClient, post } from "../lib/auth";
 import { useApi } from "../lib/data";
-import { workspacePath, formDefaults, cleanValues, type MobileWorkspace, type MobileAction, type MobileBlock, type MobileTarget, type MobileValues, type MobileCommandResult } from "../lib/workspace";
+import { workspaceHref, workspacePath, formDefaults, cleanValues, type MobileWorkspace, type MobileAction, type MobileBlock, type MobileTarget, type MobileValues, type MobileCommandResult } from "../lib/workspace";
 import { pickFiles, uploadFiles, shareDownload, type PickedFile } from "../lib/files";
 import { saveOfflineItinerary, clearOfflineItineraries } from "../lib/offline";
 import { useTheme, useAppearance } from "./theme";
@@ -15,7 +15,7 @@ import { Button, Card, ErrorNotice, Heading, Icon, Loading, Muted, Screen, T, st
 
 function navigate(to: MobileTarget, replace = false) {
   if (to.screen === "trips") { router.replace("/trips"); return; }
-  const href = { pathname: "/workspace" as const, params: { ...to, refresh: Crypto.randomUUID() } };
+  const href = workspaceHref(to, Crypto.randomUUID());
   if (replace) router.replace(href); else router.push(href);
 }
 function confirmAction(message?: string): Promise<boolean> {

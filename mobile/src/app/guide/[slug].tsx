@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { authClient, photo, post } from "../../lib/auth";
 import { publicHttpsLink, usePublicData, type MobilePublicGuide } from "../../lib/public-data";
-import type { MobileCommandResult } from "../../../../src/lib/mobile-workspace";
+import { workspaceHref, type MobileCommandResult } from "../../lib/workspace";
 import { Button, Card, ErrorNotice, Eyebrow, Heading, Loading, Muted, Screen, T, styles } from "../../components/ui";
 import { useTheme } from "../../components/theme";
 
@@ -31,7 +31,7 @@ function Guide({ slug }: { slug: string }) {
     setBusy(true); setSaveError(null);
     try {
       const result = await post<MobileCommandResult>("/api/mobile/workspace", { action: "example.copy", values: { slug, startDate } });
-      if (result.to?.tripId) router.replace({ pathname: "/workspace", params: { screen: "itinerary", tripId: result.to.tripId } });
+      if (result.to?.tripId) router.replace(workspaceHref({ screen: "itinerary", tripId: result.to.tripId }));
     } catch (e) { setSaveError(e instanceof Error ? e.message : "Could not save a copy."); }
     finally { setBusy(false); }
   }
