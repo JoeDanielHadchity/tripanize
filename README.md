@@ -57,6 +57,8 @@ Invitation emails use a durable immutable outbox, stable provider idempotency ke
 
 “Let me help you choose” keeps private, numbered searches for each account. New searches begin as saved drafts with their own questionnaire answers; users can switch between searches and copy earlier answers into a new search without replacing existing results. Draft answers save automatically. Research begins only after an explicit submission and can queue independently for several searches. Each completed search retains its five ideas and its chosen trip.
 
+Owners can delete individual searches after confirmation on web and mobile. Deletion removes saved answers, results and the selected-trip link while keeping any created trip. Migration 22 retains only the search identity, number, status and timing metadata for numbering and research limits. Deleted searches are excluded from reads and background queues; late responses cannot restore their content.
+
 Migration 14 numbers existing searches by creation order (with ID tie-breaking), preserves failed and successful history, and adds queue time for accurate daily allowance accounting. Draft creation/saving does not call AI or consume the five-per-day research allowance. Authorization, draft transitions, numbering and quota checks are enforced on the server; late draft saves cannot overwrite a submitted search. Native alarms ignore drafts and recover queued searches across restarts.
 
 ## Local development and validation

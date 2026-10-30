@@ -1002,6 +1002,7 @@ model DestinationSearch {
   createdAt DateTime @default(now())
   queuedAt DateTime?
   finishedAt DateTime?
+  deletedAt DateTime?
 
   @@index([userId, createdAt])
   @@unique([userId, number])

@@ -172,7 +172,7 @@ export async function adminHealth(actorId: string) {
   const [jobs, discoveries, searches, emails, trialEmails, webhooks] = await Promise.all([
     prisma.generationJob.findMany({ where: { status: { in: ["FAILED", "QUEUED", "RUNNING"] } }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, kind: true, status: true, errorCode: true, createdAt: true, startedAt: true } }),
     prisma.discoveryRun.findMany({ where: { status: { in: ["failed", "queued", "running"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, status: true, createdAt: true } }),
-    prisma.destinationSearch.findMany({ where: { status: { in: ["FAILED", "QUEUED", "RUNNING"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, status: true, createdAt: true } }),
+    prisma.destinationSearch.findMany({ where: { deletedAt: null, status: { in: ["FAILED", "QUEUED", "RUNNING"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, status: true, createdAt: true } }),
     prisma.tripNotification.count({ where: { emailStatus: { in: ["failed", "queued"] } } }),
     prisma.trialInvitation.count({ where: { emailStatus: { in: ["failed", "queued", "not_configured"] } } }),
     prisma.billingDelivery.findMany({ where: { environment: billingEnvironment() }, orderBy: { updatedAt: "desc" }, take: 30 }),

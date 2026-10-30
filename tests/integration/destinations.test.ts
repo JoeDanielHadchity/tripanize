@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
-import { chooseDestination, createDestinationDraft, getDestinationSearch, getDestinationWorkspace, runDestinationSearch, safeSource, saveDestinationDraft, startDestinationSearch } from "@/server/destinations/service";
+import { chooseDestination, createDestinationDraft, deleteDestinationSearch, getDestinationSearch, getDestinationWorkspace, runDestinationSearch, safeSource, saveDestinationDraft, startDestinationSearch } from "@/server/destinations/service";
 import { discoveryInput, type DiscoveryInput } from "@/server/destinations/schema";
 import { chooseNormal } from "@/server/trips/onboarding";
 import { getTripPlan } from "@/server/plans/access";
@@ -175,4 +175,77 @@ it("does not collapse different legacy search requests into an unrelated active 
   const first = await startDestinationSearch(user.id, input);
   const second = await startDestinationSearch(user.id, { ...input, budget: 3000 });
   expect(first.id).not.toBe(second.id);
+});
+
+it("deletes only the owner's search, removes its private content and keeps search numbers increasing", async () => {
+  const user = await makeUser("Explorer"), other = await makeUser("Other");
+  const search = await createDestinationDraft(user.id);
+  await saveDestinationDraft(user.id, search.id, input);
+  await expect(deleteDestinationSearch(other.id, search.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(deleteDestinationSearch(user.id, undefined as unknown as string)).rejects.toMatchObject({ code: "VALIDATION" });
+  expect((await getDestinationWorkspace(user.id)).searches).toHaveLength(1);
+  delete process.env.OPENAI_API_KEY;
+  await deleteDestinationSearch(user.id, search.id);
+  await deleteDestinationSearch(user.id, search.id); // Repeated deletion is harmless.
+  expect(await getDestinationWorkspace(user.id)).toEqual({ searches: [], current: null });
+  await expect(getDestinationSearch(user.id, search.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(saveDestinationDraft(user.id, search.id, input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(createDestinationDraft(user.id, search.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  const deleted = await prisma.destinationSearch.findUniqueOrThrow({ where: { id: search.id } });
+  expect(deleted).toMatchObject({ input: {}, result: null, error: null, selectedTripId: null });
+  expect(deleted.deletedAt).not.toBeNull();
+  expect((await createDestinationDraft(user.id)).number).toBe(2);
+});
+
+it("keeps a trip created from a deleted search and prevents the search from being reused", async () => {
+  const user = await makeUser("Explorer");
+  const search = await startDestinationSearch(user.id, input);
+  await runDestinationSearch(search.id, generator());
+  const trip = await chooseDestination(user.id, search.id, 0);
+  await deleteDestinationSearch(user.id, search.id);
+  expect(await prisma.trip.findUnique({ where: { id: trip.id } })).not.toBeNull();
+  expect(await prisma.trip.count()).toBe(1);
+  await expect(chooseDestination(user.id, search.id, 1)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(startDestinationSearch(user.id, input, search.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+});
+
+it("does not start deleted queued searches", async () => {
+  const user = await makeUser("Explorer"); const search = await startDestinationSearch(user.id, input);
+  await deleteDestinationSearch(user.id, search.id);
+  let calls = 0;
+  await runDestinationSearch(search.id, (async () => { calls++; throw new Error("Must not run"); }) as Generator);
+  expect(calls).toBe(0);
+  expect(await getDestinationWorkspace(user.id)).toEqual({ searches: [], current: null });
+});
+
+it.each([false, true])("discards in-flight results and errors when the search is deleted (provider fails: %s)", async fails => {
+  const user = await makeUser("Explorer"); const search = await startDestinationSearch(user.id, input);
+  let started!: () => void, release!: () => void;
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const running = runDestinationSearch(search.id, (async opts => {
+    started(); await gate;
+    if (fails) throw new Error("Synthetic interrupted research");
+    return generator()(opts);
+  }) as Generator);
+  await ready;
+  try { await deleteDestinationSearch(user.id, search.id); } finally { release(); }
+  await running;
+  const row = await prisma.destinationSearch.findUniqueOrThrow({ where: { id: search.id } });
+  expect(row).toMatchObject({ input: {}, result: null, error: null, status: fails ? "FAILED" : "SUCCEEDED" });
+  expect(row.deletedAt).not.toBeNull();
+  expect(await getDestinationWorkspace(user.id)).toEqual({ searches: [], current: null });
+});
+
+it("keeps the daily research allowance after successful searches are deleted", async () => {
+  const user = await makeUser("Explorer");
+  for (let i = 0; i < 5; i++) {
+    const search = await startDestinationSearch(user.id, input);
+    await prisma.destinationSearch.update({ where: { id: search.id }, data: { status: "SUCCEEDED" } });
+    await deleteDestinationSearch(user.id, search.id);
+  }
+  const draft = await createDestinationDraft(user.id);
+  expect(draft.number).toBe(6);
+  await expect(startDestinationSearch(user.id, input, draft.id)).rejects.toMatchObject({ code: "RATE_LIMITED" });
+  expect((await getDestinationWorkspace(user.id)).searches.map(s => s.id)).toEqual([draft.id]);
 });

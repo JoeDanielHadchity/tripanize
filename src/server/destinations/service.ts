@@ -1,4 +1,5 @@
 import { prisma } from "@/server/db";
+import { Prisma } from "@/generated/prisma/client";
 import { AppError } from "@/server/errors";
 import { AIError, aiConfigured, generateStructured } from "@/server/ai/openai";
 import { currentRuntime } from "@/server/cloudflare/runtime";
@@ -11,18 +12,25 @@ export function safeSource(url: string) {
   try { const u = new URL(url); return u.protocol === "https:" && !u.username && !u.password ? u.href : null; } catch { return null; }
 }
 export async function getDestinationSearch(userId: string, id?: string) {
-  const row = await prisma.destinationSearch.findFirst({ where: { userId, ...(id ? { id } : {}) }, orderBy: { number: "desc" } });
+  const row = await prisma.destinationSearch.findFirst({ where: { userId, deletedAt: null, ...(id ? { id } : {}) }, orderBy: { number: "desc" } });
   if (id && !row) throw new AppError("NOT_FOUND", "Destination ideas not found.");
   return row ? { id: row.id, number: row.number, status: row.status, input: row.input as DiscoveryInput, result: row.result ? normalizeDiscoveryResult(discoveryWireResult.parse(row.result)) : null, error: row.error, selectedTripId: row.selectedTripId } : null;
 }
 export async function getDestinationWorkspace(userId: string) {
-  const searches = await prisma.destinationSearch.findMany({ where: { userId }, orderBy: { number: "asc" }, select: { id: true, number: true, status: true } });
+  const searches = await prisma.destinationSearch.findMany({ where: { userId, deletedAt: null }, orderBy: { number: "asc" }, select: { id: true, number: true, status: true } });
   return { searches, current: searches.length ? await getDestinationSearch(userId, searches.at(-1)!.id) : null };
+}
+/** Remove private content while retaining the number and usage metadata, so
+ * deleting searches cannot recycle numbers or bypass the daily allowance. */
+export async function deleteDestinationSearch(userId: string, id: string) {
+  if (typeof id !== "string" || !id || id.length > 128) throw new AppError("VALIDATION", "Choose a destination search to delete.");
+  if (!await prisma.destinationSearch.findFirst({ where: { id, userId }, select: { id: true } })) throw new AppError("NOT_FOUND", "Destination search not found.");
+  await prisma.destinationSearch.updateMany({ where: { id, userId, deletedAt: null }, data: { deletedAt: new Date(), input: {}, result: Prisma.DbNull, error: null, selectedTripId: null } });
 }
 export async function createDestinationDraft(userId: string, copyFromId?: string) {
   await rateLimit(`destination-draft:${userId}`, 30, 3600);
   const id = await prisma.$transaction(async tx => {
-    const copy = copyFromId ? await tx.destinationSearch.findFirst({ where: { id: copyFromId, userId } }) : null;
+    const copy = copyFromId ? await tx.destinationSearch.findFirst({ where: { id: copyFromId, userId, deletedAt: null } }) : null;
     if (copyFromId && !copy) throw new AppError("NOT_FOUND", "Destination search not found.");
     const last = await tx.destinationSearch.findFirst({ where: { userId }, orderBy: { number: "desc" }, select: { number: true } });
     return (await tx.destinationSearch.create({ data: { userId, number: (last?.number ?? 0) + 1, status: "DRAFT", input: copy?.input ?? DISCOVERY_DEFAULTS } })).id;
@@ -32,8 +40,8 @@ export async function createDestinationDraft(userId: string, copyFromId?: string
 export async function saveDestinationDraft(userId: string, id: string, input: unknown) {
   const parsed = discoveryDraftInput.safeParse(input);
   if (!parsed.success) throw new AppError("VALIDATION", "Complete the numeric fields to save these draft answers.");
-  if (!await prisma.destinationSearch.findFirst({ where: { id, userId }, select: { id: true } })) throw new AppError("NOT_FOUND", "Destination search not found.");
-  const saved = await prisma.destinationSearch.updateMany({ where: { id, userId, status: "DRAFT" }, data: { input: parsed.data } });
+  if (!await prisma.destinationSearch.findFirst({ where: { id, userId, deletedAt: null }, select: { id: true } })) throw new AppError("NOT_FOUND", "Destination search not found.");
+  const saved = await prisma.destinationSearch.updateMany({ where: { id, userId, deletedAt: null, status: "DRAFT" }, data: { input: parsed.data } });
   return { saved: saved.count > 0 };
 }
 export async function startDestinationSearch(userId: string, input: unknown, searchId?: string) {
@@ -43,12 +51,12 @@ export async function startDestinationSearch(userId: string, input: unknown, sea
   const details = parsed.data;
   if (details.timing === "dates") details.days = Math.round((Date.parse(details.endDate) - Date.parse(details.startDate)) / 86400000) + 1;
   const id = await prisma.$transaction(async tx => {
-    const draft = searchId ? await tx.destinationSearch.findFirst({ where: { id: searchId, userId } }) : null;
+    const draft = searchId ? await tx.destinationSearch.findFirst({ where: { id: searchId, userId, deletedAt: null } }) : null;
     if (searchId && !draft) throw new AppError("NOT_FOUND", "Destination search not found.");
     if (draft && ["QUEUED", "RUNNING"].includes(draft.status)) return draft.id;
     if (draft && draft.status !== "DRAFT") throw new AppError("CONFLICT", "Start a new search to keep these results and explore different answers.");
     if (!searchId) {
-      const active = await tx.destinationSearch.findMany({ where: { userId, status: { in: ["QUEUED", "RUNNING"] } } });
+      const active = await tx.destinationSearch.findMany({ where: { userId, deletedAt: null, status: { in: ["QUEUED", "RUNNING"] } } });
       const same = active.find(s => JSON.stringify(s.input) === JSON.stringify(details));
       if (same) return same.id;
     }
@@ -68,9 +76,10 @@ const INSTRUCTIONS = `You are Tripanize's destination advisor. Recommend exactly
 Research current destination information with web search, prioritizing official tourism, meteorological and government sources. For exact dates beyond forecast range or a month, use clearly labeled typical seasonal climate, never an invented forecast. For flexible dates, propose a specific upcoming month/year for each destination that fits the climate, season and budget, relative to today's date. For dates within 14 days you may describe a forecast ONLY if supported by a current meteorological source for those dates. Label weatherKind seasonal, forecast or unavailable honestly. Explain rain, heat, snow, seasonal closures, crowds and relevant local traditions or events; don't invent dated events. No guaranteed flight routes, fares, entry eligibility, safety or availability. BudgetNote is an approximate feasibility assessment, not a quote. Mention a realistic tradeoff for every idea; identify budget or distance compromises instead of pretending everything fits. Constraints can include passport, accessibility, children, dietary or excluded destinations; don't infer nationality from departure city, and advise checking official entry requirements where relevant. sourceUrls must be actual HTTPS sources used for that idea. Do not invent citations. Keep the copy warm, concise and specific.`;
 
 export async function runDestinationSearch(id: string, generate: Generator = generateStructured) {
-  const row = await prisma.destinationSearch.findUniqueOrThrow({ where: { id } });
-  if (!["QUEUED", "RUNNING"].includes(row.status)) return;
-  await prisma.destinationSearch.update({ where: { id }, data: { status: "RUNNING", error: null } });
+  const row = await prisma.destinationSearch.findUnique({ where: { id } });
+  if (!row || row.deletedAt || !["QUEUED", "RUNNING"].includes(row.status)) return;
+  const claimed = await prisma.destinationSearch.updateMany({ where: { id, deletedAt: null, status: { in: ["QUEUED", "RUNNING"] } }, data: { status: "RUNNING", error: null } });
+  if (!claimed.count) return;
   try {
     const input = discoveryInput.parse(row.input);
     const response = await generate({ schema: discoveryWireResult, name: "destination_ideas", metering: { userId: row.userId, jobId: id }, instructions: INSTRUCTIONS + " Keep each description to one or two concise sentences.", input: `<traveler_data>\n${JSON.stringify({ today: new Date().toISOString().slice(0, 10), ...input, budgetBasis: "USD per person, whole trip, including transport and accommodation" })}\n</traveler_data>`, webSearch: true, timeoutMs: 4 * 60_000, maxOutputTokens: 16000 });
@@ -82,11 +91,16 @@ export async function runDestinationSearch(id: string, generate: Generator = gen
       // A forecast without any retrieved supporting source must not appear as verified weather.
       if (idea.weatherKind === "forecast" && (!idea.sourceUrls.length || input.timing !== "dates" || Date.parse(input.endDate) - Date.now() > 13 * 86400000)) { idea.weatherKind = "unavailable"; idea.weather = "A current forecast could not be verified. Check local weather closer to departure."; }
     }
-    await prisma.destinationSearch.update({ where: { id }, data: { status: "SUCCEEDED", result, finishedAt: new Date() } });
+    const finishedAt = new Date();
+    const saved = await prisma.destinationSearch.updateMany({ where: { id, deletedAt: null }, data: { status: "SUCCEEDED", result, finishedAt } });
+    // An in-flight response may finish after deletion; keep only usage metadata.
+    if (!saved.count) await prisma.destinationSearch.updateMany({ where: { id, deletedAt: { not: null } }, data: { status: "SUCCEEDED", finishedAt } });
   } catch (error) {
     console.error("[destinations] failed", { id, code: error instanceof AIError || error instanceof AppError ? error.code : "INVALID_RESULT" });
     const message = error instanceof AIError ? ({ NOT_CONFIGURED: "Destination suggestions are unavailable right now.", AUTH: "Destination suggestions are unavailable right now.", QUOTA: "Destination suggestions are unavailable right now. Please try again later.", TIMEOUT: "The destination search took too long. Please try again.", INCOMPLETE: "The destination search stopped before all five ideas were ready. Please try again; this attempt does not count toward your daily limit.", INVALID_RESPONSE: "The destination results couldn't be read. Please try again; this attempt does not count toward your daily limit.", RATE_LIMITED: "The destination service is busy. Please try again in a minute." } as Record<string, string>)[error.code] ?? "We couldn't finish your destination ideas. Please try again." : error instanceof AppError ? error.message : "We couldn't finish your destination ideas. Please try again.";
-    await prisma.destinationSearch.update({ where: { id }, data: { status: "FAILED", error: message, finishedAt: new Date() } });
+    const finishedAt = new Date();
+    const saved = await prisma.destinationSearch.updateMany({ where: { id, deletedAt: null }, data: { status: "FAILED", error: message, finishedAt } });
+    if (!saved.count) await prisma.destinationSearch.updateMany({ where: { id, deletedAt: { not: null } }, data: { status: "FAILED", finishedAt } });
   }
 }
 

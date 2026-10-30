@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, ExternalLink, Field, Input, Notice, Select, Spinner, Textarea, cx } from "./ui";
-import { chooseDestinationAction, createDestinationDraftAction, findDestinationsAction, loadDestinationSearchAction, saveDestinationDraftAction } from "@/app/actions/destinations";
+import { useConfirm } from "./client";
+import { chooseDestinationAction, createDestinationDraftAction, deleteDestinationSearchAction, findDestinationsAction, loadDestinationSearchAction, saveDestinationDraftAction } from "@/app/actions/destinations";
 import { DISCOVERY_DEFAULTS, DISCOVERY_INTERESTS, type DiscoveryInput } from "@/server/destinations/schema";
 import type { getDestinationSearch, getDestinationWorkspace } from "@/server/destinations/service";
 
@@ -13,7 +14,8 @@ export function DestinationSearches({ initial }: { initial: Workspace }) {
   const [active, setActive] = useState(initial.current?.id ?? null);
   const [loaded, setLoaded] = useState<Record<string, NonNullable<Search>>>(initial.current ? { [initial.current.id]: initial.current } : {});
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const uid = useId();
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const uid = useId(), confirm = useConfirm();
   const update = useCallback((search: NonNullable<Search>) => { setSearches(rows => rows.map(s => s.id === search.id && s.status !== search.status ? { ...s, status: search.status } : s)); }, []);
   async function select(id: string) {
     setActive(id); setError("");
@@ -32,13 +34,29 @@ export function DestinationSearches({ initial }: { initial: Workspace }) {
     } catch (e) { setError(e instanceof Error ? e.message : "Could not create a search. Please try again."); }
     finally { setBusy(false); }
   }
+  async function remove(search: Workspace["searches"][number]) {
+    if (!await confirm({ title: `Delete Search #${search.number}?`, message: "Its saved answers and results will be removed. Any trip you created from it will be kept.", confirmLabel: "Delete search", danger: true })) return;
+    setBusy(true); setDeleting(search.id); setError("");
+    try {
+      const r = await deleteDestinationSearchAction(search.id); if (!r.ok) throw new Error(r.error);
+      setSearches(r.data.searches);
+      setLoaded(cache => {
+        const remaining = new Set(r.data.searches.map(s => s.id));
+        const next = Object.fromEntries(Object.entries(cache).filter(([id]) => remaining.has(id)));
+        if (r.data.current) next[r.data.current.id] = r.data.current;
+        return next;
+      });
+      setActive(id => r.data.searches.some(s => s.id === id) ? id : r.data.current?.id ?? null);
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not delete this search. Please try again."); }
+    finally { setBusy(false); setDeleting(null); }
+  }
   const labels: Record<string, string> = { DRAFT: "Draft", QUEUED: "Queued", RUNNING: "Searching", SUCCEEDED: "Ready", FAILED: "Try again", CANCELLED: "Cancelled" };
   return <div className="space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-display text-2xl font-semibold">Saved searches</h3><p className="mt-2 max-w-2xl text-sm text-muted">Each search keeps its own answers and results.</p></div><Button variant="primary" disabled={busy} onClick={() => add()}>{busy ? "Opening…" : "+ New search"}</Button></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-display text-2xl font-semibold">Saved searches</h3><p className="mt-2 max-w-2xl text-sm text-muted">Each search keeps its own answers and results.</p></div><Button variant="primary" disabled={busy} onClick={() => add()}>{busy && !deleting ? "Opening…" : "+ New search"}</Button></div>
     {error && <Notice tone="danger">{error}</Notice>}
     {!!searches.length && <div role="tablist" aria-label="Destination searches" className="flex gap-2 overflow-x-auto border-b border-line pb-3">{searches.map((s, i) => <button type="button" key={s.id} id={`${uid}-tab-${s.id}`} role="tab" aria-controls={`${uid}-panel-${s.id}`} aria-selected={active === s.id} tabIndex={active === s.id ? 0 : -1} disabled={busy} onClick={() => select(s.id)} onKeyDown={e => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) { e.preventDefault(); const index = e.key === "Home" ? 0 : e.key === "End" ? searches.length - 1 : (i + (e.key === "ArrowRight" ? 1 : -1) + searches.length) % searches.length; void select(searches[index].id); document.getElementById(`${uid}-tab-${searches[index].id}`)?.focus(); } }} className={cx("min-h-14 shrink-0 rounded-xl border px-4 py-2 text-left text-sm", active === s.id ? "border-accent bg-accent-soft text-accent-ink" : "border-line text-muted hover:bg-surface-2")}><span className="block font-semibold">Search #{s.number}</span><span className="mt-0.5 block text-xs">{labels[s.status] ?? s.status}</span></button>)}</div>}
-    {!searches.length && <Card><h4 className="font-display text-xl font-semibold">Start with Search #1</h4><p className="mt-2 text-sm text-muted">Create a search to get five destination ideas.</p></Card>}
-    {searches.map(s => <div key={s.id} role="tabpanel" id={`${uid}-panel-${s.id}`} aria-labelledby={`${uid}-tab-${s.id}`} hidden={active !== s.id}>{loaded[s.id] ? <DestinationFinder initial={loaded[s.id]} onUpdate={update} onCopy={() => add(s.id)} /> : active === s.id && (error ? <Button onClick={() => select(s.id)}>Try opening this search again</Button> : <Spinner label={`Opening Search #${s.number}…`} />)}</div>)}
+    {!searches.length && <Card><h4 className="font-display text-xl font-semibold">Start a new search</h4><p className="mt-2 text-sm text-muted">Create a search to get five destination ideas.</p></Card>}
+    {searches.map(s => <div key={s.id} role="tabpanel" id={`${uid}-panel-${s.id}`} aria-labelledby={`${uid}-tab-${s.id}`} hidden={active !== s.id}><div className="mb-4 flex items-center justify-between gap-3"><h4 className="font-semibold">Search #{s.number}</h4><Button type="button" variant="danger" disabled={busy} aria-label={`Delete Search #${s.number}`} onClick={() => remove(s)}>{deleting === s.id ? "Deleting…" : "Delete search"}</Button></div>{loaded[s.id] ? <DestinationFinder initial={loaded[s.id]} onUpdate={update} onCopy={() => add(s.id)} /> : active === s.id && (error ? <Button onClick={() => select(s.id)}>Try opening this search again</Button> : <Spinner label={`Opening Search #${s.number}…`} />)}</div>)}
     <p className="text-xs text-muted">Drafts and previous results are saved to your account. You can generate up to five sets of ideas per day; failed searches do not use your allowance.</p>
   </div>;
 }

@@ -37,7 +37,7 @@ try {
   assert.equal(concurrent.itineraryStops, 0);
   await until(s => s.checkpointDays === 5);
   await stop(child); child = await start();
-  const done = await until(s => s.jobs[0].status === "SUCCEEDED");
+  const done = await until(s => s.jobs[0].status === "SUCCEEDED" && s.checkpointDays === 0);
   assert.equal(done.jobs[0].days, 6);
   assert.deepEqual(done.calls.map(c => c.length), [5, 1]);
   assert.equal(done.itineraryStops, 0);
@@ -121,6 +121,13 @@ try {
   assert.deepEqual(multiple.searches.map(s => s.input.departureCity), ["Paris, France", "London, UK"]);
   assert.ok(multiple.searches.every(s => s.result.ideas.length === 5));
   assert.equal(multiple.workspace.searches.length, 3);
+  const removedSearch = await get("/destinations/delete");
+  assert.equal(removedSearch.removedContent, true);
+  assert.equal(removedSearch.workspace.searches.length, 2);
+  await stop(child); child = await start();
+  const afterDeleteRestart = await get("/destinations/workspace");
+  assert.equal(afterDeleteRestart.searches.length, 2);
+  assert.ok(afterDeleteRestart.searches.every(s => s.id !== removedSearch.id));
   const eventStart = await get("/events/start"); assert.equal(eventStart.queued, 1); assert.equal(eventStart.duplicate, 0);
   await stop(child); child = await start();
   const untilEvents = async predicate => {

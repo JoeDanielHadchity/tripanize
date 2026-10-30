@@ -12,6 +12,8 @@ import { createBooking } from "@/server/bookings/service";
 import { addCustomEvent } from "@/server/events/service";
 import { GET as getFile, POST as uploadFile } from "@/app/api/mobile/files/route";
 import { deleteMobileAccount } from "@/server/mobile/delete-account";
+import { createDestinationDraft, getDestinationWorkspace } from "@/server/destinations/service";
+import { getMobileDestinations } from "@/server/mobile/service";
 
 vi.mock("@/server/auth/auth", () => ({ getWorkerSession: vi.fn() }));
 const runtime = currentRuntime();
@@ -23,6 +25,20 @@ async function premium(tripId: string, userId: string) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   await prisma.trialInvitation.create({ data: { tripId, email: user.email, emailText: "Mobile fixture", tokenHash: randomUUID(), createdById: userId, acceptedById: userId, acceptedAt: new Date(), expiresAt: new Date(Date.now() + 86400000), trialEndsAt: new Date(Date.now() + 86400000) } });
 }
+
+it("offers confirmed destination-search deletion on mobile and enforces ownership", async () => {
+  const owner = await makeUser("Explorer"), other = await makeUser("Other");
+  const first = await createDestinationDraft(owner.id), second = await createDestinationDraft(owner.id);
+  const doc = await page(owner.id, "discovery", undefined, first.id);
+  const remove = doc.blocks.flatMap(b => b.actions ?? []).find(a => a.action === "discovery.delete")!;
+  expect(remove).toMatchObject({ label: "Delete search", danger: true, values: { id: first.id } });
+  expect(remove.confirm).toContain("Delete Search #1?");
+  await expect(cmd(other.id, undefined, "discovery.delete", { id: first.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  expect(await cmd(owner.id, undefined, "discovery.delete", { id: first.id })).toMatchObject({ to: { screen: "discovery" } });
+  expect((await getDestinationWorkspace(owner.id)).searches.map(s => s.id)).toEqual([second.id]);
+  expect((await getMobileDestinations(owner.id)).searches.map(s => s.id)).toEqual([second.id]);
+  await expect(page(owner.id, "discovery", undefined, first.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+});
 
 it("requires authentication and same-origin or branded native-origin writes, including malformed requests", async () => {
   const owner = await makeUser("Owner"), tripId = await makeTrip(owner.id);

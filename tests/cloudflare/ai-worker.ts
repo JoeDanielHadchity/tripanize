@@ -1,3 +1,4 @@
+import deleteDestinationSearches from "../../prisma/migrations/202610310022_delete_destination_searches/migration.sql";
 import automaticTripCovers from "../../prisma/migrations/202610260021_automatic_trip_covers/migration.sql";
 import mealOptions from "../../prisma/migrations/202610260020_meal_options/migration.sql";
 import adminEmailCode from "../../prisma/migrations/202610240019_admin_email_code/migration.sql";
@@ -13,7 +14,7 @@ import { queueDueDiscoveries } from "../../src/server/events/schedule";
 import { requestDiscovery } from "../../src/server/events/discovery";
 import eventAlerts from "../../prisma/migrations/202610230012_event_alerts/migration.sql";
 import { fixtureIdeas } from "../fixtures/destinations";
-import { startDestinationSearch, getDestinationSearch, chooseDestination, createDestinationDraft, saveDestinationDraft, getDestinationWorkspace } from "../../src/server/destinations/service";
+import { startDestinationSearch, getDestinationSearch, chooseDestination, createDestinationDraft, deleteDestinationSearch, saveDestinationDraft, getDestinationWorkspace } from "../../src/server/destinations/service";
 import destinationSearch from "../../prisma/migrations/202610230011_destination_search/migration.sql";
 import { DurableObject } from "cloudflare:workers";
 import schema from "../../prisma/migrations/202610220001_cloudflare_initial/migration.sql";
@@ -117,6 +118,7 @@ export class AiProbe extends DurableObject<Env> {
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("session")').toArray().some(c => c.name === "adminEmailUnlockedAt")) ctx.storage.sql.exec(adminEmailCode);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("ItineraryDay")').toArray().some(c => c.name === "mealOptions")) ctx.storage.sql.exec(mealOptions);
         if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("Trip")').toArray().some(c => c.name === "imageDestinationKey")) ctx.storage.sql.exec(automaticTripCovers);
+        if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("DestinationSearch")').toArray().some(c => c.name === "deletedAt")) ctx.storage.sql.exec(deleteDestinationSearches);
       });
       if (await this.tasks.pending()) await this.tasks.wake();
     });
@@ -193,6 +195,13 @@ export class AiProbe extends DurableObject<Env> {
           const ids = (await this.ctx.storage.get<string[]>("multiple-destinations"))!;
           return Response.json({ workspace: await getDestinationWorkspace(fixture.ownerId), searches: await Promise.all(ids.map(id => getDestinationSearch(fixture.ownerId, id))) });
         }
+        if (url.pathname === "/destinations/delete") {
+          const ids = (await this.ctx.storage.get<string[]>("multiple-destinations"))!;
+          await deleteDestinationSearch(fixture.ownerId, ids[0]);
+          const deleted = await this.db.destinationSearch.findUniqueOrThrow({ where: { id: ids[0] } });
+          return Response.json({ id: ids[0], removedContent: deleted.deletedAt !== null && deleted.result === null && JSON.stringify(deleted.input) === "{}", workspace: await getDestinationWorkspace(fixture.ownerId) });
+        }
+        if (url.pathname === "/destinations/workspace") return Response.json(await getDestinationWorkspace(fixture.ownerId));
         if (url.pathname === "/destinations/start") {
           process.env.OPENAI_API_KEY = "isolated-native-fixture-key";
           const search = await startDestinationSearch(fixture.ownerId, { departureCity: "Beirut, Lebanon", timing: "flexible", days: 7, adults: 2, children: 0, budget: 1500, climate: "Mild & comfortable", interests: ["History & culture"], pace: "RELAXED", distance: "Up to 6 hours", crowds: "A balance" });
