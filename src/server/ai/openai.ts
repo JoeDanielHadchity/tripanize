@@ -155,6 +155,7 @@ function classify(err: unknown, signal?: AbortSignal): AIError {
     const status = err.status;
     const code = (err as { code?: string | null }).code;
     if (status === 401 || status === 403) return new AIError("AUTH", "The server's OpenAI API key was rejected. An administrator needs to update it.");
+    if (status === 429 && code === "credit_balance_exhausted") return new AIError("QUOTA", "Tripanize's AI service has run out of credit. An administrator needs to replenish it before AI planning can continue.");
     if (status === 429 && (/quota|billing|spend|usage_limit/.test(code ?? "") || /exceeded your current quota|billing hard limit|credit balance/i.test(err.message))) return new AIError("QUOTA", "The app's AI account has reached its credit or spending limit. An administrator needs to check API billing and limits.");
     if (status === 429 && /request too large|reduce (?:the )?(?:length|size|tokens)/i.test(err.message)) return new AIError("UPSTREAM", "This AI request exceeds the account's token limit. An administrator needs to check the model's API limits.");
     if (status === 429 && ["rate_limit_exceeded", "slow_down"].includes(code ?? "")) return new AIError("RATE_LIMITED", "AI preparation is temporarily busy. Please wait before retrying.", retryDelay(err.headers));

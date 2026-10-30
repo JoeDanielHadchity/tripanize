@@ -52,6 +52,7 @@ it.each([
   ["rate_limit_exceeded", "Rate limit reached for tokens per minute", "RATE_LIMITED", 125000],
   ["slow_down", "Traffic increased too quickly", "RATE_LIMITED", 125000],
   ["insufficient_quota", "You exceeded your current quota", "QUOTA", undefined],
+  ["credit_balance_exhausted", "Account unavailable", "QUOTA", undefined],
   ["billing_hard_limit_reached", "Billing hard limit", "QUOTA", undefined],
   ["rate_limit_exceeded", "Request too large for tokens per minute", "UPSTREAM", undefined],
   ["unknown_rejection", "Contact the administrator", "UPSTREAM", undefined],
