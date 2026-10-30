@@ -11,6 +11,9 @@ import { CreateTripButton, NativeLegalLinks } from "./public-header";
 
 function NativeExplainer() {
   const c = useTheme(); const [scene, setScene] = useState(0);
+  const [panelHeights, setPanelHeights] = useState<Record<number, number>>({});
+  // Card padding is 20px per edge, with a 1px border above and below.
+  const panelHeight = Object.keys(panelHeights).length ? Math.max(...Object.values(panelHeights)) + 42 : 0;
   const reduced = useRef(true), screenReader = useRef(true), touched = useRef(false);
   useEffect(() => {
     let current = true;
@@ -26,12 +29,18 @@ function NativeExplainer() {
     }, 3000);
     return () => clearInterval(timer);
   }, []));
-  const step = HOME_SCENES[scene];
   return <View style={{ gap: 16 }}><Heading small>How it works</Heading>
     <View accessibilityRole="tablist" style={{ flexDirection: "row", justifyContent: "space-between", gap: 4 }}>{HOME_SCENES.map((s, i) => <Pressable key={s.label} accessibilityRole="tab" accessibilityLabel={`Step ${i + 1}: ${s.title}`} accessibilityState={{ selected: i === scene }} onFocus={() => { touched.current = true; }} onPress={() => { touched.current = true; setScene(i); }} style={{ alignItems: "center", gap: 7, flex: 1, paddingVertical: 8 }}><View style={{ width: 35, height: 35, borderRadius: 18, backgroundColor: i === scene ? c.accent : c.soft, alignItems: "center", justifyContent: "center" }}><T style={{ color: i === scene ? c.accentText : c.ink, fontFamily: "InterSemibold" }}>{i + 1}</T></View><T style={{ fontSize: 11, color: c.muted }}>{s.label}</T></Pressable>)}</View>
-    <Card><Eyebrow>{step.note}</Eyebrow><Heading small>{step.title}</Heading><Muted>{step.copy}</Muted>
-      <View style={{ paddingTop: 10, gap: 12 }}>{step.rows.map(([label, value]) => <View key={label} style={styles.row}><T style={{ color: c.muted, fontSize: 12, flex: 1 }}>{label}</T><T style={{ fontSize: 13, textAlign: "right", flex: 2 }}>{value}</T></View>)}</View>
-    </Card>
+    <View style={{ minHeight: panelHeight }}>
+      {HOME_SCENES.map((step, i) => <View key={step.label} pointerEvents={i === scene ? "auto" : "none"} accessibilityElementsHidden={i !== scene} importantForAccessibility={i === scene ? "auto" : "no-hide-descendants"} style={{ ...(i === 0 ? {} : { position: "absolute" as const, top: 0, left: 0, right: 0 }), opacity: i === scene ? 1 : 0 }}>
+        <Card style={{ minHeight: panelHeight }}><View style={{ gap: 12 }} onLayout={event => {
+          const height = event.nativeEvent.layout.height;
+          setPanelHeights(old => old[i] === height ? old : { ...old, [i]: height });
+        }}><Eyebrow>{step.note}</Eyebrow><Heading small>{step.title}</Heading><Muted>{step.copy}</Muted>
+          <View style={{ paddingTop: 10, gap: 12 }}>{step.rows.map(([label, value]) => <View key={label} style={styles.row}><T style={{ color: c.muted, fontSize: 12, flex: 1 }}>{label}</T><T style={{ fontSize: 13, textAlign: "right", flex: 2 }}>{value}</T></View>)}</View>
+        </View></Card>
+      </View>)}
+    </View>
     <Muted>Free: 2 AI-planned days. Premium: $15 per trip, all travelers.</Muted>
   </View>;
 }
@@ -60,7 +69,7 @@ export function NativeHome() {
       ["02", "Events & bookings", "Event suggestions linked to bookings."],
       ["03", "Travel together", "Share plans, chat and split expenses."],
     ].map(([number, title, text]) => <Card key={number}><Eyebrow>{number}</Eyebrow><Heading small>{title}</Heading><Muted>{text}</Muted></Card>)}</View>
-    <Card style={{ backgroundColor: c.soft }}><Eyebrow>One trip. Everyone included.</Eyebrow><Heading small>Start free.{"\n"}Upgrade for $15.</Heading><Muted>One payment. All travelers.</Muted><Button onPress={() => router.push("/plans")}>Compare plans →</Button></Card>
+    <Card style={{ backgroundColor: c.soft }}><Eyebrow>One trip. Everyone included.</Eyebrow><Heading small>Start free.{"\n"}Upgrade for $15.</Heading><Muted>One payment. All travelers.</Muted><Button trailingIcon="arrow-forward" onPress={() => router.push("/plans")}>Compare plans</Button></Card>
     <View style={{ alignItems: "center", gap: 8, paddingVertical: 14 }}><Brand /><Muted>Your trip organizer.</Muted></View><NativeLegalLinks />
   </Screen>;
 }

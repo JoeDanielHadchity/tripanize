@@ -18,8 +18,10 @@ export function NativeBottomNavigation() {
   const params = useGlobalSearchParams<{ screen?: string | string[] }>();
   const { data: session } = authClient.useSession();
   const selected = mobileNavigationSection(pathname, Array.isArray(params.screen) ? params.screen[0] : params.screen);
+  const items = ITEMS.filter(item => item.id !== "account" || !!session);
   return <SafeAreaView edges={["bottom", "left", "right"]} style={{ flexShrink: 0, backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.line }}>
-    <View accessibilityRole="tablist" accessibilityLabel="Main app navigation" style={{ width: "100%", maxWidth: 640, alignSelf: "center", flexDirection: "row" }}>{ITEMS.map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: item.id === selected }} onPress={() => {
+    <View accessibilityRole="tablist" accessibilityLabel="Main app navigation" style={{ width: "100%", maxWidth: 640, alignSelf: "center", flexDirection: "row" }}>{items.map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: item.id === selected }} onPress={() => {
+      if (pathname === item.href) return;
       if (item.id !== "home" && !session) router.navigate({ pathname: "/sign-in", params: { next: item.id } });
       else router.navigate(item.href);
     }} style={({ pressed }) => ({ flex: 1, minHeight: 64, paddingTop: 10, paddingBottom: 9, alignItems: "center", justifyContent: "center", gap: 4, opacity: pressed ? 0.65 : 1 })}>
