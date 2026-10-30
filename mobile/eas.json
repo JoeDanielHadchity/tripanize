@@ -1,7 +1,7 @@
 {
   "cli": { "version": ">= 18.0.0", "appVersionSource": "remote" },
   "build": {
-    "preview": { "distribution": "internal", "android": { "buildType": "apk" }, "env": { "EXPO_PUBLIC_API_URL": "https://www.tripanize.app" } },
+    "preview": { "distribution": "internal", "android": { "buildType": "apk", "autoIncrement": true }, "env": { "EXPO_PUBLIC_API_URL": "https://www.tripanize.app" } },
     "production": { "autoIncrement": true, "env": { "EXPO_PUBLIC_API_URL": "https://www.tripanize.app" } }
   }
 }
