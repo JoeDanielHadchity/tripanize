@@ -5,6 +5,7 @@ import type { ChatMessage } from "@/generated/prisma/client";
 import { requirePremiumTrip } from "@/server/plans/access";
 import { AppError } from "@/server/errors";
 import { CHAT_MAX_LENGTH, type ChatPage, type ChatMessageView, type ChatSummary } from "@/lib/chat";
+import { queuePushAndWake } from "@/server/push/service";
 
 export const chatCommand = z.discriminatedUnion("op", [
   z.object({ op: z.literal("send"), clientId: z.uuid(), body: z.string().trim().min(1).max(CHAT_MAX_LENGTH) }).strict(),
@@ -50,6 +51,10 @@ async function alertMembers(tx: Tx, tripId: string, actorId: string, actorName: 
     if (previous) await tx.tripNotification.update({ where: { id: previous.id }, data });
     else await tx.tripNotification.create({ data: { ...data, tripId, userId: member.userId } });
   }
+  // Like the inbox, the phone alert never carries the message text.
+  const sender = actorName || "A trip member";
+  await queuePushAndWake(tx, { userIds: members.map(m => m.userId), tripId, category: "chat", title: tripName, body: `${sender} sent a message.`, href: `/trips/${tripId}/chat`, dedupeKey: messageId,
+    collapse: { prefix: `chat:${tripId}:`, body: count => `${count} new messages in trip chat.` } });
 }
 
 export async function sendChatMessage(userId: string, tripId: string, input: { clientId: string; body: string }): Promise<ChatMessageView> {

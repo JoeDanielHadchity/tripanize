@@ -14,6 +14,7 @@ import { listChangeNotifications } from "@/server/notifications/changes";
 import { getProfile } from "@/server/profile";
 import { isCompanyAccount } from "@/server/admin/identity";
 import { normalUserMode } from "@/server/cloudflare/runtime";
+import { storeConfig } from "@/server/billing/store";
 import { itineraryBlocks } from "./workspace-itinerary";
 import { travelBlocks } from "./workspace-travel";
 import { expenseBlocks } from "./workspace-expenses";
@@ -78,7 +79,9 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
     doc.blocks = [{ id: "premium", title: "Premium pass · $15 per trip", text: plan.premium ? `Premium is active${plan.validUntil ? ` until ${plan.validUntil}` : ""}. Everyone in this trip is included.` : "One payment covers your whole group. No subscription.", tone: "accent", lines: PLAN_COMPARISON.map(row => `${row.feature}: ${row.premium}`) },
       { id: "standard", title: "Standard · Free", text: "AI planning for the first 2 days. Edit all days and add bookings and packing manually. Group roles and voting included." },
       ...(access.role === "OWNER" ? [{ id: "continue", actions: [act(plan.premium ? "Continue with Premium" : "Continue with Standard", "trip.standard")] }] : []),
-      ...(!plan.premium ? [{ id: "store-setup", text: "Premium purchases in the mobile app are not enabled yet. Existing purchased access and accepted trials work automatically.", tone: "warning" as const }] : []),
+      ...(!plan.premium ? [access.role !== "OWNER" ? { id: "store-owner", text: "Only the trip organizer can upgrade. Premium then covers everyone in this trip." }
+        : storeConfig() ? { id: "store-purchase", title: "Upgrade this trip", text: "Pay once through Google Play or the App Store. No subscription, and everyone in this trip is included.", tone: "accent" as const, actions: [{ label: "★ Upgrade for $15", device: "purchase" as const }] }
+        : { id: "store-setup", text: "In-app purchases are being set up. Existing purchased access and accepted trials work automatically.", tone: "warning" as const }] : []),
     ]; return doc;
   }
   if (["expenses", "expense", "settlement", "chat", "locations", "assistant", "events", "event"].includes(screen) && !plan.premium) {

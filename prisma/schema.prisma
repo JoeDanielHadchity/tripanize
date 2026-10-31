@@ -45,6 +45,9 @@ model User {
   trialsCreated TrialInvitation[] @relation("TrialCreator")
   trialsAccepted TrialInvitation[] @relation("TrialRecipient")
   tripVotes TripVote[]
+  pushDevices PushDevice[]
+  pushMessages PushMessage[]
+  pushSetting PushSetting?
 
   @@map("user")
 }
@@ -980,6 +983,53 @@ model TripNotification {
   @@unique([userId, auditId])
   @@index([userId, createdAt, id])
   @@index([emailStatus, nextAttemptAt])
+}
+
+// Native app push. Devices are Expo push tokens; messages are an outbox sent
+// by the durable alarm, so a saved change never loses its push to a restart.
+model PushDevice {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token String @unique
+  platform String // ios | android
+  appVersion String?
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// One row per user; missing row means every category is on.
+model PushSetting {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat Boolean @default(true)
+  events Boolean @default(true)
+  group Boolean @default(true) // votes, invitations, joins and expenses
+  reminders Boolean @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+model PushMessage {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tripId String?
+  category String // chat | events | group | reminders
+  title String
+  body String
+  href String
+  dedupeKey String
+  status String @default("queued") // queued | sent | failed | cancelled
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  sentAt DateTime?
+  error String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, dedupeKey])
+  @@index([status, nextAttemptAt])
 }
 
 model ExternalCache {

@@ -5,6 +5,7 @@ import { requireTrip } from "@/server/auth/permissions";
 import { AppError } from "@/server/errors";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { emailConfigured, sendEmail } from "./email";
+import { queuePush } from "@/server/push/service";
 
 import { bookingReminderStillRelevant } from "@/server/bookings/reminders";
 
@@ -29,6 +30,13 @@ const verbs: Record<string, string> = {
   vote: "voted in", decide: "finalized", reopen: "reopened",
   role: "changed a role in", transfer_owner: "transferred ownership in", revoke: "revoked",
 };
+
+/** Votes, people joining and shared money; ordinary itinerary edits stay in the inbox. */
+function pushWorthy(change: AuditLog) {
+  return (["expense", "settlement"].includes(change.entity) && change.action === "create") ||
+    (change.entity === "poll" && ["create", "decide"].includes(change.action)) ||
+    (change.entity === "membership" && change.action === "join");
+}
 
 export async function queueChangeNotifications(tx: Tx, change: AuditLog) {
   // Only explicit shared human edits are broadcast. Personal data never calls this hook.
@@ -57,8 +65,10 @@ export async function queueChangeNotifications(tx: Tx, change: AuditLog) {
     } });
     queued ||= email;
   }
+  // Phone alerts only for the group moments people asked to hear about right away.
+  const pushed = pushWorthy(change) ? await queuePush(tx, { userIds: members.map(m => m.userId), tripId: change.tripId, category: "group", title: trip.name, body: summary, href, dedupeKey: `change:${change.id}` }) : 0;
   // This only sets a durable alarm. The sender runs after the enclosing transaction.
-  if (queued) await currentRuntime().wakeNotifications?.();
+  if (queued || pushed) await currentRuntime().wakeNotifications?.();
 }
 
 const inboxWhere = (userId: string) => ({ userId, kind: { not: "event_email" }, trip: { memberships: { some: { userId } } } });

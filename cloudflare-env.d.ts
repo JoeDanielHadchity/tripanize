@@ -26,5 +26,18 @@ interface CloudflareEnv {
   PADDLE_PRICE_600?: string;
   PADDLE_PRICE_1000?: string;
   PADDLE_PRICE_1600?: string;
+  // Native app store billing (server secrets; never EXPO_PUBLIC_).
+  STORE_BILLING_ENABLED?: string;
+  STORE_PRODUCT_ID?: string;
+  STORE_ACCEPT_SANDBOX?: string;
+  GOOGLE_PLAY_PACKAGE?: string;
+  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON?: string;
+  APPLE_BUNDLE_ID?: string;
+  APPLE_APP_ID?: string;
+  APPLE_IAP_KEY_ID?: string;
+  APPLE_IAP_ISSUER_ID?: string;
+  APPLE_IAP_PRIVATE_KEY?: string;
+  // Optional: required only if "Enhanced push security" is turned on in Expo.
+  EXPO_ACCESS_TOKEN?: string;
 }
 declare module "*.sql" { const sql: string; export default sql; }

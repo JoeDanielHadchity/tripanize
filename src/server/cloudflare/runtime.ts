@@ -3,9 +3,17 @@ import type { AppDatabase } from "@/server/db";
 
 export type PaddleConfig = { environment: "sandbox" | "live"; apiKey: string; clientToken: string; webhookSecret: string; prices: Record<number, string>; checkoutEnabled: boolean };
 
+/** Native app store billing. Every field is a server secret except the ids. */
+export type StoreConfig = {
+  productId: string;
+  google?: { packageName: string; clientEmail: string; privateKey: string; tokenUri: string };
+  apple?: { bundleId: string; keyId: string; issuerId: string; privateKey: string; appAppleId?: number };
+  acceptSandbox: boolean;
+};
+
 export type AccountModeContext = { userId: string; sessionId?: string; normal: boolean };
 
-export type AppRuntime = { background?: (run: () => Promise<void>) => void; accountMode?: AccountModeContext; database: AppDatabase; files?: R2Bucket; assets?: Fetcher; authSecret: string; appUrl?: string; supportEmail?: string; companyAdminEmail?: string; planAccessEnabled?: boolean; paddle?: PaddleConfig; wakeAi?: () => Promise<void>; wakeNotifications?: () => Promise<void>; wakeLocationExpiry?: (at: number) => Promise<void> };
+export type AppRuntime = { background?: (run: () => Promise<void>) => void; accountMode?: AccountModeContext; database: AppDatabase; files?: R2Bucket; assets?: Fetcher; authSecret: string; appUrl?: string; supportEmail?: string; companyAdminEmail?: string; planAccessEnabled?: boolean; paddle?: PaddleConfig; stores?: StoreConfig; expoAccessToken?: string; wakeAi?: () => Promise<void>; wakeNotifications?: () => Promise<void>; wakeLocationExpiry?: (at: number) => Promise<void> };
 const key = Symbol.for("tripanize.cloudflare.runtime");
 // Framework route bundles must share the request context of their Durable Object.
 const root = globalThis as typeof globalThis & { [key]?: AsyncLocalStorage<AppRuntime> };

@@ -86,7 +86,7 @@ export async function beginCheckout(userId: string, tripId: string, bandId: Prem
 export async function refreshTripPayment(userId: string, tripId: string) {
   await requireTrip(tripId, userId, "manage");
   await rateLimit(`payment-status:${tripId}:${userId}`, 40, 300);
-  const purchases = await prisma.premiumCheckout.findMany({ where: { tripId, environment: billingEnvironment(), status: { in: ["PENDING", "COMPLETED"] }, transactionId: { not: null } }, orderBy: { createdAt: "desc" }, take: 3 });
+  const purchases = await prisma.premiumCheckout.findMany({ where: { tripId, environment: billingEnvironment(), status: { in: ["PENDING", "COMPLETED"] }, transactionId: { startsWith: "txn_" } }, orderBy: { createdAt: "desc" }, take: 3 });
   for (const item of purchases) await reconcilePayment(item.transactionId!);
   return billingSummary(userId, tripId);
 }

@@ -9,6 +9,7 @@ import { sendEmail } from "@/server/notifications/email";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { invitationOrigin } from "@/lib/invitation-urls";
 import type { TripRole } from "@/generated/prisma/enums";
+import { queuePushAndWake } from "@/server/push/service";
 
 export const INVITE_TTL_DAYS = 7;
 
@@ -43,6 +44,9 @@ export async function createInvitation(
       data: { tripId, tokenHash: hashToken(token), email, role: input.role, travelerId: input.travelerId || null, createdById: userId, expiresAt: new Date(Date.now() + INVITE_TTL_DAYS * 86400_000) },
     });
     await recordChange(tx, { tripId, actorId: userId, entity: "invitation", entityId: inv.id, action: "create", after: { role: input.role, email } });
+    // Someone who already uses the app hears about it on their phone too.
+    const invitee = email ? await tx.user.findFirst({ where: { email, emailVerified: true, memberships: { none: { tripId } } }, select: { id: true } }) : null;
+    if (invitee) await queuePushAndWake(tx, { userIds: [invitee.id], tripId, category: "group", title: `You're invited to ${trip.name}`, body: `${accountDisplayName(inviter)} invited you as ${input.role === "COLLABORATOR" ? "an editor" : "a viewer"}. Open Tripanize to join.`, href: "/trips", dedupeKey: `invite:${inv.id}` });
     return inv;
   });
   const origin = invitationOrigin(currentRuntime().appUrl ?? process.env.APP_URL ?? "http://localhost:3000");

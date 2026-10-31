@@ -4,6 +4,7 @@ import { currentRuntime } from "@/server/cloudflare/runtime";
 import { getTripPlan } from "@/server/plans/access";
 import { addDays, todayIn, zonedToUtc } from "@/lib/dates";
 import type { EventChange } from "@/server/events/service";
+import { queuePush } from "@/server/push/service";
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 40);
 type Line = { key: string; type: string; text: string; eventId: string };
@@ -52,6 +53,13 @@ export async function queueEventNotifications(tx: Tx, tripId: string, runId: str
       emailText: emailBody(trip.name, emailLines, tripId), emailStatus: pref.frequency === "daily" ? "digest" : "queued", nextAttemptAt: pref.frequency === "daily" ? nextDigest(trip.timezone, now) : now,
     }, update: {} });
   }
+  const fresh = lines.filter(l => l.type === "new");
+  const first = events.find(e => e.id === fresh[0]?.eventId);
+  if (fresh.length && first) await queuePush(tx, {
+    userIds: members.map(m => m.userId), tripId, category: "events", title: fresh.length === 1 ? `New event for ${trip.name}` : `${fresh.length} new events for ${trip.name}`,
+    body: fresh.length === 1 ? `${first.title}${first.date ? ` · ${first.date}` : ""}${first.city ? ` · ${first.city}` : ""}` : `${first.title} and ${fresh.length - 1} more found near your stops.`,
+    href: fresh.length === 1 ? `/trips/${tripId}/events?event=${encodeURIComponent(first.id)}` : `/trips/${tripId}/events`, dedupeKey: `events:${runId}`,
+  });
   await tx.trip.update({ where: { id: tripId }, data: { revision: { increment: 1 }, lastChangedById: null } });
   await currentRuntime().wakeNotifications?.();
 }

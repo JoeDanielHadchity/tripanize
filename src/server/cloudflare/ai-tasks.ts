@@ -10,13 +10,14 @@ import { runDiscovery } from "@/server/events/discovery";
 import { nextChangeEmailAt, sendNextChangeEmail } from "@/server/notifications/changes";
 import { expireMemberLocations } from "@/server/locations/service";
 import { sendNextTrialEmail } from "@/server/admin/trials";
+import { nextPushAt, sendDuePush } from "@/server/push/service";
 
 /** Native durable alarms keep work alive after the user's request disconnects.
  * One planning section runs per alarm, below the 15-minute invocation limit.
  */
 export class AiTasks {
   private running = false;
-  constructor(private storage: DurableObjectStorage, private context: () => AppRuntime, private serialize: Serialize, private generate: Generator = generateStructured, private sendChanges: () => Promise<void> = sendNextChangeEmail, private sendTrial: () => Promise<boolean> = sendNextTrialEmail) {}
+  constructor(private storage: DurableObjectStorage, private context: () => AppRuntime, private serialize: Serialize, private generate: Generator = generateStructured, private sendChanges: () => Promise<void> = sendNextChangeEmail, private sendTrial: () => Promise<boolean> = sendNextTrialEmail, private sendPush: () => Promise<boolean> = () => sendDuePush()) {}
 
   // Called from an HTTP request/maintenance operation that already owns the lock.
   async wake() {
@@ -37,7 +38,7 @@ export class AiTasks {
   }
 
   async pending() {
-    return Boolean(await appRuntime.run(this.context(), () => nextBookingReminderAt())) || await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: { in: ["queued", "digest"] } } }) > 0 || await this.context().database.trialInvitation.count({ where: { emailStatus: "queued" } }) > 0 || await this.context().database.memberLocation.count({ where: { expiresAt: { not: null } } }) > 0;
+    return Boolean(await appRuntime.run(this.context(), () => nextBookingReminderAt())) || await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: { in: ["queued", "digest"] } } }) > 0 || await this.context().database.trialInvitation.count({ where: { emailStatus: "queued" } }) > 0 || await this.context().database.memberLocation.count({ where: { expiresAt: { not: null } } }) > 0 || await this.context().database.pushMessage.count({ where: { status: "queued" } }) > 0;
   }
 
   private async retrySetup(job: GenerationJob, error: AIError) {
@@ -74,6 +75,8 @@ export class AiTasks {
         await expireMemberLocations();
         await queueDueBookingReminders();
         await prepareEventDigests();
+        // Phone alerts are small and time-sensitive; one batch per alarm.
+        if (await this.sendPush()) return;
         if (await this.sendTrial()) return;
         await this.sendChanges();
         const nextEmail = await nextChangeEmailAt();
@@ -116,8 +119,9 @@ export class AiTasks {
           const location = await this.context().database.memberLocation.findFirst({ where: { expiresAt: { not: null } }, orderBy: { expiresAt: "asc" }, select: { expiresAt: true } });
           const trialEmail = await this.context().database.trialInvitation.findFirst({ where: { emailStatus: "queued" }, orderBy: { nextEmailAttemptAt: "asc" }, select: { nextEmailAttemptAt: true } });
           const bookingReminder = await appRuntime.run(this.context(), () => nextBookingReminderAt());
+          const push = await appRuntime.run(this.context(), () => nextPushAt());
           const notBefore = await this.storage.get<number>("ai-not-before") ?? 0;
-          const candidates = [bookingReminder?.getTime(), await this.pendingAi() ? Math.max(Date.now() + 1000, notBefore) : undefined, nextEmail?.nextAttemptAt?.getTime(), trialEmail?.nextEmailAttemptAt?.getTime(), location?.expiresAt?.getTime()].filter((n): n is number => n !== undefined);
+          const candidates = [bookingReminder?.getTime(), await this.pendingAi() ? Math.max(Date.now() + 1000, notBefore) : undefined, nextEmail?.nextAttemptAt?.getTime(), trialEmail?.nextEmailAttemptAt?.getTime(), location?.expiresAt?.getTime(), push?.getTime()].filter((n): n is number => n !== undefined);
           const next = candidates.length ? Math.min(...candidates) : undefined;
           if (next !== undefined) await this.storage.setAlarm(Math.max(Date.now() + 1000, next));
           else await this.storage.deleteAlarm();

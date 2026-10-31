@@ -1,3 +1,7 @@
+import pushNotifications from "../prisma/migrations/202611010023_push_notifications/migration.sql?raw";
+import { queueTripReminders } from "../src/server/push/reminders";
+import { syncStoreRefunds } from "../src/server/billing/store";
+import { storeConfigFromEnv } from "../src/server/billing/store-config";
 import deleteDestinationSearches from "../prisma/migrations/202610310022_delete_destination_searches/migration.sql?raw";
 import automaticTripCovers from "../prisma/migrations/202610260021_automatic_trip_covers/migration.sql?raw";
 import mealOptions from "../prisma/migrations/202610260020_meal_options/migration.sql?raw";
@@ -179,6 +183,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
         });
         await ctx.storage.put("schemaVersion", 22);
       }
+      if (version < 23) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'PushMessage'").toArray().length) ctx.storage.sql.exec(pushNotifications);
+        });
+        await ctx.storage.put("schemaVersion", 23);
+      }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }
       if (this.env.COMPANY_ADMIN_EMAIL && await ctx.storage.get("companyTravelerIdentity1") !== `${this.env.COMPANY_ADMIN_EMAIL}:${COMPANY_ACCOUNT_DISPLAY_NAME}`) {
@@ -198,7 +208,7 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
     this.ctx.waitUntil(appRuntime.run({ ...runtime, database: serializedDatabase(runtime.database, task => this.serialize(task)) }, run));
   }
   private runtime() {
-    return { background: (run: () => Promise<void>) => this.background(run), database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, supportEmail: this.env.SUPPORT_EMAIL, companyAdminEmail: this.env.COMPANY_ADMIN_EMAIL, planAccessEnabled: this.env.PLAN_ACCESS_ENABLED === "true", paddle: paddleConfigFromEnv(this.env), wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
+    return { background: (run: () => Promise<void>) => this.background(run), database: this.database, files: this.env.ATTACHMENTS, assets: this.env.ASSETS, authSecret: this.secret, appUrl: this.env.BETTER_AUTH_URL, supportEmail: this.env.SUPPORT_EMAIL, companyAdminEmail: this.env.COMPANY_ADMIN_EMAIL, planAccessEnabled: this.env.PLAN_ACCESS_ENABLED === "true", paddle: paddleConfigFromEnv(this.env), stores: storeConfigFromEnv(this.env), expoAccessToken: this.env.EXPO_ACCESS_TOKEN || undefined, wakeAi: (): Promise<void> => this.aiTasks.wake(), wakeNotifications: (): Promise<void> => this.aiTasks.wake(), wakeLocationExpiry: (at: number): Promise<void> => this.aiTasks.schedule(at) };
   }
   async alarm() { await this.ready; await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {
@@ -227,6 +237,9 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
       await expireMemberLocations();
       await queueDueBookingReminders();
       await queueDueDiscoveries();
+      await queueTripReminders();
+      // Store refunds arrive asynchronously; a failure here must not stop maintenance.
+      await syncStoreRefunds().catch(error => console.error("[store-refunds]", error instanceof Error ? error.message : "failed"));
       if (await this.aiTasks.pending()) await this.aiTasks.wake();
     }));
   }
