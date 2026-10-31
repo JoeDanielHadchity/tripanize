@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, ScrollView, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
-import { Button, Card, ErrorNotice, Eyebrow, Heading, Icon, Loading, Muted, Screen, T, styles } from "../../components/ui";
+import { Button, Card, ErrorNotice, Eyebrow, Heading, Icon, IconButton, Loading, Muted, Screen, T, styles } from "../../components/ui";
 import { useTheme } from "../../components/theme";
 import { dayLabel, roleLabel, tripDates, useApi } from "../../lib/data";
 import { authClient } from "../../lib/auth";
@@ -27,7 +27,7 @@ export default function ItineraryScreen() {
   const [selection, setSelection] = useState<{ tripId: string; date: string } | null>(null);
   const date = selection?.tripId === id ? selection.date : null;
   const day = data?.days.find(d => d.date === date) ?? data?.days.find(d => d.date === data.today) ?? data?.days[0];
-  return <Screen><View style={styles.row}><Eyebrow>Itinerary</Eyebrow><Pressable accessibilityRole="button" accessibilityLabel="Refresh itinerary" onPress={() => void reload()} style={{ padding: 8 }}><Icon name="refresh-outline" /></Pressable></View>
+  return <Screen><View style={styles.row}><IconButton name="chevron-back" label="All trips" onPress={() => router.replace("/trips")} /><IconButton name="refresh" label="Refresh itinerary" onPress={() => void reload()} /></View>
     {!live && saved && mayUseOffline && <Muted>Saved offline · {saved.savedAt}. Read-only; refresh when connected.</Muted>}{error && (!saved || !mayUseOffline) && <ErrorNotice message={error} retry={() => void reload()} />}{loading && !data && <Loading />}
     {data && <>
       {data.trip.image && <Image source={data.trip.image.url} accessibilityLabel={data.trip.destinations.join(", ")} contentFit="cover" style={{ height: 185, width: "100%", borderRadius: 22 }} />}

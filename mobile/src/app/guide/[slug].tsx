@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, TextInput, View } from "react-native";
-import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { authClient, photo, post } from "../../lib/auth";
 import { publicHttpsLink, usePublicData, type MobilePublicGuide } from "../../lib/public-data";
 import { workspaceHref, type MobileCommandResult } from "../../lib/workspace";
-import { Button, Card, ErrorNotice, Eyebrow, Heading, Loading, Muted, Screen, T, styles } from "../../components/ui";
+import { Badge, Button, Card, ErrorNotice, Eyebrow, Heading, IconButton, Loading, Muted, OnPhoto, PhotoCard, Screen, T, styles } from "../../components/ui";
 import { useTheme } from "../../components/theme";
 
 function OfficialLink({ label, url }: { label: string; url?: string }) {
@@ -35,11 +34,13 @@ function Guide({ slug }: { slug: string }) {
     } catch (e) { setSaveError(e instanceof Error ? e.message : "Could not save a copy."); }
     finally { setBusy(false); }
   }
-  return <Screen>{error ? <ErrorNotice message={error} retry={retry} /> : !data ? <Loading /> : <>
-    <Image source={photo(data.image)} accessibilityLabel={data.alt} style={{ width: "100%", aspectRatio: 1.5, borderRadius: 20 }} contentFit="cover" />
-    <Eyebrow>Example trip · {data.days.length} days</Eyebrow><Heading>{data.title}</Heading><T>{data.intro}</T><Muted>Suggested times and planning estimates. Check current hours, weather and prices before you travel.</Muted>
+  return <Screen>{error ? <><IconButton name="chevron-back" label="Back" onPress={() => router.canGoBack() ? router.back() : router.replace("/")} /><ErrorNotice message={error} retry={retry} /></> : !data ? <Loading /> : <>
+    <PhotoCard source={photo(data.image)} height={340} radius={28} label={data.alt} top={<><IconButton name="chevron-back" label="Back" onImage onPress={() => router.canGoBack() ? router.back() : router.replace("/")} /><Badge onImage icon="calendar-outline">{`${data.days.length} days`}</Badge></>}>
+      <Eyebrow color="#f6e3da">Example trip</Eyebrow><OnPhoto size="title" style={{ fontSize: 30, lineHeight: 35 }}>{data.title}</OnPhoto>
+    </PhotoCard>
+    <T>{data.intro}</T><Muted>Suggested times and planning estimates. Check current hours, weather and prices before you travel.</Muted>
     <Card><Heading small>Make it your trip.</Heading><Muted>Save an editable copy with your own dates. Nothing is booked for you.</Muted>{session && <><T style={{ fontFamily: "InterSemibold", fontSize: 13 }}>Trip start date</T><TextInput accessibilityLabel="Trip start date, YYYY-MM-DD" value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={c.muted} autoCapitalize="none" maxLength={10} style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 15, color: c.ink, fontFamily: "Inter", fontSize: 16 }} /></>}{saveError && <ErrorNotice message={saveError} />}<Button busy={busy} onPress={() => void saveCopy()}>{session ? "Save a copy" : "Sign in to save a copy"}</Button></Card>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} accessibilityRole="tablist">{data.days.map((d, i) => <Pressable key={i} accessibilityRole="tab" accessibilityLabel={`Day ${i + 1}: ${d.title}`} accessibilityState={{ selected: selected === i }} onPress={() => setSelected(i)} style={{ padding: 15, backgroundColor: selected === i ? c.accent : c.soft, borderRadius: 12 }}><T style={{ color: selected === i ? c.accentText : c.ink, fontFamily: "InterSemibold" }}>Day {i + 1}</T></Pressable>)}</ScrollView>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }} accessibilityRole="tablist">{data.days.map((d, i) => <Pressable key={i} accessibilityRole="tab" accessibilityLabel={`Day ${i + 1}: ${d.title}`} accessibilityState={{ selected: selected === i }} onPress={() => setSelected(i)} style={{ paddingVertical: 10, paddingHorizontal: 18, backgroundColor: selected === i ? c.accent : c.paper, borderRadius: 20, borderWidth: selected === i ? 0 : 1, borderColor: c.line }}><T style={{ color: selected === i ? c.accentText : c.ink, fontFamily: "InterSemibold" }}>Day {i + 1}</T></Pressable>)}</ScrollView>
     {day && <View style={{ gap: 16 }}><Eyebrow>Day {selected + 1} · {day.area}</Eyebrow><Heading small>{day.title}</Heading>{!!day.note && <Muted>{day.note}</Muted>}{day.stops.map((stop, i) => <Card key={i}><View style={styles.row}><Eyebrow>{stop.time}</Eyebrow><Muted>{stop.duration}</Muted></View><Heading small>{stop.title}</Heading><T>{stop.detail}</T><OfficialLink label="Official information" url={stop.url} /></Card>)}{day.food && <Card><Heading small>Food nearby</Heading><T>{day.food}</T></Card>}{day.planB && <Card><Heading small>If plans change</Heading><T>{day.planB}</T></Card>}</View>}
     {data.budget && <Card><Heading small>Estimated budget</Heading><T>{data.budget.range} · {data.budget.currency}</T><Muted>{data.budget.note}</Muted>{data.budget.rows.map((row, i) => <View key={i} style={{ gap: 4, paddingVertical: 8, borderTopWidth: 1, borderColor: c.line }}>{row.map((text, j) => <T key={j} style={{ fontSize: 13, color: j ? c.muted : c.ink }}>{text}</T>)}</View>)}</Card>}
     {data.tips.map(tip => <Card key={tip.title}><Heading small>{tip.title}</Heading><T>{tip.text}</T></Card>)}

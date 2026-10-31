@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from "react-native";
-import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { authClient, photo } from "../lib/auth";
-import { Button, ErrorNotice, Eyebrow, Heading, Muted, Screen, T } from "../components/ui";
+import { Button, ErrorNotice, Eyebrow, Heading, IconButton, Muted, PhotoCard, Screen, T } from "../components/ui";
 import { publicLoginDestination } from "../lib/public-data";
 import { useTheme } from "../components/theme";
 
@@ -41,7 +40,7 @@ export default function SignInScreen() {
     finally { setBusy(false); }
   }
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen>
-    <Image source={photo("/editorial/auth.webp")} accessibilityLabel="A new journey awaits" style={{ height: 185, width: "100%", borderRadius: 24, marginTop: 6 }} contentFit="cover" />
+    <PhotoCard source={photo("/editorial/auth.webp")} height={210} radius={28} label="A new journey awaits" top={<IconButton name="close" label="Close" onImage onPress={() => router.canGoBack() ? router.back() : router.replace("/")} />} />
     <View style={{ gap: 9 }}><Eyebrow>A little more going</Eyebrow><Heading>{sent && !passwordMode ? "Check your inbox." : "Good trips\nstart here."}</Heading><Muted>{sent && !passwordMode ? `We sent a code to ${email.trim()}.` : "Sign in or create your Tripanize account."}</Muted></View>
     {error && <ErrorNotice message={error} />}
     <View style={{ gap: 12 }}>

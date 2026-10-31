@@ -73,6 +73,10 @@ export async function queueChangeNotifications(tx: Tx, change: AuditLog) {
 
 const inboxWhere = (userId: string) => ({ userId, kind: { not: "event_email" }, trip: { memberships: { some: { userId } } } });
 
+export async function unreadChangeNotifications(userId: string) {
+  return prisma.tripNotification.count({ where: { ...inboxWhere(userId), readAt: null } });
+}
+
 export async function listChangeNotifications(userId: string, cursor?: string) {
   let older: { createdAt: Date; id: string } | null = null;
   if (cursor) {

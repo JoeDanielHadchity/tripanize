@@ -75,7 +75,8 @@ it("keeps navigation selection tied to the active page and workspace context", (
   for (const path of ["/", "/plans", "/feature/ai-trip-planner", "/guide/paris", "/start", "/destinations", "/sign-in"]) expect(mobileNavigationSection(path)).toBe("home");
   for (const path of ["/trips", "/trip/trip-123", "/workspace"]) expect(mobileNavigationSection(path)).toBe("trips");
   expect(mobileNavigationSection("/account")).toBe("account");
-  for (const screen of ["account", "notifications", "admin", "admin-trials"]) expect(mobileNavigationSection("/workspace", screen)).toBe("account");
+  for (const screen of ["account", "admin", "admin-trials"]) expect(mobileNavigationSection("/workspace", screen)).toBe("account");
+  expect(mobileNavigationSection("/workspace", "notifications")).toBe("inbox");
   expect(mobileNavigationSection("/workspace", "itinerary")).toBe("trips");
   expect(mobileNavigationSection("/plans", "admin")).toBe("home");
   expect(isMobileTripRoute("/workspace", "trip-123")).toBe(true);
