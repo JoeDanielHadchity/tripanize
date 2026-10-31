@@ -77,6 +77,7 @@ it("keeps navigation selection tied to the active page and workspace context", (
   expect(mobileNavigationSection("/account")).toBe("account");
   for (const screen of ["account", "admin", "admin-trials"]) expect(mobileNavigationSection("/workspace", screen)).toBe("account");
   expect(mobileNavigationSection("/workspace", "notifications")).toBe("inbox");
+  expect(mobileNavigationSection("/inbox")).toBe("inbox");
   expect(mobileNavigationSection("/workspace", "itinerary")).toBe("trips");
   expect(mobileNavigationSection("/plans", "admin")).toBe("home");
   expect(isMobileTripRoute("/workspace", "trip-123")).toBe(true);

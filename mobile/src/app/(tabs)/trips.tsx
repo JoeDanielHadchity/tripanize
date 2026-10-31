@@ -7,10 +7,17 @@ import { countdown } from "../../components/native-home";
 import { roleLabel, tripDates, useApi } from "../../lib/data";
 import { workspaceHref } from "../../lib/workspace";
 import type { MobileTripCard } from "../../lib/types";
+import { authClient } from "../../lib/auth";
+import { SignedOutTrips } from "../../components/signed-out";
 
 type Filter = "upcoming" | "past" | "all";
 
-export default function TripsScreen() {
+export default function TripsTab() {
+  const { data: session } = authClient.useSession();
+  return session ? <TripsScreen key={session.user.id} /> : <SignedOutTrips />;
+}
+
+function TripsScreen() {
   const c = useTheme(); const { data, loading, error, reload } = useApi<{ trips: MobileTripCard[] }>("/api/mobile/trips");
   useFocusEffect(useCallback(() => { reload(); }, [reload]));
   const [search, setSearch] = useState(""); const [filter, setFilter] = useState<Filter>("upcoming"); const [searching, setSearching] = useState(false);

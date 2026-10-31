@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useGlobalSearchParams, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api, authClient } from "../lib/auth";
-import { workspaceHref } from "../lib/workspace";
 import { isMobileTripRoute, mobileNavigationSection } from "../../../src/lib/mobile-public";
 import { T, type IconName } from "./ui";
 import { useTheme } from "./theme";
@@ -12,9 +11,9 @@ import { useTheme } from "./theme";
 type Tab = { id: "home" | "trips" | "inbox" | "account"; label: string; icon: IconName; active: IconName; go: () => void; auth: boolean };
 const TABS: Tab[] = [
   { id: "home", label: "Home", icon: "compass-outline", active: "compass", go: () => router.navigate("/"), auth: false },
-  { id: "trips", label: "Trips", icon: "airplane-outline", active: "airplane", go: () => router.navigate("/trips"), auth: true },
-  { id: "inbox", label: "Inbox", icon: "notifications-outline", active: "notifications", go: () => router.navigate(workspaceHref({ screen: "notifications" })), auth: true },
-  { id: "account", label: "You", icon: "person-circle-outline", active: "person-circle", go: () => router.navigate("/account"), auth: true },
+  { id: "trips", label: "Trips", icon: "airplane-outline", active: "airplane", go: () => router.navigate("/trips"), auth: false },
+  { id: "inbox", label: "Inbox", icon: "notifications-outline", active: "notifications", go: () => router.navigate("/inbox"), auth: false },
+  { id: "account", label: "You", icon: "person-circle-outline", active: "person-circle", go: () => router.navigate("/account"), auth: false },
 ];
 
 /** Unread inbox count for the badge; refreshed on focus and every minute. */

@@ -12,11 +12,11 @@ const minutes = (value: number) => value >= 60 ? `${Math.floor(value / 60)} h${v
 const words = (value: string) => value.replace(/_/g, " ").toLowerCase().replace(/^./, first => first.toUpperCase());
 const CATEGORY_ICONS: Record<string, IconName> = { sight: "camera-outline", museum: "business-outline", food: "restaurant-outline", restaurant: "restaurant-outline", cafe: "cafe-outline", nature: "leaf-outline", park: "leaf-outline", beach: "sunny-outline", shopping: "bag-outline", nightlife: "wine-outline", transport: "train-outline", travel: "car-outline", hotel: "bed-outline", event: "musical-notes-outline", activity: "walk-outline" };
 
-function DayStrip({ itinerary, tripId, onAction }: { itinerary: MobileItinerary; tripId: string; onAction: RunAction }) {
+function DayStrip({ itinerary, tripId, onAction, selectedId }: { itinerary: MobileItinerary; tripId: string; onAction: RunAction; selectedId?: string }) {
   const c = useTheme(), list = useRef<ScrollView>(null);
   return <ScrollView ref={list} horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, marginHorizontal: -20 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 20, paddingVertical: 2 }}>
     {itinerary.days.map((day, index) => {
-      const selected = day.id === itinerary.selectedDay?.id;
+      const selected = day.id === (selectedId ?? itinerary.selectedDay?.id);
       return <Pressable key={day.id} accessibilityRole="tab" accessibilityLabel={`Day ${index + 1}, ${dayLabel(day.date, { weekday: "long", month: "long", day: "numeric" })}, ${day.stops} stops`} accessibilityState={{ selected }} onPress={() => { if (!selected) onAction({ label: "Choose day", to: { screen: "itinerary", tripId, item: day.id } }); }} onLayout={event => { if (selected) list.current?.scrollTo({ x: Math.max(0, event.nativeEvent.layout.x - 40), animated: false }); }} style={({ pressed }) => ({ width: 68, paddingVertical: 10, borderRadius: 18, alignItems: "center", gap: 1, backgroundColor: selected ? c.accent : c.paper, borderWidth: selected ? 0 : StyleSheet.hairlineWidth, borderColor: c.line, opacity: pressed ? 0.7 : 1 })}>
         <T style={{ fontSize: 10, lineHeight: 14, letterSpacing: 0.8, fontFamily: "InterSemibold", color: selected ? c.accentText : c.muted }}>{dayLabel(day.date, { weekday: "short" }).toUpperCase()}</T>
         <T style={{ fontSize: 21, lineHeight: 27, fontFamily: "InterSemibold", color: selected ? c.accentText : c.ink }}>{dayLabel(day.date, { day: "numeric" })}</T>
@@ -90,7 +90,7 @@ function useDaySwipe(move: (delta: number) => void, canPrev: boolean, canNext: b
   }), [move, canPrev, canNext]);
 }
 
-export function NativeItinerary({ data, onAction, busy, renderBlock }: { data: MobileWorkspace; onAction: RunAction; busy: boolean; renderBlock: (block: MobileBlock) => ReactNode }) {
+export function NativeItinerary({ data, onAction, busy, renderBlock, pendingDay }: { data: MobileWorkspace; onAction: RunAction; busy: boolean; renderBlock: (block: MobileBlock) => ReactNode; pendingDay?: string }) {
   const c = useTheme(); const [search, setSearch] = useState(""); const [searching, setSearching] = useState(false); const [notesOpen, setNotesOpen] = useState(false);
   const itinerary = data.itinerary!, day = itinerary.selectedDay!, tripId = data.tripId!;
   const index = itinerary.days.findIndex(value => value.id === day.id);
@@ -120,7 +120,7 @@ export function NativeItinerary({ data, onAction, busy, renderBlock }: { data: M
     </View>
     {searching && <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 16, backgroundColor: c.paper, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line }}><Icon name="search" size={18} color={c.muted} /><TextInput autoFocus accessibilityLabel="Search this day's stops and restaurants" placeholder="Search stops, places, restaurants…" placeholderTextColor={c.muted} value={search} onChangeText={setSearch} style={{ flex: 1, minHeight: 48, color: c.ink, fontFamily: "Inter", fontSize: 15 }} /></View>}
     <Checklist itinerary={itinerary} onAction={onAction} />
-    <DayStrip itinerary={itinerary} tripId={tripId} onAction={onAction} />
+    <DayStrip itinerary={itinerary} tripId={tripId} onAction={onAction} selectedId={pendingDay} />
     <View {...swipe.panHandlers} style={{ gap: 16 }}>
       <View style={{ gap: 8, paddingHorizontal: 4 }}>
         <View style={styles.row}><T style={{ color: c.coral, fontSize: 12, fontFamily: "InterSemibold", letterSpacing: 1.2, textTransform: "uppercase" }}>Day {index + 1} · {dayLabel(day.date, { weekday: "long", day: "numeric", month: "long" })}</T>{dayActions.length > 0 && <ActionSheet iconOnly icon="options-outline" label="Day options" actions={dayActions} busy={busy} onAction={onAction} />}</View>

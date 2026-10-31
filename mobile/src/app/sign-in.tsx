@@ -14,7 +14,13 @@ export default function SignInScreen() {
   const [sent, setSent] = useState(false); const [passwordMode, setPasswordMode] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null); const [cooldown, setCooldown] = useState(0);
   useEffect(() => { if (!cooldown) return; const timer = setTimeout(() => setCooldown(cooldown - 1), 1000); return () => clearTimeout(timer); }, [cooldown]);
-  useEffect(() => { if (session && !busy) router.replace(publicLoginDestination(next)); }, [session, busy, next]);
+  useEffect(() => {
+    if (!session || busy) return;
+    const destination = publicLoginDestination(next);
+    // Tabs are already underneath; going back shows them signed in without a second copy.
+    if (["/", "/trips", "/inbox", "/account"].includes(destination) && router.canGoBack()) { router.back(); if (destination !== "/") router.navigate(destination as "/trips"); }
+    else router.replace(destination as "/");
+  }, [session, busy, next]);
   const inputStyle = { backgroundColor: c.paper, borderColor: c.line, color: c.ink, borderWidth: 1, borderRadius: 14, minHeight: 56, paddingHorizontal: 16, fontFamily: "Inter", fontSize: 16 };
   async function submit() {
     const address = email.trim().toLowerCase();

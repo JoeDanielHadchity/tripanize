@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import { Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -61,14 +61,43 @@ export function Sheet({ open, title, close, children, footer }: { open: boolean;
   </Modal>;
 }
 
-/** Compact trip bar shown above every trip section. */
-export function TripHeader({ data, onBack, right }: { data?: MobileWorkspace | null; onBack?: () => void; right?: ReactNode }) {
-  const c = useTheme();
-  return <View style={[styles.row, { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: c.bg }]}>
-    <IconButton name="chevron-back" label="All trips" onPress={onBack ?? (() => router.replace("/trips"))} />
-    <View style={{ flex: 1, alignItems: "center" }}><T numberOfLines={1} style={{ fontFamily: "InterSemibold", fontSize: 15 }}>{data?.trip?.name ?? "Your trip"}</T>{data?.trip && <T numberOfLines={1} style={{ fontSize: 12, lineHeight: 16, color: c.muted }}>{tripDates(data.trip.startDate, data.trip.endDate)}</T>}</View>
-    {right ?? <View style={{ width: 44 }} />}
+/** Thin bar that slides while a section refreshes behind the content. */
+function LoadingBar({ active }: { active: boolean }) {
+  const c = useTheme(); const [x] = useState(() => new Animated.Value(0)), [width, setWidth] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const loop = Animated.loop(Animated.timing(x, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }));
+    x.setValue(0); loop.start();
+    return () => loop.stop();
+  }, [active, x]);
+  return <View onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ height: 2, overflow: "hidden", opacity: active ? 1 : 0 }}>
+    <Animated.View style={{ width: "35%", height: 2, borderRadius: 1, backgroundColor: c.accent, transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-width * 0.35, width] }) }] }} />
   </View>;
+}
+
+/** Compact trip bar shown above every trip section. */
+export function TripHeader({ data, onBack, right, loading = false }: { data?: MobileWorkspace | null; onBack?: () => void; right?: ReactNode; loading?: boolean }) {
+  const c = useTheme();
+  return <View style={{ backgroundColor: c.bg }}><View style={[styles.row, { paddingHorizontal: 16, paddingVertical: 8 }]}>
+    <IconButton name="chevron-back" label="All trips" onPress={onBack ?? (() => router.canGoBack() ? router.back() : router.replace("/trips"))} />
+    <View style={{ flex: 1, alignItems: "center" }}><T numberOfLines={1} style={{ fontFamily: "InterSemibold", fontSize: 15 }}>{data?.trip?.name ?? " "}</T><T numberOfLines={1} style={{ fontSize: 12, lineHeight: 16, color: c.muted }}>{data?.trip ? tripDates(data.trip.startDate, data.trip.endDate) : " "}</T></View>
+    {right ?? <View style={{ width: 44 }} />}
+  </View><LoadingBar active={loading} /></View>;
+}
+
+/** Placeholder shapes while a trip section loads for the first time. */
+export function TripSkeleton({ hero = false }: { hero?: boolean }) {
+  const c = useTheme(); const [pulse] = useState(() => new Animated.Value(0.5));
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }), Animated.timing(pulse, { toValue: 0.5, duration: 700, useNativeDriver: true })]));
+    loop.start(); return () => loop.stop();
+  }, [pulse]);
+  const block = (h: number, w: number | `${number}%` = "100%", r = 18) => <View style={{ height: h, width: w, borderRadius: r, backgroundColor: c.soft }} />;
+  return <Animated.View accessibilityLabel="Loading" style={{ gap: 14, opacity: pulse }}>
+    {hero ? block(200, "100%", 24) : <View style={{ gap: 8, paddingHorizontal: 4 }}>{block(26, "55%", 8)}{block(14, "35%", 6)}</View>}
+    {hero && <View style={{ flexDirection: "row", gap: 8 }}>{[0, 1, 2, 3].map(i => <View key={i}>{block(78, 68, 18)}</View>)}</View>}
+    {block(120)}{block(120)}{block(90)}
+  </Animated.View>;
 }
 
 /** Photo hero for the itinerary; other sections keep the compact header. */

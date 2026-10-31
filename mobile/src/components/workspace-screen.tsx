@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, KeyboardAvoidingView, Linking, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, View } from "react-native";
+import { Alert, Animated, AppState, KeyboardAvoidingView, Linking, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import * as Crypto from "expo-crypto";
 import { router, useFocusEffect } from "expo-router";
 import { authClient, post } from "../lib/auth";
-import { useApi } from "../lib/data";
+import { clearApiCache, useApi } from "../lib/data";
+import { isSection, registerTripBase, sendToTripBase, SECTION_ORDER, TRIP_SECTIONS } from "../lib/trip-nav";
 import { workspaceHref, workspacePath, formDefaults, cleanValues, type MobileWorkspace, type MobileAction, type MobileBlock, type MobileTarget, type MobileValues, type MobileCommandResult } from "../lib/workspace";
 import { pickFiles, uploadFiles, shareDownload, type PickedFile } from "../lib/files";
 import { saveOfflineItinerary, clearOfflineItineraries } from "../lib/offline";
@@ -13,22 +14,24 @@ import { unregisterPush } from "../lib/push";
 import { useTheme, useAppearance } from "./theme";
 import { Fields } from "./form-fields";
 import { NativeItinerary } from "./native-itinerary";
-import { ActionRow, Sheet, TripHeader, TripHero, TripNavigation } from "./trip-ui";
+import { ActionRow, Sheet, TripHeader, TripHero, TripNavigation, TripSkeleton } from "./trip-ui";
 import { NativeLocation } from "./native-location";
 import { PushSettingsCard } from "./push-settings";
 import { Avatar, Button, Card, EmptyState, ErrorNotice, Heading, Icon, IconButton, ListRow, Loading, Muted, Screen, ScreenHeader, Section, Segmented, T, styles, type IconName } from "./ui";
 
-function navigate(to: MobileTarget, replace = false) {
-  if (to.screen === "trips") { router.replace("/trips"); return; }
-  const href = workspaceHref(to, Crypto.randomUUID());
-  if (replace) router.replace(href); else router.push(href);
-}
 function confirmAction(message?: string): Promise<boolean> {
   if (!message) return Promise.resolve(true);
   if (Platform.OS === "web") return Promise.resolve(window.confirm(message));
   return new Promise(resolve => Alert.alert("Confirm change", message, [{ text: "Cancel", style: "cancel", onPress: () => resolve(false) }, { text: "Continue", onPress: () => resolve(true) }], { cancelable: true, onDismiss: () => resolve(false) }));
 }
-async function signOut() { await unregisterPush(); await clearOfflineItineraries(); await authClient.signOut(); router.replace("/"); }
+export async function signOut() { await unregisterPush(); await clearOfflineItineraries(); clearApiCache(); await authClient.signOut(); router.replace("/"); }
+
+const query = (path: string) => new URLSearchParams(path.split("?")[1] ?? "");
+/** Same screen of the same trip (for example another day of the itinerary). */
+const sameKind = (a: string, b: string) => query(a).get("screen") === query(b).get("screen") && query(a).get("tripId") === query(b).get("tripId");
+/** Trip names stay in the header while a section loads. */
+const tripNames = new Map<string, NonNullable<MobileWorkspace["trip"]>>();
+const tripPremium = new Map<string, boolean>();
 
 const ago = (iso: string) => {
   const ms = Date.now() - Date.parse(iso); if (!Number.isFinite(ms)) return iso;
@@ -40,42 +43,90 @@ const NAV_ICONS: Record<string, IconName> = { notifications: "notifications-outl
 /** Blocks that only link elsewhere read better as a native list. */
 const isNavBlock = (b: MobileBlock) => !b.title && !b.text && !b.form && !b.lines?.length && !b.image && !b.location && (b.actions?.length ?? 0) >= 2 && b.actions!.every(a => a.to && !a.action);
 
-export function WorkspaceScreen({ target, account = false }: { target: MobileTarget; account?: boolean }) {
+export function WorkspaceScreen({ target, account = false, tab = false }: { target: MobileTarget; account?: boolean; tab?: boolean }) {
   const content = useRef<ScrollView>(null);
-  const path = workspacePath(target), { data, error, loading, reload, status } = useApi<MobileWorkspace>(path);
+  // A trip section screen stays mounted and switches sections/days in place.
+  const isBase = isSection(target);
+  const [current, setCurrent] = useState<MobileTarget>(target), [dir, setDir] = useState(0);
+  const path = workspacePath(current), { data, stale, error, loading, reload, status } = useApi<MobileWorkspace>(path);
+  // While the next day or section loads, keep the previous one (dimmed) instead of a blank screen.
+  const staleShown = !data && stale && sameKind(stale.path, path) ? stale.data : null;
+  const display = data ?? staleShown;
   const [actionError, setActionError] = useState<string | null>(null), [notice, setNotice] = useState<string | null>(null), [sharedUrl, setSharedUrl] = useState<string | null>(null), [busy, setBusy] = useState(false);
   const [review, setReview] = useState<MobileCommandResult["review"] | null>(null);
   const c = useTheme(), appearance = useAppearance();
   const { data: session } = authClient.useSession();
   const pollMs = data?.pollMs;
+  const [fade] = useState(() => new Animated.Value(0)), [shift] = useState(() => new Animated.Value(0));
   useFocusEffect(useCallback(() => {
     reload();
     const listener = AppState.addEventListener("change", state => { if (state === "active") reload(); });
     const timer = pollMs ? setInterval(() => { if (AppState.currentState === "active") reload(); }, pollMs) : null;
     return () => { listener.remove(); if (timer) clearInterval(timer); };
   }, [pollMs, reload]));
+  useEffect(() => isBase && target.tripId ? registerTripBase(target.tripId, to => { setDir(0); setCurrent(to); reload(); }) : undefined, [isBase, target.tripId, reload]);
+  useEffect(() => { if (data?.trip && data.tripId) { tripNames.set(data.tripId, data.trip); tripPremium.set(data.tripId, Boolean(data.premium)); } }, [data]);
+  // New section or day: start from the side we are moving towards, then settle in.
+  useEffect(() => {
+    fade.setValue(staleShown ? 0.45 : 0); shift.setValue(dir * 36);
+    content.current?.scrollTo({ y: 0, animated: false });
+    // Only a change of screen restarts the transition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path]);
+  const ready = Boolean(data);
+  useEffect(() => {
+    if (!ready) return;
+    Animated.parallel([
+      Animated.timing(fade, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.spring(shift, { toValue: 0, damping: 22, stiffness: 220, mass: 0.9, useNativeDriver: true }),
+    ]).start();
+  }, [ready, path, fade, shift]);
+
+  function direction(from: MobileTarget, to: MobileTarget) {
+    if (from.screen === "itinerary" && to.screen === "itinerary" && display?.itinerary) {
+      const ids = display.itinerary.days.map(d => d.id);
+      const a = ids.indexOf(from.item ?? display.itinerary.selectedDay?.id ?? ""), b = ids.indexOf(to.item ?? "");
+      return b > a ? 1 : b < a ? -1 : 0;
+    }
+    const a = SECTION_ORDER.indexOf(from.screen), b = SECTION_ORDER.indexOf(to.screen);
+    return b > a ? 1 : b < a ? -1 : 0;
+  }
+  /** One rule for every move: sections change in place, details slide in on top,
+   * and a detail that finishes hands its destination back to the trip below it. */
+  function go(to: MobileTarget, finished = false) {
+    setActionError(null);
+    if (!finished) { setNotice(null); setSharedUrl(null); }
+    if (to.screen === "trips") { router.navigate("/trips"); return; }
+    if (isBase && to.tripId === current.tripId && TRIP_SECTIONS.has(to.screen)) {
+      if (workspacePath(to) === path) { reload(); return; }
+      setDir(direction(current, to)); setCurrent(to); return;
+    }
+    if (!isBase && current.tripId && to.tripId === current.tripId && TRIP_SECTIONS.has(to.screen) && router.canGoBack() && sendToTripBase(to.tripId, to)) { router.back(); return; }
+    const href = workspaceHref(to, Crypto.randomUUID());
+    if (finished && !isBase && router.canGoBack()) router.replace(href); else router.push(href);
+  }
   async function result(r: MobileCommandResult) {
     if (r.review) { setReview(r.review); content.current?.scrollTo({ y: 0, animated: true }); return; }
     setReview(null);
     if (r.signedOut) { await signOut(); return; }
     setNotice(r.message ?? null); setSharedUrl(r.url ?? null);
-    if (r.to) navigate(r.to, true); else reload();
+    if (r.to) go(r.to, true); else reload();
   }
   async function run(action: MobileAction) {
-    if (action.to) { setActionError(null); setNotice(null); setSharedUrl(null); navigate(action.to); return; }
+    if (action.to) { go(action.to); return; }
     if (!await confirmAction(action.confirm)) return;
     setBusy(true); setActionError(null);
     try {
-      if (action.device === "purchase" && data?.tripId) {
-        const outcome = await buyTripPremium(data.tripId);
+      if (action.device === "purchase" && display?.tripId) {
+        const outcome = await buyTripPremium(display.tripId);
         if (outcome.status === "completed") setNotice("Premium is active for everyone in this trip. Enjoy!");
         else if (outcome.status === "pending") setNotice("Your payment is pending with the store. Premium turns on automatically once it's approved.");
         reload();
       }
-      else if (action.device === "offline" && data?.tripId && session?.user.id) { await saveOfflineItinerary(session.user.id, data.tripId); setNotice("Read-only itinerary saved for offline use. It is removed when you sign out."); }
+      else if (action.device === "offline" && display?.tripId && session?.user.id) { await saveOfflineItinerary(session.user.id, display.tripId); setNotice("Read-only itinerary saved for offline use. It is removed when you sign out."); }
       else if (action.device === "file" && action.url) await shareDownload(action.url, action.fileName ?? "Tripanize-document.pdf");
       else if (action.url) { const u = new URL(action.url); if (!["https:", "http:"].includes(u.protocol) || u.username || u.password) throw new Error("Invalid link."); await Linking.openURL(u.href); }
-      else if (action.action) await result(await post<MobileCommandResult>("/api/mobile/workspace", { action: action.action, tripId: data?.tripId, values: cleanValues(action.values ?? {}) }));
+      else if (action.action) await result(await post<MobileCommandResult>("/api/mobile/workspace", { action: action.action, tripId: display?.tripId ?? current.tripId, values: cleanValues(action.values ?? {}) }));
     } catch (e) { setActionError(e instanceof Error ? e.message : "Could not complete this action."); content.current?.scrollTo({ y: 0, animated: true }); }
     finally { setBusy(false); }
   }
@@ -92,30 +143,33 @@ export function WorkspaceScreen({ target, account = false }: { target: MobileTar
       {!!block.lines?.length && <View style={{ gap: 8 }}>{block.lines.map((line, i) => <View key={i} style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent, marginTop: 8 }} /><T style={{ fontSize: 14, lineHeight: 21, flex: 1 }}>{line}</T></View>)}</View>}
       {block.actions?.length ? <ActionRow actions={block.actions} onAction={onAction} busy={busy} primary={accent || purchase} /> : null}
       {block.location && <NativeLocation key={block.location.tripId} tripId={block.location.tripId} onChange={reload} />}
-      {block.form && <NativeForm key={`${path}-${block.id}`} block={block} tripId={data?.tripId} disabled={busy} onResult={result} />}
+      {block.form && <NativeForm key={`${path}-${block.id}`} block={block} tripId={display?.tripId} disabled={busy} onResult={result} />}
     </Card>;
   };
 
-  const inTrip = Boolean(target.tripId);
-  const isAccount = account || target.screen === "account";
-  const tabRoot = isAccount || target.screen === "notifications";
-  const cover = data?.blocks.find(b => b.id === "cover")?.image;
-  const showAssistant = data?.premium && data.tripId && !["assistant", "setup", "premium"].includes(target.screen);
-  const itinerary = data?.itinerary?.selectedDay && target.screen === "itinerary";
+  const inTrip = Boolean(current.tripId);
+  const isAccount = account || current.screen === "account";
+  const cover = display?.blocks.find(b => b.id === "cover")?.image;
+  const showAssistant = display?.premium && display.tripId && !["assistant", "setup", "premium"].includes(current.screen);
+  const itinerary = display?.itinerary?.selectedDay && current.screen === "itinerary";
+  const header = display?.trip ? display : current.tripId && tripNames.has(current.tripId) ? { ...display, title: display?.title ?? "", blocks: [], trip: tripNames.get(current.tripId) } as MobileWorkspace : display;
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-    {inTrip && <TripHeader data={data} right={<IconButton name="notifications-outline" label="Notifications" onPress={() => navigate({ screen: "notifications" })} />} />}
-    <View style={{ flex: 1 }}><Screen scrollRef={content} refreshControl={<RefreshControl refreshing={loading && !!data} onRefresh={reload} tintColor={c.accent} />} style={{ gap: 16, paddingTop: inTrip ? 4 : 8, paddingBottom: showAssistant ? 100 : 32 }}>
+    {inTrip && <TripHeader data={header} loading={loading && !!display} onBack={() => router.canGoBack() ? router.back() : router.replace("/trips")} right={<IconButton name="notifications-outline" label="Notifications" onPress={() => go({ screen: "notifications" })} />} />}
+    <View style={{ flex: 1 }}><Screen scrollRef={content} refreshControl={<RefreshControl refreshing={false} onRefresh={reload} tintColor={c.accent} />} style={{ gap: 16, paddingTop: inTrip ? 4 : 8, paddingBottom: showAssistant ? 100 : 32 }}>
       {!inTrip && (isAccount && session ? <View style={{ alignItems: "center", gap: 8, paddingTop: 10 }}><Avatar name={session.user.name || session.user.email} size={76} /><Heading>{session.user.name || "Your account"}</Heading><Muted>{session.user.email}</Muted></View>
-        : <ScreenHeader back={!tabRoot} title={data?.title ?? (target.screen === "notifications" ? "Inbox" : "Your trip.")} subtitle={data?.subtitle} />)}
-      {inTrip && (itinerary && data ? <TripHero data={data} cover={cover} /> : <View style={{ gap: 4, paddingHorizontal: 4 }}><Heading small>{data?.title ?? " "}</Heading>{data?.subtitle && <Muted>{data.subtitle}</Muted>}</View>)}
-      {(error || actionError) && <ErrorNotice message={actionError ?? error!} retry={reload} />}{loading && !data && <Loading />}
-      {error && ![401, 403, 404].includes(status ?? 0) && target.tripId && <Button secondary onPress={() => router.push({ pathname: "/trip/[id]", params: { id: target.tripId! } })}>Open saved itinerary</Button>}
+        : <ScreenHeader back={!tab} title={display?.title ?? (current.screen === "notifications" ? "Inbox" : " ")} subtitle={display?.subtitle} />)}
+      {(error || actionError) && <ErrorNotice message={actionError ?? error!} retry={reload} />}
+      {error && ![401, 403, 404].includes(status ?? 0) && current.tripId && <Button secondary onPress={() => router.push({ pathname: "/trip/[id]", params: { id: current.tripId! } })}>Open saved itinerary</Button>}
       {review && <Card style={{ backgroundColor: c.soft }}><Heading small>{review.title}</Heading>{review.lines.map((line, i) => <T key={i}>{line}</T>)}<Button disabled={busy} onPress={() => void run({ label: "Apply changes", action: review.action, values: review.values })}>Apply reviewed changes</Button><Button secondary onPress={() => setReview(null)}>Keep editing</Button></Card>}
       {notice && <Card style={{ backgroundColor: c.soft, flexDirection: "row", alignItems: "center" }}><Icon name="checkmark-circle" color={c.success} /><T style={{ flex: 1 }}>{notice}</T><IconButton name="close" size={32} label="Dismiss" onPress={() => setNotice(null)} /></Card>}
       {sharedUrl && <Card><T selectable>{sharedUrl}</T><Button leadingIcon="share-outline" onPress={() => void Share.share({ message: sharedUrl, url: sharedUrl })}>Share invitation link</Button></Card>}
-      {itinerary ? <NativeItinerary data={data!} onAction={onAction} busy={busy} renderBlock={renderBlock} />
-        : target.screen === "notifications" && data ? <Inbox blocks={data.blocks} busy={busy} loading={loading} onAction={onAction} />
-        : data?.blocks.filter(b => b.id !== "cover").map(renderBlock)}
+      {!display && loading && !error && (inTrip ? <TripSkeleton hero={current.screen === "itinerary"} /> : <Loading />)}
+      {display && <Animated.View pointerEvents={staleShown ? "none" : "auto"} style={{ gap: 16, opacity: fade, transform: [{ translateX: shift }] }}>
+        {inTrip && (itinerary ? <TripHero data={display} cover={cover} /> : <View style={{ gap: 4, paddingHorizontal: 4 }}><Heading small>{display.title}</Heading>{display.subtitle && <Muted>{display.subtitle}</Muted>}</View>)}
+        {itinerary ? <NativeItinerary data={display} onAction={onAction} busy={busy || !!staleShown} renderBlock={renderBlock} pendingDay={staleShown ? current.item : undefined} />
+          : current.screen === "notifications" ? <Inbox blocks={display.blocks} busy={busy} loading={loading} onAction={onAction} />
+          : display.blocks.filter(b => b.id !== "cover").map(renderBlock)}
+      </Animated.View>}
       {isAccount && <>
         <PushSettingsCard />
         <Section title="Appearance"><View style={{ paddingVertical: 12 }}><Segmented label="Appearance" value={appearance.choice} onChange={appearance.set} options={[{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "Auto" }]} /></View></Section>
@@ -125,12 +179,11 @@ export function WorkspaceScreen({ target, account = false }: { target: MobileTar
           <ListRow icon="log-out-outline" title="Sign out" tone="danger" onPress={() => void signOut()} last />
         </Section>
       </>}
-    </Screen>{showAssistant && <View pointerEvents="box-none" style={{ position: "absolute", bottom: 14, right: 16 }}><Button leadingIcon="sparkles" tone="coral" disabled={busy} style={{ borderRadius: 28, boxShadow: "0 6px 18px rgba(181,90,60,0.35)" }} onPress={() => navigate({ screen: "assistant", tripId: data.tripId, day: data.itinerary?.selectedDay?.date })}>Ask AI</Button></View>}</View>
-    {target.tripId && <TripNavigation tripId={target.tripId} screen={target.screen} premium={data?.premium} onAction={action => { if (action.to) navigate(action.to, true); }} />}
+    </Screen>{showAssistant && <View pointerEvents="box-none" style={{ position: "absolute", bottom: 14, right: 16 }}><Button leadingIcon="sparkles" tone="coral" disabled={busy} style={{ borderRadius: 28, boxShadow: "0 6px 18px rgba(181,90,60,0.35)" }} onPress={() => go({ screen: "assistant", tripId: display.tripId, day: display.itinerary?.selectedDay?.date })}>Ask AI</Button></View>}</View>
+    {current.tripId && <TripNavigation tripId={current.tripId} screen={current.screen} premium={display?.premium ?? tripPremium.get(current.tripId)} onAction={action => { if (action.to) go(action.to); }} />}
   </KeyboardAvoidingView>;
 }
 
-/** Inbox items are compact rows: tap to open (and mark read). */
 function Inbox({ blocks, busy, loading, onAction }: { blocks: MobileBlock[]; busy: boolean; loading: boolean; onAction: (a: MobileAction) => void }) {
   const c = useTheme();
   const items = blocks.filter(b => b.text && b.title), rest = blocks.filter(b => !items.includes(b));
