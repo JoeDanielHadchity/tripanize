@@ -19,7 +19,7 @@ const WORD_W = 118, WORD_H = WORD_W * 166 / 660, GAP = 12;
 const KEY = "tripanize-intro-day";
 
 /** Opening animation: the trip route draws itself across the suitcase, dot by
- * dot, then the wordmark slides in. Full version once a day, a quick one after
+ * dot, then the wordmark slides in (about 4 s). Full version once a day, a quick one after
  * that, and none when the phone asks for reduced motion. Tap to skip. */
 export function Intro({ onDone }: { onDone: () => void }) {
   const [pieces] = useState(() => ROUTE.pieces.map(() => new Animated.Value(0)));
@@ -36,14 +36,14 @@ export function Intro({ onDone }: { onDone: () => void }) {
       const quick = seen === today;
       void SecureStore.setItemAsync(KEY, today).catch(() => undefined);
       if (reduced) { pieces.forEach(p => p.setValue(1)); current = Animated.timing(fade, { toValue: 0, duration: 250, delay: 250, useNativeDriver: true }); current.start(finish); return; }
-      const draw = Animated.stagger(quick ? 18 : 48, pieces.map((p, i) => Animated.timing(p, { toValue: 1, duration: quick ? 140 : 260, easing: ROUTE.pieces[i].dot ? Easing.out(Easing.back(3)) : Easing.out(Easing.back(1.6)), useNativeDriver: true })));
+      const draw = Animated.stagger(quick ? 24 : 95, pieces.map((p, i) => Animated.timing(p, { toValue: 1, duration: quick ? 180 : 420, easing: ROUTE.pieces[i].dot ? Easing.out(Easing.back(3)) : Easing.out(Easing.back(1.6)), useNativeDriver: true })));
       const reveal = Animated.parallel([
-        Animated.timing(shift, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(word, { toValue: 1, duration: 380, delay: 80, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(shift, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(word, { toValue: 1, duration: 560, delay: 160, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       ]);
       current = Animated.sequence(quick
-        ? [Animated.delay(60), draw, Animated.timing(fade, { toValue: 0, duration: 220, delay: 120, useNativeDriver: true })]
-        : [Animated.delay(150), draw, reveal, Animated.timing(fade, { toValue: 0, duration: 300, delay: 450, useNativeDriver: true })]);
+        ? [Animated.delay(60), draw, Animated.timing(fade, { toValue: 0, duration: 250, delay: 150, useNativeDriver: true })]
+        : [Animated.delay(250), draw, reveal, Animated.timing(fade, { toValue: 0, duration: 400, delay: 800, useNativeDriver: true })]);
       current.start(finish);
     })();
     return () => { finished = true; current?.stop(); };
