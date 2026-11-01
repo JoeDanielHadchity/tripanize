@@ -25,7 +25,7 @@ const KEY = "tripanize-intro-day";
 const box = (b: Box) => ({ position: "absolute" as const, left: b.x * SCALE, top: b.y * SCALE, width: b.w * SCALE, height: b.h * SCALE });
 const timing = (value: Animated.Value, duration: number, easing: (t: number) => number, delay = 0) => Animated.timing(value, { toValue: 1, duration, delay, easing, useNativeDriver: true });
 
-/** Opening animation (2 s, the steps overlap): a folded map opens its two side panels, the
+/** Opening animation (2.5 s, the steps overlap): a folded map opens its two side panels, the
  * handle drops on top and it becomes the suitcase, then the trip route draws
  * itself dot by dot and the wordmark slides in. Quicker after the first open
  * each day, none with reduced motion. Tap to skip. */
@@ -56,15 +56,15 @@ export function Intro({ onDone }: { onDone: () => void }) {
       const handle = timing(v.handle, 430 * s, Easing.out(Easing.back(2.2)));
       const draw = Animated.stagger(62 * s, v.pieces.map((p, i) => timing(p, 330 * s, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))));
       const out = (delay: number, duration: number) => Animated.timing(v.fade, { toValue: 0, duration, delay, useNativeDriver: true });
-      // Full version, 2 s: each move overlaps the next instead of waiting for it.
-      //   panels 0-0.69 · handle 0.33-0.76 · route 0.42-1.68 · name 0.95-1.6 · fade 1.75-2.0
+      // Full version, 2.5 s: each move overlaps the next instead of waiting for it.
+      //   panels 0-0.69 · handle 0.33-0.76 · route 0.42-1.68 · name 0.95-1.6 · name holds · fade 2.25-2.5
       const full = Animated.parallel([
         timing(v.left, 590, Easing.out(Easing.back(1.2))), timing(v.right, 590, Easing.out(Easing.back(1.2)), 100),
         timing(v.handle, 430, Easing.out(Easing.back(2.2)), 330),
         Animated.sequence([Animated.delay(420), Animated.stagger(62, v.pieces.map((p, i) => timing(p, 330, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))))]),
         timing(v.shift, 650, Easing.inOut(Easing.cubic), 950), timing(v.word, 500, Easing.out(Easing.cubic), 1090),
       ]);
-      current = quick ? Animated.sequence([unfold, handle, draw, out(150, 250)]) : Animated.sequence([full, out(70, 250)]);
+      current = quick ? Animated.sequence([unfold, handle, draw, out(150, 250)]) : Animated.sequence([full, out(570, 250)]);
       current.start(finish);
     })();
     return () => { finished = true; current?.stop(); };
