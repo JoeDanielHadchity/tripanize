@@ -30,7 +30,7 @@ function useSignedInDevice(userId?: string) {
 
 function Navigation() {
   const { data: session, isPending } = authClient.useSession();
-  const [loaded, error] = useFonts({ ...Ionicons.font, Inter: require("../../assets/fonts/Inter-Regular.ttf"), InterSemibold: require("../../assets/fonts/Inter-SemiBold.ttf"), Fraunces: require("../../assets/fonts/Fraunces-SemiBold.ttf") });
+  const [loaded, error] = useFonts({ ...Ionicons.font, Nunito: require("../../assets/fonts/Nunito-Regular.ttf"), NunitoBold: require("../../assets/fonts/Nunito-Bold.ttf"), NunitoHeading: require("../../assets/fonts/Nunito-ExtraBold.ttf") });
   const c = useTheme();
   const pathname = usePathname(), params = useGlobalSearchParams<{ tripId?: string | string[] }>();
   const inTrip = isMobileTripRoute(pathname, params.tripId);

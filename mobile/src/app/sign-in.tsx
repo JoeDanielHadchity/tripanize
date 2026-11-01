@@ -21,7 +21,7 @@ export default function SignInScreen() {
     if (["/", "/trips", "/inbox", "/account"].includes(destination) && router.canGoBack()) { router.back(); if (destination !== "/") router.navigate(destination as "/trips"); }
     else router.replace(destination as "/");
   }, [session, busy, next]);
-  const inputStyle = { backgroundColor: c.paper, borderColor: c.line, color: c.ink, borderWidth: 1, borderRadius: 14, minHeight: 56, paddingHorizontal: 16, fontFamily: "Inter", fontSize: 16 };
+  const inputStyle = { backgroundColor: c.paper, borderColor: c.line, color: c.ink, borderWidth: 1, borderRadius: 14, minHeight: 56, paddingHorizontal: 16, fontFamily: "Nunito", fontSize: 16 };
   async function submit() {
     const address = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) { setError("Enter your email address."); return; }
@@ -50,7 +50,7 @@ export default function SignInScreen() {
     <View style={{ gap: 9 }}><Eyebrow>A little more going</Eyebrow><Heading>{sent && !passwordMode ? "Check your inbox." : "Good trips\nstart here."}</Heading><Muted>{sent && !passwordMode ? `We sent a code to ${email.trim()}.` : "Sign in or create your Tripanize account."}</Muted></View>
     {error && <ErrorNotice message={error} />}
     <View style={{ gap: 12 }}>
-      <T style={{ fontFamily: "InterSemibold", fontSize: 13 }}>Email address</T><TextInput accessibilityLabel="Email address" placeholder="you@example.com" placeholderTextColor={c.muted} style={inputStyle} value={email} onChangeText={setEmail} editable={!sent || passwordMode} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} autoComplete="email" textContentType="emailAddress" />
+      <T style={{ fontFamily: "NunitoBold", fontSize: 13 }}>Email address</T><TextInput accessibilityLabel="Email address" placeholder="you@example.com" placeholderTextColor={c.muted} style={inputStyle} value={email} onChangeText={setEmail} editable={!sent || passwordMode} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} autoComplete="email" textContentType="emailAddress" />
       {passwordMode ? <TextInput accessibilityLabel="Password" placeholder="Your password" placeholderTextColor={c.muted} style={inputStyle} value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" textContentType="password" /> : sent && <TextInput accessibilityLabel="6-digit sign-in code" placeholder="000000" placeholderTextColor={c.muted} style={[inputStyle, { letterSpacing: 8, textAlign: "center", fontSize: 25 }]} value={code} onChangeText={value => setCode(value.replace(/\D/g, "").slice(0, 6))} keyboardType="number-pad" autoComplete="one-time-code" textContentType="oneTimeCode" maxLength={6} />}
       <Button busy={busy} onPress={() => void submit()}>{passwordMode ? "Sign in" : sent ? "Verify & continue" : "Email me a code"}</Button>
       {sent && !passwordMode && <Pressable accessibilityRole="button" disabled={busy || cooldown > 0} onPress={async () => { setBusy(true); try { const result = await authClient.emailOtp.sendVerificationOtp({ email: email.trim().toLowerCase(), type: "sign-in" }); if (result.error) throw new Error(result.error.message); setCooldown(60); setError(null); } catch (e) { setError(e instanceof Error ? e.message : "Could not resend."); } finally { setBusy(false); } }}><T style={{ textAlign: "center", color: c.accent, padding: 8 }}>{cooldown ? `Resend in ${cooldown}s` : "Resend code"}</T></Pressable>}

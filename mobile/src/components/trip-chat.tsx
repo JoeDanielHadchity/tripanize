@@ -36,7 +36,7 @@ function LocationPanel({ tripId }: { tripId: string }) {
     <Card style={{ paddingVertical: 12, gap: 8 }}>
       <View style={styles.row}>
         <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: share.sharing ? c.accent : c.soft, alignItems: "center", justifyContent: "center" }}><Icon name={share.sharing ? "navigate" : "navigate-outline"} size={19} color={share.sharing ? c.accentText : c.accent} /></View>
-        <View style={{ flex: 1 }}><T style={{ fontFamily: "InterSemibold" }}>Share my location</T><Muted>{share.busy ? "Finding you…" : share.sharing ? "Your group sees you while this screen is open" : `${others.length} of ${members.length} sharing now`}</Muted></View>
+        <View style={{ flex: 1 }}><T style={{ fontFamily: "NunitoBold" }}>Share my location</T><Muted>{share.busy ? "Finding you…" : share.sharing ? "Your group sees you while this screen is open" : `${others.length} of ${members.length} sharing now`}</Muted></View>
         <Switch accessibilityLabel="Share my location" value={share.sharing || share.busy} disabled={share.busy} onValueChange={share.toggle} trackColor={{ true: c.accent, false: c.line }} thumbColor="#ffffff" />
       </View>
       {share.error && <ErrorNotice message={share.error} />}
@@ -62,7 +62,7 @@ export function TripChat({ data, tripId, onAction, reload, scrollToEnd }: { data
   const days = messages.map(m => dayOf(m.meta));
   return <View style={{ gap: 14 }}>
     <LocationPanel tripId={tripId} />
-    <View style={[styles.row, { paddingHorizontal: 4 }]}><T accessibilityRole="header" style={{ fontFamily: "InterSemibold", fontSize: 17 }}>Group chat</T>{earlier && <Pressable accessibilityRole="button" onPress={() => onAction(earlier)}><T style={{ color: c.accent, fontFamily: "InterSemibold", fontSize: 13 }}>Earlier messages</T></Pressable>}</View>
+    <View style={[styles.row, { paddingHorizontal: 4 }]}><T accessibilityRole="header" style={{ fontFamily: "NunitoBold", fontSize: 17 }}>Group chat</T>{earlier && <Pressable accessibilityRole="button" onPress={() => onAction(earlier)}><T style={{ color: c.accent, fontFamily: "NunitoBold", fontSize: 13 }}>Earlier messages</T></Pressable>}</View>
     {!messages.length && <Card style={{ alignItems: "center", paddingVertical: 22 }}><Icon name="chatbubbles-outline" size={28} /><Muted>No messages yet. Say hello to your group!</Muted></Card>}
     <View style={{ gap: 6 }}>{messages.map((m, i) => {
       const mine = m.title === session?.user.name, deleted = m.text === "Message deleted", day = days[i], showDay = i === 0 || day !== days[i - 1];
@@ -97,7 +97,7 @@ export function ChatComposer({ data, tripId, onSent }: { data: MobileWorkspace; 
   return <View style={{ backgroundColor: c.bg, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6, gap: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }}>
     {error && <T style={{ color: c.danger, fontSize: 12 }}>{error}</T>}
     <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
-      <TextInput ref={input} accessibilityLabel="Message the group" placeholder="Message the group…" placeholderTextColor={c.muted} value={text} onChangeText={setText} multiline maxLength={2000} style={{ flex: 1, minHeight: 44, maxHeight: 120, borderRadius: 22, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11, backgroundColor: c.paper, color: c.ink, fontFamily: "Inter", fontSize: 15, borderWidth: StyleSheet.hairlineWidth, borderColor: c.line }} />
+      <TextInput ref={input} accessibilityLabel="Message the group" placeholder="Message the group…" placeholderTextColor={c.muted} value={text} onChangeText={setText} multiline maxLength={2000} style={{ flex: 1, minHeight: 44, maxHeight: 120, borderRadius: 22, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11, backgroundColor: c.paper, color: c.ink, fontFamily: "Nunito", fontSize: 15, borderWidth: StyleSheet.hairlineWidth, borderColor: c.line }} />
       <IconButton name="send" label="Send message" filled size={44} disabled={!text.trim() || busy} onPress={() => void send()} />
     </View>
   </View>;

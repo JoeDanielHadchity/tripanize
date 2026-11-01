@@ -12,7 +12,7 @@ const openSite = (path: string) => { void Linking.openURL(`https://www.tripanize
 function SignInCard({ next, title, text }: { next: string; title: string; text: string }) {
   const c = useTheme();
   return <Card style={{ backgroundColor: c.accent, gap: 10 }}>
-    <T style={{ fontFamily: "Fraunces", fontSize: 23, lineHeight: 29, color: c.accentText }}>{title}</T>
+    <T style={{ fontFamily: "NunitoHeading", fontSize: 23, lineHeight: 29, color: c.accentText }}>{title}</T>
     <T style={{ color: c.accentText, opacity: 0.88, fontSize: 14, lineHeight: 21 }}>{text}</T>
     <Button secondary leadingIcon="mail-outline" onPress={() => signIn(next)} style={{ marginTop: 4 }}>Sign in with email</Button>
     <T style={{ color: c.accentText, opacity: 0.75, fontSize: 12, textAlign: "center" }}>New here? The same step creates your free account.</T>
@@ -34,7 +34,7 @@ export function SignedOutInbox() {
       <Muted style={{ paddingHorizontal: 4 }}>What you’ll see here</Muted>
       <Card style={{ paddingVertical: 4, gap: 0 }}>{PREVIEW.map((n, i) => <View key={i} style={{ flexDirection: "row", gap: 12, paddingVertical: 13, borderBottomWidth: i === PREVIEW.length - 1 ? 0 : 0.5, borderBottomColor: c.line, opacity: 1 - i * 0.12 }}>
         <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: c.soft, alignItems: "center", justifyContent: "center" }}><Icon name={n.icon} size={18} /></View>
-        <View style={{ flex: 1, gap: 2 }}><View style={styles.row}><T numberOfLines={1} style={{ flex: 1, fontFamily: "InterSemibold", fontSize: 14 }}>{n.title}</T><T style={{ fontSize: 11, color: c.muted }}>{n.when}</T></View><T style={{ fontSize: 14, lineHeight: 20, color: c.muted }}>{n.text}</T></View>
+        <View style={{ flex: 1, gap: 2 }}><View style={styles.row}><T numberOfLines={1} style={{ flex: 1, fontFamily: "NunitoBold", fontSize: 14 }}>{n.title}</T><T style={{ fontSize: 11, color: c.muted }}>{n.when}</T></View><T style={{ fontSize: 14, lineHeight: 20, color: c.muted }}>{n.text}</T></View>
       </View>)}</Card>
       <Muted style={{ paddingHorizontal: 4, fontSize: 12 }}>Examples. Your real alerts appear once you’re signed in.</Muted>
     </View>

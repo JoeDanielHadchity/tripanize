@@ -61,8 +61,8 @@ export function TripMap({ pins, height = 230, fallback }: { pins: MapPin[]; heig
     <View {...responder.panHandlers} style={StyleSheet.absoluteFill} accessibilityLabel={`Map with ${pins.length} ${pins.length === 1 ? "person" : "people"} sharing`}>
       {tiles.map(t => <Image key={`${zoom}/${t.x}/${t.y}/${t.left}`} source={tile(zoom, t.x, t.y)} cachePolicy="memory-disk" style={{ position: "absolute", left: t.left, top: t.top, width: TILE, height: TILE }} />)}
       {pins.map(p => { const x = worldX(p.lng, zoom) - ox, y = worldY(p.lat, zoom) - oy; return <View key={p.id} pointerEvents="none" style={{ position: "absolute", left: x - 60, top: y - 17, width: 120, alignItems: "center" }}>
-        <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: p.me ? c.accent : c.coral, borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.3)" }}><T style={{ color: "#fff", fontFamily: "InterSemibold", fontSize: 13, lineHeight: 16 }}>{p.me ? "You".slice(0, 1) : (p.name.trim()[0] ?? "?").toUpperCase()}</T></View>
-        <View style={{ marginTop: 3, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.92)" }}><T numberOfLines={1} style={{ fontSize: 11, lineHeight: 15, color: "#172e33", fontFamily: "InterSemibold" }}>{p.me ? "You" : p.name}</T></View>
+        <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: p.me ? c.accent : c.coral, borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.3)" }}><T style={{ color: "#fff", fontFamily: "NunitoBold", fontSize: 13, lineHeight: 16 }}>{p.me ? "You".slice(0, 1) : (p.name.trim()[0] ?? "?").toUpperCase()}</T></View>
+        <View style={{ marginTop: 3, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.92)" }}><T numberOfLines={1} style={{ fontSize: 11, lineHeight: 15, color: "#172e33", fontFamily: "NunitoBold" }}>{p.me ? "You" : p.name}</T></View>
       </View>; })}
     </View>
     <View style={{ position: "absolute", right: 10, top: 10, gap: 6 }}>

@@ -38,7 +38,7 @@ export function ActionSheet({ label, actions, onAction, icon = "ellipsis-horizon
   return <>{iconOnly ? <IconButton name={icon} label={label} disabled={busy} onPress={() => setOpen(true)} size={40} /> : <Button compact secondary leadingIcon={icon} disabled={busy} onPress={() => setOpen(true)}>{label}</Button>}<Sheet open={open} title={label} close={() => setOpen(false)}>
     {actions.map((action, index) => <Pressable key={index} accessibilityRole="button" disabled={busy} onPress={() => { setOpen(false); onAction(action); }} style={({ pressed }) => ({ minHeight: 54, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: index === actions.length - 1 ? 0 : StyleSheet.hairlineWidth, borderBottomColor: c.line, opacity: pressed ? 0.6 : 1 })}>
       <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: action.danger ? c.coralSoft : c.soft, alignItems: "center", justifyContent: "center" }}><Ionicons name={actionIcon(action) ?? (action.to ? "arrow-forward" : "flash-outline")} size={17} color={action.danger ? c.danger : c.accent} /></View>
-      <T style={{ flex: 1, color: action.danger ? c.danger : c.ink, fontFamily: "InterSemibold" }}>{action.label}</T>
+      <T style={{ flex: 1, color: action.danger ? c.danger : c.ink, fontFamily: "NunitoBold" }}>{action.label}</T>
     </Pressable>)}
   </Sheet></>;
 }
@@ -80,7 +80,7 @@ export function TripHeader({ data, onBack, right, loading = false }: { data?: Mo
   const c = useTheme();
   return <View style={{ backgroundColor: c.bg }}><View style={[styles.row, { paddingHorizontal: 16, paddingVertical: 8 }]}>
     <IconButton name="chevron-back" label="All trips" onPress={onBack ?? (() => router.canGoBack() ? router.back() : router.replace("/trips"))} />
-    <View style={{ flex: 1, alignItems: "center" }}><T numberOfLines={1} style={{ fontFamily: "InterSemibold", fontSize: 15 }}>{data?.trip?.name ?? " "}</T><T numberOfLines={1} style={{ fontSize: 12, lineHeight: 16, color: c.muted }}>{data?.trip ? tripDates(data.trip.startDate, data.trip.endDate) : " "}</T></View>
+    <View style={{ flex: 1, alignItems: "center" }}><T numberOfLines={1} style={{ fontFamily: "NunitoBold", fontSize: 15 }}>{data?.trip?.name ?? " "}</T><T numberOfLines={1} style={{ fontSize: 12, lineHeight: 16, color: c.muted }}>{data?.trip ? tripDates(data.trip.startDate, data.trip.endDate) : " "}</T></View>
     {right ?? <View style={{ width: 44 }} />}
   </View><LoadingBar active={loading} /></View>;
 }
@@ -150,13 +150,13 @@ export function TripNavigation({ tripId, screen, premium, onAction }: { tripId: 
     const on = selected === id;
     return <Pressable key={id} accessibilityRole="tab" accessibilityLabel={`${label}${locked ? ", Premium" : ""}`} accessibilityState={{ selected: on }} onPress={onPress} style={({ pressed }) => ({ flex: 1, minHeight: 54, alignItems: "center", justifyContent: "center", gap: 3, opacity: pressed ? 0.6 : 1 })}>
       <View style={{ paddingHorizontal: 16, paddingVertical: 4, borderRadius: 14, backgroundColor: on ? c.soft : "transparent" }}><Ionicons name={on ? activeIcon : icon} size={21} color={on ? c.accent : c.muted} />{locked && <View style={{ position: "absolute", right: 8, top: 1 }}><Ionicons name="sparkles" size={9} color={c.coral} /></View>}</View>
-      <T style={{ fontSize: 10, lineHeight: 13, fontFamily: on ? "InterSemibold" : "Inter", color: on ? c.accent : c.muted }}>{label}</T>
+      <T style={{ fontSize: 10, lineHeight: 13, fontFamily: on ? "NunitoBold" : "Nunito", color: on ? c.accent : c.muted }}>{label}</T>
     </Pressable>;
   };
   return <><View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={{ flexShrink: 0, backgroundColor: c.tabBar, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, flexDirection: "row", paddingHorizontal: 6, paddingTop: 2 }}>
     {TABS.map(t => tab(t.id, t.label, t.icon, t.active, () => { if (screen !== t.id) go({ screen: t.id, tripId }); }, !premium && ["expenses", "chat", "events"].includes(t.id)))}
     {tab("more", "More", "grid-outline", "grid", () => setOpen(true))}
   </View><Sheet open={open} title="Your trip" close={() => setOpen(false)}>
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{more.map(item => <Pressable key={item.to.screen} accessibilityRole="button" onPress={() => go(item.to)} style={({ pressed }) => ({ width: "31%", flexGrow: 1, minHeight: 92, borderRadius: 18, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", gap: 8, padding: 10, opacity: pressed ? 0.7 : 1 })}><Ionicons name={item.icon} size={24} color={c.accent} /><T style={{ fontSize: 12, lineHeight: 16, textAlign: "center", fontFamily: "InterSemibold" }}>{item.label}</T></Pressable>)}</View>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{more.map(item => <Pressable key={item.to.screen} accessibilityRole="button" onPress={() => go(item.to)} style={({ pressed }) => ({ width: "31%", flexGrow: 1, minHeight: 92, borderRadius: 18, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", gap: 8, padding: 10, opacity: pressed ? 0.7 : 1 })}><Ionicons name={item.icon} size={24} color={c.accent} /><T style={{ fontSize: 12, lineHeight: 16, textAlign: "center", fontFamily: "NunitoBold" }}>{item.label}</T></Pressable>)}</View>
   </Sheet></>;
 }

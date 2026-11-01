@@ -38,8 +38,8 @@ export function NativeBottomNavigation() {
   const item = (tab: Tab) => {
     const on = tab.id === selected;
     return <Pressable key={tab.id} accessibilityRole="tab" accessibilityLabel={tab.id === "inbox" && unread ? `${tab.label}, ${unread} unread` : tab.label} accessibilityState={{ selected: on }} onPress={() => { if (!on) open(tab); }} style={({ pressed }) => ({ flex: 1, minHeight: 54, alignItems: "center", justifyContent: "center", gap: 3, opacity: pressed ? 0.6 : 1 })}>
-      <View><Ionicons name={on ? tab.active : tab.icon} size={23} color={on ? c.accent : c.muted} />{tab.id === "inbox" && unread > 0 && <View style={{ position: "absolute", top: -3, right: -8, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, backgroundColor: c.coral, alignItems: "center", justifyContent: "center" }}><T style={{ color: "#fff", fontSize: 9, lineHeight: 12, fontFamily: "InterSemibold" }}>{unread > 9 ? "9+" : unread}</T></View>}</View>
-      <T style={{ fontFamily: on ? "InterSemibold" : "Inter", fontSize: 10, lineHeight: 13, color: on ? c.accent : c.muted }}>{tab.label}</T>
+      <View><Ionicons name={on ? tab.active : tab.icon} size={23} color={on ? c.accent : c.muted} />{tab.id === "inbox" && unread > 0 && <View style={{ position: "absolute", top: -3, right: -8, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, backgroundColor: c.coral, alignItems: "center", justifyContent: "center" }}><T style={{ color: "#fff", fontSize: 9, lineHeight: 12, fontFamily: "NunitoBold" }}>{unread > 9 ? "9+" : unread}</T></View>}</View>
+      <T style={{ fontFamily: on ? "NunitoBold" : "Nunito", fontSize: 10, lineHeight: 13, color: on ? c.accent : c.muted }}>{tab.label}</T>
     </Pressable>;
   };
   return <SafeAreaView edges={["bottom", "left", "right"]} style={{ flexShrink: 0, backgroundColor: c.tabBar, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }}>
