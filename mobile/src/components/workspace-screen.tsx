@@ -146,14 +146,16 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
   }
   const onAction = (action: MobileAction) => { void run(action); };
   /** Add a packing item in one step: type, press Enter. */
-  async function quickAdd(label: string) {
+  async function quickAdd(label: string, shared = false) {
     setActionError(null);
-    try { await post("/api/mobile/workspace", { action: "packing.add", tripId: current.tripId, values: { label, category: "Misc", quantity: 1, shared: false } }); reload(); }
+    try { await post("/api/mobile/workspace", { action: "packing.add", tripId: current.tripId, values: { label, category: "Misc", quantity: 1, shared } }); reload(); }
     catch (e) { setActionError(e instanceof Error ? e.message : "Could not add this item."); }
   }
 
   const renderBlock = (block: MobileBlock) => {
     if (isPoll(block)) return <PollCard key={block.id} block={block} busy={busy} onAction={onAction} />;
+    // A title on its own is a section heading, not an empty card.
+    if (block.title && !block.text && !block.meta && !block.lines?.length && !block.actions?.length && !block.form && !block.image && !block.location) return <T key={block.id} accessibilityRole="header" style={{ fontFamily: "NunitoBold", fontSize: 18, paddingHorizontal: 4, marginTop: 6 }}>{block.title}</T>;
     if (isNavBlock(block)) return <Section key={block.id}>{block.actions!.map((a, i) => <ListRow key={`${a.label}-${i}`} icon={NAV_ICONS[a.to!.screen] ?? "arrow-forward-circle-outline"} title={a.label} onPress={() => onAction(a)} last={i === block.actions!.length - 1} />)}</Section>;
     const accent = block.tone === "accent", warning = block.tone === "warning";
     const purchase = block.actions?.some(a => a.device === "purchase");
@@ -343,31 +345,45 @@ function InviteSheet({ tripId, tripName, close }: { tripId: string; tripName: st
   </Sheet>;
 }
 
-/** Packing as a checklist: tap to tick, long-press to remove, Enter to add. */
-function Packing({ blocks, busy, onAction, onAdd, renderBlock }: { blocks: MobileBlock[]; busy: boolean; onAction: (a: MobileAction) => void; onAdd: (label: string) => Promise<void>; renderBlock: (b: MobileBlock) => React.ReactNode }) {
-  const c = useTheme(); const [text, setText] = useState(""), [adding, setAdding] = useState(false); const input = useRef<TextInput>(null);
-  const toggleOf = (b: MobileBlock) => b.actions?.find(a => a.action === "packing.update");
-  const items = blocks.filter(b => toggleOf(b) || (b.meta && / · ×\d+$/.test(b.meta)));
-  const canAdd = blocks.some(b => b.id === "add" && b.form);
-  const rest = blocks.filter(b => !items.includes(b) && b.id !== "add" && b.id !== "cover");
+/** Packing as two checklists: your private list and the group's shared list.
+ * Tap to tick, long-press to remove, type and press Enter to add. */
+function Packing({ blocks, busy, onAction, onAdd, renderBlock }: { blocks: MobileBlock[]; busy: boolean; onAction: (a: MobileAction) => void; onAdd: (label: string, shared: boolean) => Promise<void>; renderBlock: (b: MobileBlock) => React.ReactNode }) {
+  const c = useTheme(); const [text, setText] = useState(""), [adding, setAdding] = useState(false), [list, setList] = useState<"mine" | "group">("mine"); const input = useRef<TextInput>(null);
+  // The server lists "Personal" items, then "Shared" items, each after its heading block.
+  const at = (id: string) => blocks.findIndex(b => b.id === id);
+  const pStart = at("heading-Personal"), sStart = at("heading-Shared"), end = at("tasks-heading");
+  const isItem = (b: MobileBlock) => b.title && !b.id.startsWith("heading-") && b.id !== "tasks-heading" && !b.form;
+  const mine = pStart >= 0 ? blocks.slice(pStart + 1, sStart >= 0 ? sStart : undefined).filter(isItem) : [];
+  const group = sStart >= 0 ? blocks.slice(sStart + 1, end >= 0 ? end : undefined).filter(isItem) : [];
+  const addForm = blocks.find(b => b.id === "add")?.form;
+  const canAddGroup = Boolean(addForm?.fields.some(f => f.key === "shared"));
+  const listed = new Set([...mine, ...group].map(b => b.id));
+  const rest = blocks.filter(b => !listed.has(b.id) && !["add", "cover", "privacy", "heading-Personal", "heading-Shared"].includes(b.id));
+  const items = list === "mine" ? mine : group;
+  const count = (xs: MobileBlock[]) => `${xs.filter(b => b.title?.startsWith("✓ ")).length}/${xs.length}`;
   const packed = items.filter(b => b.title?.startsWith("✓ ")).length;
+  const canAdd = Boolean(addForm) && (list === "mine" || canAddGroup);
   async function add() {
     const label = text.trim(); if (!label || adding) return;
-    setAdding(true); try { await onAdd(label); setText(""); } finally { setAdding(false); setTimeout(() => input.current?.focus(), 50); }
+    setAdding(true); try { await onAdd(label, list === "group"); setText(""); } finally { setAdding(false); setTimeout(() => input.current?.focus(), 50); }
   }
   return <>
+    <Segmented label="Packing list" value={list} onChange={setList} options={[{ value: "mine", label: `My list · ${count(mine)}` }, { value: "group", label: `Group list · ${count(group)}` }]} />
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 4 }}><Icon name={list === "mine" ? "lock-closed-outline" : "people-outline"} size={14} color={c.muted} /><Muted style={{ fontSize: 12 }}>{list === "mine" ? "Only you can see your list. Everyone has their own." : "Shared things the whole group can see and tick."}</Muted></View>
+    {items.length > 0 && <View style={{ height: 6, borderRadius: 3, backgroundColor: c.soft, overflow: "hidden" }}><View style={{ width: `${Math.round(packed / items.length * 100)}%`, height: 6, borderRadius: 3, backgroundColor: packed === items.length ? c.success : c.accent }} /></View>}
     {canAdd && <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.paper, borderRadius: 16, borderWidth: 1, borderColor: c.line, paddingLeft: 14, paddingRight: 6 }}>
       <Icon name="add-circle-outline" size={20} />
-      <TextInput ref={input} accessibilityLabel="Add a packing item" placeholder="Add an item and press Enter" placeholderTextColor={c.muted} value={text} onChangeText={setText} returnKeyType="done" submitBehavior="submit" onSubmitEditing={() => void add()} style={{ flex: 1, minHeight: 52, color: c.ink, fontFamily: "Nunito", fontSize: 16 }} />
+      <TextInput ref={input} accessibilityLabel={list === "mine" ? "Add to my list" : "Add to the group list"} placeholder={list === "mine" ? "Add to my list and press Enter" : "Add to the group list"} placeholderTextColor={c.muted} value={text} onChangeText={setText} returnKeyType="done" submitBehavior="submit" onSubmitEditing={() => void add()} style={{ flex: 1, minHeight: 52, color: c.ink, fontFamily: "Nunito", fontSize: 16 }} />
       {!!text.trim() && <IconButton name="arrow-up" label="Add item" filled size={38} disabled={adding} onPress={() => void add()} />}
     </View>}
-    {items.length > 0 && <Section title={`Packing list · ${packed}/${items.length}`}>{items.map((b, i) => {
-      const done = b.title?.startsWith("✓ ") ?? false, toggle = toggleOf(b), remove = b.actions?.find(a => a.action === "packing.remove");
-      return <Pressable key={b.id} accessibilityRole="checkbox" accessibilityState={{ checked: done, disabled: !toggle || busy }} accessibilityHint={remove ? "Long-press to remove" : undefined} disabled={!toggle || busy} onPress={() => toggle && onAction(toggle)} onLongPress={() => remove && onAction(remove)} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, paddingVertical: 10, borderBottomWidth: i === items.length - 1 ? 0 : StyleSheet.hairlineWidth, borderBottomColor: c.line, opacity: pressed ? 0.6 : 1 })}>
-        <Icon name={done ? "checkbox" : "square-outline"} size={24} color={done ? c.success : c.muted} />
-        <View style={{ flex: 1 }}><T style={{ fontFamily: "NunitoBold", color: done ? c.muted : c.ink, textDecorationLine: done ? "line-through" : "none" }}>{done ? b.title!.slice(2) : b.title}</T>{(b.meta || b.text) && <T numberOfLines={2} style={{ color: c.muted, fontSize: 13, lineHeight: 19 }}>{[b.meta, b.text].filter(Boolean).join(" · ")}</T>}</View>
-      </Pressable>;
-    })}</Section>}
+    {items.length === 0 ? <Card style={{ alignItems: "center", paddingVertical: 22 }}><Icon name={list === "mine" ? "bag-handle-outline" : "people-outline"} size={28} /><Muted style={{ textAlign: "center" }}>{list === "mine" ? "Your list is empty. Add what you need to bring." : "Nothing shared yet. Add things the group needs, like a first-aid kit or an adapter."}</Muted></Card>
+      : <Section>{items.map((b, i) => {
+        const done = b.title?.startsWith("✓ ") ?? false, toggle = b.actions?.find(a => a.action === "packing.update"), remove = b.actions?.find(a => a.action === "packing.remove");
+        return <Pressable key={b.id} accessibilityRole="checkbox" accessibilityState={{ checked: done, disabled: !toggle || busy }} accessibilityHint={remove ? "Long-press to remove" : undefined} disabled={!toggle || busy} onPress={() => toggle && onAction(toggle)} onLongPress={() => remove && onAction(remove)} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, paddingVertical: 10, borderBottomWidth: i === items.length - 1 ? 0 : StyleSheet.hairlineWidth, borderBottomColor: c.line, opacity: pressed ? 0.6 : 1 })}>
+          <Icon name={done ? "checkbox" : "square-outline"} size={24} color={done ? c.success : c.muted} />
+          <View style={{ flex: 1 }}><T style={{ fontFamily: "NunitoBold", color: done ? c.muted : c.ink, textDecorationLine: done ? "line-through" : "none" }}>{done ? b.title!.slice(2) : b.title}</T>{(b.meta || b.text) && <T numberOfLines={2} style={{ color: c.muted, fontSize: 13, lineHeight: 19 }}>{[b.meta, b.text].filter(Boolean).join(" · ")}</T>}</View>
+        </Pressable>;
+      })}</Section>}
     {items.length > 0 && <Muted style={{ textAlign: "center", fontSize: 12 }}>Tap to tick · long-press to remove</Muted>}
     {rest.map(renderBlock)}
   </>;
