@@ -25,9 +25,12 @@ const BODY_MID = (ROUTE.parts.left.y + ROUTE.height) / 2 * SCALE, WORD_TOP = BOD
 // The boarding pass under the name: as wide as the logo + name, and the whole group rises to stay centred.
 const LOCK_W = MARK_W + GAP + WORD_W, LINE_H = 28, LINE_GAP = 22, LIFT = (LINE_GAP + LINE_H) / 2;
 const CORAL = "#b55a3c", TAGLINE = "Your Trip Organizer!";
-// The plane tows the tagline in on a short line: it eases to a stop by RELEASE, then the plane lets go and climbs away.
-const RELEASE = 0.55, TOW = 34, SAMPLES = Array.from({ length: 11 }, (_, k) => RELEASE * k / 10);
-const easeOut = (t: number) => 1 - (1 - t) ** 3;
+// The plane tows the tagline in on a short line at a steady speed. At RELEASE it lets go: the text
+// glides to a stop on its own (exponential slow-down, time constant GLIDE) while the plane keeps its
+// speed, pitches up along a smooth curve from CLIMB and shrinks a little as it climbs away.
+const RELEASE = 0.4, GLIDE = 0.12, CLIMB = 0.42, LIFT_RATE = 1400, TOW = 34;
+const SAMPLES = Array.from({ length: 61 }, (_, k) => k / 60);
+const smooth = (a: number, b: number, t: number) => { const x = Math.min(Math.max((t - a) / (b - a), 0), 1); return x * x * (3 - 2 * x); };
 const KEY = "tripanize-intro-day";
 const box = (b: Box) => ({ position: "absolute" as const, left: b.x * SCALE, top: b.y * SCALE, width: b.w * SCALE, height: b.h * SCALE });
 const timing = (value: Animated.Value, duration: number, easing: (t: number) => number, delay = 0) => Animated.timing(value, { toValue: 1, duration, delay, easing, useNativeDriver: true });
@@ -83,16 +86,19 @@ export function Intro({ onDone }: { onDone: () => void }) {
   const squash = v.handle.interpolate({ inputRange: [0, 0.75, 0.9, 1], outputRange: [1, 1, 0.97, 1] });
   const markX = v.shift.interpolate({ inputRange: [0, 1], outputRange: [0, -(WORD_W + GAP) / 2] });
   const lift = v.lift.interpolate({ inputRange: [0, 1], outputRange: [0, -LIFT] });
-  // Flight, in tagline-row coordinates. The text's final left edge is L0; until RELEASE the plane
-  // flies TOW px ahead of the text's end, then it climbs away to the top right.
-  const L0 = (LOCK_W - textW) / 2;
-  const START = -((Dimensions.get("window").width - LOCK_W) / 2 + L0 + textW + TOW + 30);
-  const textAt = (u: number) => START * (1 - easeOut(Math.min(u / RELEASE, 1)));
-  const textX = v.fly.interpolate({ inputRange: SAMPLES, outputRange: SAMPLES.map(textAt), extrapolate: "clamp" });
-  const nose = L0 + textW + TOW;
-  const planeX = v.fly.interpolate({ inputRange: [...SAMPLES, 0.72, 1], outputRange: [...SAMPLES.map(u => textAt(u) + nose), nose + 45, nose + 210] });
-  const planeY = v.fly.interpolate({ inputRange: [0, 0.2, RELEASE, 0.72, 1], outputRange: [LINE_H / 2 - 30, LINE_H / 2, LINE_H / 2, LINE_H / 2 - 10, -300] });
-  const planeR = v.fly.interpolate({ inputRange: [0, 0.2, RELEASE, 0.72, 1], outputRange: ["10deg", "0deg", "0deg", "-14deg", "-50deg"] });
+  // Flight, in tagline-row coordinates (u = 0..1 over the flight). The text's final left edge is L0.
+  const L0 = (LOCK_W - textW) / 2, nose = L0 + textW + TOW, mid = LINE_H / 2;
+  const P0 = -((Dimensions.get("window").width - LOCK_W) / 2 + 40); // plane starts just off the left edge
+  const speed = (nose - P0) / (RELEASE + GLIDE); // so the released text glides exactly into place
+  const fx = (u: number) => P0 + speed * u;
+  const fy = (u: number) => mid - 26 * (1 - smooth(0, 0.22, u)) - LIFT_RATE * Math.max(0, u - CLIMB) ** 2;
+  const tx = (u: number) => u <= RELEASE ? fx(u) - nose : u >= 1 ? 0 : -speed * GLIDE * Math.exp(-(u - RELEASE) / GLIDE);
+  // Nose follows the path: angle from the slope of the flight curve.
+  const angle = (u: number) => Math.atan2(fy(u + 0.004) - fy(u - 0.004), fx(u + 0.004) - fx(u - 0.004)) * 180 / Math.PI;
+  const curve = (f: (u: number) => number) => v.fly.interpolate({ inputRange: SAMPLES, outputRange: SAMPLES.map(f), extrapolate: "clamp" });
+  const textX = curve(tx), planeX = curve(fx), planeY = curve(fy);
+  const planeR = v.fly.interpolate({ inputRange: SAMPLES, outputRange: SAMPLES.map(u => `${angle(u).toFixed(2)}deg`), extrapolate: "clamp" });
+  const planeS = curve(u => 1 - 0.3 * smooth(CLIMB, 0.75, u));
   return <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: BG, opacity: v.fade, zIndex: 100, elevation: 100 }]}>
     <Pressable accessibilityRole="button" accessibilityLabel="Tripanize. Tap to skip the intro" onPress={skip} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
       <Animated.View style={{ width: MARK_W, height: MARK_H, transform: [{ translateY: lift }] }}>
@@ -116,9 +122,9 @@ export function Intro({ onDone }: { onDone: () => void }) {
           <Animated.View style={{ position: "absolute", left: L0, top: 0, height: LINE_H, flexDirection: "row", alignItems: "center", opacity: v.fly.interpolate({ inputRange: [0, 0.02], outputRange: [0, 1], extrapolate: "clamp" }), transform: [{ translateX: textX }] }}>
             <Text onLayout={e => setTextW(Math.ceil(e.nativeEvent.layout.width))} numberOfLines={1} style={{ fontFamily: "NunitoBold", fontSize: 20, lineHeight: LINE_H, color: INK, letterSpacing: 0.2 }}>{TAGLINE}</Text>
             {/* The tow line, dropped as the plane lets go. */}
-            <Animated.View style={{ position: "absolute", left: textW + 4, top: LINE_H / 2 - 0.75, width: TOW - 17, height: 1.5, backgroundColor: CORAL, opacity: v.fly.interpolate({ inputRange: [0, RELEASE - 0.05, RELEASE + 0.03], outputRange: [0.7, 0.7, 0], extrapolate: "clamp" }) }} />
+            <Animated.View style={{ position: "absolute", left: textW + 4, top: LINE_H / 2 - 0.75, width: TOW - 17, height: 1.5, backgroundColor: CORAL, opacity: v.fly.interpolate({ inputRange: [0, RELEASE - 0.02, RELEASE + 0.03], outputRange: [0.7, 0.7, 0], extrapolate: "clamp" }) }} />
           </Animated.View>
-          <Animated.View style={{ position: "absolute", left: -15, top: -15, width: 30, height: 30, alignItems: "center", justifyContent: "center", opacity: v.fly.interpolate({ inputRange: [0, 0.02, 0.93, 1], outputRange: [0, 1, 1, 0] }), transform: [{ translateX: planeX }, { translateY: planeY }, { rotate: planeR }] }}>
+          <Animated.View style={{ position: "absolute", left: -15, top: -15, width: 30, height: 30, alignItems: "center", justifyContent: "center", opacity: v.fly.interpolate({ inputRange: [0, 0.02, 0.97, 1], outputRange: [0, 1, 1, 0] }), transform: [{ translateX: planeX }, { translateY: planeY }, { rotate: planeR }, { scale: planeS }] }}>
             <Ionicons name="airplane" size={27} color={CORAL} />
           </Animated.View>
         </View>
