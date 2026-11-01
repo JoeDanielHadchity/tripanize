@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { tripDates } from "../lib/data";
-import { mobileTripTabs, type MobileAction, type MobileTarget, type MobileWorkspace } from "../lib/workspace";
+import { type MobileAction, type MobileTarget, type MobileWorkspace } from "../lib/workspace";
 import { Badge, Button, Heading, Icon, IconButton, OnPhoto, PhotoCard, T, styles, type IconName } from "./ui";
 import { useTheme } from "./theme";
 
@@ -122,23 +122,23 @@ const TABS: { id: string; label: string; icon: IconName; active: IconName }[] = 
   { id: "itinerary", label: "Plan", icon: "map-outline", active: "map" },
   { id: "expenses", label: "Money", icon: "wallet-outline", active: "wallet" },
   { id: "chat", label: "Chat", icon: "chatbubbles-outline", active: "chatbubbles" },
-  { id: "bookings", label: "Bookings", icon: "ticket-outline", active: "ticket" },
+  { id: "events", label: "Events", icon: "musical-notes-outline", active: "musical-notes" },
 ];
 function activeTab(screen: string) {
   if (["itinerary", "day", "stop", "plan", "job", "versions", "assistant"].includes(screen)) return "itinerary";
   if (["expenses", "expense", "settlement"].includes(screen)) return "expenses";
   if (["chat", "locations"].includes(screen)) return "chat";
-  if (["bookings", "booking", "events", "event"].includes(screen)) return "bookings";
+  if (["bookings", "booking", "events", "event"].includes(screen)) return "events";
   return "more";
 }
 
 export function TripNavigation({ tripId, screen, premium, onAction }: { tripId: string; screen: string; premium?: boolean; onAction: RunAction }) {
   const c = useTheme(); const [open, setOpen] = useState(false);
-  const tabs = mobileTripTabs(tripId), selected = activeTab(screen);
+  const selected = activeTab(screen);
   const go = (to: MobileTarget) => { setOpen(false); onAction({ label: "Open trip section", to }); };
   const more: { label: string; icon: IconName; to: MobileTarget }[] = [
     { label: "Packing & prep", icon: "bag-handle-outline", to: { screen: "packing", tripId } },
-    { label: "Events nearby", icon: "musical-notes-outline", to: { screen: "events", tripId } },
+    { label: "Bookings", icon: "ticket-outline", to: { screen: "bookings", tripId } },
     { label: "Group voting", icon: "hand-left-outline", to: { screen: "votes", tripId } },
     { label: "Travelers & sharing", icon: "people-outline", to: { screen: "sharing", tripId } },
     { label: "Trip settings", icon: "settings-outline", to: { screen: "settings", tripId } },
@@ -154,7 +154,7 @@ export function TripNavigation({ tripId, screen, premium, onAction }: { tripId: 
     </Pressable>;
   };
   return <><View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={{ flexShrink: 0, backgroundColor: c.tabBar, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, flexDirection: "row", paddingHorizontal: 6, paddingTop: 2 }}>
-    {TABS.map((t, i) => tab(t.id, t.label, t.icon, t.active, () => { if (screen !== t.id) go(tabs[i].to); }, !premium && !!tabs[i].premium))}
+    {TABS.map(t => tab(t.id, t.label, t.icon, t.active, () => { if (screen !== t.id) go({ screen: t.id, tripId }); }, !premium && ["expenses", "chat", "events"].includes(t.id)))}
     {tab("more", "More", "grid-outline", "grid", () => setOpen(true))}
   </View><Sheet open={open} title="Your trip" close={() => setOpen(false)}>
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{more.map(item => <Pressable key={item.to.screen} accessibilityRole="button" onPress={() => go(item.to)} style={({ pressed }) => ({ width: "31%", flexGrow: 1, minHeight: 92, borderRadius: 18, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", gap: 8, padding: 10, opacity: pressed ? 0.7 : 1 })}><Ionicons name={item.icon} size={24} color={c.accent} /><T style={{ fontSize: 12, lineHeight: 16, textAlign: "center", fontFamily: "InterSemibold" }}>{item.label}</T></Pressable>)}</View>

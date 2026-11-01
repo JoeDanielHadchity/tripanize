@@ -12,15 +12,18 @@ const minutes = (value: number) => value >= 60 ? `${Math.floor(value / 60)} h${v
 const words = (value: string) => value.replace(/_/g, " ").toLowerCase().replace(/^./, first => first.toUpperCase());
 const CATEGORY_ICONS: Record<string, IconName> = { sight: "camera-outline", museum: "business-outline", food: "restaurant-outline", restaurant: "restaurant-outline", cafe: "cafe-outline", nature: "leaf-outline", park: "leaf-outline", beach: "sunny-outline", shopping: "bag-outline", nightlife: "wine-outline", transport: "train-outline", travel: "car-outline", hotel: "bed-outline", event: "musical-notes-outline", activity: "walk-outline" };
 
+/** "Sat 1 May", as on the website. */
+const shortDay = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).replace(",", "");
+
 function DayStrip({ itinerary, tripId, onAction, selectedId }: { itinerary: MobileItinerary; tripId: string; onAction: RunAction; selectedId?: string }) {
   const c = useTheme(), list = useRef<ScrollView>(null);
-  return <ScrollView ref={list} horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, marginHorizontal: -20 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 20, paddingVertical: 2 }}>
+  return <ScrollView ref={list} horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, marginHorizontal: -20 }} contentContainerStyle={{ gap: 10, paddingHorizontal: 20, paddingVertical: 2 }}>
     {itinerary.days.map((day, index) => {
       const selected = day.id === (selectedId ?? itinerary.selectedDay?.id);
-      return <Pressable key={day.id} accessibilityRole="tab" accessibilityLabel={`Day ${index + 1}, ${dayLabel(day.date, { weekday: "long", month: "long", day: "numeric" })}, ${day.stops} stops`} accessibilityState={{ selected }} onPress={() => { if (!selected) onAction({ label: "Choose day", to: { screen: "itinerary", tripId, item: day.id } }); }} onLayout={event => { if (selected) list.current?.scrollTo({ x: Math.max(0, event.nativeEvent.layout.x - 40), animated: false }); }} style={({ pressed }) => ({ width: 68, paddingVertical: 10, borderRadius: 18, alignItems: "center", gap: 1, backgroundColor: selected ? c.accent : c.paper, borderWidth: selected ? 0 : StyleSheet.hairlineWidth, borderColor: c.line, opacity: pressed ? 0.7 : 1 })}>
-        <T style={{ fontSize: 10, lineHeight: 14, letterSpacing: 0.8, fontFamily: "InterSemibold", color: selected ? c.accentText : c.muted }}>{dayLabel(day.date, { weekday: "short" }).toUpperCase()}</T>
-        <T style={{ fontSize: 21, lineHeight: 27, fontFamily: "InterSemibold", color: selected ? c.accentText : c.ink }}>{dayLabel(day.date, { day: "numeric" })}</T>
-        <View style={{ flexDirection: "row", gap: 3, height: 6, alignItems: "center" }}>{day.travel ? <Icon name="car" size={10} color={selected ? c.accentText : c.muted} /> : Array.from({ length: Math.min(4, day.stops) }, (_, i) => <View key={i} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: selected ? c.accentText : c.accent, opacity: selected ? 0.85 : 0.6 }} />)}</View>
+      return <Pressable key={day.id} accessibilityRole="tab" accessibilityLabel={`Day ${index + 1}, ${dayLabel(day.date, { weekday: "long", month: "long", day: "numeric" })}, ${day.stops} stops`} accessibilityState={{ selected }} onPress={() => { if (!selected) onAction({ label: "Choose day", to: { screen: "itinerary", tripId, item: day.id } }); }} onLayout={event => { if (selected) list.current?.scrollTo({ x: Math.max(0, event.nativeEvent.layout.x - 20), animated: false }); }} style={({ pressed }) => ({ minWidth: 150, paddingVertical: 14, paddingHorizontal: 16, gap: 2, borderRadius: 12, borderWidth: 1, borderColor: selected ? c.accent : c.line, backgroundColor: selected ? c.accent : c.paper, opacity: pressed ? 0.75 : 1 })}>
+        <T style={{ fontSize: 11, lineHeight: 16, letterSpacing: 0.8, fontFamily: "InterSemibold", color: selected ? c.accentText : c.muted, opacity: selected ? 0.85 : 1 }}>DAY {index + 1}</T>
+        <T style={{ fontSize: 17, lineHeight: 24, fontFamily: "InterSemibold", color: selected ? c.accentText : c.ink }}>{shortDay(day.date)}</T>
+        <T style={{ fontSize: 12.5, lineHeight: 18, color: selected ? c.accentText : c.muted, opacity: selected ? 0.9 : 1 }}>{day.stops} {day.stops === 1 ? "stop" : "stops"}{day.travel ? " · travel" : ""}</T>
       </Pressable>;
     })}
   </ScrollView>;
