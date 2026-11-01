@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
 import * as SecureStore from "expo-secure-store";
 import * as SplashScreen from "expo-splash-screen";
 
@@ -34,20 +33,6 @@ export function Intro({ onDone }: { onDone: () => void }) {
   const [v] = useState(() => ({ left: new Animated.Value(0), right: new Animated.Value(0), handle: new Animated.Value(0), word: new Animated.Value(0), shift: new Animated.Value(0), fade: new Animated.Value(1), pieces: ROUTE.pieces.map(() => new Animated.Value(0)) }));
   // Wait until the folded map has actually been drawn before dropping the launch screen and starting.
   const [ready, setReady] = useState(false);
-  // The melody is timed to the full version: panel swishes, the handle's knock, one note per
-  // route dot (pitch follows its height), then a chord as the name arrives. It mixes with other
-  // apps' audio instead of pausing it, and stays quiet when the phone is on silent.
-  const sound = useRef<AudioPlayer | null>(null);
-  useEffect(() => {
-    let player: AudioPlayer | null = null;
-    try {
-      void setAudioModeAsync({ playsInSilentMode: false, interruptionMode: "mixWithOthers", shouldPlayInBackground: false }).catch(() => undefined);
-      player = createAudioPlayer(require("../../assets/intro/intro.m4a"));
-      player.volume = 0.8;
-    } catch { player = null; }
-    sound.current = player;
-    return () => { sound.current = null; try { player?.remove(); } catch { /* already released */ } };
-  }, []);
   useEffect(() => { const t = setTimeout(() => setReady(true), 900); return () => clearTimeout(t); }, []);
   useEffect(() => { if (ready) void SplashScreen.hideAsync().catch(() => undefined); }, [ready]);
   useEffect(() => {
@@ -75,13 +60,11 @@ export function Intro({ onDone }: { onDone: () => void }) {
       current = Animated.sequence(quick
         ? [unfold, handle, draw, out(150, 250)]
         : [Animated.delay(200), unfold, Animated.delay(40), handle, draw, reveal, out(2000, 400)]); // the name holds for 2 s
-      if (!quick) try { sound.current?.play(); } catch { /* no sound is fine */ }
       current.start(finish);
     })();
     return () => { finished = true; current?.stop(); };
   }, [v, onDone, ready]);
-  const skip = () => { try { sound.current?.pause(); } catch { /* ignore */ } skipFade(); };
-  const skipFade = () => Animated.timing(v.fade, { toValue: 0, duration: 160, useNativeDriver: true }).start(onDone);
+  const skip = () => Animated.timing(v.fade, { toValue: 0, duration: 160, useNativeDriver: true }).start(onDone);
   const { parts } = ROUTE;
   // Side panels swing open on their fold lines, from edge-on to flat.
   const flap = (value: Animated.Value, side: "left" | "right") => ({ ...box(parts[side]), transformOrigin: side === "left" ? "right" : "left", opacity: value.interpolate({ inputRange: [0, 0.08, 1], outputRange: [0, 1, 1] }), transform: [{ perspective: 500 }, { rotateY: value.interpolate({ inputRange: [0, 1], outputRange: [side === "left" ? "-90deg" : "90deg", "0deg"] }) }] });
