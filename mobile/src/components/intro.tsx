@@ -17,7 +17,10 @@ const PART_IMAGES = { handle: require("../../assets/intro/part-handle.png"), lef
 const BG = "#f6f2e9", INK = "#172e33";
 // Same size and position as the native launch screen (splash imageWidth 110, showing the folded map), so the handoff is invisible.
 const MARK_W = 110, SCALE = MARK_W / ROUTE.width, MARK_H = ROUTE.height * SCALE;
-const WORD_W = 160, WORD_H = WORD_W * 166 / 660, GAP = 14;
+const WORD_W = 190, WORD_H = WORD_W * 166 / 660, GAP = 16;
+// Line the name up on the suitcase body: the middle of its capitals (cap top to baseline,
+// rows 10-136 of the 166-high wordmark) sits on the middle of the body (rows 69-409 of the mark).
+const BODY_MID = (ROUTE.parts.left.y + ROUTE.height) / 2 * SCALE, WORD_TOP = BODY_MID - WORD_H * 73 / 166;
 const KEY = "tripanize-intro-day";
 const box = (b: Box) => ({ position: "absolute" as const, left: b.x * SCALE, top: b.y * SCALE, width: b.w * SCALE, height: b.h * SCALE });
 const timing = (value: Animated.Value, duration: number, easing: (t: number) => number, delay = 0) => Animated.timing(value, { toValue: 1, duration, delay, easing, useNativeDriver: true });
@@ -84,7 +87,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
             <Image source={PART_IMAGES.handle} style={{ width: "100%", height: "100%" }} contentFit="fill" />
           </Animated.View>
         </Animated.View>
-        <Animated.View style={{ position: "absolute", left: MARK_W + GAP - (WORD_W + GAP) / 2, top: (MARK_H - WORD_H) / 2, opacity: v.word, transform: [{ translateX: v.word.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] }}>
+        <Animated.View style={{ position: "absolute", left: MARK_W + GAP - (WORD_W + GAP) / 2, top: WORD_TOP, opacity: v.word, transform: [{ translateX: v.word.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] }}>
           <Image source={require("../../assets/wordmark.png")} tintColor={INK} style={{ width: WORD_W, height: WORD_H }} contentFit="contain" />
         </Animated.View>
       </View>
