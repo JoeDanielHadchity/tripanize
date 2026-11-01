@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as SplashScreen from "expo-splash-screen";
 import { View } from "react-native";
 import { Stack, router, useGlobalSearchParams, usePathname } from "expo-router";
 import { useFonts } from "expo-font";
@@ -10,10 +11,14 @@ import { authClient } from "../lib/auth";
 import { NativeBottomNavigation } from "../components/bottom-navigation";
 import { isMobileTripRoute } from "../../../src/lib/mobile-public";
 import { Loading, Screen } from "../components/ui";
+import { Intro } from "../components/intro";
 import { onPushOpen, syncPush } from "../lib/push";
 import { recoverPurchases } from "../lib/purchases";
 import { workspaceHref } from "../lib/workspace";
 export { ErrorBoundary } from "expo-router";
+
+// Keep the launch screen up until the intro has drawn its first frame over it.
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 /** Signed-in device work: refresh the push token, open tapped alerts, and apply
  * any store purchase that was paid but not yet confirmed. */
@@ -44,4 +49,8 @@ function Navigation() {
     <Stack.Screen name="offline" />
   </Stack></View><NativeBottomNavigation /></SafeAreaView>;
 }
-export default function RootLayout() { return <SafeAreaProvider><ThemeProvider><Navigation /></ThemeProvider></SafeAreaProvider>; }
+export default function RootLayout() {
+  const [intro, setIntro] = useState(true);
+  const [done] = useState(() => () => setIntro(false));
+  return <SafeAreaProvider><ThemeProvider><View style={{ flex: 1 }}><Navigation />{intro && <Intro onDone={done} />}</View></ThemeProvider></SafeAreaProvider>;
+}
