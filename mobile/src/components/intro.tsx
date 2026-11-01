@@ -17,7 +17,7 @@ const PART_IMAGES = { handle: require("../../assets/intro/part-handle.png"), lef
 const BG = "#f6f2e9", INK = "#172e33";
 // Same size and position as the native launch screen (splash imageWidth 110, showing the folded map), so the handoff is invisible.
 const MARK_W = 110, SCALE = MARK_W / ROUTE.width, MARK_H = ROUTE.height * SCALE;
-const WORD_W = 118, WORD_H = WORD_W * 166 / 660, GAP = 12;
+const WORD_W = 160, WORD_H = WORD_W * 166 / 660, GAP = 14;
 const KEY = "tripanize-intro-day";
 const box = (b: Box) => ({ position: "absolute" as const, left: b.x * SCALE, top: b.y * SCALE, width: b.w * SCALE, height: b.h * SCALE });
 const timing = (value: Animated.Value, duration: number, easing: (t: number) => number, delay = 0) => Animated.timing(value, { toValue: 1, duration, delay, easing, useNativeDriver: true });
@@ -49,14 +49,14 @@ export function Intro({ onDone }: { onDone: () => void }) {
         current = Animated.timing(v.fade, { toValue: 0, duration: 250, delay: 250, useNativeDriver: true }); current.start(finish); return;
       }
       const s = quick ? 0.35 : 1; // the quick version runs the same story at about a third of the time
-      const unfold = Animated.parallel([timing(v.left, 700 * s, Easing.out(Easing.back(1.2))), timing(v.right, 700 * s, Easing.out(Easing.back(1.2)), 140 * s)]);
-      const handle = timing(v.handle, 520 * s, Easing.out(Easing.back(2.2)));
-      const draw = Animated.stagger(75 * s, v.pieces.map((p, i) => timing(p, 380 * s, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))));
+      const unfold = Animated.parallel([timing(v.left, 650 * s, Easing.out(Easing.back(1.2))), timing(v.right, 650 * s, Easing.out(Easing.back(1.2)), 130 * s)]);
+      const handle = timing(v.handle, 480 * s, Easing.out(Easing.back(2.2)));
+      const draw = Animated.stagger(70 * s, v.pieces.map((p, i) => timing(p, 360 * s, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))));
       const reveal = Animated.parallel([timing(v.shift, 600, Easing.inOut(Easing.cubic)), timing(v.word, 560, Easing.out(Easing.cubic), 160)]);
       const out = (delay: number, duration: number) => Animated.timing(v.fade, { toValue: 0, duration, delay, useNativeDriver: true });
       current = Animated.sequence(quick
         ? [unfold, handle, draw, out(150, 250)]
-        : [Animated.delay(250), unfold, Animated.delay(60), handle, draw, reveal, out(1700, 400)]); // the name holds for 1.7 s
+        : [Animated.delay(200), unfold, Animated.delay(40), handle, draw, reveal, out(2000, 400)]); // the name holds for 2 s
       current.start(finish);
     })();
     return () => { finished = true; current?.stop(); };
