@@ -24,7 +24,7 @@ const WORD_W = 190, WORD_H = WORD_W * 166 / 660, GAP = 16;
 const BODY_MID = (ROUTE.parts.left.y + ROUTE.height) / 2 * SCALE, WORD_TOP = BODY_MID - WORD_H * 73 / 166;
 // The boarding pass under the name: as wide as the logo + name, and the whole group rises to stay centred.
 const LOCK_W = MARK_W + GAP + WORD_W, LINE_H = 28, LINE_GAP = 22, LIFT = (LINE_GAP + LINE_H) / 2;
-const CORAL = "#b55a3c", TAGLINE = "Your trip organizer";
+const CORAL = "#b55a3c", TAGLINE = "Your Trip Organizer!";
 // The plane tows the tagline in on a short line: it eases to a stop by RELEASE, then the plane lets go and climbs away.
 const RELEASE = 0.55, TOW = 34, SAMPLES = Array.from({ length: 11 }, (_, k) => RELEASE * k / 10);
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
@@ -32,13 +32,13 @@ const KEY = "tripanize-intro-day";
 const box = (b: Box) => ({ position: "absolute" as const, left: b.x * SCALE, top: b.y * SCALE, width: b.w * SCALE, height: b.h * SCALE });
 const timing = (value: Animated.Value, duration: number, easing: (t: number) => number, delay = 0) => Animated.timing(value, { toValue: 1, duration, delay, easing, useNativeDriver: true });
 
-/** Opening animation (about 7 s): a folded map opens its two side panels, the
+/** Opening animation (6 s: logo and name by 4 s, then the tagline): a folded map opens its two side panels, the
  * handle drops on top and it becomes the suitcase, the trip route draws itself
- * dot by dot and the wordmark slides in. Then a plane tows "Your trip organizer"
+ * dot by dot and the wordmark slides in. Then a plane tows "Your Trip Organizer!"
  * in from the left on a little line, lets it go under the name and climbs away.
  * Quicker after the first open each day, none with reduced motion. Tap to skip. */
 export function Intro({ onDone }: { onDone: () => void }) {
-  const [v] = useState(() => ({ left: new Animated.Value(0), right: new Animated.Value(0), handle: new Animated.Value(0), word: new Animated.Value(0), shift: new Animated.Value(0), fly: new Animated.Value(0), fade: new Animated.Value(1), pieces: ROUTE.pieces.map(() => new Animated.Value(0)) }));
+  const [v] = useState(() => ({ left: new Animated.Value(0), right: new Animated.Value(0), handle: new Animated.Value(0), word: new Animated.Value(0), shift: new Animated.Value(0), lift: new Animated.Value(0), fly: new Animated.Value(0), fade: new Animated.Value(1), pieces: ROUTE.pieces.map(() => new Animated.Value(0)) }));
   // Wait until the folded map has actually been drawn before dropping the launch screen and starting.
   const [ready, setReady] = useState(false);
   const [textW, setTextW] = useState(185);
@@ -61,15 +61,16 @@ export function Intro({ onDone }: { onDone: () => void }) {
         current = Animated.timing(v.fade, { toValue: 0, duration: 250, delay: 250, useNativeDriver: true }); current.start(finish); return;
       }
       const s = quick ? 0.35 : 1; // the quick version runs the same story at about a third of the time
-      const unfold = Animated.parallel([timing(v.left, 650 * s, Easing.out(Easing.back(1.2))), timing(v.right, 650 * s, Easing.out(Easing.back(1.2)), 130 * s)]);
-      const handle = timing(v.handle, 480 * s, Easing.out(Easing.back(2.2)));
-      const draw = Animated.stagger(70 * s, v.pieces.map((p, i) => timing(p, 360 * s, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))));
-      const reveal = Animated.parallel([timing(v.shift, 700, Easing.inOut(Easing.cubic)), timing(v.word, 560, Easing.out(Easing.cubic), 160)]);
-      const fly = Animated.timing(v.fly, { toValue: 1, duration: 1900, delay: 450, easing: Easing.linear, useNativeDriver: true });
+      const unfold = Animated.parallel([timing(v.left, 590 * s, Easing.out(Easing.back(1.2))), timing(v.right, 590 * s, Easing.out(Easing.back(1.2)), 120 * s)]);
+      const handle = timing(v.handle, 430 * s, Easing.out(Easing.back(2.2)));
+      const draw = Animated.stagger(62 * s, v.pieces.map((p, i) => timing(p, 330 * s, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))));
+      const reveal = Animated.parallel([timing(v.shift, 650, Easing.inOut(Easing.cubic)), timing(v.word, 500, Easing.out(Easing.cubic), 140)]);
+      // Logo and name are done at 2.58 s; the plane sets off at 3.9 s and the group rises to make room.
+      const fly = Animated.sequence([Animated.delay(1320), Animated.parallel([Animated.timing(v.fly, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true }), timing(v.lift, 600, Easing.inOut(Easing.cubic))])]);
       const out = (delay: number, duration: number) => Animated.timing(v.fade, { toValue: 0, duration, delay, useNativeDriver: true });
       current = Animated.sequence(quick
         ? [unfold, handle, draw, out(150, 250)]
-        : [Animated.delay(200), unfold, Animated.delay(40), handle, draw, Animated.parallel([reveal, fly]), out(1500, 400)]); // everything holds 1.5 s
+        : [Animated.delay(150), unfold, Animated.delay(30), handle, draw, Animated.parallel([reveal, fly]), out(300, 400)]); // fades out 5.6 - 6.0 s
       current.start(finish);
     })();
     return () => { finished = true; current?.stop(); };
@@ -81,7 +82,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
   // The body gives a little as the handle lands on it.
   const squash = v.handle.interpolate({ inputRange: [0, 0.75, 0.9, 1], outputRange: [1, 1, 0.97, 1] });
   const markX = v.shift.interpolate({ inputRange: [0, 1], outputRange: [0, -(WORD_W + GAP) / 2] });
-  const lift = v.shift.interpolate({ inputRange: [0, 1], outputRange: [0, -LIFT] });
+  const lift = v.lift.interpolate({ inputRange: [0, 1], outputRange: [0, -LIFT] });
   // Flight, in tagline-row coordinates. The text's final left edge is L0; until RELEASE the plane
   // flies TOW px ahead of the text's end, then it climbs away to the top right.
   const L0 = (LOCK_W - textW) / 2;
