@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useGlobalSearchParams, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api, authClient } from "../lib/auth";
+import { workspaceHref } from "../lib/workspace";
 import { isMobileTripRoute, mobileNavigationSection } from "../../../src/lib/mobile-public";
 import { T, type IconName } from "./ui";
 import { useTheme } from "./theme";
@@ -34,7 +35,7 @@ export function NativeBottomNavigation() {
   const selected = mobileNavigationSection(pathname, Array.isArray(params.view) ? params.view[0] : params.view);
   if (isMobileTripRoute(pathname, params.tripId)) return null;
   const open = (tab: Tab) => { if (tab.auth && !session) router.navigate({ pathname: "/sign-in", params: { next: tab.id === "inbox" ? "trips" : tab.id } }); else tab.go(); };
-  const create = () => session ? router.push("/start") : router.push({ pathname: "/sign-in", params: { next: "start" } });
+  const create = () => session ? router.push(workspaceHref({ screen: "new" })) : router.push({ pathname: "/sign-in", params: { next: "new" } });
   const item = (tab: Tab) => {
     const on = tab.id === selected;
     return <Pressable key={tab.id} accessibilityRole="tab" accessibilityLabel={tab.id === "inbox" && unread ? `${tab.label}, ${unread} unread` : tab.label} accessibilityState={{ selected: on }} onPress={() => { if (!on) open(tab); }} style={({ pressed }) => ({ flex: 1, minHeight: 54, alignItems: "center", justifyContent: "center", gap: 3, opacity: pressed ? 0.6 : 1 })}>

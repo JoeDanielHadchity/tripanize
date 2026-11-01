@@ -15,6 +15,7 @@ export type MobilePublicGuide = {
 /** Only known local destinations can survive sign-in. */
 export function publicLoginDestination(next: unknown): string {
   if (next === "start") return "/start";
+  if (next === "new") return "/workspace?view=new";
   if (next === "trips") return "/trips";
   if (next === "account") return "/account";
   if (next === "inbox") return "/inbox";

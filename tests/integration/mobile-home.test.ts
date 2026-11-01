@@ -43,6 +43,7 @@ it("cannot use the public feed as a private screen or arbitrary file dispatcher"
 
 it("allows only known local login destinations and safe public provider links", () => {
   expect(publicLoginDestination("start")).toBe("/start");
+  expect(publicLoginDestination("new")).toBe("/workspace?view=new");
   expect(publicLoginDestination("trips")).toBe("/trips");
   expect(publicLoginDestination("account")).toBe("/account");
   for (const slug of PUBLIC_GUIDE_SLUGS) expect(publicLoginDestination(`guide:${slug}`)).toBe(`/guide/${slug}`);

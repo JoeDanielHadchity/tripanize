@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { authClient, photo } from "../lib/auth";
 import { useApi, tripDates } from "../lib/data";
 import { usePublicData, type MobilePublicHome } from "../lib/public-data";
+import { lastPlace } from "../lib/last-place";
 import { workspaceHref } from "../lib/workspace";
 import type { MobileTripCard } from "../lib/types";
 import { HOME_SCENES } from "../../../src/lib/home-content";
@@ -22,7 +23,7 @@ export function countdown(start: string | null, end: string | null) {
   if (days > 1) return `In ${days} days`;
   return null;
 }
-const openTrip = (trip: MobileTripCard) => router.push(workspaceHref({ screen: trip.onboardingStage === "COMPLETE" ? "itinerary" : "setup", tripId: trip.id }));
+const openTrip = (trip: MobileTripCard) => router.push(workspaceHref({ screen: trip.onboardingStage === "COMPLETE" ? lastPlace(trip.id) : "setup", tripId: trip.id }));
 
 function QuickAction({ icon, label, onPress, tint }: { icon: IconName; label: string; onPress: () => void; tint?: string }) {
   const c = useTheme();
@@ -92,7 +93,7 @@ export function NativeHome() {
     <View style={[styles.row, { paddingTop: 4 }]}><View style={{ flex: 1, gap: 2 }}><Muted>{greeting()}</Muted><Heading>{session.user.name?.split(" ")[0] || "Traveler"}</Heading></View><Pressable accessibilityRole="button" accessibilityLabel="Your account" onPress={() => router.navigate("/account")}><Avatar name={session.user.name || session.user.email} size={46} /></Pressable></View>
     <NextTrip />
     <View style={{ flexDirection: "row", gap: 8 }}>
-      <QuickAction icon="add" label="New trip" tint={c.coral} onPress={() => router.push("/start")} />
+      <QuickAction icon="add" label="New trip" tint={c.coral} onPress={() => router.push(workspaceHref({ screen: "new" }))} />
       <QuickAction icon="compass-outline" label="Find a place" onPress={() => router.push("/destinations")} />
       <QuickAction icon="mail-open-outline" label="Invitations" onPress={() => router.push(workspaceHref({ screen: "trips" }))} />
       <QuickAction icon="cloud-offline-outline" label="Offline" onPress={() => router.push("/offline")} />

@@ -2,6 +2,7 @@ import { Linking, Pressable, View } from "react-native";
 import { useState } from "react";
 import { router } from "expo-router";
 import { authClient } from "../lib/auth";
+import { workspaceHref } from "../lib/workspace";
 import { Button, T } from "./ui";
 import { useTheme } from "./theme";
 
@@ -12,5 +13,5 @@ export function NativeLegalLinks() {
 
 export function CreateTripButton({ secondary = false, label = "Create a trip" }: { secondary?: boolean; label?: string }) {
   const { data: session } = authClient.useSession();
-  return <Button secondary={secondary} leadingIcon="add" onPress={() => session ? router.push("/start") : router.push({ pathname: "/sign-in", params: { next: "start" } })}>{label}</Button>;
+  return <Button secondary={secondary} leadingIcon="add" onPress={() => session ? router.push(workspaceHref({ screen: "new" })) : router.push({ pathname: "/sign-in", params: { next: "new" } })}>{label}</Button>;
 }
