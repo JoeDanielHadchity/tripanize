@@ -8,6 +8,7 @@
     "@expo/vector-icons": "^15.0.2",
     "better-auth": "1.7.11",
     "expo": "~57.0.31",
+    "expo-audio": "~57.0.5",
     "expo-constants": "~57.0.22",
     "expo-crypto": "~57.0.4",
     "expo-device": "~57.0.2",
