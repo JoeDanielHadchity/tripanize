@@ -35,7 +35,7 @@ const KEY = "tripanize-intro-day";
 const box = (b: Box) => ({ position: "absolute" as const, left: b.x * SCALE, top: b.y * SCALE, width: b.w * SCALE, height: b.h * SCALE });
 const timing = (value: Animated.Value, duration: number, easing: (t: number) => number, delay = 0) => Animated.timing(value, { toValue: 1, duration, delay, easing, useNativeDriver: true });
 
-/** Opening animation (6 s: logo and name by 4 s, then the tagline): a folded map opens its two side panels, the
+/** Opening animation (3 s, every step at its own pace but overlapping): a folded map opens its two side panels, the
  * handle drops on top and it becomes the suitcase, the trip route draws itself
  * dot by dot and the wordmark slides in. Then a plane tows "Your Trip Organizer!"
  * in from the left on a little line, lets it go under the name and climbs away.
@@ -67,13 +67,17 @@ export function Intro({ onDone }: { onDone: () => void }) {
       const unfold = Animated.parallel([timing(v.left, 590 * s, Easing.out(Easing.back(1.2))), timing(v.right, 590 * s, Easing.out(Easing.back(1.2)), 120 * s)]);
       const handle = timing(v.handle, 430 * s, Easing.out(Easing.back(2.2)));
       const draw = Animated.stagger(62 * s, v.pieces.map((p, i) => timing(p, 330 * s, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))));
-      const reveal = Animated.parallel([timing(v.shift, 650, Easing.inOut(Easing.cubic)), timing(v.word, 500, Easing.out(Easing.cubic), 140)]);
-      // Logo and name are done at 2.58 s; the plane sets off at 3.9 s and the group rises to make room.
-      const fly = Animated.sequence([Animated.delay(1320), Animated.parallel([Animated.timing(v.fly, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true }), timing(v.lift, 600, Easing.inOut(Easing.cubic))])]);
       const out = (delay: number, duration: number) => Animated.timing(v.fade, { toValue: 0, duration, delay, useNativeDriver: true });
-      current = Animated.sequence(quick
-        ? [unfold, handle, draw, out(150, 250)]
-        : [Animated.delay(150), unfold, Animated.delay(30), handle, draw, Animated.parallel([reveal, fly]), out(300, 400)]); // fades out 5.6 - 6.0 s
+      // Full version, 3 s: each move keeps its speed, they just overlap instead of waiting in line.
+      //   panels 0-0.69 · handle 0.38-0.81 · route 0.6-1.86 · plane + tagline 1.0-2.4 · name 1.1-1.75 · hold · fade 2.75-3.0
+      const full = Animated.parallel([
+        timing(v.left, 590, Easing.out(Easing.back(1.2))), timing(v.right, 590, Easing.out(Easing.back(1.2)), 100),
+        timing(v.handle, 430, Easing.out(Easing.back(2.2)), 380),
+        Animated.sequence([Animated.delay(600), draw]),
+        timing(v.shift, 650, Easing.inOut(Easing.cubic), 1100), timing(v.word, 500, Easing.out(Easing.cubic), 1240),
+        Animated.timing(v.fly, { toValue: 1, duration: 1400, delay: 1000, easing: Easing.linear, useNativeDriver: true }), timing(v.lift, 600, Easing.inOut(Easing.cubic), 1100),
+      ]);
+      current = quick ? Animated.sequence([unfold, handle, draw, out(150, 250)]) : Animated.sequence([full, out(350, 250)]);
       current.start(finish);
     })();
     return () => { finished = true; current?.stop(); };
