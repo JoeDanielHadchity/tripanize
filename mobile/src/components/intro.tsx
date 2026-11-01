@@ -23,7 +23,7 @@ const WORD_W = 190, WORD_H = WORD_W * 166 / 660, GAP = 16;
 // rows 10-136 of the 166-high wordmark) sits on the middle of the body (rows 69-409 of the mark).
 const BODY_MID = (ROUTE.parts.left.y + ROUTE.height) / 2 * SCALE, WORD_TOP = BODY_MID - WORD_H * 73 / 166;
 // The boarding pass under the name: as wide as the logo + name, and the whole group rises to stay centred.
-const LOCK_W = MARK_W + GAP + WORD_W, LINE_H = 28, LINE_GAP = 22, LIFT = (LINE_GAP + LINE_H) / 2;
+const LOCK_W = MARK_W + GAP + WORD_W, LINE_H = 32, LINE_GAP = 22, LIFT = (LINE_GAP + LINE_H) / 2;
 const CORAL = "#b55a3c", TAGLINE = "Your Trip Organizer!";
 // The plane tows the tagline in on a short line at a steady speed. At RELEASE it lets go: the text
 // glides to a stop on its own (exponential slow-down, time constant GLIDE) while the plane keeps its
@@ -44,7 +44,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
   const [v] = useState(() => ({ left: new Animated.Value(0), right: new Animated.Value(0), handle: new Animated.Value(0), word: new Animated.Value(0), shift: new Animated.Value(0), lift: new Animated.Value(0), fly: new Animated.Value(0), fade: new Animated.Value(1), pieces: ROUTE.pieces.map(() => new Animated.Value(0)) }));
   // Wait until the folded map has actually been drawn before dropping the launch screen and starting.
   const [ready, setReady] = useState(false);
-  const [textW, setTextW] = useState(185);
+  const [textW, setTextW] = useState(225);
   useEffect(() => { const t = setTimeout(() => setReady(true), 900); return () => clearTimeout(t); }, []);
   useEffect(() => { if (ready) void SplashScreen.hideAsync().catch(() => undefined); }, [ready]);
   useEffect(() => {
@@ -120,7 +120,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
         </Animated.View>
         <View style={{ position: "absolute", left: (MARK_W - LOCK_W) / 2, top: MARK_H + LINE_GAP, width: LOCK_W, height: LINE_H }}>
           <Animated.View style={{ position: "absolute", left: L0, top: 0, height: LINE_H, flexDirection: "row", alignItems: "center", opacity: v.fly.interpolate({ inputRange: [0, 0.02], outputRange: [0, 1], extrapolate: "clamp" }), transform: [{ translateX: textX }] }}>
-            <Text onLayout={e => setTextW(Math.ceil(e.nativeEvent.layout.width))} numberOfLines={1} style={{ fontFamily: "NunitoBold", fontSize: 20, lineHeight: LINE_H, color: INK, letterSpacing: 0.2 }}>{TAGLINE}</Text>
+            <Text onLayout={e => setTextW(Math.ceil(e.nativeEvent.layout.width))} numberOfLines={1} style={{ fontFamily: "NunitoHeading", fontSize: 23, lineHeight: LINE_H, color: INK, letterSpacing: 0.1 }}>{TAGLINE}</Text>
             {/* The tow line, dropped as the plane lets go. */}
             <Animated.View style={{ position: "absolute", left: textW + 4, top: LINE_H / 2 - 0.75, width: TOW - 17, height: 1.5, backgroundColor: CORAL, opacity: v.fly.interpolate({ inputRange: [0, RELEASE - 0.02, RELEASE + 0.03], outputRange: [0.7, 0.7, 0], extrapolate: "clamp" }) }} />
           </Animated.View>
