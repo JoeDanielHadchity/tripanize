@@ -23,22 +23,25 @@ const WORD_W = 190, WORD_H = WORD_W * 166 / 660, GAP = 16;
 // rows 10-136 of the 166-high wordmark) sits on the middle of the body (rows 69-409 of the mark).
 const BODY_MID = (ROUTE.parts.left.y + ROUTE.height) / 2 * SCALE, WORD_TOP = BODY_MID - WORD_H * 73 / 166;
 // The boarding pass under the name: as wide as the logo + name, and the whole group rises to stay centred.
-const PASS_W = MARK_W + GAP + WORD_W, PASS_H = 62, PASS_GAP = 26, STUB_W = 74, LIFT = (PASS_GAP + PASS_H) / 2;
-const MUTED = "#6b7d80", TEAL = "#0f7f86", CORAL = "#b55a3c", PAPER = "#fffdf8";
-const BARS = [2, 1, 1, 3, 1, 2, 1, 1, 2, 3, 1, 1, 2, 1, 3, 1];
+const LOCK_W = MARK_W + GAP + WORD_W, LINE_H = 28, LINE_GAP = 22, LIFT = (LINE_GAP + LINE_H) / 2;
+const CORAL = "#b55a3c", TAGLINE = "Your trip organizer";
+// The plane tows the tagline in on a short line: it eases to a stop by RELEASE, then the plane lets go and climbs away.
+const RELEASE = 0.55, TOW = 34, SAMPLES = Array.from({ length: 11 }, (_, k) => RELEASE * k / 10);
+const easeOut = (t: number) => 1 - (1 - t) ** 3;
 const KEY = "tripanize-intro-day";
 const box = (b: Box) => ({ position: "absolute" as const, left: b.x * SCALE, top: b.y * SCALE, width: b.w * SCALE, height: b.h * SCALE });
 const timing = (value: Animated.Value, duration: number, easing: (t: number) => number, delay = 0) => Animated.timing(value, { toValue: 1, duration, delay, easing, useNativeDriver: true });
 
-/** Opening animation (about 6.8 s): a folded map opens its two side panels, the
+/** Opening animation (about 7 s): a folded map opens its two side panels, the
  * handle drops on top and it becomes the suitcase, the trip route draws itself
- * dot by dot and the wordmark slides in. Then a plane flies in under it, laying
- * down a boarding pass that reads "Your trip organizer", and climbs away.
+ * dot by dot and the wordmark slides in. Then a plane tows "Your trip organizer"
+ * in from the left on a little line, lets it go under the name and climbs away.
  * Quicker after the first open each day, none with reduced motion. Tap to skip. */
 export function Intro({ onDone }: { onDone: () => void }) {
   const [v] = useState(() => ({ left: new Animated.Value(0), right: new Animated.Value(0), handle: new Animated.Value(0), word: new Animated.Value(0), shift: new Animated.Value(0), fly: new Animated.Value(0), fade: new Animated.Value(1), pieces: ROUTE.pieces.map(() => new Animated.Value(0)) }));
   // Wait until the folded map has actually been drawn before dropping the launch screen and starting.
   const [ready, setReady] = useState(false);
+  const [textW, setTextW] = useState(185);
   useEffect(() => { const t = setTimeout(() => setReady(true), 900); return () => clearTimeout(t); }, []);
   useEffect(() => { if (ready) void SplashScreen.hideAsync().catch(() => undefined); }, [ready]);
   useEffect(() => {
@@ -62,7 +65,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
       const handle = timing(v.handle, 480 * s, Easing.out(Easing.back(2.2)));
       const draw = Animated.stagger(70 * s, v.pieces.map((p, i) => timing(p, 360 * s, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))));
       const reveal = Animated.parallel([timing(v.shift, 700, Easing.inOut(Easing.cubic)), timing(v.word, 560, Easing.out(Easing.cubic), 160)]);
-      const fly = Animated.timing(v.fly, { toValue: 1, duration: 1500, delay: 450, easing: Easing.inOut(Easing.sin), useNativeDriver: true });
+      const fly = Animated.timing(v.fly, { toValue: 1, duration: 1900, delay: 450, easing: Easing.linear, useNativeDriver: true });
       const out = (delay: number, duration: number) => Animated.timing(v.fade, { toValue: 0, duration, delay, useNativeDriver: true });
       current = Animated.sequence(quick
         ? [unfold, handle, draw, out(150, 250)]
@@ -79,14 +82,16 @@ export function Intro({ onDone }: { onDone: () => void }) {
   const squash = v.handle.interpolate({ inputRange: [0, 0.75, 0.9, 1], outputRange: [1, 1, 0.97, 1] });
   const markX = v.shift.interpolate({ inputRange: [0, 1], outputRange: [0, -(WORD_W + GAP) / 2] });
   const lift = v.shift.interpolate({ inputRange: [0, 1], outputRange: [0, -LIFT] });
-  // Flight path, in boarding-pass coordinates: glide in from off screen, skim along the pass
-  // (uncovering it), then climb away to the top right.
-  const offLeft = -(Dimensions.get("window").width - PASS_W) / 2 - 40;
-  const path = { inputRange: [0, 0.25, 0.7, 1], x: [offLeft, -6, PASS_W + 8, PASS_W + 150], y: [PASS_H / 2 - 46, PASS_H / 2, PASS_H / 2, -280], r: ["14deg", "0deg", "0deg", "-52deg"] };
-  const planeX = v.fly.interpolate({ inputRange: path.inputRange, outputRange: path.x }), planeY = v.fly.interpolate({ inputRange: path.inputRange, outputRange: path.y });
-  const planeR = v.fly.interpolate({ inputRange: path.inputRange, outputRange: path.r });
-  // The cover's edge rides just behind the plane's nose (cover starts 30 px left of the pass, to hide its shadow too).
-  const uncover = v.fly.interpolate({ inputRange: [0.2, 0.25, 0.7], outputRange: [0, 36, PASS_W + 50], extrapolate: "clamp" });
+  // Flight, in tagline-row coordinates. The text's final left edge is L0; until RELEASE the plane
+  // flies TOW px ahead of the text's end, then it climbs away to the top right.
+  const L0 = (LOCK_W - textW) / 2;
+  const START = -((Dimensions.get("window").width - LOCK_W) / 2 + L0 + textW + TOW + 30);
+  const textAt = (u: number) => START * (1 - easeOut(Math.min(u / RELEASE, 1)));
+  const textX = v.fly.interpolate({ inputRange: SAMPLES, outputRange: SAMPLES.map(textAt), extrapolate: "clamp" });
+  const nose = L0 + textW + TOW;
+  const planeX = v.fly.interpolate({ inputRange: [...SAMPLES, 0.72, 1], outputRange: [...SAMPLES.map(u => textAt(u) + nose), nose + 45, nose + 210] });
+  const planeY = v.fly.interpolate({ inputRange: [0, 0.2, RELEASE, 0.72, 1], outputRange: [LINE_H / 2 - 30, LINE_H / 2, LINE_H / 2, LINE_H / 2 - 10, -300] });
+  const planeR = v.fly.interpolate({ inputRange: [0, 0.2, RELEASE, 0.72, 1], outputRange: ["10deg", "0deg", "0deg", "-14deg", "-50deg"] });
   return <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: BG, opacity: v.fade, zIndex: 100, elevation: 100 }]}>
     <Pressable accessibilityRole="button" accessibilityLabel="Tripanize. Tap to skip the intro" onPress={skip} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
       <Animated.View style={{ width: MARK_W, height: MARK_H, transform: [{ translateY: lift }] }}>
@@ -106,13 +111,13 @@ export function Intro({ onDone }: { onDone: () => void }) {
         <Animated.View style={{ position: "absolute", left: MARK_W + GAP - (WORD_W + GAP) / 2, top: WORD_TOP, opacity: v.word, transform: [{ translateX: v.word.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] }}>
           <Image source={require("../../assets/wordmark.png")} tintColor={INK} style={{ width: WORD_W, height: WORD_H }} contentFit="contain" />
         </Animated.View>
-        <View style={{ position: "absolute", left: (MARK_W - PASS_W) / 2, top: MARK_H + PASS_GAP, width: PASS_W, height: PASS_H }}>
-          <BoardingPass />
-          {/* A strip of background that the plane pulls away as it passes. */}
-          <Animated.View style={{ position: "absolute", left: -30, top: -30, width: PASS_W + 80, height: PASS_H + 64, backgroundColor: BG, transform: [{ translateX: uncover }] }} />
-          <Animated.View style={{ position: "absolute", left: -15, top: -15, width: 30, height: 30, alignItems: "center", justifyContent: "center", opacity: v.fly.interpolate({ inputRange: [0, 0.04, 0.93, 1], outputRange: [0, 1, 1, 0] }), transform: [{ translateX: planeX }, { translateY: planeY }, { rotate: planeR }] }}>
-            <View style={{ position: "absolute", right: 24, top: 9, width: 16, height: 2, borderRadius: 1, backgroundColor: CORAL, opacity: 0.35 }} />
-            <View style={{ position: "absolute", right: 26, top: 16, width: 10, height: 2, borderRadius: 1, backgroundColor: CORAL, opacity: 0.25 }} />
+        <View style={{ position: "absolute", left: (MARK_W - LOCK_W) / 2, top: MARK_H + LINE_GAP, width: LOCK_W, height: LINE_H }}>
+          <Animated.View style={{ position: "absolute", left: L0, top: 0, height: LINE_H, flexDirection: "row", alignItems: "center", opacity: v.fly.interpolate({ inputRange: [0, 0.02], outputRange: [0, 1], extrapolate: "clamp" }), transform: [{ translateX: textX }] }}>
+            <Text onLayout={e => setTextW(Math.ceil(e.nativeEvent.layout.width))} numberOfLines={1} style={{ fontFamily: "NunitoBold", fontSize: 20, lineHeight: LINE_H, color: INK, letterSpacing: 0.2 }}>{TAGLINE}</Text>
+            {/* The tow line, dropped as the plane lets go. */}
+            <Animated.View style={{ position: "absolute", left: textW + 4, top: LINE_H / 2 - 0.75, width: TOW - 17, height: 1.5, backgroundColor: CORAL, opacity: v.fly.interpolate({ inputRange: [0, RELEASE - 0.05, RELEASE + 0.03], outputRange: [0.7, 0.7, 0], extrapolate: "clamp" }) }} />
+          </Animated.View>
+          <Animated.View style={{ position: "absolute", left: -15, top: -15, width: 30, height: 30, alignItems: "center", justifyContent: "center", opacity: v.fly.interpolate({ inputRange: [0, 0.02, 0.93, 1], outputRange: [0, 1, 1, 0] }), transform: [{ translateX: planeX }, { translateY: planeY }, { rotate: planeR }] }}>
             <Ionicons name="airplane" size={27} color={CORAL} />
           </Animated.View>
         </View>
@@ -121,18 +126,3 @@ export function Intro({ onDone }: { onDone: () => void }) {
   </Animated.View>;
 }
 
-/** The ticket the plane lays down: "Your trip organizer", with a torn-off stub. */
-function BoardingPass() {
-  return <View style={{ width: PASS_W, height: PASS_H, flexDirection: "row", borderRadius: 12, backgroundColor: PAPER, borderWidth: 1, borderColor: "rgba(23,46,51,0.10)", boxShadow: "0 6px 16px rgba(23,46,51,0.10)" }}>
-    <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 16, gap: 2 }}>
-      <Text style={{ fontFamily: "NunitoBold", fontSize: 9, letterSpacing: 1.8, color: MUTED }}>BOARDING PASS</Text>
-      <Text numberOfLines={1} style={{ fontFamily: "NunitoHeading", fontSize: 18, color: INK }}>Your trip organizer</Text>
-    </View>
-    <View style={{ width: STUB_W, borderLeftWidth: 1.5, borderStyle: "dashed", borderColor: "rgba(23,46,51,0.22)", alignItems: "center", justifyContent: "center", gap: 6 }}>
-      <Ionicons name="airplane" size={14} color={TEAL} />
-      <View style={{ flexDirection: "row", alignItems: "flex-end", height: 18, gap: 1.5 }}>{BARS.map((w, i) => <View key={i} style={{ width: w, height: i % 5 === 2 ? 14 : 18, backgroundColor: INK, opacity: 0.8 }} />)}</View>
-    </View>
-    {/* Notches where the stub tears off. */}
-    {[-7, PASS_H - 8].map(top => <View key={top} style={{ position: "absolute", left: PASS_W - STUB_W - 8, top, width: 15, height: 15, borderRadius: 8, backgroundColor: BG }} />)}
-  </View>;
-}
