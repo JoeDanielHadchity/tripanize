@@ -37,7 +37,9 @@ export async function researchRestaurants(opts: {
   const researchEvidence = new Set(days.flatMap(d => MEALS.flatMap(meal => d.meals[meal].flatMap(r => r.sourceUrls))));
   for (let attempt = 0; attempt < 2; attempt++) {
     const remainingSlots = days.flatMap(d => MEALS.filter(meal => d.meals[meal].length < 2).map(meal => ({ date: d.date, meal, needed: 2 - d.meals[meal].length, area: d.area })));
-    if (!remainingSlots.length && sourceSites(researchEvidence).size >= 3) break;
+    // Every meal has its choices: stop. Fewer than three source sites is reported
+    // below instead of paying for another research pass that changes nothing.
+    if (!remainingSlots.length) break;
     if (opts.signal.aborted) throw new AIError("CANCELLED", "Generation was cancelled.");
     const result = await opts.generate({
       schema: RestaurantResearchSchema, name: "trip_restaurants",

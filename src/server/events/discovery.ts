@@ -22,6 +22,18 @@ export async function requestDiscovery(userId: string, tripId: string) {
   return run;
 }
 
+type SearchTrip = {
+  startDate: string | null; endDate: string | null; timezone: string; interests: unknown; pace: unknown; preferences: unknown; planPrefs: unknown;
+  accessibility: unknown; dietary: unknown; notes: unknown; budgetMinor: unknown; currency: unknown; adults: number; children: number;
+  destinations: { name: string; country: string | null; arriveDate: string | null; departDate: string | null }[];
+};
+/** Only the trip facts the search is based on. Edits to anything else (name, cover,
+ * itinerary, bookings) must not throw away a search that has already been paid for. */
+export function searchFingerprint(t: SearchTrip) {
+  return JSON.stringify([t.startDate, t.endDate, t.timezone, t.interests, t.pace, t.preferences, t.planPrefs, t.accessibility, t.dietary, t.notes, t.budgetMinor, t.currency, t.adults, t.children,
+    t.destinations.map(d => [d.name, d.country, d.arriveDate, d.departDate])]);
+}
+
 /** Performs one discovery run (called by the worker). New results only enter the shortlist. */
 export async function runDiscovery(runId: string, generate = generateStructured) {
   const claimed = await prisma.discoveryRun.updateMany({ where: { id: runId, status: "queued" }, data: { status: "running", startedAt: new Date() } });
@@ -56,8 +68,8 @@ export async function runDiscovery(runId: string, generate = generateStructured)
     });
     await prisma.$transaction(async tx => {
       await requirePremiumAccess(run.tripId, "events", tx);
-      const current = await tx.trip.findUniqueOrThrow({ where: { id: trip.id } });
-      if ((run.trigger === "scheduled" && !current.autoDiscovery) || current.version !== trip.version || JSON.stringify(current.planPrefs) !== JSON.stringify(trip.planPrefs)) throw new AppError("CONFLICT", "Trip details or preferences changed during this search. The next check will use the latest choices.");
+      const current = await tx.trip.findUniqueOrThrow({ where: { id: trip.id }, include: { destinations: { orderBy: { position: "asc" } } } });
+      if ((run.trigger === "scheduled" && !current.autoDiscovery) || searchFingerprint(current) !== searchFingerprint(trip)) throw new AppError("CONFLICT", "Trip details or preferences changed during this search. The next check will use the latest choices.");
       const result = await upsertDiscoveredEvents(
         trip.id,
         inWindow.map((e) => ({

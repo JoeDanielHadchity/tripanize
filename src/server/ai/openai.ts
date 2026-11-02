@@ -33,7 +33,9 @@ export function webSearchEnabled() {
 let client: OpenAI | null = null;
 function getClient() {
   if (!process.env.OPENAI_API_KEY) throw new AIError("NOT_CONFIGURED", "AI planning is not configured on this server (OPENAI_API_KEY is missing).");
-  client ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 1 });
+  // Retries are handled in requestStructured: the SDK would also retry after a
+  // timeout, when OpenAI may already have finished (and billed) the first attempt.
+  client ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 });
   return client;
 }
 
@@ -69,7 +71,10 @@ async function requestStructured<S extends z.ZodType>(opts: StructuredOptions<S>
   const model = aiModel();
   const useSearch = Boolean(opts.webSearch && webSearchEnabled());
   let resp: OpenAI.Responses.Response;
-  try {
+  // Durable planning sections have bounded research passes and their own retry;
+  // a nested retry could exceed the alarm deadline and repeat paid searches.
+  const retryable = !(["trip_packing", "trip_plan", "trip_restaurants"].includes(opts.name) && opts.metering?.jobId);
+  for (let attempt = 0; ; attempt++) try {
     resp = await openai.responses.create(
       {
         model,
@@ -84,12 +89,12 @@ async function requestStructured<S extends z.ZodType>(opts: StructuredOptions<S>
         max_output_tokens: opts.maxOutputTokens ?? 24000,
         store: false,
       },
-      { signal: opts.signal, timeout: opts.timeoutMs ?? 6 * 60_000,
-        // Durable planning sections have bounded research passes. Nested SDK
-        // retries could exceed the alarm deadline and repeat paid searches.
-        ...(["trip_packing", "trip_plan", "trip_restaurants"].includes(opts.name) && opts.metering?.jobId ? { maxRetries: 0 } : {}) },
+      { signal: opts.signal, timeout: opts.timeoutMs ?? 6 * 60_000 },
     );
+    break;
   } catch (err) {
+    const wait = attempt === 0 && retryable ? unbilledRetryDelay(err, opts.signal) : undefined;
+    if (wait !== undefined) { await sleep(wait, opts.signal); continue; }
     // Operational metadata only: never log the prompt, response body or credentials.
     console.error("[ai] request failed", err instanceof OpenAI.APIError ? { name: opts.name, status: err.status, code: err.code, param: err.param, requestId: err.requestID } : { name: opts.name, type: err instanceof Error ? err.name : "unknown" });
     throw classify(err, opts.signal);
@@ -165,6 +170,25 @@ function classify(err: unknown, signal?: AbortSignal): AIError {
     return new AIError("UPSTREAM", `OpenAI returned an error (HTTP ${status ?? "?"}). Please try again.`);
   }
   return new AIError("UPSTREAM", "Unexpected error while contacting OpenAI.");
+}
+
+/** A retry is only safe when OpenAI refused the request outright (rate limit or a
+ * server error), so nothing was billed. Never after a timeout or dropped connection. */
+export function unbilledRetryDelay(err: unknown, signal?: AbortSignal): number | undefined {
+  if (signal?.aborted || !(err instanceof OpenAI.APIError) || err instanceof OpenAI.APIConnectionError) return undefined;
+  const status = err.status ?? 0, code = (err as { code?: string | null }).code ?? "";
+  const transient = (status === 429 && ["rate_limit_exceeded", "slow_down"].includes(code)) || [500, 502, 503].includes(status);
+  if (!transient) return undefined;
+  const delay = retryDelay(err.headers) ?? 1500;
+  return delay <= 20_000 ? delay : undefined;
+}
+
+function sleep(ms: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", stop); resolve(); }, ms);
+    const stop = () => { clearTimeout(timer); reject(new AIError("CANCELLED", "Generation was cancelled.")); };
+    signal?.addEventListener("abort", stop, { once: true });
+  });
 }
 
 function retryDelay(headers?: Headers): number | undefined {

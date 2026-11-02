@@ -128,4 +128,24 @@ describe("restaurant research and safe refresh", () => {
     expect(proposal.days.every(d => d.questions.some(q => /No restaurant was repeated/.test(q)))).toBe(true);
     expect(proposal.days[0].questions.some(q => /three independent websites/.test(q))).toBe(true);
   });
+
+  it("stops after one research pass once every meal is filled, and reports thin sources instead of paying again", async () => {
+    const { owner, tripId } = await fixture(2);
+    const job = await prisma.generationJob.create({ data: { tripId, requestedById: owner.id, kind: "full", params: {} } });
+    await claimJob(job.id);
+    let researchCalls = 0;
+    const oneSite = (o: RestaurantOption) => ({ ...o, sourceUrls: [sources[0]] });
+    await runJob(job.id, (async (opts: { name: string; input: string }) => {
+      const data = tripData(opts.input);
+      if (opts.name === "trip_plan") return { data: { summary: "Trip", days: data.datesToPlan.map(day), generalNotes: [], unplacedMustSees: [] }, model: "stub", sources: [sources[0]], usage: null };
+      researchCalls++;
+      const research = researchData(opts.input);
+      const dates = [...new Set(research.remainingSlots.map((s: any) => s.date))] as string[];
+      return { data: { days: dates.map(date => ({ date, meals: Object.fromEntries(Object.entries(choices(date)).map(([meal, list]) => [meal, list.map(oneSite)])) })), researchSources: [sources[0]] }, model: "stub", sources: [sources[0]], usage: null };
+    }) as Generator);
+    const proposal = (await prisma.generationJob.findUniqueOrThrow({ where: { id: job.id } })).proposal as unknown as Proposal;
+    expect(researchCalls).toBe(1);
+    expect(proposal.days.flatMap(d => restaurantRefs(d.meals))).toHaveLength(12);
+    expect(proposal.days[0].questions.some(q => /three independent websites/.test(q))).toBe(true);
+  });
 });

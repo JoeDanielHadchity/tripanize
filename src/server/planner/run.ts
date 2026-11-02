@@ -83,7 +83,9 @@ async function runJobInContext(job: GenerationJob, generate: Generator, checkpoi
         if (["failed", "running"].includes(previous.status)) await prisma.discoveryRun.update({ where: { id }, data: { status: "queued", error: null } });
         await runDiscovery(id, generate);
         const result = await prisma.discoveryRun.findUniqueOrThrow({ where: { id } });
-        if (result.status !== "succeeded") throw new AIError("UPSTREAM", result.error ?? "Event research could not finish. Please retry to continue.");
+        // Events are optional: a failed search must not stop (or re-charge on retry)
+        // the itinerary the traveler is waiting for. Scheduled checks try again later.
+        if (result.status !== "succeeded") await progress(jobId, "Events couldn't be checked right now. Your itinerary is being planned anyway, and events will be searched again automatically.");
       }
       await prisma.generationJob.update({ where: { id: jobId }, data: { params: { ...params, eventsReady: true } as Prisma.InputJsonValue } });
       if (checkpoint) return; // A fresh alarm keeps event research separate from itinerary generation.
@@ -268,8 +270,3 @@ async function runSwap(jobId: string, tripId: string, params: JobParams, generat
   await progress(jobId, `Found ${alternatives.length} alternative(s)`);
 }
 
-/** Marks jobs whose worker died mid-run as failed (they never touched the itinerary). */
-export async function failStaleJobs() {
-  const cutoff = new Date(Date.now() - 20 * 60_000);
-  await prisma.generationJob.updateMany({ where: { status: "RUNNING", startedAt: { lt: cutoff } }, data: { status: "FAILED", finishedAt: new Date(), error: "The planning worker stopped unexpectedly. Your itinerary was not changed — please try again.", errorCode: "UPSTREAM" } });
-}
