@@ -43,6 +43,8 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
       const stopId = job.params && typeof job.params === "object" && !Array.isArray(job.params) && typeof job.params.stopId === "string" ? job.params.stopId : "";
       const sourceStop = await prisma.stop.findFirst({ where: { id: stopId, tripId }, select: { version: true } });
       if (parsed.success) for (const [index, s] of parsed.data.alternatives.entries()) blocks.push({ id: `swap-${index}`, title: s.title, text: s.reason, meta: `${s.startTime} · ${s.durationMin} minutes`, actions: [...link("Official website", s.officialUrl), ...(canEdit ? [act("Choose this alternative", "plan.swap", { id: job.id, index, version: sourceStop?.version ?? 0 }, "Replace the original stop with this alternative?")] : [])] });
+    } else if (job.kind === "restaurants" && job.status === "SUCCEEDED") {
+      blocks.push({ id: "restaurants-ready", title: "Restaurants refreshed", text: "Bookings and manual activities kept. Undo is available in History & undo.", actions: [go("View itinerary", "itinerary", tripId)] });
     } else if (job.status === "SUCCEEDED") {
       const proposal = ProposalSchema.safeParse(job.proposal);
       if (proposal.success) {
@@ -85,6 +87,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   const blocks: MobileBlock[] = [...(cover ? [{ id: "cover", image: { url: cover.url, credit: cover.credit } }] : []), { id: "tools", title: trip.name, meta: premium ? "★ Premium" : "Standard", actions: [...(canEdit ? [go("Plan with AI", "plan", tripId)] : []), ...(premium ? [go("Trip assistant", "assistant", tripId)] : []), go("Group voting", "votes", tripId), go("History & undo", "versions", tripId), { label: "Save itinerary offline", device: "offline" }, { label: "Download trip PDF", device: "file", url: `/api/mobile/files?tripId=${encodeURIComponent(tripId)}&kind=pdf`, fileName: "Tripanize-trip.pdf" }] },
     { id: "days", actions: days.map((d, i) => go(`Day ${i + 1} · ${d.date.slice(5)}`, "itinerary", tripId, d.id)) },
   ];
+  if (canEdit && premium) blocks[cover ? 1 : 0].actions?.push(act("Refresh restaurants", "plan.start", { kind: "restaurants" }, "Research new restaurant options for the whole trip? Bookings and manual activities are kept; you can undo from History & undo."));
   if (!day) { blocks.push({ id: "dates", text: "Add your trip dates to start planning each day.", actions: [go("Trip settings", "settings", tripId)] }); return { blocks }; }
   blocks.push({ id: "day", title: `${day.date} · ${day.title ?? day.destination?.name ?? "Your day"}`, text: day.notes ?? undefined, meta: `Plan ${day.activePlan}`, actions: canEdit ? [go("Day details", "day", tripId, day.id), { ...go("Add a stop", "stop", tripId), to: { screen: "stop", tripId, day: day.id } }, act(`Use Plan ${day.activePlan === "A" ? "B" : "A"}`, "day.plan", { id: day.id, plan: day.activePlan === "A" ? "B" : "A" })] : [] });
   const active = day.stops.filter(s => s.plan === day.activePlan && s.status !== "SKIPPED");

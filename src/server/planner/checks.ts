@@ -1,9 +1,9 @@
-import { readMealOptions } from "@/lib/meal-options";
 import { isDateStr, isTimeStr, toMinutes } from "@/lib/dates";
 import { safeUrl } from "@/lib/maps";
 import { findOverlaps, type SchedStop } from "@/server/itinerary/schedule";
 import type { Anchor } from "./context";
 import type { PlanDay, PlanStop, Proposal } from "./schema";
+import { RestaurantRegistry, uniqueMealOptions, type RestaurantRef } from "@/lib/restaurant-diversity";
 
 export type Issue = { date: string | null; severity: "conflict" | "warning" | "info"; message: string };
 
@@ -13,6 +13,8 @@ export type CheckInput = {
   mustSee: string[];
   arrivalAt: string | null; // YYYY-MM-DDTHH:MM
   departureAt: string | null;
+  excludedRestaurants?: RestaurantRef[];
+  excludedPlaces?: string[];
 };
 
 const BOOKED_CLAIM = /\b(already (booked|reserved|paid)|is booked|are booked|you('ve| have) booked|booking (is )?confirmed|confirmed reservation|reservation confirmed)\b/i;
@@ -72,6 +74,8 @@ export function checkProposal(p: Proposal, input: CheckInput): { proposal: Propo
   const wanted = new Set(input.dates);
   const seen = new Set<string>();
   const days: PlanDay[] = [];
+  const restaurants = new RestaurantRegistry(input.excludedRestaurants);
+  const places = new RestaurantRegistry((input.excludedPlaces ?? []).map(name => ({ name })));
 
   for (const d of p.days) {
     if (!isDateStr(d.date) || !wanted.has(d.date)) {
@@ -83,10 +87,17 @@ export function checkProposal(p: Proposal, input: CheckInput): { proposal: Propo
       continue;
     }
     seen.add(d.date);
-    const stops = d.stops.map((s) => sanitizeStop(s, d.date, issues)).filter((s): s is PlanStop => Boolean(s));
-    const planB = d.planB.map((s) => sanitizeStop(s, d.date, issues)).filter((s): s is PlanStop => Boolean(s));
+    const uniquePlace = (s: PlanStop) => {
+      if (s.isMeal || s.isFreeTime || ["transport", "accommodation", "rest", "food", "cafe"].includes(s.category)) return true;
+      // A shared tourism-office homepage does not identify an attraction.
+      const ref = { name: s.locationName || s.title };
+      if (places.has(ref)) { issues.push({ date: d.date, severity: "warning", message: `Removed repeated place “${ref.name}”. Choose a different activity for this slot.` }); return false; }
+      places.add(ref); return true;
+    };
+    const stops = d.stops.map((s) => sanitizeStop(s, d.date, issues)).filter((s): s is PlanStop => Boolean(s)).filter(uniquePlace);
+    const planB = d.planB.map((s) => sanitizeStop(s, d.date, issues)).filter((s): s is PlanStop => Boolean(s)).filter(uniquePlace);
     stops.sort((a, b) => (a.startTime || "99").localeCompare(b.startTime || "99"));
-    const meals = readMealOptions(d.meals);
+    const meals = uniqueMealOptions(d.meals, restaurants);
     if (d.meals) for (const meal of ["breakfast", "lunch", "dinner"] as const) {
       if (meals[meal].length < 2) issues.push({ date: d.date, severity: "info", message: `Only ${meals[meal].length} sourced ${meal} option(s) were found. Check local options before you go.` });
     }

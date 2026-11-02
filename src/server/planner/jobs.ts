@@ -9,8 +9,8 @@ import { currentRuntime, normalUserMode } from "@/server/cloudflare/runtime";
 import { planningScope } from "@/server/plans/planning";
 import { requirePremiumAccess } from "@/server/plans/access";
 
-export type JobKind = "full" | "days" | "swap";
-export type JobParams = { dates?: string[]; stopId?: string; instruction?: string | null; onboarding?: boolean; eventsReady?: boolean; normalMode?: boolean };
+export type JobKind = "full" | "days" | "swap" | "restaurants";
+export type JobParams = { dates?: string[]; stopId?: string; instruction?: string | null; onboarding?: boolean; eventsReady?: boolean; normalMode?: boolean; restaurantBaseHash?: string };
 
 /**
  * Queues an AI job. Guards: AI must be configured (no simulated results), essentials must be present,
@@ -22,7 +22,7 @@ export async function enqueueJob(userId: string, tripId: string, kind: JobKind, 
     await requireTrip(tripId, userId, "manage");
     if (kind !== "full" || (await prisma.trip.findUniqueOrThrow({ where: { id: tripId } })).onboardingStage !== "QUESTIONS") throw new AppError("CONFLICT", "Complete guided setup before generating this trip.");
   }
-  if (!["full", "days", "swap"].includes(kind)) throw new AppError("VALIDATION", "Choose a valid planning tool.");
+  if (!["full", "days", "swap", "restaurants"].includes(kind)) throw new AppError("VALIDATION", "Choose a valid planning tool.");
   if (!aiConfigured()) {
     throw new AppError("NOT_CONFIGURED", "AI planning isn't available on this server yet: the administrator needs to set an OpenAI API key (OPENAI_API_KEY). You can still plan manually.");
   }
@@ -40,13 +40,17 @@ export async function enqueueJob(userId: string, tripId: string, kind: JobKind, 
   const scope = await planningScope(tripId, kind, params.dates);
 
   const active = await prisma.generationJob.findFirst({
-    where: { tripId, status: { in: ["QUEUED", "RUNNING"] }, kind: kind === "swap" ? "swap" : { in: ["full", "days"] }, ...(kind === "swap" ? { params: { path: "$.stopId", equals: params.stopId! } } : {}) },
+    where: { tripId, status: { in: ["QUEUED", "RUNNING"] }, kind: kind === "swap" ? "swap" : { in: ["full", "days", "restaurants"] }, ...(kind === "swap" ? { params: { path: "$.stopId", equals: params.stopId! } } : {}) },
   });
-  if (active) { if (params.onboarding && !(active.params as JobParams).onboarding) throw new AppError("CONFLICT", "Another draft is being prepared. Wait for it to finish before starting guided setup."); await currentRuntime().wakeAi?.(); return { jobId: active.id, existing: true }; }
+  if (active) {
+    if ((active.kind === "restaurants" || kind === "restaurants") && active.kind !== kind) throw new AppError("CONFLICT", "Another planning task is running. Wait for it to finish before refreshing restaurants.");
+    if (params.onboarding && !(active.params as JobParams).onboarding) throw new AppError("CONFLICT", "Another draft is being prepared. Wait for it to finish before starting guided setup."); await currentRuntime().wakeAi?.(); return { jobId: active.id, existing: true };
+  }
 
   await rateLimit(`ai:${kind === "swap" ? "swap" : "plan"}:${userId}`, kind === "swap" ? 30 : 12, 3600, "You've reached the hourly limit for AI requests. Please try again later.");
+  const restaurantBaseHash = kind === "restaurants" ? (await (await import("./restaurant-refresh")).restaurantRefreshState(prisma, tripId)).hash : undefined;
   const job = await prisma.generationJob.create({
-    data: { tripId, kind, params: { dates: scope ?? params.dates ?? null, stopId: params.stopId ?? null, instruction: params.instruction?.slice(0, 500) ?? null, ...(params.onboarding ? { onboarding: true } : {}), ...(normalUserMode(userId) ? { normalMode: true } : {}) } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your trip is queued and will start shortly" }] },
+    data: { tripId, kind, params: { dates: scope ?? params.dates ?? null, stopId: params.stopId ?? null, instruction: params.instruction?.slice(0, 500) ?? null, ...(restaurantBaseHash ? { restaurantBaseHash } : {}), ...(params.onboarding ? { onboarding: true } : {}), ...(normalUserMode(userId) ? { normalMode: true } : {}) } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your trip is queued and will start shortly" }] },
   });
   await currentRuntime().wakeAi?.();
   return { jobId: job.id, existing: false };

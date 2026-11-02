@@ -14,6 +14,7 @@ import { getProfile } from "@/server/profile";
 import { LinkButton, Notice, PageHeader } from "@/components/ui";
 import { TripReadiness } from "@/components/trip-readiness";
 import { ItineraryView } from "./view";
+import { RefreshRestaurants } from "@/components/itinerary/refresh-restaurants";
 import { todayIn, tripLength } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Itinerary" };
@@ -52,6 +53,7 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
           </>
         }
       />
+      {canEdit && premium && aiConfigured() && days.length > 0 && <RefreshRestaurants tripId={tripId} />}
       {checkout === "normal" && !premium && <Notice tone="sage" className="mb-5" title="Normal checkout · $0">Your trip is ready to use. No payment is needed. Add your itinerary, bookings and packing items whenever you like.</Notice>}
       <TripReadiness items={[
         { label: "Daily plans", done: days.length > 0 && planned === days.length, detail: `${planned} of ${days.length} days have stops planned`, href: `${base}/itinerary` },

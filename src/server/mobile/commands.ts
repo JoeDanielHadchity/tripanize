@@ -113,7 +113,7 @@ export async function mobileCommand(userId: string, raw: unknown, sessionId?: st
     case "day.save": { const d = parse(edit.extend({ title: maybeText, notes: maybeText, planBNote: maybeText })); await itinerary.updateDay(userId, tripId, d.id, { title: d.title, notes: d.notes, planBNote: d.planBNote }, d.version); return to("itinerary", d.id); }
     case "version.restore": await itinerary.restoreVersion(userId, tripId, parse(z.object({ id })).id); return to("itinerary");
     case "plan.preferences": { const d = answers.parse(v); await savePlanPrefs(userId, tripId, { ...d, note: d.note ?? null }); return to("plan"); }
-    case "plan.start": { const d = parse(z.object({ kind: z.enum(["full", "days", "swap"]), dates: z.array(z.string().max(10)).max(120).optional(), stopId: id.optional(), instruction: z.string().max(500).nullable().optional() })); const r = await jobs.enqueueJob(userId, tripId, d.kind, d); return to("job", r.jobId); }
+    case "plan.start": { const d = parse(z.object({ kind: z.enum(["full", "days", "swap", "restaurants"]), dates: z.array(z.string().max(10)).max(120).optional(), stopId: id.optional(), instruction: z.string().max(500).nullable().optional() })); const r = await jobs.enqueueJob(userId, tripId, d.kind, d); return to("job", r.jobId); }
     case "plan.cancel": await jobs.cancelJob(userId, tripId, parse(z.object({ id })).id); return done;
     case "plan.apply": { const d = parse(z.object({ id, dates: z.array(z.string().max(10)).max(120) })); await applyProposal(userId, tripId, d.id, d.dates); return to("itinerary"); }
     case "plan.swap": {
