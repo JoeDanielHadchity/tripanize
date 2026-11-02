@@ -85,8 +85,9 @@ async function requestStructured<S extends z.ZodType>(opts: StructuredOptions<S>
         store: false,
       },
       { signal: opts.signal, timeout: opts.timeoutMs ?? 6 * 60_000,
-        // Guided packing is retried by durable alarms, never nested SDK loops.
-        ...(opts.name === "trip_packing" && opts.metering?.jobId ? { maxRetries: 0 } : {}) },
+        // Durable planning sections have bounded research passes. Nested SDK
+        // retries could exceed the alarm deadline and repeat paid searches.
+        ...(["trip_packing", "trip_plan", "trip_restaurants"].includes(opts.name) && opts.metering?.jobId ? { maxRetries: 0 } : {}) },
     );
   } catch (err) {
     // Operational metadata only: never log the prompt, response body or credentials.

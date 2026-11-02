@@ -1,9 +1,10 @@
 import { readMealOptions } from "@/lib/meal-options";
+import { RestaurantRegistry, uniqueMealOptions } from "@/lib/restaurant-diversity";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { prisma } from "@/server/db";
 import { requireTrip } from "@/server/auth/permissions";
 import { getTripPlan } from "@/server/plans/access";
-import { effectiveStop, stopInclude } from "@/server/itinerary/service";
+import { effectiveStop, getItinerary, stopInclude } from "@/server/itinerary/service";
 import { directionsUrl, type MapsApp } from "@/lib/maps";
 import { daysBetween, formatDate, formatDateRange, formatDuration } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
@@ -31,7 +32,8 @@ export async function exportTripJson(userId: string, tripId: string) {
     },
   });
   const { stops: ideas, ...rest } = trip;
-  return { exportedAt: new Date().toISOString(), format: "tripanize-trip-export/v1", trip: { ...rest, unscheduledIdeas: ideas } };
+  const restaurants = new RestaurantRegistry();
+  return { exportedAt: new Date().toISOString(), format: "tripanize-trip-export/v1", trip: { ...rest, days: rest.days.map(d => ({ ...d, mealOptions: uniqueMealOptions(d.mealOptions, restaurants) })), unscheduledIdeas: ideas } };
 }
 
 async function pdfFonts() {
@@ -48,7 +50,8 @@ async function pdfFonts() {
 export async function exportTripPdf(userId: string, tripId: string, opts: { date?: string | null; mapsApp?: MapsApp }) {
   await requireTrip(tripId, userId, "view");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: { destinations: { orderBy: { position: "asc" } } } });
-  const days = await prisma.itineraryDay.findMany({ where: { tripId, ...(opts.date ? { date: opts.date } : {}) }, orderBy: { date: "asc" }, include: { destination: true, stops: { include: stopInclude, orderBy: { position: "asc" } } } });
+  const itinerary = await getItinerary(userId, tripId);
+  const days = opts.date ? itinerary.days.filter(d => d.date === opts.date) : itinerary.days;
   const bookings = await prisma.booking.findMany({ where: { tripId, status: { in: ["BOOKED", "PAID", "REQUESTED"] }, ...(opts.date ? { date: opts.date } : {}) }, orderBy: [{ date: "asc" }, { startTime: "asc" }] });
   return renderTripGuide({
     name: trip.name,

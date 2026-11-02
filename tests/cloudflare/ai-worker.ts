@@ -42,6 +42,7 @@ import { recordChange } from "../../src/server/audit";
 import { sendNextChangeEmail } from "../../src/server/notifications/changes";
 import { sendAssistantMessage, getAssistantConversation, applyAssistantChanges } from "../../src/server/assistant/service";
 import { addStop } from "../../src/server/itinerary/service";
+import { restaurantRefs } from "../../src/lib/restaurant-diversity";
 
 interface Env { PROBE: DurableObjectNamespace }
 export class AiProbe extends DurableObject<Env> {
@@ -63,6 +64,12 @@ export class AiProbe extends DurableObject<Env> {
       await this.ctx.storage.put("calls", [...calls, data.datesToPlan ?? [opts.name === "trip_assistant" ? "assistant" : "questions"]]);
     });
     await new Promise(resolve => setTimeout(resolve, 1200));
+    if (opts.name === "trip_restaurants") {
+      const sources = ["https://guide.example/food", "https://local.example/restaurants", "https://reviews.example/cafes"];
+      return { model: "isolated-stub", sources, usage: null, data: {
+        days: data.datesToPlan.map((date: string) => ({ date, meals: Object.fromEntries(["breakfast", "lunch", "dinner"].map((meal, index) => [meal, [1, 2].map(n => ({ name: `${date} ${meal} venue ${n}`, cuisine: "Local", area: "City", address: null, whyFits: "Matches the fixture preferences", pricePerPerson: null, officialUrl: null, sourceUrls: [sources[index]], hoursNote: null }))])) })), researchSources: sources,
+      } };
+    }
     if (opts.name === "events") return { model: "isolated-stub", sources: ["https://example.test/event"], usage: null, data: { events: data.destinations[0].city === "Scheduled events fixture" ? [{ title: "Native local culture evening", category: "cultural", date: data.destinations[0].from, endDate: null, startTime: "18:00", dateVerified: true, venue: "Fixture venue", city: "Scheduled events fixture", address: null, officialUrl: "https://example.test/event", bookingUrl: "https://example.test/tickets", priceText: "Free", availability: "Available", bookingDeadline: null, cancelled: false, soldOut: false, whyFits: "Local culture preference", uncertainty: null, sources: [{ url: "https://example.test/event", title: "Fixture source" }] }] : [] } };
     if (opts.name === "trip_packing") {
       const attempts = await this.serialize(async () => {
@@ -141,6 +148,12 @@ export class AiProbe extends DurableObject<Env> {
         }
         const fixture = await this.ctx.storage.get<{ ownerId: string; tripId: string }>("fixture");
         if (!fixture) return Response.json({ error: "Start first" }, { status: 400 });
+        if (url.pathname === "/restaurants/start") return Response.json(await enqueueJob(fixture.ownerId, fixture.tripId, "restaurants", {}));
+        if (url.pathname === "/restaurants/state") {
+          const days = await this.db.itineraryDay.findMany({ where: { tripId: fixture.tripId }, orderBy: { date: "asc" } });
+          const jobs = await this.db.generationJob.findMany({ where: { tripId: fixture.tripId, kind: "restaurants" }, select: { id: true, status: true, error: true } });
+          return Response.json({ jobs, names: days.flatMap(d => restaurantRefs(d.mealOptions).map(r => r.name)) });
+        }
         if (url.pathname === "/trials/start") {
           const admin = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "company-native@example.test", name: "Tripanize.app", emailVerified: true } });
           const recipient = await this.db.user.create({ data: { id: crypto.randomUUID(), email: "trial-native@example.test", name: "Trial recipient", emailVerified: true } });

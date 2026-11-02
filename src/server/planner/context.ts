@@ -5,6 +5,7 @@ import { minorToDecimalString } from "@/lib/money";
 import { getTripWeather, ensureDestinationCoords } from "@/server/weather/trip";
 import { estimateTravel, travelTime } from "@/server/routing";
 import { effectiveStop, stopInclude } from "@/server/itinerary/service";
+import { restaurantRefs, type RestaurantRef } from "@/lib/restaurant-diversity";
 
 export type Anchor = { ref: string; date: string; title: string; startTime: string | null; durationMin: number | null; kind: string; status: string; address: string | null };
 
@@ -45,6 +46,13 @@ export async function buildContext(tripId: string, targetDates: string[] | null)
   }
   const undatedBookings = trip.bookings.filter((b) => !b.date).map((b) => ({ title: b.title, category: b.category, status: b.status }));
   const otherDaysPlanned = days.filter((d) => !dates.includes(d.date) && d.stops.length).map((d) => ({ date: d.date, stops: d.stops.filter((s) => s.status !== "SKIPPED").map((s) => effectiveStop(s).title) }));
+  // Suggestions on unchanged days and protected dining commitments reserve their
+  // venues for the whole trip, even when only one day is regenerated.
+  const restaurantExclusions: RestaurantRef[] = days.flatMap(d => [
+    ...(!dates.includes(d.date) ? restaurantRefs(d.mealOptions) : []),
+    ...d.stops.filter(s => s.status !== "SKIPPED" && (s.isMeal || s.category === "food" || s.category === "cafe") && (!dates.includes(d.date) || s.isFixed || s.bookingId || s.eventId))
+      .map(s => ({ name: effectiveStop(s).locationName || effectiveStop(s).title, officialUrl: s.officialUrl })),
+  ]);
   const ideas = await prisma.stop.findMany({ where: { tripId, dayId: null }, select: { title: true, notes: true } });
 
   let weather: Awaited<ReturnType<typeof getTripWeather>> | null = null;
@@ -78,6 +86,7 @@ export async function buildContext(tripId: string, targetDates: string[] | null)
     otherAnchors: anchors.filter((a) => !dates.includes(a.date)),
     undatedBookings,
     otherDaysPlanned,
+    restaurantExclusions,
     ideas,
     weather,
     legs,
