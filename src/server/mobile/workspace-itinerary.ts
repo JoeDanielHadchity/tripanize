@@ -1,4 +1,4 @@
-import { savedTripImage } from "@/server/images";
+import { savedTripImage, scheduleTripCover } from "@/server/images";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { getItinerary, effectiveStop, listVersions } from "@/server/itinerary/service";
@@ -84,6 +84,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   }
   const destination = await prisma.destination.findFirst({ where: { tripId }, orderBy: { position: "asc" } });
   const cover = savedTripImage(trip, destination ?? undefined);
+  if (!cover && destination) scheduleTripCover(tripId);
   const blocks: MobileBlock[] = [...(cover ? [{ id: "cover", image: { url: cover.url, credit: cover.credit } }] : []), { id: "tools", title: trip.name, meta: premium ? "★ Premium" : "Standard", actions: [...(canEdit ? [go("Plan with AI", "plan", tripId)] : []), ...(premium ? [go("Trip assistant", "assistant", tripId)] : []), go("Group voting", "votes", tripId), go("History & undo", "versions", tripId), { label: "Save itinerary offline", device: "offline" }, { label: "Download trip PDF", device: "file", url: `/api/mobile/files?tripId=${encodeURIComponent(tripId)}&kind=pdf`, fileName: "Tripanize-trip.pdf" }] },
     { id: "days", actions: days.map((d, i) => go(`Day ${i + 1} · ${d.date.slice(5)}`, "itinerary", tripId, d.id)) },
   ];
