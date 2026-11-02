@@ -250,6 +250,8 @@ export async function listTrips(userId: string, opts: { q?: string; phase?: stri
     .map((m) => {
       const t = m.trip;
       const today = todayIn(t.timezone);
+      const coverImage = savedTripImage(t, t.destinations[0]);
+      if (!coverImage && t.destinations[0]) scheduleTripCover(t.id);
       return {
         id: t.id,
         name: t.name,
@@ -259,9 +261,9 @@ export async function listTrips(userId: string, opts: { q?: string; phase?: stri
         endDate: t.endDate,
         destinations: t.destinations.map((d) => d.name),
         travelers: t.travelers.map((x) => x.name),
-        imageUrl: t.imageUrl,
-        imageCredit: t.imageCredit,
-        coverImage: savedTripImage(t, t.destinations[0]),
+        imageUrl: coverImage?.url ?? null,
+        imageCredit: coverImage?.credit ?? null,
+        coverImage,
         phase: tripPhase(t.startDate, t.endDate, today),
         updatedAt: t.updatedAt,
       };
