@@ -28,10 +28,13 @@ also reject new repetitions. Existing recommendation reads, mobile payloads and
 exports suppress legacy duplicate options. Manual or confirmed bookings remain
 under traveler control.
 
-## Repair an existing trip
+## Automatic research and legacy refresh jobs
 
-Editors on a Premium trip can choose **Refresh restaurants** in the itinerary
-(web or the server-driven mobile workspace). It researches food only, preserving
+Restaurant research and diversity checks run automatically during itinerary
+generation. No separate restaurant refresh control is shown in the web trip or
+the server-driven mobile workspace.
+
+The food-only refresh job remains supported for existing queued jobs. It preserves
 manual activities, bookings, fixed commitments and other trip features. Flexible
 AI dining stops are aligned with the new recommendations. Unverified cost and
 travel estimates for those changed dining stops are cleared.
