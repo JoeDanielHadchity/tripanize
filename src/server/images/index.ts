@@ -116,24 +116,26 @@ async function capitalPhoto(country: NonNullable<ReturnType<typeof countryFor>>)
   return iconicPhoto(titles.map(title => ({ title })));
 }
 
-const activeLookups = new Map<string, Promise<DestinationImage | null>>();
-/** Coalesce concurrent card loads instead of repeating the same external lookup. */
-export async function findDestinationImage(place: string, country?: string | null): Promise<DestinationImage | null> {
-  const key = destinationImageKey(place, country);
+const activeLookups = new Map<string, Promise<{ image: DestinationImage | null }>>();
+/** Share external I/O ONLY. Never share a promise that owns a database write:
+ * an HTTP caller may hold the queue the background writer needs to finish.
+ */
+async function sharePhotoRequest(key: string, load: () => Promise<{ image: DestinationImage | null }>) {
   const pending = activeLookups.get(key);
   if (pending) return pending;
-  const request = lookupDestinationImage(place, country);
+  const request = load();
   activeLookups.set(key, request);
   try { return await request; } finally { if (activeLookups.get(key) === request) activeLookups.delete(key); }
 }
 
 /** Landmark-first for countries; exact geographic identity for cities. No paid AI or stock-photo key. */
-async function lookupDestinationImage(place: string, country?: string | null): Promise<DestinationImage | null> {
+export async function findDestinationImage(place: string, country?: string | null): Promise<DestinationImage | null> {
   const name = place.trim().slice(0, 180);
   const region = country?.trim().slice(0, 100) ?? "";
   if (!name) return null;
   try {
-    const { value } = await cached(destinationImageKey(name, region), 86400, async () => {
+    const key = destinationImageKey(name, region);
+    const { value } = await cached(key, 86400, () => sharePhotoRequest(key, async () => {
       const plan = destinationLandmarks(name, region);
       if (plan.country) return { image: await iconicPhoto(plan.landmarks) ?? await capitalPhoto(plan.country) };
       const area = [name.split(",").slice(1).join(","), region].filter(Boolean).join(" ");
@@ -154,7 +156,7 @@ async function lookupDestinationImage(place: string, country?: string | null): P
         if (image) return { image };
       }
       return { image: await iconicPhoto(plan.landmarks) };
-    });
+    }));
     return value.image;
   } catch {
     // Keep the destination label when the photo provider is unavailable; retry on a later visit.
