@@ -36,7 +36,8 @@
   "vars": {
     "APP_URL": "https://tripanize.app",
     "BETTER_AUTH_URL": "https://tripanize.app",
-    "OPENAI_MODEL": "gpt-6.1-sol",
+    "OPENAI_MODEL": "gpt-6.1-terra",
+    "OPENAI_LIGHT_MODEL": "gpt-6-luna",
     "OPENAI_WEB_SEARCH": "true",
     "EMAIL_FROM": "Tripanize <hello@tripanize.app>",
     "PLAN_ACCESS_ENABLED": "true",

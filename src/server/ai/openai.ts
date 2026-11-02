@@ -22,8 +22,13 @@ export function aiConfigured() {
   return Boolean(process.env.OPENAI_API_KEY);
 }
 
-export function aiModel() {
-  return process.env.OPENAI_MODEL || "gpt-6.1-sol";
+/** Small, focused jobs where the cheapest model does as well as a larger one. */
+const LIGHT_TASKS = new Set(["plan_questions", "receipt_scan", "trip_packing"]);
+
+/** The model for a task: OPENAI_LIGHT_MODEL for the light tasks above, OPENAI_MODEL for everything else. */
+export function aiModel(task?: string) {
+  if (task && LIGHT_TASKS.has(task)) return process.env.OPENAI_LIGHT_MODEL || process.env.OPENAI_MODEL || "gpt-6-luna";
+  return process.env.OPENAI_MODEL || "gpt-6.1-terra";
 }
 
 export function webSearchEnabled() {
@@ -55,7 +60,7 @@ type StructuredOptions<S extends z.ZodType> = {
 };
 
 export async function generateStructured<S extends z.ZodType>(opts: StructuredOptions<S>): Promise<StructuredResult<z.infer<S>>> {
-  const entry = await reserveAiUsage(opts.name, aiModel(), opts.metering);
+  const entry = await reserveAiUsage(opts.name, aiModel(opts.name), opts.metering);
   try {
     const result = await requestStructured(opts, entry.id);
     await finishAiUsage(entry.id, "SUCCEEDED");
@@ -68,7 +73,7 @@ export async function generateStructured<S extends z.ZodType>(opts: StructuredOp
 
 async function requestStructured<S extends z.ZodType>(opts: StructuredOptions<S>, usageId: string): Promise<StructuredResult<z.infer<S>>> {
   const openai = getClient();
-  const model = aiModel();
+  const model = aiModel(opts.name);
   const useSearch = Boolean(opts.webSearch && webSearchEnabled());
   let resp: OpenAI.Responses.Response;
   // Durable planning sections have bounded research passes and their own retry;

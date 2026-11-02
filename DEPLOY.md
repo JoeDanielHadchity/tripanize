@@ -34,7 +34,7 @@ Production email is connected through the encrypted `RESEND_API_KEY` Cloudflare 
 
 Available: password account registration and sign-in, email sign-in codes, password resets, manual trip planning, itinerary editing, bookings, shared expenses and balances, email invitations and invitation links, packing lists, manual events, private file uploads, JSON export and PDF export. AI drafts, selected-day regeneration, stop alternatives, tailored questions and manual event searches become available when the encrypted `OPENAI_API_KEY` runtime secret is configured.
 
-AI background work is implemented with native Durable Object alarms, requiring no separate host or queue provisioning. Each five-day planning section is checkpointed in private Durable Object storage, and each external call runs outside the serialized HTTP database queue. The default model is `gpt-6.1-sol`; override it through `OPENAI_MODEL`. Keep the API key in an encrypted runtime secret, never a public or build variable.
+AI background work is implemented with native Durable Object alarms, requiring no separate host or queue provisioning. Each five-day planning section is checkpointed in private Durable Object storage, and each external call runs outside the serialized HTTP database queue. The default model is `gpt-6.1-terra`, and the small jobs (tailored questions, receipt scans, packing) use `gpt-6-luna`; override them through `OPENAI_MODEL` and `OPENAI_LIGHT_MODEL`. Keep the API key in an encrypted runtime secret, never a public or build variable.
 
 Not yet connected: automatic scheduled event discovery and daily email digests. Do not start the legacy `src/worker/index.ts` polling process on another host.
 
