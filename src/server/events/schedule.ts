@@ -29,7 +29,10 @@ export function nextDiscoveryAt(trip: Dates, after: Date): Date | null {
 }
 export async function queueDueDiscoveries(now = new Date()) {
   if (!aiConfigured() || !webSearchEnabled()) return 0;
-  const trips = await prisma.trip.findMany({ where: { autoDiscovery: true, startDate: { not: null }, endDate: { not: null } }, include: { destinations: { select: { id: true } } } });
+  // Trips that ended more than two days ago (any time zone) are never due again;
+  // leaving them out keeps this hourly scan from growing with every past trip.
+  const ended = addDays(now.toISOString().slice(0, 10), -2);
+  const trips = await prisma.trip.findMany({ where: { autoDiscovery: true, startDate: { not: null }, endDate: { not: null, gte: ended } }, include: { destinations: { select: { id: true } } } });
   let queued = 0;
   for (const trip of trips) {
     const today = todayIn(trip.timezone, now);

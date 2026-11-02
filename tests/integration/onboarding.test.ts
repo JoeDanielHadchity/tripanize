@@ -113,3 +113,17 @@ it("retries interrupted packing without regenerating or reapplying the saved iti
   expect(await prisma.itineraryVersion.count({ where: { tripId } })).toBe(versions);
   expect((await prisma.trip.findUniqueOrThrow({ where: { id: tripId } })).onboardingStage).toBe("COMPLETE");
 });
+
+it("plans the itinerary even when the setup event search fails, without paying for events again", async () => {
+  const { owner, tripId } = await fixture(true); const calls: string[] = []; const base = generator(calls);
+  const generate = (async (opts: { name: string }) => { if (opts.name === "events") { calls.push("events"); throw new Error("Synthetic event search failure"); } return base(opts as never); }) as Generator;
+  const q = await prisma.generationJob.findFirstOrThrow({ where: { tripId, kind: "questions" } }); await claimJob(q.id); await runJob(q.id, generate);
+  const { jobId } = await startOnboardingPlan(owner.id, tripId, { answers, note: null }); await claimJob(jobId);
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  await runJob(jobId, generate);
+  const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } });
+  expect(job.status).toBe("SUCCEEDED");
+  expect(calls.filter(c => c === "events")).toHaveLength(1);
+  expect(calls).toContain("trip_plan");
+  expect(JSON.stringify(job.progress)).toMatch(/Events couldn't be checked right now/);
+});
