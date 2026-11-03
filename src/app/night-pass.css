@@ -177,3 +177,106 @@
 .guide-index-list { gap:16px; }
 .guide-city-nav a[aria-current="page"] { color:var(--ink); }
 .guide-copy>a, .guide-copy :is(button,a).bg-accent { background:var(--bg); color:var(--accent); }
+
+/* 1 · Compact header on phones and tablets: site links move behind a menu button. */
+.site-menu { position:relative; display:none; }
+.site-menu-button { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:999px; color:var(--ink); background:var(--surface); border:1px solid var(--line); }
+.site-menu-button[aria-expanded="true"] { background:var(--night); color:var(--night-ink); border-color:var(--night); }
+.site-menu-panel { position:absolute; right:0; top:calc(100% + 10px); z-index:60; min-width:230px; display:flex; flex-direction:column; gap:2px; padding:8px; border-radius:22px; background:var(--surface); border:1px solid var(--line); box-shadow:0 18px 40px rgb(23 46 51 / .18); }
+.site-menu-panel>a, .site-menu-panel>button { display:flex; align-items:center; min-height:46px; padding:0 14px; border-radius:14px; font-weight:700; font-size:15px; color:var(--ink); text-align:left; }
+.site-menu-panel>a:hover, .site-menu-panel>button:hover { background:var(--surface-2); text-decoration:none; }
+.site-menu-panel>a[aria-current="page"] { background:var(--night); color:var(--night-ink); }
+.site-menu-panel>.site-menu-signout { color:var(--muted); border-top:1px solid var(--line); border-radius:0 0 14px 14px; margin-top:4px; }
+@media (max-width:1023px) {
+  .app-main-nav { display:none; }
+  .app-header-bar { flex-wrap:nowrap; }
+  .site-menu { display:block; }
+}
+@media (max-width:899px) {
+  .public-site-header>nav>.public-nav-link:not([href="/sign-in"]), .public-site-header>nav>a[href="/settings"] { display:none; }
+  .public-site-header .site-menu { display:block; }
+  .public-header { flex-wrap:nowrap; }
+  .public-header>a { flex:none; }
+  .public-header { width:100%; }
+  .public-header>nav { justify-content:flex-end; }
+}
+.site-menu-panel>.site-menu-phone-only { display:none; }
+.public-header .site-menu-panel { align-items:stretch; gap:2px; font-size:15px; }
+.public-header .site-menu-panel>.site-menu-cta, .site-menu-panel>.site-menu-cta { display:none; background:var(--accent); color:var(--on-accent); justify-content:center; margin-top:6px; }
+.site-menu-panel>.site-menu-cta:hover { background:var(--accent); filter:brightness(1.08); }
+@media (max-width:520px) {
+  .public-site-header>nav>a[href="/sign-up"] { display:none; }
+  .public-header .site-menu-panel>a { display:flex; }
+  .public-header .site-menu-panel>a.site-menu-cta { display:flex; }
+  .public-site-header>nav>a.public-nav-link { display:none; }
+  .app-account-nav>a[href="/account"] { display:none; }
+  .site-menu-panel>.site-menu-phone-only { display:flex; }
+  .public-header { padding:14px 16px; gap:10px; }
+  .public-header nav { gap:6px; }
+}
+
+/* 2 · AI assistant button: a pill on desktop; on phones a small coral circle that sits above the tab bar,
+   with enough bottom space on the page that nothing ends up hidden under either. */
+.ai-fab { position:fixed; right:24px; bottom:24px; z-index:20; display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:48px; padding:0 20px; border-radius:999px; background:var(--ai); color:var(--on-ai); font-weight:800; box-shadow:0 10px 24px rgb(180 80 45 / .32); }
+.ai-fab:hover { filter:brightness(1.08); text-decoration:none; }
+@media (max-width:1023px) {
+  /* The AI button sits beside the tab bar, in the same row, so it never floats over content. */
+  .ai-fab { right:12px; bottom:calc(max(12px, env(safe-area-inset-bottom)) + 4px); width:60px; height:60px; min-height:0; padding:0; z-index:31; }
+  body:has(.ai-fab) .trip-tabbar { right:78px; }
+  body:has(.ai-fab) .trip-tabbar :is(a,button) { font-size:10.5px; letter-spacing:-.01em; padding-left:1px; padding-right:1px; }
+  .ai-fab svg { width:22px; height:22px; }
+  .ai-fab-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  .trip-workspace { padding-bottom:120px; }
+}
+
+/* 3 · Setup reminder: one card on the itinerary, dismissible. */
+.setup-reminder { display:flex; align-items:center; gap:14px; margin-bottom:18px; padding:16px 16px 16px 18px; border-radius:24px; background:var(--accent-soft); border:1px solid color-mix(in srgb, var(--accent) 22%, transparent); }
+.setup-reminder-icon { display:inline-flex; align-items:center; justify-content:center; flex:none; width:40px; height:40px; border-radius:999px; background:var(--accent); color:var(--on-accent); font-weight:800; }
+.setup-reminder-go { flex:none; display:inline-flex; align-items:center; min-height:44px; padding:0 18px; border-radius:999px; background:var(--accent); color:var(--on-accent); font-weight:800; font-size:14px; }
+.setup-reminder-go:hover { filter:brightness(1.08); text-decoration:none; }
+.setup-reminder-close { flex:none; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:999px; color:var(--muted); }
+.setup-reminder-close:hover { background:color-mix(in srgb, var(--accent) 12%, transparent); color:var(--ink); }
+@media (max-width:640px) {
+  .setup-reminder { flex-wrap:wrap; position:relative; padding-right:48px; }
+  .setup-reminder-icon { display:none; }
+  .setup-reminder-close { position:absolute; top:10px; right:10px; }
+  .setup-reminder-go { width:100%; justify-content:center; }
+}
+
+/* 4 · Trip photos: the banner and the next-trip card use the trip's own photo, full width, under an ink shade. */
+.journey-cover { position:relative; overflow:hidden; isolation:isolate; padding:22px 26px; min-height:120px; }
+.journey-cover.has-photo { padding-left:26px; }
+.journey-cover-photo { position:absolute; inset:0; z-index:-2; }
+.journey-cover-photo a { display:none; }
+.journey-cover-shade { position:absolute; inset:0; z-index:-1; background:linear-gradient(90deg, color-mix(in srgb, var(--night) 97%, transparent) 0%, color-mix(in srgb, var(--night) 86%, transparent) 45%, color-mix(in srgb, var(--night) 55%, transparent) 100%); }
+.next-trip-photo { position:relative; flex:1 1 200px; min-height:200px; overflow:hidden; display:flex; align-items:flex-end; }
+.next-trip-photo img { z-index:1; }
+.next-trip-photo a { z-index:2; }
+.next-trip-place { position:relative; z-index:0; padding:18px 20px; font-family:var(--font-display); font-size:34px; font-weight:800; line-height:1; color:#fffdf8; text-shadow:0 1px 10px rgb(0 0 0 / .2); overflow-wrap:anywhere; }
+@media(max-width:1023px){ .journey-cover { padding:18px 20px; min-height:0; } }
+
+/* 6 · Six trip ideas on the home page: an even 3 + 3 grid (2 + 2 + 2 on phones). */
+.trip-idea-grid.six>.trip-idea, .trip-idea-grid.six>.trip-idea:nth-last-child(-n+2) { grid-column:span 2; }
+.trip-idea-grid.six>.trip-idea img, .trip-idea-grid.six>.trip-idea:nth-last-child(-n+2) img { aspect-ratio:3/2; }
+@media(max-width:700px){ .trip-idea-grid.six>.trip-idea, .trip-idea-grid.six>.trip-idea:nth-last-child(-n+2), .trip-idea-grid.six>.trip-idea:last-child { grid-column:span 1; } }
+
+/* 7 · Empty states: solid card with an icon (see EmptyState). */
+.empty-state p { text-wrap:balance; }
+
+/* 8 · 404 / error pages and the trip loading state. */
+.status-page { min-height:70vh; display:flex; align-items:center; justify-content:center; padding:40px 16px 80px; }
+.status-ticket { width:100%; max-width:560px; border-radius:32px; background:var(--night); color:var(--night-ink); padding:34px 32px; box-shadow:0 20px 50px rgb(23 46 51 / .22); }
+.status-eyebrow { font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--night-accent); }
+.status-code { font-family:var(--font-display); font-size:120px; line-height:.9; font-weight:800; letter-spacing:-.06em; color:var(--night-accent); margin:10px 0 18px; }
+.status-ticket h1 { font-family:var(--font-display); font-size:32px; line-height:1.08; font-weight:800; letter-spacing:-.02em; color:var(--night-ink); }
+.status-ticket h1+p { margin-top:10px; color:var(--night-muted); }
+.status-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; padding-top:20px; border-top:2px dashed var(--night-line); }
+.status-primary, .status-secondary { display:inline-flex; align-items:center; min-height:48px; padding:0 20px; border-radius:999px; font-weight:800; }
+.status-primary { background:var(--night-accent); color:#172e33; }
+.status-secondary { background:rgb(255 255 255 / .1); color:var(--night-ink); }
+.status-primary:hover, .status-secondary:hover { filter:brightness(1.08); text-decoration:none; }
+@media(max-width:520px){ .status-ticket{ padding:26px 22px; } .status-code{ font-size:88px; } .status-ticket h1{ font-size:26px; } }
+.section-skeleton { display:flex; flex-direction:column; gap:14px; }
+.section-skeleton>span { display:block; border-radius:20px; background:var(--surface-2); animation:skeleton-pulse 1.4s ease-in-out infinite; }
+@keyframes skeleton-pulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
+@media (prefers-reduced-motion: reduce) { .section-skeleton>span { animation:none; } }

@@ -121,7 +121,10 @@ function NextTrip({ trip, firstName }: { trip: TripCard; firstName: string }) {
         <div><strong>{count.value}</strong><span>{trip.phase === "current" ? <>{count.label}<br />in {first}</> : <>{count.label.replace(" to go", "")} to<br />{first}</>}</span></div>
       </div>
       <Link href={tripHref(trip)} className="next-trip-ticket" aria-label={`Open ${trip.name}`}>
-        {trip.imageUrl ? <img src={trip.imageUrl} alt="" /> : <span className="next-trip-art brand-backdrop" aria-hidden="true" />}
+        <span className="next-trip-photo brand-backdrop" aria-hidden="true">
+          <span className="next-trip-place">{first}</span>
+          {trip.destinations[0] && <TripCoverPhoto key={`next:${trip.destinations[0]}`} tripId={trip.id} destination={trip.destinations[0]} initialImage={trip.coverImage} />}
+        </span>
         <div className="next-trip-body">
           <div className="next-trip-top"><span>{trip.phase === "current" ? "Happening now" : "Next trip"} · {trip.role === "OWNER" ? "Organizer" : trip.role === "VIEWER" ? "Viewer" : "Editor"}</span><span aria-hidden="true">Open trip →</span></div>
           <p className="next-trip-name">{trip.name}</p>

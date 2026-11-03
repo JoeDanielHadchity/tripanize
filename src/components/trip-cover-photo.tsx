@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { DestinationImage } from "@/server/images";
+import { cityPhoto } from "@/lib/city-photos";
 
 /** Fetch separately so an unavailable image service never delays the trips page. */
 export function TripCoverPhoto({ tripId, destination, initialImage = null }: { tripId: string; destination: string; initialImage?: DestinationImage | null }) {
@@ -26,7 +27,12 @@ export function TripCoverPhoto({ tripId, destination, initialImage = null }: { t
     }
     return () => { controller.abort(); clearTimeout(retry); };
   }, [tripId, destination, initialImage]);
-  if (!image || failedUrl === image.url) return null;
+  if (!image || failedUrl === image.url) {
+    // No destination photo (yet): fall back to our own photo of the city when we have one.
+    const fallback = cityPhoto(destination);
+    // eslint-disable-next-line @next/next/no-img-element
+    return fallback ? <img src={fallback} alt={destination} width={800} height={600} decoding="async" className="absolute inset-0 h-full w-full object-cover" loading="lazy" /> : null;
+  }
   return <>
     {/* eslint-disable-next-line @next/next/no-img-element */}
     <img src={image.url} alt={destination} width={1920} height={1080} decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 h-full w-full object-cover" loading="lazy" onError={() => setFailedUrl(image.url)} />

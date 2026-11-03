@@ -78,11 +78,11 @@
     --danger: #f08a7e;
     --danger-soft: #3d201c;
     --focus: #7fd1c9;
-    --night: #0a1a1d;
+    --night: #0d3a3f;
     --night-ink: #f6f2e9;
     --night-muted: #a9bcbd;
     --night-accent: #7fd1c9;
-    --night-line: #2f4a50;
+    --night-line: #2f6066;
     color-scheme: dark;
   }
 }
@@ -111,11 +111,11 @@
   --danger: #f08a7e;
   --danger-soft: #3d201c;
   --focus: #7fd1c9;
-  --night: #0a1a1d;
+  --night: #0d3a3f;
   --night-ink: #f6f2e9;
   --night-muted: #a9bcbd;
   --night-accent: #7fd1c9;
-  --night-line: #2f4a50;
+  --night-line: #2f6066;
   color-scheme: dark;
 }
 

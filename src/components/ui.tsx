@@ -88,9 +88,27 @@ export function Notice({ tone = "neutral", title, children, className }: { tone?
   );
 }
 
+// Simple line icons for empty states, picked from the title so every caller gets one.
+const EMPTY_ICONS: [RegExp, ReactNode][] = [
+  [/expense|budget|money|spend/i, <><rect x="3" y="6" width="18" height="13" rx="3" /><path d="M16 12.5h2" /><path d="M3 10h18" /></>],
+  [/event/i, <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18" /><path d="M8 14h3" /></>],
+  [/booking/i, <><path d="M4 8a2 2 0 0 0 2-2h12a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H6a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z" /><path d="M10 9v6" strokeDasharray="1.5 2" /></>],
+  [/conversation|chat/i, <><path d="M20 15a3 3 0 0 1-3 3H9l-5 3V7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3z" /><path d="M8 10h8M8 13h5" /></>],
+  [/location|map/i, <><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>],
+  [/caught up|notification/i, <><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" /><path d="M10 20a2 2 0 0 0 4 0" /></>],
+  [/decision|vote/i, <><path d="M5 12l4 4L19 6" /><rect x="3" y="3" width="18" height="18" rx="4" /></>],
+  [/match|search/i, <><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></>],
+  [/day|date|today/i, <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18" /><circle cx="12" cy="15" r="1.5" /></>],
+];
+const TRIP_ICON = <><path d="M2.5 13.5l19-8-6.5 15-3.2-6.3z" /><path d="M11.8 14.2l9.7-8.7" /></>;
+
 export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+  const icon = EMPTY_ICONS.find(([pattern]) => pattern.test(title))?.[1] ?? TRIP_ICON;
   return (
-    <div className="rounded-[28px] border-2 border-dashed border-line bg-surface/60 px-6 py-12 text-center">
+    <div className="empty-state rounded-[28px] border border-line bg-surface px-6 py-10 text-center">
+      <span aria-hidden="true" className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
+        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+      </span>
       <p className="font-display text-2xl font-extrabold text-ink">{title}</p>
       {children && <div className="mx-auto mt-2 max-w-md text-sm text-muted">{children}</div>}
       {action && <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div>}

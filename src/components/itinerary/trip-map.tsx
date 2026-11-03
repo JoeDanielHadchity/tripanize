@@ -42,7 +42,7 @@ export default function TripMap({ days, ideas, compact = false }: { days: DayVie
     };
   }, [pointKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!points.length) return <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">Add locations to your stops to see them on the map.</p>;
+  if (!points.length) return <p className="rounded-2xl bg-surface-2/70 px-4 py-8 text-center text-sm text-muted">Add locations to your stops to see them on the map.</p>;
   return (
     <div className="space-y-2">
       <div ref={ref} className={`${compact ? "h-96" : "h-[60dvh]"} min-h-80 w-full overflow-hidden rounded-2xl border border-line`} role="region" aria-label="Map of planned stops" />
