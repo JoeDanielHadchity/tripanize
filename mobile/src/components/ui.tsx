@@ -16,9 +16,9 @@ function withArrowFont(children: ReactNode): ReactNode {
   return children;
 }
 export function T({ style, children, ...props }: TextProps) { const c = useTheme(); return <Text {...props} style={[{ fontFamily: "Nunito", fontSize: 15, lineHeight: 22, color: c.ink }, style]}>{withArrowFont(children)}</Text>; }
-export function Heading({ children, small = false }: { children: ReactNode; small?: boolean }) {
+export function Heading({ children, small = false, color }: { children: ReactNode; small?: boolean; color?: ColorValue }) {
   const c = useTheme(); const marker = typeof children === "string" ? /^([★✓])\s*/u.exec(children) : null;
-  const label = <T accessibilityRole="header" style={{ flexShrink: 1, fontFamily: "NunitoHeading", fontSize: small ? 22 : 34, lineHeight: small ? 28 : 38, letterSpacing: small ? -0.4 : -1 }}>{marker ? (children as string).slice(marker[0].length) : children}</T>;
+  const label = <T accessibilityRole="header" style={{ flexShrink: 1, fontFamily: "NunitoHeading", fontSize: small ? 22 : 34, lineHeight: small ? 28 : 38, letterSpacing: small ? -0.4 : -1, ...(color ? { color } : {}) }}>{marker ? (children as string).slice(marker[0].length) : children}</T>;
   return marker ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Ionicons accessible={false} name={marker[1] === "★" ? "star" : "checkmark"} color={marker[1] === "★" ? c.coral : c.accent} size={small ? 19 : 25} />{label}</View> : label;
 }
 
@@ -29,10 +29,11 @@ export function useElevation(level: 1 | 2 = 1): ViewStyle {
   return { boxShadow: level === 1 ? `0 1px 2px ${c.shadow}, 0 4px 14px ${c.shadow}` : `0 2px 6px ${c.shadow}, 0 12px 28px ${c.shadow}` };
 }
 
-export function Button({ children, onPress, busy, disabled, secondary = false, trailingIcon, leadingIcon, style, compact = false, tone }: { children: ReactNode; onPress: () => void; busy?: boolean; disabled?: boolean; secondary?: boolean; trailingIcon?: IconName; leadingIcon?: IconName; style?: StyleProp<ViewStyle>; compact?: boolean; tone?: "coral" | "danger" }) {
+export function Button({ children, onPress, busy, disabled, secondary = false, trailingIcon, leadingIcon, style, compact = false, tone }: { children: ReactNode; onPress: () => void; busy?: boolean; disabled?: boolean; secondary?: boolean; trailingIcon?: IconName; leadingIcon?: IconName; style?: StyleProp<ViewStyle>; compact?: boolean; tone?: "coral" | "danger" | "night" }) {
   const c = useTheme();
-  const fill = secondary ? c.soft : tone === "coral" ? c.coral : tone === "danger" ? c.danger : c.accent;
-  const color = secondary ? (tone === "danger" ? c.danger : c.accent) : tone ? (c.dark ? "#0f1e21" : "#ffffff") : c.accentText;
+  // "night" is for buttons sitting on an ink ticket: mint fill, or a faint glass pill.
+  const fill = tone === "night" ? (secondary ? "rgba(255,255,255,0.1)" : c.nightAccent) : secondary ? c.soft : tone === "coral" ? c.coral : tone === "danger" ? c.danger : c.accent;
+  const color = tone === "night" ? (secondary ? c.nightInk : "#172e33") : secondary ? (tone === "danger" ? c.danger : c.accent) : tone ? (c.dark ? "#0f1e21" : "#ffffff") : c.accentText;
   const marker = typeof children === "string" ? /^([★✓])\s*/u.exec(children) : null;
   const icon = leadingIcon ?? (marker ? marker[1] === "★" ? "sparkles" : "checkmark" : undefined);
   const label = marker ? (children as string).slice(marker[0].length) : children;
@@ -86,8 +87,8 @@ export function Icon({ name, color, size = 22 }: { name: IconName; color?: Color
 /** Pill-style segmented control. */
 export function Segmented<V extends string>({ value, options, onChange, label }: { value: V; options: { value: V; label: string }[]; onChange: (v: V) => void; label: string }) {
   const c = useTheme();
-  return <View accessibilityRole="tablist" accessibilityLabel={label} style={{ flexDirection: "row", backgroundColor: c.soft, borderRadius: 14, padding: 4, gap: 4 }}>
-    {options.map(o => { const on = o.value === value; return <Pressable key={o.value} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(o.value)} style={{ flex: 1, minHeight: 38, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: on ? c.paper : "transparent", ...(on && !c.dark ? { boxShadow: `0 1px 3px ${c.shadow}` } : {}) }}><T style={{ fontSize: 13, fontFamily: on ? "NunitoBold" : "Nunito", color: on ? c.ink : c.muted }}>{o.label}</T></Pressable>; })}
+  return <View accessibilityRole="tablist" accessibilityLabel={label} style={{ flexDirection: "row", backgroundColor: c.dark ? c.paper : "#ede7da", borderRadius: 24, padding: 4, gap: 4 }}>
+    {options.map(o => { const on = o.value === value; return <Pressable key={o.value} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(o.value)} style={{ flex: 1, minHeight: 40, borderRadius: 20, paddingHorizontal: 6, alignItems: "center", justifyContent: "center", backgroundColor: on ? c.night : "transparent" }}><T numberOfLines={1} style={{ fontSize: 13, fontFamily: "NunitoBold", color: on ? c.nightInk : c.muted }}>{o.label}</T></Pressable>; })}
   </View>;
 }
 
@@ -105,7 +106,7 @@ export function ListRow({ icon, title, subtitle, onPress, trailing, tone, last =
 
 /** Labelled group of rows on one surface. */
 export function Section({ title, action, children, flush = false }: { title?: string; action?: ReactNode; children: ReactNode; flush?: boolean }) {
-  return <View style={{ gap: 10 }}>{(title || action) && <View style={[styles.row, { paddingHorizontal: 4 }]}>{title ? <T accessibilityRole="header" style={{ fontFamily: "NunitoBold", fontSize: 17 }}>{title}</T> : <View />}{action}</View>}{flush ? children : <Card style={{ paddingVertical: 4, gap: 0 }}>{children}</Card>}</View>;
+  return <View style={{ gap: 10 }}>{(title || action) && <View style={[styles.row, { paddingHorizontal: 4 }]}>{title ? <T accessibilityRole="header" style={{ fontFamily: "NunitoHeading", fontSize: 19, lineHeight: 24, letterSpacing: -0.3 }}>{title}</T> : <View />}{action}</View>}{flush ? children : <Card style={{ paddingVertical: 4, gap: 0 }}>{children}</Card>}</View>;
 }
 
 /** Bottom-weighted dark scrim so white text stays readable on any photo. */

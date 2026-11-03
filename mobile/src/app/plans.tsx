@@ -1,14 +1,18 @@
 import { View } from "react-native";
 import { CreateTripButton } from "../components/public-header";
-import { Card, Eyebrow, Heading, Icon, IconButton, Muted, Screen, T, styles } from "../components/ui";
+import { Card, Eyebrow, Heading, Icon, IconButton, Muted, Screen, T } from "../components/ui";
 import { router } from "expo-router";
 import { useTheme } from "../components/theme";
+import { Ticket } from "../components/trip-ui";
 import { PREMIUM_PRICE_MINOR, premiumPrice } from "../../../src/lib/plans";
 
 export default function PlansScreen() {
   const c = useTheme();
   return <Screen><IconButton name="chevron-back" label="Back" onPress={() => router.canGoBack() ? router.back() : router.replace("/")} /><Eyebrow>Choose your plan</Eyebrow><Heading>Your trip,{"\n"}thoughtfully organized.</Heading><Muted>A full itinerary, places you’ll enjoy, and shared tools to keep your group together.</Muted>
-    <Card style={{ backgroundColor: c.soft }}><View style={styles.row}><Heading small>Premium pass</Heading><Icon name="star" /></View><T style={{ fontFamily: "NunitoHeading", fontSize: 48, lineHeight: 60 }}>{premiumPrice(PREMIUM_PRICE_MINOR)} <T style={{ fontSize: 14 }}>USD / trip</T></T><T>One payment for the whole group.</T><Muted>Any group size. No subscription.</Muted><CreateTripButton /><Muted>Upgrade any trip from its Premium page. You pay once through Google Play or the App Store.</Muted></Card>
+    <Ticket eyebrow="Premium pass" value={`${premiumPrice(PREMIUM_PRICE_MINOR)} / trip`} caption="One payment for the whole group. Any group size, no subscription.">
+      <CreateTripButton night />
+      <T style={{ color: c.nightMuted, fontSize: 13, lineHeight: 19 }}>Upgrade any trip from its Premium page. You pay once through Google Play or the App Store.</T>
+    </Ticket>
     <Heading small>Help for every part of the trip.</Heading>
     {[
       ["Plan it", "Your days, sorted.", "AI planning for every trip day", "An assistant to adjust the plan", "Review proposed changes before applying them."],

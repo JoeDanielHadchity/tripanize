@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { tripDates } from "../lib/data";
 import { type MobileAction, type MobileTarget, type MobileWorkspace } from "../lib/workspace";
-import { Badge, Button, Heading, Icon, IconButton, OnPhoto, PhotoCard, T, styles, type IconName } from "./ui";
+import { Badge, Button, Eyebrow, Heading, Icon, IconButton, OnPhoto, PhotoCard, T, styles, type IconName } from "./ui";
 import { useTheme } from "./theme";
 
 export type RunAction = (action: MobileAction) => void;
@@ -15,8 +15,8 @@ export function Chip({ children, accent = false }: { children: ReactNode; accent
 }
 
 /** Chip-like actions; the first one can be the primary call to action. */
-export function ActionRow({ actions, onAction, busy, primary = false }: { actions: MobileAction[]; onAction: RunAction; busy?: boolean; primary?: boolean }) {
-  return <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{actions.map((action, i) => <Button key={`${action.label}-${i}`} compact secondary={!primary || i > 0} tone={action.danger ? "danger" : undefined} leadingIcon={actionIcon(action)} disabled={busy} onPress={() => onAction(action)}>{action.label}</Button>)}</View>;
+export function ActionRow({ actions, onAction, busy, primary = false, night = false }: { actions: MobileAction[]; onAction: RunAction; busy?: boolean; primary?: boolean; night?: boolean }) {
+  return <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{actions.map((action, i) => <Button key={`${action.label}-${i}`} compact secondary={!primary || i > 0} tone={night ? "night" : action.danger ? "danger" : undefined} leadingIcon={actionIcon(action)} disabled={busy} onPress={() => onAction(action)}>{action.label}</Button>)}</View>;
 }
 
 /** A small icon helps scanning; only well-known actions get one. */
@@ -160,4 +160,50 @@ export function TripNavigation({ tripId, screen, premium, onAction }: { tripId: 
   </View></View><Sheet open={open} title="Your trip" close={() => setOpen(false)}>
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{more.map(item => <Pressable key={item.to.screen} accessibilityRole="button" onPress={() => go(item.to)} style={({ pressed }) => ({ width: "31%", flexGrow: 1, minHeight: 92, borderRadius: 18, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", gap: 8, padding: 10, opacity: pressed ? 0.7 : 1 })}><Ionicons name={item.icon} size={24} color={c.accent} /><T style={{ fontSize: 12, lineHeight: 16, textAlign: "center", fontFamily: "NunitoBold" }}>{item.label}</T></Pressable>)}</View>
   </Sheet></>;
+}
+
+/** Days to go before the trip, or which day of it today is. */
+export function tripCountdown(start?: string | null, end?: string | null): { value: string; label: string } | null {
+  if (!start) return null;
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  const day = (iso: string) => Math.round((Date.parse(`${iso}T12:00:00`) - today.getTime()) / 86_400_000);
+  const toStart = day(start), toEnd = end ? day(end) : toStart;
+  if (toStart > 0) return { value: String(toStart), label: toStart === 1 ? "day to go" : "days to go" };
+  if (toEnd >= 0) return { value: `Day ${1 - toStart}`, label: `of ${toEnd - toStart + 1}` };
+  return null;
+}
+
+/** Perforation between the two halves of a ticket, with a notch cut on each side. */
+export function Perforation({ notch }: { notch?: string }) {
+  const c = useTheme();
+  return <View accessible={false} style={{ flexDirection: "row", alignItems: "center", height: 20 }}>
+    <View style={{ width: 20, height: 20, borderRadius: 10, marginLeft: -10, backgroundColor: notch ?? c.bg }} />
+    <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 10 }}>{Array.from({ length: 22 }, (_, i) => <View key={i} style={{ width: 6, height: 2, borderRadius: 1, backgroundColor: c.nightLine }} />)}</View>
+    <View style={{ width: 20, height: 20, borderRadius: 10, marginRight: -10, backgroundColor: notch ?? c.bg }} />
+  </View>;
+}
+
+/** Design 004: the ink boarding-pass card for budgets, the Premium pass and other headline facts. */
+export function Ticket({ eyebrow, title, value, caption, children, style }: { eyebrow?: string; title?: string; value?: string; caption?: string; children?: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const c = useTheme();
+  return <View style={[{ backgroundColor: c.night, borderRadius: 26, overflow: "hidden", boxShadow: `0 10px 26px ${c.dark ? "rgba(0,0,0,0.45)" : "rgba(23,46,51,0.22)"}` }, style]}>
+    <View style={{ padding: 20, paddingBottom: children ? 14 : 20, gap: 6 }}>
+      {eyebrow && <Eyebrow color={c.nightAccent}>{eyebrow}</Eyebrow>}
+      {title && <Heading small color={c.nightInk}>{title}</Heading>}
+      {value && <T style={{ fontFamily: "NunitoHeading", fontSize: 42, lineHeight: 48, letterSpacing: -1.2, color: c.nightInk }}>{value}</T>}
+      {caption && <T style={{ color: c.nightMuted, fontSize: 14, lineHeight: 20 }}>{caption}</T>}
+    </View>
+    {children && <><Perforation /><View style={{ padding: 20, paddingTop: 12, gap: 12 }}>{children}</View></>}
+  </View>;
+}
+
+/** Ink banner at the top of every trip section except the itinerary's photo hero. */
+export function TripBanner({ data, title, subtitle }: { data: MobileWorkspace; title: string; subtitle?: string }) {
+  const c = useTheme();
+  const when = tripCountdown(data.trip?.startDate, data.trip?.endDate);
+  const where = data.trip?.destinations.slice(0, 2).join(" · ") || data.trip?.name;
+  return <View style={{ backgroundColor: c.night, borderRadius: 24, padding: 18, flexDirection: "row", alignItems: "center", gap: 14 }}>
+    <View style={{ flex: 1, gap: 4 }}>{where && <Eyebrow color={c.nightAccent}>{where}</Eyebrow>}<Heading small color={c.nightInk}>{title}</Heading>{subtitle && <T style={{ color: c.nightMuted, fontSize: 13, lineHeight: 18 }}>{subtitle}</T>}</View>
+    {when && <View style={{ alignItems: "flex-end" }}><T style={{ fontFamily: "NunitoHeading", fontSize: when.value.length > 3 ? 24 : 34, lineHeight: when.value.length > 3 ? 28 : 38, color: c.nightAccent }}>{when.value}</T><T style={{ fontSize: 11, lineHeight: 14, fontFamily: "NunitoBold", color: c.nightMuted }}>{when.label}</T></View>}
+  </View>;
 }

@@ -9,7 +9,7 @@ import { workspaceHref } from "../lib/workspace";
 import type { MobileTripCard } from "../lib/types";
 import { HOME_SCENES } from "../../../src/lib/home-content";
 import { FEATURE_PAGES } from "../../../src/lib/feature-pages";
-import { Avatar, Badge, Brand, Button, Card, ErrorNotice, Eyebrow, Heading, Icon, Loading, Muted, OnPhoto, PhotoCard, Screen, T, styles, type IconName } from "./ui";
+import { Badge, Brand, Button, Card, ErrorNotice, Eyebrow, Heading, Icon, Loading, Muted, OnPhoto, PhotoCard, Screen, T, styles, type IconName } from "./ui";
 import { useTheme } from "./theme";
 import { CreateTripButton, NativeLegalLinks } from "./public-header";
 

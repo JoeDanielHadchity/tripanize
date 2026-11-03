@@ -15,12 +15,12 @@ import { unregisterPush } from "../lib/push";
 import { useTheme, useAppearance } from "./theme";
 import { Fields } from "./form-fields";
 import { NativeItinerary } from "./native-itinerary";
-import { ActionRow, Sheet, TripHeader, TripHero, TripNavigation, TripSkeleton } from "./trip-ui";
+import { ActionRow, Sheet, Ticket, TripBanner, TripHeader, TripHero, TripNavigation, TripSkeleton } from "./trip-ui";
 import { NativeLocation } from "./native-location";
 import { PushSettingsCard } from "./push-settings";
 import { ChatComposer, TripChat } from "./trip-chat";
 import { PollCard, isPoll } from "./poll-card";
-import { Avatar, Button, Card, EmptyState, ErrorNotice, Heading, Icon, IconButton, ListRow, Loading, Muted, Screen, ScreenHeader, Section, Segmented, T, styles, type IconName } from "./ui";
+import { Button, Card, EmptyState, ErrorNotice, Heading, Icon, IconButton, ListRow, Loading, Muted, Screen, ScreenHeader, Section, Segmented, T, styles, type IconName } from "./ui";
 
 function confirmAction(message?: string): Promise<boolean> {
   if (!message) return Promise.resolve(true);
@@ -157,6 +157,15 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
     // A title on its own is a section heading, not an empty card.
     if (block.title && !block.text && !block.meta && !block.lines?.length && !block.actions?.length && !block.form && !block.image && !block.location) return <T key={block.id} accessibilityRole="header" style={{ fontFamily: "NunitoBold", fontSize: 18, paddingHorizontal: 4, marginTop: 6 }}>{block.title}</T>;
     if (isNavBlock(block)) return <Section key={block.id}>{block.actions!.map((a, i) => <ListRow key={`${a.label}-${i}`} icon={NAV_ICONS[a.to!.screen] ?? "arrow-forward-circle-outline"} title={a.label} onPress={() => onAction(a)} last={i === block.actions!.length - 1} />)}</Section>;
+    // Design 004: the budget and the Premium pass read as ink tickets ("Label · value" → eyebrow + big value).
+    if (block.id === "budget" || block.id === "premium") {
+      const [eyebrow, value] = block.title?.includes(" · ") ? [block.title.slice(0, block.title.indexOf(" · ")), block.title.slice(block.title.indexOf(" · ") + 3)] : [undefined, block.title];
+      const more = !!block.lines?.length || !!block.actions?.length;
+      return <Ticket key={block.id} eyebrow={eyebrow} value={value} caption={block.text}>{more ? <>
+        {!!block.lines?.length && <View style={{ gap: 8 }}>{block.lines.map((line, i) => <View key={i} style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.nightAccent, marginTop: 8 }} /><T style={{ fontSize: 14, lineHeight: 21, flex: 1, color: c.nightInk }}>{line}</T></View>)}</View>}
+        {block.actions?.length ? <ActionRow actions={block.actions} onAction={onAction} busy={busy} primary night /> : null}
+      </> : undefined}</Ticket>;
+    }
     const accent = block.tone === "accent", warning = block.tone === "warning";
     const purchase = block.actions?.some(a => a.device === "purchase");
     return <Card key={block.id} style={{ gap: 12, ...(accent ? { backgroundColor: c.soft } : warning ? { backgroundColor: c.coralSoft } : {}) }}>
@@ -182,7 +191,7 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
     {inTrip && <TripHeader data={header} loading={loading && !!display} onBack={() => router.canGoBack() ? router.back() : router.replace("/trips")} right={<View style={{ flexDirection: "row", gap: 8 }}>{(display?.role ?? header?.role) === "OWNER" && <IconButton name="person-add-outline" label="Invite people" onPress={() => setInviting(true)} />}<IconButton name="notifications-outline" label="Notifications" onPress={() => go({ screen: "notifications" })} /></View>} />}
     <View style={{ flex: 1 }}><Screen scrollRef={content} refreshControl={<RefreshControl refreshing={false} onRefresh={reload} tintColor={c.accent} />} style={{ gap: 16, paddingTop: inTrip ? 4 : 8, paddingBottom: showAssistant ? 100 : 32 }}>
-      {!inTrip && (isAccount && session ? <View style={{ alignItems: "center", gap: 8, paddingTop: 10 }}><Avatar name={session.user.name || session.user.email} size={76} /><Heading>{session.user.name || "Your account"}</Heading><Muted>{session.user.email}</Muted></View>
+      {!inTrip && (isAccount && session ? <View style={{ alignItems: "center", gap: 6, paddingVertical: 22, paddingHorizontal: 18, marginTop: 6, borderRadius: 26, backgroundColor: c.night }}><View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: c.nightActive, alignItems: "center", justifyContent: "center", marginBottom: 6 }}><T style={{ color: "#fff", fontFamily: "NunitoHeading", fontSize: 32, lineHeight: 40 }}>{(session.user.name || session.user.email || "T").trim()[0]!.toUpperCase()}</T></View><Heading small color={c.nightInk}>{session.user.name || "Your account"}</Heading><T style={{ color: c.nightMuted, fontSize: 13 }}>{session.user.email}</T></View>
         : <ScreenHeader back={!tab} title={display?.title ?? (current.screen === "notifications" ? "Inbox" : " ")} subtitle={display?.subtitle} />)}
       {(error || actionError) && <ErrorNotice message={actionError ?? error!} retry={reload} />}
       {error && ![401, 403, 404].includes(status ?? 0) && current.tripId && <Button secondary onPress={() => router.push({ pathname: "/trip/[id]", params: { id: current.tripId! } })}>Open saved itinerary</Button>}
@@ -191,7 +200,7 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
       {sharedUrl && <Card><T selectable>{sharedUrl}</T><Button leadingIcon="share-outline" onPress={() => void Share.share({ message: sharedUrl, url: sharedUrl })}>Share invitation link</Button></Card>}
       {!display && loading && !error && (inTrip ? <TripSkeleton hero={current.screen === "itinerary"} /> : <Loading />)}
       {display && <Animated.View pointerEvents={staleShown ? "none" : "auto"} style={{ gap: 16, opacity: fade, transform: [{ translateX: shift }] }}>
-        {inTrip && (itinerary ? <TripHero data={display} cover={cover} /> : <View style={{ gap: 4, paddingHorizontal: 4 }}><Heading small>{display.title}</Heading>{display.subtitle && <Muted>{display.subtitle}</Muted>}</View>)}
+        {inTrip && (itinerary ? <TripHero data={display} cover={cover} /> : display.trip ? <TripBanner data={display} title={display.title} subtitle={display.subtitle} /> : <View style={{ gap: 4, paddingHorizontal: 4 }}><Heading small>{display.title}</Heading>{display.subtitle && <Muted>{display.subtitle}</Muted>}</View>)}
         {eventsTab && <Segmented label="Events or bookings" value={current.screen === "bookings" || current.screen === "booking" ? "bookings" : "events"} onChange={v => go({ screen: v, tripId: current.tripId })} options={[{ value: "events", label: "Events" }, { value: "bookings", label: "Bookings" }]} />}
         {itinerary ? <NativeItinerary data={display} onAction={onAction} busy={busy || !!staleShown} renderBlock={renderBlock} pendingDay={staleShown ? current.item : undefined} />
           : current.screen === "notifications" ? <Inbox blocks={display.blocks} busy={busy} loading={loading} onAction={onAction} />
@@ -209,7 +218,7 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
           <ListRow icon="log-out-outline" title="Sign out" tone="danger" onPress={() => void signOut()} last />
         </Section>
       </>}
-    </Screen>{showAssistant && <View pointerEvents="box-none" style={{ position: "absolute", bottom: 14, right: 16 }}><Button leadingIcon="sparkles" tone="coral" disabled={busy} style={{ borderRadius: 28, boxShadow: "0 6px 18px rgba(181,90,60,0.35)" }} onPress={() => go({ screen: "assistant", tripId: display.tripId, day: display.itinerary?.selectedDay?.date })}>Ask AI</Button></View>}</View>
+    </Screen>{showAssistant && <View pointerEvents="box-none" style={{ position: "absolute", bottom: 14, right: 16 }}><Button leadingIcon="sparkles" tone="coral" disabled={busy} style={{ borderRadius: 28, boxShadow: "0 6px 18px rgba(180,80,45,0.35)" }} onPress={() => go({ screen: "assistant", tripId: display.tripId, day: display.itinerary?.selectedDay?.date })}>Ask AI</Button></View>}</View>
     {chat && display && <ChatComposer data={display} tripId={current.tripId!} onSent={() => { reload(); scrollToEnd(); }} />}
     {sheet && <DetailSheet target={sheet} onClose={() => setSheet(null)} onAction={a => { setSheet(null); onAction(a); }} onDone={r => { setSheet(null); void result(r); }} />}
     {inviting && current.tripId && <InviteSheet tripId={current.tripId} tripName={header?.trip?.name ?? "our trip"} close={() => setInviting(false)} />}
@@ -370,7 +379,10 @@ function Packing({ blocks, busy, onAction, onAdd, renderBlock }: { blocks: Mobil
   return <>
     <Segmented label="Packing list" value={list} onChange={setList} options={[{ value: "mine", label: `My list · ${count(mine)}` }, { value: "group", label: `Group list · ${count(group)}` }]} />
     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 4 }}><Icon name={list === "mine" ? "lock-closed-outline" : "people-outline"} size={14} color={c.muted} /><Muted style={{ fontSize: 12 }}>{list === "mine" ? "Only you can see your list. Everyone has their own." : "Shared things the whole group can see and tick."}</Muted></View>
-    {items.length > 0 && <View style={{ height: 6, borderRadius: 3, backgroundColor: c.soft, overflow: "hidden" }}><View style={{ width: `${Math.round(packed / items.length * 100)}%`, height: 6, borderRadius: 3, backgroundColor: packed === items.length ? c.success : c.accent }} /></View>}
+    {items.length > 0 && <View accessible accessibilityLabel={`${packed} of ${items.length} packed`} style={{ backgroundColor: c.night, borderRadius: 22, padding: 16, flexDirection: "row", alignItems: "center", gap: 16 }}>
+      <T style={{ fontFamily: "NunitoHeading", fontSize: 34, lineHeight: 40, color: c.nightAccent }}>{packed}<T style={{ fontFamily: "NunitoHeading", fontSize: 18, color: c.nightMuted }}>/{items.length}</T></T>
+      <View style={{ flex: 1, gap: 8 }}><T style={{ color: c.nightInk, fontFamily: "NunitoBold" }}>{packed === items.length ? "All packed. Bon voyage!" : `${items.length - packed} left to pack`}</T><View style={{ height: 6, borderRadius: 3, backgroundColor: c.nightLine, overflow: "hidden" }}><View style={{ width: `${Math.round(packed / items.length * 100)}%`, height: 6, borderRadius: 3, backgroundColor: c.nightAccent }} /></View></View>
+    </View>}
     {canAdd && <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.paper, borderRadius: 16, borderWidth: 1, borderColor: c.line, paddingLeft: 14, paddingRight: 6 }}>
       <Icon name="add-circle-outline" size={20} />
       <TextInput ref={input} accessibilityLabel={list === "mine" ? "Add to my list" : "Add to the group list"} placeholder={list === "mine" ? "Add to my list and press Enter" : "Add to the group list"} placeholderTextColor={c.muted} value={text} onChangeText={setText} returnKeyType="done" submitBehavior="submit" onSubmitEditing={() => void add()} style={{ flex: 1, minHeight: 52, color: c.ink, fontFamily: "Nunito", fontSize: 16 }} />
@@ -380,7 +392,7 @@ function Packing({ blocks, busy, onAction, onAdd, renderBlock }: { blocks: Mobil
       : <Section>{items.map((b, i) => {
         const done = b.title?.startsWith("✓ ") ?? false, toggle = b.actions?.find(a => a.action === "packing.update"), remove = b.actions?.find(a => a.action === "packing.remove");
         return <Pressable key={b.id} accessibilityRole="checkbox" accessibilityState={{ checked: done, disabled: !toggle || busy }} accessibilityHint={remove ? "Long-press to remove" : undefined} disabled={!toggle || busy} onPress={() => toggle && onAction(toggle)} onLongPress={() => remove && onAction(remove)} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, paddingVertical: 10, borderBottomWidth: i === items.length - 1 ? 0 : StyleSheet.hairlineWidth, borderBottomColor: c.line, opacity: pressed ? 0.6 : 1 })}>
-          <Icon name={done ? "checkbox" : "square-outline"} size={24} color={done ? c.success : c.muted} />
+          <Icon name={done ? "checkbox" : "square-outline"} size={24} color={done ? c.accent : c.muted} />
           <View style={{ flex: 1 }}><T style={{ fontFamily: "NunitoBold", color: done ? c.muted : c.ink, textDecorationLine: done ? "line-through" : "none" }}>{done ? b.title!.slice(2) : b.title}</T>{(b.meta || b.text) && <T numberOfLines={2} style={{ color: c.muted, fontSize: 13, lineHeight: 19 }}>{[b.meta, b.text].filter(Boolean).join(" · ")}</T>}</View>
         </Pressable>;
       })}</Section>}

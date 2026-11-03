@@ -11,7 +11,7 @@ export function NativeLegalLinks() {
   return <View style={{ gap: 8 }}><View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 16 }}>{["Terms", "Privacy", "Refunds", "Contact"].map(label => <Pressable key={label} accessibilityRole="link" onPress={() => void Linking.openURL(`https://www.tripanize.app/${label.toLowerCase()}`).catch(() => setError(true))} style={{ paddingVertical: 12 }}><T style={{ color: c.muted, fontSize: 12 }}>{label} ↗</T></Pressable>)}</View>{error && <T accessibilityRole="alert">Could not open the page. Please try again.</T>}</View>;
 }
 
-export function CreateTripButton({ secondary = false, label = "Create a trip" }: { secondary?: boolean; label?: string }) {
+export function CreateTripButton({ secondary = false, label = "Create a trip", night = false }: { secondary?: boolean; label?: string; night?: boolean }) {
   const { data: session } = authClient.useSession();
-  return <Button secondary={secondary} leadingIcon="add" onPress={() => session ? router.push(workspaceHref({ screen: "new" })) : router.push({ pathname: "/sign-in", params: { next: "new" } })}>{label}</Button>;
+  return <Button secondary={secondary} tone={night ? "night" : undefined} leadingIcon="add" onPress={() => session ? router.push(workspaceHref({ screen: "new" })) : router.push({ pathname: "/sign-in", params: { next: "new" } })}>{label}</Button>;
 }

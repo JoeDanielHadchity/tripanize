@@ -11,11 +11,11 @@ const openSite = (path: string) => { void Linking.openURL(`https://www.tripanize
 /** A sign-in card shared by the signed-out tabs. */
 function SignInCard({ next, title, text }: { next: string; title: string; text: string }) {
   const c = useTheme();
-  return <Card style={{ backgroundColor: c.accent, gap: 10 }}>
-    <T style={{ fontFamily: "NunitoHeading", fontSize: 23, lineHeight: 29, color: c.accentText }}>{title}</T>
-    <T style={{ color: c.accentText, opacity: 0.88, fontSize: 14, lineHeight: 21 }}>{text}</T>
-    <Button secondary leadingIcon="mail-outline" onPress={() => signIn(next)} style={{ marginTop: 4 }}>Sign in with email</Button>
-    <T style={{ color: c.accentText, opacity: 0.75, fontSize: 12, textAlign: "center" }}>New here? The same step creates your free account.</T>
+  return <Card style={{ backgroundColor: c.night, gap: 10, borderRadius: 26 }}>
+    <T style={{ fontFamily: "NunitoHeading", fontSize: 23, lineHeight: 29, color: c.nightInk }}>{title}</T>
+    <T style={{ color: c.nightMuted, fontSize: 14, lineHeight: 21 }}>{text}</T>
+    <Button tone="night" leadingIcon="mail-outline" onPress={() => signIn(next)} style={{ marginTop: 4 }}>Sign in with email</Button>
+    <T style={{ color: c.nightMuted, fontSize: 12, textAlign: "center" }}>New here? The same step creates your free account.</T>
   </Card>;
 }
 
