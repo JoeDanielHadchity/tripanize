@@ -171,7 +171,7 @@ export function ItineraryView(p: Props) {
                   {d.activePlan === "B" && <p className="mb-2 rounded-lg bg-sage-soft px-3 py-2 text-sm text-sage-ink">Showing Plan B{d.planBNote ? ` — ${d.planBNote}` : ""}. Plan B costs aren't added to the budget.</p>}
                   {d.notes && <p className="mb-3 whitespace-pre-line text-sm text-muted"><PlanningText text={d.notes} /></p>}
                   {stops.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
+                    <div className="rounded-2xl bg-surface-2/70 px-4 py-6 text-center text-sm text-muted">
                       {d.activePlan === "B" ? "No Plan B yet." : "Nothing planned — that's allowed."}
                       {p.canEdit && <Button className="ml-2" onClick={() => setEditing({ dayId: d.id, plan: d.activePlan, label: formatDate(d.date) })}>Add a stop</Button>}
                     </div>

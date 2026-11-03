@@ -1,23 +1,18 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import type { DestinationImage } from "@/server/images";
+import { TripCoverPhoto } from "./trip-cover-photo";
 
-const PHOTOS: Record<string, string> = {
-  expenses: "/editorial/expenses.webp",
-  chat: "/editorial/chat.webp",
-  packing: "/editorial/packing.webp",
-  settings: "/editorial/settings.webp",
-};
-
-export function JourneyCover({ name, dates, destinations, countdown }: { name: string; dates: string; destinations: string[]; countdown?: { value: string; label: string } | null }) {
+export function JourneyCover({ tripId, name, dates, destinations, countdown, image }: { tripId: string; name: string; dates: string; destinations: string[]; countdown?: { value: string; label: string } | null; image?: DestinationImage | null }) {
   const path = usePathname();
   const section = path.split("/")[3] ?? "itinerary";
-  const porto = destinations.some(place => /porto|oporto/i.test(place));
-  const photo = PHOTOS[section] ?? (porto && section === "itinerary" ? "/editorial/itinerary.webp" : porto && ["events", "bookings"].includes(section) ? "/editorial/events.webp" : null);
   if (["premium", "onboarding", "plan"].includes(section)) return null;
-  // The dark trip banner from Design 004: photo, route and dates, name, and the countdown.
-  return <div className={`journey-cover${photo ? " has-photo" : ""}`}>
-    {photo && <img decoding="async" src={photo} alt="" aria-hidden="true" loading="lazy" />}
+  // Design 004 trip banner: the trip's own cover photo under an ink shade (plain ink when there is none),
+  // then route and dates, the name and the countdown. The same on every section of the trip.
+  return <div className="journey-cover">
+    {destinations[0] && <span className="journey-cover-photo" aria-hidden="true"><TripCoverPhoto tripId={tripId} destination={destinations[0]} initialImage={image ?? null} /></span>}
+    <span className="journey-cover-shade" aria-hidden="true" />
     <div className="journey-cover-text"><p>{destinations.join(" → ")}{dates && <>{destinations.length > 0 ? " · " : ""}{dates}</>}</p><h2>{name}</h2></div>
     {countdown && <p className="journey-cover-count"><strong>{countdown.value}</strong> <span>{countdown.label}</span></p>}
   </div>;

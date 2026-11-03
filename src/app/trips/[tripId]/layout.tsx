@@ -7,7 +7,7 @@ import { AppHeader } from "@/components/shell";
 import { TripNav } from "@/components/trip-nav";
 import { SyncWatcher } from "@/components/sync";
 import { SaveOfflineSnapshot } from "@/components/offline";
-import { Badge, LinkButton } from "@/components/ui";
+import { Badge } from "@/components/ui";
 import { formatDateRange, todayIn, tripCountdown } from "@/lib/dates";
 import { LocationSharingProvider } from "@/components/location-sharing";
 import { getChatSummary } from "@/server/chat/service";
@@ -16,7 +16,9 @@ import { getTripPlan } from "@/server/plans/access";
 import { userTrialAccess } from "@/server/admin/trials";
 import { TrialAccessBanner } from "@/components/trial-access";
 import { PremiumStar } from "@/components/premium-star";
+import { SetupReminder } from "@/components/setup-reminder";
 import { JourneyCover } from "@/components/journey-cover";
+import { savedTripImage } from "@/server/images";
 
 export default async function TripLayout({ children, params }: { children: React.ReactNode; params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
@@ -50,12 +52,12 @@ export default async function TripLayout({ children, params }: { children: React
             {plan.premium ? plan.source === "trial" ? "Premium trial active" : "Premium active" : trial.status === "available" ? "Activate free Premium trial" : "Premium · $15 / trip"}
           </Link>
         </div>
-        <JourneyCover name={trip.name} dates={formatDateRange(trip.startDate, trip.endDate)} destinations={trip.destinations.map(d => d.name)} countdown={tripCountdown(trip.startDate, trip.endDate, tripToday)} />
+        <JourneyCover tripId={trip.id} image={savedTripImage(trip, trip.destinations[0])} name={trip.name} dates={formatDateRange(trip.startDate, trip.endDate)} destinations={trip.destinations.map(d => d.name)} countdown={tripCountdown(trip.startDate, trip.endDate, tripToday)} />
         <TripNav tripId={trip.id} initialChat={chat} premium={plan.premium} />
-        <main id="main" className="min-w-0">{(!plan.premium || trial.status === "active" && trial.tripId === trip.id) && <TrialAccessBanner access={trial} tripId={trip.id} canActivate={access.role === "OWNER"} />}{access.role === "OWNER" && !["PLAN", "COMPLETE"].includes(trip.onboardingStage) && <LinkButton href={`/trips/${trip.id}/onboarding`} className="mb-4" variant="secondary">Continue setup</LinkButton>}{children}</main>
+        <main id="main" className="min-w-0">{(!plan.premium || trial.status === "active" && trial.tripId === trip.id) && <TrialAccessBanner access={trial} tripId={trip.id} canActivate={access.role === "OWNER"} />}{access.role === "OWNER" && !["PLAN", "COMPLETE"].includes(trip.onboardingStage) && <SetupReminder tripId={trip.id} />}{children}</main>
       </div>
       {plan.premium && <TripAssistant key={`assistant-${trip.id}`} tripId={trip.id} defaultDate={defaultDate} />}
-      {!plan.premium && <LinkButton href={`/trips/${trip.id}/premium#feature-assistant`} variant="ai" className="fixed bottom-28 right-4 z-20 shadow-lg lg:bottom-6"><PremiumStar className="text-current" /> AI assistant</LinkButton>}
+      {!plan.premium && <Link href={`/trips/${trip.id}/premium#feature-assistant`} aria-label="AI assistant (Premium)" className="ai-fab"><PremiumStar className="text-current" /> <span className="ai-fab-label">AI assistant</span></Link>}
       </LocationSharingProvider>
     </>
   );

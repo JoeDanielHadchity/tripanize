@@ -4,6 +4,7 @@ import { SignOutButton } from "./signout";
 import { AccountModeSync } from "./account-mode";
 import { NotificationBell } from "./notifications";
 import { SiteNavigation } from "./site-navigation";
+import { SiteMenu } from "./site-menu";
 
 export function Logo({ small }: { small?: boolean }) {
   return (
@@ -35,6 +36,7 @@ export function AppHeader({ user, current, currentPath }: { user: SessionUser; c
           <NotificationBell />
           <SettingsLink active={current === "settings" || currentPath === "/settings"} />
           <SignOutButton />
+          <SiteMenu extra={<><Link href="/account" className="site-menu-phone-only">Account</Link><SignOutButton className="site-menu-signout" /></>} />
         </nav>
       </div>
       {user.normalMode && <div className="border-t border-line bg-accent-soft px-4 py-1.5 text-center text-xs text-accent-ink">Normal mode · Premium included <Link href="/account" className="ml-2 font-semibold underline">Account mode</Link></div>}

@@ -132,7 +132,7 @@ export function EventsView(p: Props) {
         </div>
         <div className="mt-4 space-y-3" role="tabpanel">
           {p.events.length === 0 ? (
-            <EmptyState title="No events yet">{p.aiReady ? "Run a check to find events along your route, or add one you already know about." : "Add events you already know about. Automatic discovery needs the server's OpenAI integration."}</EmptyState>
+            <EmptyState title="No events yet" action={p.canEdit ? <Button variant="primary" onClick={() => setAdding(true)}>+ Add your own event</Button> : undefined}>{p.aiReady ? "Run a check to find events along your route, or add one you already know about." : "Add events you already know about. Automatic discovery needs the server's OpenAI integration."}</EmptyState>
           ) : shown.length === 0 ? <p className="text-sm text-muted">Nothing in this list.</p> : shown.map((e) => (
             <Card key={e.id} id={`event-${e.id}`} className="scroll-mt-24">
               <div className="flex flex-wrap items-start justify-between gap-2">
