@@ -11,6 +11,7 @@ interface CloudflareEnv {
   OPENAI_MODEL?: string;
   OPENAI_LIGHT_MODEL?: string;
   OPENAI_WEB_SEARCH?: string;
+  OPENAI_MAX_SEARCHES?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
   SUPPORT_EMAIL?: string;

@@ -79,3 +79,14 @@ it("never repeats a request that timed out, because OpenAI may already have bill
   await expect(generateStructured({ name: "sdk_fixture", schema: z.object({ ready: z.boolean() }), instructions: "Return structured JSON", input: "Synthetic test", webSearch: true, timeoutMs: 50 })).rejects.toMatchObject({ code: "TIMEOUT" });
   expect(fetch).toHaveBeenCalledTimes(1);
 });
+
+it("allows 3 web searches per request by default, configurable, and none when search is off", async () => {
+  const bodies: Record<string, unknown>[] = [];
+  vi.stubGlobal("fetch", vi.fn(async (_url: unknown, init?: RequestInit) => { bodies.push(JSON.parse(String(init?.body))); return new Response(JSON.stringify({ id: "resp_fixture", object: "response", model: "isolated", status: "completed", output: [message('{"ready":true}', "final_answer")], usage: null }), { headers: { "Content-Type": "application/json" } }); }));
+  const { generateStructured } = await import("@/server/ai/openai");
+  const call = (webSearch: boolean) => generateStructured({ name: "sdk_fixture", schema: z.object({ ready: z.boolean() }), instructions: "Return structured JSON", input: "Synthetic test", webSearch });
+  await call(true); vi.stubEnv("OPENAI_MAX_SEARCHES", "5"); await call(true); vi.stubEnv("OPENAI_MAX_SEARCHES", "nonsense"); await call(true); await call(false);
+  vi.unstubAllEnvs();
+  expect(bodies.map(b => b.max_tool_calls)).toEqual([3, 5, 3, undefined]);
+  expect(bodies.at(-1)?.tools).toBeUndefined();
+});
