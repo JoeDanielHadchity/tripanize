@@ -4,7 +4,6 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { T } from "./ui";
 import { useTheme } from "./theme";
-import { GoogleTripMap, googleMapsAvailable } from "./google-map";
 
 export type MapPin = { id: string; name: string; lat: number; lng: number; me?: boolean; note?: string };
 
@@ -24,13 +23,8 @@ function fitZoom(pins: MapPin[], width: number, height: number) {
   return 2;
 }
 
-/** Google Maps when this build has a key for the platform; otherwise the OpenStreetMap tile map below. */
-export function TripMap({ pins, height = 230, fallback }: { pins: MapPin[]; height?: number; fallback?: { lat: number; lng: number } }) {
-  return googleMapsAvailable() ? <GoogleTripMap pins={pins} height={height} fallback={fallback} /> : <OsmTripMap pins={pins} height={height} fallback={fallback} />;
-}
-
 /** Lightweight tile map: drag to pan, buttons to zoom. No API key needed. */
-function OsmTripMap({ pins, height, fallback }: { pins: MapPin[]; height: number; fallback?: { lat: number; lng: number } }) {
+export function TripMap({ pins, height = 230, fallback }: { pins: MapPin[]; height?: number; fallback?: { lat: number; lng: number } }) {
   const c = useTheme();
   // Start from the screen width so pins are centred before the first layout pass.
   const [width, setWidth] = useState(() => Math.min(600, Dimensions.get("window").width) - 40);
