@@ -118,7 +118,7 @@ export function TodayView(p: {
       <section aria-labelledby="tl">
         <h2 id="tl" className="mb-2 font-display text-2xl font-extrabold">Timeline</h2>
         {stops.length === 0 ? (
-          <p className="rounded-2xl bg-surface-2/70 px-4 py-6 text-center text-sm text-muted">Nothing scheduled{p.day.activePlan === "B" ? " in Plan B" : ""}. <Link className="text-accent-ink underline" href={`/trips/${p.tripId}/itinerary#day-${p.date}`}>Plan this day</Link></p>
+          <p className="rounded-2xl bg-surface-2/70 px-4 py-6 text-center text-sm text-muted">Nothing scheduled{p.day.activePlan === "B" ? " in the rainy-day Plan B" : ""}. <Link className="text-accent-ink underline" href={`/trips/${p.tripId}/itinerary#day-${p.date}`}>Plan this day</Link></p>
         ) : (
           <ol className="space-y-2">
             {stops.map((s, i) => <StopCard key={s.id} s={s} next={stops[i + 1]} tripId={p.tripId} currency={p.currency} mapsApp={mapsApp} canEdit={p.canEdit} handlers={handlers} highlight={s.id === current?.id ? "now" : s.id === next?.id && !current ? "next" : null} />)}

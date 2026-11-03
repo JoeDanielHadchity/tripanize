@@ -29,7 +29,8 @@ it("keeps the site links alongside a member's account controls", () => {
   expect(html).toContain('href="/account"');
   expect(html).toContain('aria-label="Settings"');
   expect(html).toContain('aria-label="Notifications"');
-  expect(html).toContain("Sign out");
+  // Sign out lives in Settings and the phone menu, not the header row.
+  expect(html).not.toContain("Sign out");
   expect(html).not.toContain('href="/company"');
 });
 

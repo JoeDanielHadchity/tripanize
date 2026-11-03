@@ -35,7 +35,6 @@ export function AppHeader({ user, current, currentPath }: { user: SessionUser; c
           {link("/account", (user.companyAdminEligible || user.companyAdmin) ? "Account" : user.name.split(" ")[0] || "Account", current === "account")}
           <NotificationBell />
           <SettingsLink active={current === "settings" || currentPath === "/settings"} />
-          <SignOutButton />
           <SiteMenu extra={<><Link href="/account" className="site-menu-phone-only">Account</Link><SignOutButton className="site-menu-signout" /></>} />
         </nav>
       </div>

@@ -14,7 +14,7 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   await page.waitForURL("**/start");
   await page.goto("/trips/new");
   await page.getByLabel("Trip name").fill("Stub trip");
-  await page.getByRole("button", { name: "Continue to plans" }).click();
+  await page.getByRole("button", { name: "Next: choose Free or Premium" }).click();
   await page.waitForURL("**/premium?created=1");
   const tripUrl = page.url().split("/premium")[0];
   await page.getByRole("button", { name: "Continue free" }).click();

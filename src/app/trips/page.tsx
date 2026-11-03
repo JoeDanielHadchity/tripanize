@@ -44,7 +44,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
       <AppHeader user={user} current="trips" />
       <main id="main" className="mx-auto max-w-6xl px-4 pb-16 pt-6">
         {nextTrip && <NextTrip trip={nextTrip} firstName={user.name.split(" ")[0] ?? ""} />}
-        <PageHeader title="My trips"  actions={<><LinkButton href="/destinations">Find a destination</LinkButton><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Create a trip</LinkButton></>} />
+        <PageHeader title="My trips"  actions={<><LinkButton href="/destinations">Find a destination</LinkButton><LinkButton href="/plans">Compare plans</LinkButton><LinkButton href="/trips/new" variant="primary">+ Create a trip</LinkButton></>} />
         {selectedTrip && <Notice tone="accent" className="mb-5">Your chosen destination is saved in <strong>{selectedTrip.name}</strong>. Continue planning from your trip below.</Notice>}
         <PendingInvites invites={invites} />
         <TrialAccessBanner access={trial} tripId={selectedTrip?.id} canActivate={selectedTrip?.role === "OWNER"} />

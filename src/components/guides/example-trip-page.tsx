@@ -40,7 +40,7 @@ export function ExampleTripPage({ example, user }: { example: Example; user: Ses
           <p className="guide-subtitle">Two cities, linked by train.</p>
           <p className="guide-intro">{example.summary}</p>
           <LinkButton href={use} variant="primary" className="mt-5">Use this itinerary <span aria-hidden="true">→</span></LinkButton>
-          <p className="guide-small-note">An editable starting point for your own trip.</p>
+          <p className="guide-small-note">{authenticated ? "An editable starting point for your own trip." : "An editable starting point for your own trip. Saving it needs a free account, which takes about 20 seconds."}</p>
         </div>
         <figure className="guide-photo">
           <img src={`/editorial/city-guides/${example.slug}-small.webp`} srcSet={`/editorial/city-guides/${example.slug}-small.webp 1200w, ${guideImage(example.slug)} 2400w`} sizes="(max-width: 700px) calc(100vw - 34px), (max-width: 1120px) calc(50vw - 45px), 515px" alt={photo.description} width={photo.width} height={photo.height} fetchPriority="high" decoding="async" />
