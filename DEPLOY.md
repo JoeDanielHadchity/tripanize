@@ -30,6 +30,16 @@ The public configuration includes the canonical app URL, authentication base URL
 
 Production email is connected through the encrypted `RESEND_API_KEY` Cloudflare secret, using the verified sender `Tripanize <hello@tripanize.app>`. Never put the key into this repository or public build variables. The application creates its authentication signing secret inside private Durable Object storage on first startup and reuses it across restarts and deployments.
 
+## Google Maps
+
+The itinerary map and the member locations map use Google Maps when `GOOGLE_MAPS_BROWSER_KEY` is set as a Cloudflare runtime variable or secret. Without it, or if Google rejects the key, they fall back to OpenStreetMap.
+
+1. In Google Cloud, create a project with billing enabled and enable **Maps JavaScript API**.
+2. Create an API key and restrict it: application restriction **Websites** with `https://tripanize.app/*`, `https://www.tripanize.app/*` and the Worker's `workers.dev` address; API restriction **Maps JavaScript API** only.
+3. Optional: create a **Map ID** (JavaScript, vector) for a custom style and modern markers, and set it as `GOOGLE_MAPS_MAP_ID`.
+
+The key is sent to visitors' browsers by design, so the website restrictions are what protect it. Map loads are billed by Google per 1,000 after the monthly free allowance; set a budget alert in Google Cloud.
+
 ## Hosting-first scope
 
 Available: password account registration and sign-in, email sign-in codes, password resets, manual trip planning, itinerary editing, bookings, shared expenses and balances, email invitations and invitation links, packing lists, manual events, private file uploads, JSON export and PDF export. AI drafts, selected-day regeneration, stop alternatives, tailored questions and manual event searches become available when the encrypted `OPENAI_API_KEY` runtime secret is configured.

@@ -5,10 +5,12 @@ import "leaflet/dist/leaflet.css";
 import { useLocationSharing } from "@/components/location-sharing";
 import { Badge, Button, Card, EmptyState, Notice } from "@/components/ui";
 import { LOCATION_POLL_MS, type LocatedMember, type MemberLocations } from "@/lib/member-locations";
+import type { GoogleMapsConfig } from "@/lib/google-maps";
+import { GoogleMap } from "@/components/maps/google-map";
 
 const colors = ["#0e8388", "#bc5633", "#7a4f00", "#65416f", "#497559", "#a3261c"];
 
-export function MemberLocationsView({ tripId, userId }: { tripId: string; userId: string }) {
+export function MemberLocationsView({ tripId, userId, googleMaps = null }: { tripId: string; userId: string; googleMaps?: GoogleMapsConfig | null }) {
   const sharing = useLocationSharing();
   const [data, setData] = useState<MemberLocations | null>(null);
   const [error, setError] = useState("");
@@ -47,8 +49,8 @@ export function MemberLocationsView({ tripId, userId }: { tripId: string; userId
     {error && <Notice tone="warn">{error} <button type="button" className="font-semibold underline" onClick={() => setRefresh(n => n + 1)}>Retry</button></Notice>}
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-display text-xl font-semibold">Who’s nearby</h2><Button variant="ghost" onClick={() => setRefresh(n => n + 1)}>Refresh map</Button></div>
-      {locations.length ? <LiveMemberMap points={locations} userId={userId} /> : <EmptyState title={data ? "No locations shared yet" : error ? "Map unavailable" : "Loading member locations…"}>Members appear here after they turn location sharing on. You can view the map without sharing your own location.</EmptyState>}
-      <p className="mt-3 text-xs text-muted">Locations are approximate. The accuracy circle shows your device’s reported uncertainty. Map tiles are provided by OpenStreetMap; loading the map requests tiles for the displayed area.</p>
+      {locations.length ? <LiveMemberMap points={locations} userId={userId} google={googleMaps} /> : <EmptyState title={data ? "No locations shared yet" : error ? "Map unavailable" : "Loading member locations…"}>Members appear here after they turn location sharing on. You can view the map without sharing your own location.</EmptyState>}
+      <p className="mt-3 text-xs text-muted">Locations are approximate. The accuracy circle shows your device’s reported uncertainty. {googleMaps ? "The map is provided by Google Maps" : "Map tiles are provided by OpenStreetMap"}; loading the map requests map images for the displayed area.</p>
     </Card>
     {data && <Card><h2 className="font-display text-xl font-semibold">Trip members</h2><ul className="mt-2 divide-y divide-line">{data.members.map(m => {
       const p = locations.find(p => p.userId === m.userId);
@@ -58,7 +60,18 @@ export function MemberLocationsView({ tripId, userId }: { tripId: string; userId
   </div>;
 }
 
-function LiveMemberMap({ points, userId }: { points: LocatedMember[]; userId: string }) {
+function LiveMemberMap({ points, userId, google }: { points: LocatedMember[]; userId: string; google: GoogleMapsConfig | null }) {
+  // Google Maps when configured; OpenStreetMap if there is no key or Google fails to load.
+  const [googleFailed, setGoogleFailed] = useState(false);
+  const [fitSignal, setFitSignal] = useState(0);
+  if (google && !googleFailed) {
+    const pins = points.map((p, index) => ({ id: p.userId, lat: p.lat, lng: p.lng, accuracy: p.accuracy, color: p.userId === userId ? "#0e8388" : colors[(index + 1) % colors.length], label: `${p.name}${p.userId === userId ? " (you)" : ""}`, title: `${p.name}${p.userId === userId ? " (you)" : ""} · accuracy ±${Math.round(p.accuracy)} m` }));
+    return <div className="space-y-2"><GoogleMap config={google} points={pins} padding={35} maxZoom={15} refitOnChange={false} fitSignal={fitSignal} onFail={() => setGoogleFailed(true)} className="relative z-0 h-[50dvh] min-h-72 overflow-hidden rounded-xl border border-line" ariaLabel="Map of sharing trip members" /><Button onClick={() => setFitSignal(n => n + 1)}>Show everyone</Button></div>;
+  }
+  return <OsmMemberMap points={points} userId={userId} />;
+}
+
+function OsmMemberMap({ points, userId }: { points: LocatedMember[]; userId: string }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<import("leaflet").Map | null>(null);
   const layer = useRef<import("leaflet").LayerGroup | null>(null);
