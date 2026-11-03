@@ -6,7 +6,7 @@ import { dateRange, todayIn, tripPhase } from "@/lib/dates";
 import { parseMoney } from "@/lib/money";
 import { syncBookingProjection } from "@/server/bookings/service";
 import { formatZodError, tripInput, type TripInput, type TripParsed } from "./schemas";
-import { accountDisplayName } from "@/server/admin/identity";
+import { accountDisplayName, isCompanyAccount } from "@/server/admin/identity";
 import { destinationImageKey, savedTripImage, scheduleTripCover } from "@/server/images";
 
 function parse(input: TripInput): TripParsed {
@@ -128,7 +128,9 @@ export async function createTrip(userId: string, input: TripInput, destinationSe
       if (!search) throw new AppError("NOT_FOUND", "Destination ideas not found.");
       if (search.selectedTripId && await tx.trip.findFirst({ where: { id: search.selectedTripId, ownerId: userId } })) return search.selectedTripId;
     }
-    const trip = await tx.trip.create({ data: { ...scalarFields(t), ownerId: userId, autoDiscovery: true, ...(destinationSearchId ? { onboardingStage: "PLAN" } : {}) } });
+    // The company account's trips are test trips: automatic (paid) event searches
+    // start off there and can be switched on per trip under Events.
+    const trip = await tx.trip.create({ data: { ...scalarFields(t), ownerId: userId, autoDiscovery: !isCompanyAccount(user), ...(destinationSearchId ? { onboardingStage: "PLAN" } : {}) } });
     const me = await tx.traveler.create({ data: { tripId: trip.id, name, userId } });
     await tx.tripMembership.create({ data: { tripId: trip.id, userId, role: "OWNER", travelerId: me.id } });
     const seen = new Set([name.trim().toLowerCase()]);
