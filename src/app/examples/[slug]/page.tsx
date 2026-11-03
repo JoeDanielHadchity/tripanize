@@ -35,7 +35,7 @@ export default async function ExamplePage({ params }: { params: Promise<{ slug: 
     <div className="min-h-dvh">
       <PublicHeader currentPath={`/examples/${slug}`} user={user} />
       <main id="main" className="mx-auto max-w-4xl px-4 pb-16">
-        <div className="relative overflow-hidden rounded-3xl p-6 text-white sm:p-10" style={{ background: ex.slug === "lisbon-porto" ? "linear-gradient(90deg,#172e33ed,#172e3399),url(/editorial/guide.webp) center / cover" : ex.image }}>
+        <div className="relative overflow-hidden rounded-3xl p-6 text-white sm:p-10" style={{ background: "linear-gradient(90deg,#172e33e6,#172e3366),url(/editorial/city-guides/lisbon-porto.webp) center / cover" }}>
           <Badge tone="warn" className="mb-3">Example trip — not one of your trips</Badge>
           <h1 className="photo-title font-display text-3xl font-semibold sm:text-4xl">{ex.name}</h1>
           <p className="mt-2 max-w-xl text-white/90">{ex.summary}</p>
