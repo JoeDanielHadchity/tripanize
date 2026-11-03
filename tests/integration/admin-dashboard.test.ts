@@ -52,7 +52,7 @@ it("reports searchable user and trip metadata without granting trip membership",
   const {admin,user}=await fixture(); const tripId=await makeTrip(user.id);
   await prisma.user.update({where:{id:user.id},data:{lastSeenAt:new Date()}});
   expect((await adminUsers(admin.id,"traveler@",0)).rows).toHaveLength(1);
-  expect((await adminTrips(admin.id,"Lisbon",0)).rows[0]).toMatchObject({id:tripId,plan:"Normal",owner:{email:user.email}});
+  expect((await adminTrips(admin.id,"Lisbon",0)).rows[0]).toMatchObject({id:tripId,plan:"Free",owner:{email:user.email}});
   await expect(requireTrip(tripId,admin.id)).rejects.toMatchObject({code:"NOT_FOUND"});
   expect(await adminOverview(admin.id)).toMatchObject({users:2,activeUsers:1,trips:1,salesMinor:0,openSupport:0});
 });

@@ -46,6 +46,13 @@ function List({ tripId, title, items, shared, editable, emptyText }: { tripId: s
           <p className="text-sm font-semibold text-muted">{done} of {items.length} packed</p>
         </div>
       </div>
+      {editable && (
+        <form className="mt-4 flex flex-wrap gap-2" onSubmit={async (e) => { e.preventDefault(); if (!label.trim()) return; const r = await run(() => addPackingAction(tripId, { label, category, shared })); if (r !== null) setLabel(""); }}>
+          <Input aria-label={`Add to ${title}`} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Add an item" className="min-w-40 flex-1" maxLength={120} />
+          <Select aria-label="Category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-auto">{PACKING_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select>
+          <Button type="submit" disabled={pending}>Add</Button>
+        </form>
+      )}
       {items.length === 0 && <p className="mt-4 text-sm text-muted">{emptyText}</p>}
       {cats.map((c) => (
         <div key={c} className="mt-4">
@@ -81,13 +88,6 @@ function List({ tripId, title, items, shared, editable, emptyText }: { tripId: s
           </ul>
         </div>
       ))}
-      {editable && (
-        <form className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4" onSubmit={async (e) => { e.preventDefault(); if (!label.trim()) return; const r = await run(() => addPackingAction(tripId, { label, category, shared })); if (r !== null) setLabel(""); }}>
-          <Input aria-label={`Add to ${title}`} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Add an item" className="min-w-40 flex-1" maxLength={120} />
-          <Select aria-label="Category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-auto">{PACKING_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select>
-          <Button type="submit" disabled={pending}>Add</Button>
-        </form>
-      )}
     </Card>
   );
 }
@@ -98,9 +98,14 @@ export function PackingView({ tripId, canEditShared, premium, personal, shared, 
   const [result, setResult] = useState<string | null>(null);
   return (
     <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <List tripId={tripId} title="My packing list" items={personal} shared={false} editable emptyText="Only you can see this list." />
+        <List tripId={tripId} title="Shared group list" items={shared} shared editable={canEditShared} emptyText="Things the group needs once, like a first-aid kit or adapters." />
+      </div>
       {premium && <Card className="bg-ai-soft/60">
         <h2 className="flex items-center gap-2 font-display text-lg font-semibold">Packing suggestions <PremiumStar /></h2>
-        <p className="mt-1 text-sm text-muted">Customized for your destinations, local customs, events, travel preferences, dates and season, trip length, weather (live forecast within 14 days, otherwise typical conditions — always labeled), planned activities, road-trip and accommodation changes, and preferences you've shared. Refreshing keeps your own items and checkmarks, never re-adds items you removed, and doesn't create duplicates.</p>
+        <p className="mt-1 text-sm text-muted">A list made for this trip's places, dates, weather and plans. Your own items and checkmarks are always kept.</p>
+        <details className="mt-1 text-sm text-muted"><summary className="cursor-pointer font-semibold">How it works</summary><p className="mt-1">It uses your destinations, local customs, events, travel preferences, dates and season, trip length, weather (live forecast within 14 days, otherwise typical conditions, always labeled), planned activities, road-trip and accommodation changes, and preferences you've shared. Refreshing never re-adds items you removed and doesn't create duplicates.</p></details>
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <Field label="Laundry during the trip?" htmlFor="laundry"><Select id="laundry" value={laundry} onChange={(e) => setLaundry(e.target.value as "" | "yes" | "no")} className="w-auto"><option value="">Not sure</option><option value="yes">Yes</option><option value="no">No</option></Select></Field>
           <Button variant="primary" disabled={pending} onClick={async () => {
@@ -110,11 +115,7 @@ export function PackingView({ tripId, canEditShared, premium, personal, shared, 
         </div>
         {result && <Notice tone="accent" className="mt-3">{result}</Notice>}
       </Card>}
-      {!premium && <Card><h2 className="flex items-center gap-2 font-display text-lg font-semibold">Packing suggestions <PremiumStar /></h2><p className="mt-1 text-sm text-muted">Add your own items below for free, or choose Premium suggestions tailored to your trip.</p><LinkButton href={`/trips/${tripId}/premium#feature-packing`} className="mt-3">Choose packing suggestions <PremiumStar /></LinkButton></Card>}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <List tripId={tripId} title="My packing list" items={personal} shared={false} editable emptyText="Only you can see this list." />
-        <List tripId={tripId} title="Shared group list" items={shared} shared editable={canEditShared} emptyText="Things the group needs once, like a first-aid kit or adapters." />
-      </div>
+      {!premium && <Card><h2 className="flex items-center gap-2 font-display text-lg font-semibold">Packing suggestions <PremiumStar /></h2><p className="mt-1 text-sm text-muted">Add your own items above for free, or choose Premium suggestions tailored to your trip.</p><LinkButton href={`/trips/${tripId}/premium#feature-packing`} className="mt-3">Choose packing suggestions <PremiumStar /></LinkButton></Card>}
       <Tasks tripId={tripId} tasks={tasks} travelers={travelers} editable={canEditShared} />
     </div>
   );

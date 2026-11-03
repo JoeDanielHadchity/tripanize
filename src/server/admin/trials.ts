@@ -93,8 +93,10 @@ export type UserTrialAccess =
 export async function userTrialAccess(userId: string): Promise<UserTrialAccess> {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true, emailVerified: true, suspendedAt: true } });
   if (user.suspendedAt) return { status: "none" };
-  if (!user.emailVerified) return { status: "verify" };
   const pending = await prisma.trialInvitation.findFirst({ where: { email: user.email.toLowerCase(), ...invitationOpen, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "desc" }, select: { id: true, durationDays: true, expiresAt: true } });
+  // Unverified accounts learn only that verifying is worthwhile, never the invitation itself.
+  // Without an open invitation for their email there's nothing to verify for, so no notice.
+  if (!user.emailVerified) return { status: pending ? "verify" : "none" };
   if (pending) return { status: "available", invitationId: pending.id, durationDays: pending.durationDays, acceptBy: pending.expiresAt.toISOString() };
   const active = await prisma.trialInvitation.findFirst({ where: { acceptedById: userId, acceptedAt: { not: null }, revokedAt: null, OR: [{ trialEndsAt: null }, { trialEndsAt: { gt: new Date() } }], trip: { memberships: { some: { userId } } } }, select: { id: true, tripId: true, trialEndsAt: true, trip: { select: { id: true, name: true } } } });
   if (active?.trip && (await getTripPlan(active.trip.id)).source === "trial") return { status: "active", invitationId: active.id, tripId: active.trip.id, tripName: active.trip.name, endsAt: active.trialEndsAt?.toISOString() ?? null };
@@ -145,7 +147,7 @@ export async function acceptTrialInvitation(userId: string, input: z.input<typeo
     let tripId = chosen;
     if (tripId) {
       if (!await tx.trip.findFirst({ where: { id: tripId, ownerId: userId } })) throw new AppError("NOT_FOUND", "Choose a trip you organize.");
-      if ((await getTripPlan(tripId, tx)).premium) throw new AppError("CONFLICT", "This trip already has Premium. Choose a Normal trip.");
+      if ((await getTripPlan(tripId, tx)).premium) throw new AppError("CONFLICT", "This trip already has Premium. Choose a free trip.");
       // Keep a revoked grant's trip binding: an old invitation never moves to another trip.
       if (await tx.trialInvitation.findUnique({ where: { tripId } })) throw new AppError("CONFLICT", "This trip has already received a trial. Choose a different trip.");
     } else {

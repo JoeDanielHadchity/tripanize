@@ -74,7 +74,7 @@ export function DateRangeCalendar({ start, end, onChange }: { start: string; end
                 className={cx(
                   "relative z-10 h-10 w-10 rounded-full text-sm tabular-nums",
                   isStart || isEnd || (choosingEnd && c.date === rangeEnd) ? "bg-accent font-semibold text-on-accent" : "hover:bg-surface-2",
-                  !isStart && !isEnd && !c.inMonth && "text-muted/60",
+                  !isStart && !isEnd && !c.inMonth && "text-muted",
                   !isStart && !isEnd && c.date < today && c.inMonth && "text-muted",
                   c.date === today && !isStart && !isEnd && "ring-1 ring-accent",
                 )}

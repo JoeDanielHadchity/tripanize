@@ -47,20 +47,22 @@ export default async function TripLayout({ children, params }: { children: React
       <SaveOfflineSnapshot tripId={trip.id} />
       <LocationSharingProvider key={trip.id} tripId={trip.id} enabled={plan.premium}>
       <div className="trip-workspace">
+        <section aria-label="Trip overview">
         <div className="trip-topline">
           <Link href="/trips" className="trip-back">← All trips</Link>
-          <Badge tone={plan.premium ? "accent" : "neutral"}>{plan.preview ? "Premium preview" : plan.premium ? "Premium trip" : "Normal trip"}</Badge>
+          <Badge tone={plan.premium ? "accent" : "neutral"}>{plan.preview ? "Premium preview" : plan.premium ? "Premium trip" : "Free trip"}</Badge>
           {access.role !== "OWNER" && <Badge tone={access.role === "VIEWER" ? "warn" : "neutral"}>{access.role === "VIEWER" ? "View only" : "Editor"}</Badge>}
           <Link href={`/trips/${trip.id}/premium`} className="premium-link">
             {plan.premium ? plan.source === "trial" ? "Premium trial active" : "Premium active" : trial.status === "available" ? "Activate free Premium trial" : "Premium · $15 / trip"}
           </Link>
         </div>
         <JourneyCover tripId={trip.id} image={savedTripImage(trip, trip.destinations[0])} name={trip.name} dates={formatDateRange(trip.startDate, trip.endDate)} destinations={trip.destinations.map(d => d.name)} countdown={tripCountdown(trip.startDate, trip.endDate, tripToday)} action={invite} />
+        </section>
         <TripNav tripId={trip.id} initialChat={chat} premium={plan.premium} live={live} />
         <main id="main" className="min-w-0">{(!plan.premium || trial.status === "active" && trial.tripId === trip.id) && <TrialAccessBanner access={trial} tripId={trip.id} canActivate={access.role === "OWNER"} />}{access.role === "OWNER" && !["PLAN", "COMPLETE"].includes(trip.onboardingStage) && <SetupReminder tripId={trip.id} />}{children}</main>
       </div>
       {plan.premium && <TripAssistant key={`assistant-${trip.id}`} tripId={trip.id} defaultDate={defaultDate} />}
-      {!plan.premium && <Link href={`/trips/${trip.id}/premium#feature-assistant`} aria-label="AI assistant (Premium)" className="ai-fab"><PremiumStar className="text-current" /> <span className="ai-fab-label">AI assistant</span></Link>}
+      {!plan.premium && <aside aria-label="AI assistant"><Link href={`/trips/${trip.id}/premium#feature-assistant`} aria-label="AI assistant (Premium)" className="ai-fab"><PremiumStar className="text-current" /> <span className="ai-fab-label">AI assistant</span></Link></aside>}
       </LocationSharingProvider>
     </>
   );

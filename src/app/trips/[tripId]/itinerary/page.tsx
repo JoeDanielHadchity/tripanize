@@ -79,7 +79,6 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
         versions={versions.map((v) => ({ id: v.id, reason: v.reason, createdAt: v.createdAt.toISOString() }))}
         timezone={trip.timezone}
         todayDate={todayDate}
-        weatherNote={weather?.unavailable.length ? `Weather unavailable for ${weather.unavailable.join(", ")} right now.` : null}
       />
     </>
   );

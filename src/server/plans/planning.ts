@@ -17,20 +17,20 @@ export async function normalPlanningDates(tripId: string) {
   });
 }
 
-/** Only initial itinerary drafting gets the Normal exception. All other AI tools need Premium. */
+/** Only initial itinerary drafting gets the free-plan exception. All other AI tools need Premium. */
 export async function planningScope(tripId: string, kind: string, dates?: string[]) {
   if ((await getTripPlan(tripId)).premium) return kind === "days" ? dates ?? [] : null;
   if (kind !== "full") await requirePremiumAccess(tripId, "advancedPlanning");
   const allowed = await normalPlanningDates(tripId);
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { startDate: true, endDate: true } });
   const current = allowed.filter(date => trip.startDate && trip.endDate && date >= trip.startDate && date <= trip.endDate);
-  if (!current.length) throw new AppError("FORBIDDEN", "Normal includes AI for the first 2 original trip dates. Upgrade to Premium to plan new dates with AI; you can still edit every day manually.", { upgrade: true });
+  if (!current.length) throw new AppError("FORBIDDEN", "The free plan includes AI for the first 2 original trip dates. Upgrade to Premium to plan new dates with AI; you can still edit every day manually.", { upgrade: true });
   return current;
 }
 
 export async function requirePlanDates(tripId: string, kind: string, dates: string[]) {
   const allowed = await planningScope(tripId, kind, dates);
   if (allowed && dates.some(date => !allowed.includes(date))) {
-    throw new AppError("FORBIDDEN", "Normal AI planning is limited to the first 2 days of this trip. You can add the remaining days manually, or upgrade to Premium.", { upgrade: true });
+    throw new AppError("FORBIDDEN", "Free AI planning is limited to the first 2 days of this trip. You can add the remaining days manually, or upgrade to Premium.", { upgrade: true });
   }
 }

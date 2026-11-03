@@ -37,13 +37,20 @@ export function OfflineTrips() {
   }
   const today = snap ? todayIn(snap.trip.timezone) : "";
   return (
+    <>
+    <header className="border-b border-line">
+      <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+        <a href="/" aria-label="Tripanize home"><Logo small /></a>
+        <a href="/trips" className="inline-flex min-h-11 items-center text-sm font-bold">← My trips</a>
+      </div>
+    </header>
     <main id="main" className="mx-auto max-w-2xl px-4 py-6">
-      <Logo />
-      <h1 className="mt-6 font-display text-2xl font-semibold">Offline trips</h1>
+      <h1 className="font-display text-2xl font-semibold">Offline trips</h1>
+      <p className="mt-1 text-sm text-muted">Open a trip once while online to keep it here.</p>
       <Notice tone="warn" className="mt-3">
         {online ? "You're online — open your trips normally for the latest information." : "You're offline."} This page shows the itinerary and booking essentials last synced on this device. It is read-only: editing, AI planning, expenses and invitations need a connection.
       </Notice>
-      {!Object.keys(index).length && <p className="mt-6 text-sm text-muted">No trips have been saved on this device yet. Open a trip while online to make it available offline.</p>}
+      {!Object.keys(index).length && <p className="mt-6 text-sm text-muted">No trips are saved on this device yet.</p>}
       <ul className="mt-4 flex flex-wrap gap-2">
         {Object.entries(index).map(([id, name]) => (
           <li key={id}><button type="button" onClick={() => open(id)} className="min-h-11 rounded-xl border border-line bg-surface px-4 text-sm font-medium">{name}</button></li>
@@ -80,5 +87,6 @@ export function OfflineTrips() {
         </section>
       )}
     </main>
+    </>
   );
 }

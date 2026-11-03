@@ -99,7 +99,7 @@ export async function adminBlocks(userId: string, screen: string, query: URLSear
       } pagination(data.total, 25);
     } else {
       const data = await admin.adminTrips(userId, term, page);
-      for (const t of data.rows) doc.blocks.push({ id: t.id, title: t.name, meta: `${t.owner.email} · ${t.people} travelers · ${t.plan}`, lines: [t.destinations.map(d => d.name).join(" · "), t.startDate ?? "No dates", `Access source: ${t.source ?? "Standard"}`] });
+      for (const t of data.rows) doc.blocks.push({ id: t.id, title: t.name, meta: `${t.owner.email} · ${t.people} travelers · ${t.plan}`, lines: [t.destinations.map(d => d.name).join(" · "), t.startDate ?? "No dates", `Access source: ${t.source ?? "Free"}`] });
       pagination(data.total, 25);
     }
   } else if (screen === "admin-payments") {

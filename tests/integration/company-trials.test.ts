@@ -89,6 +89,8 @@ it("discovers an invitation after verified sign-in and never discloses it to ano
   expect(await userTrialAccess(f.other.id)).toEqual({ status: "none" });
   await prisma.user.update({ where: { id: f.recipient.id }, data: { emailVerified: false } });
   expect(await userTrialAccess(f.recipient.id)).toEqual({ status: "verify" });
+  await prisma.user.update({ where: { id: f.other.id }, data: { emailVerified: false } });
+  expect(await userTrialAccess(f.other.id)).toEqual({ status: "none" });
   await prisma.user.update({ where: { id: f.recipient.id }, data: { emailVerified: true, suspendedAt: new Date() } });
   expect(await userTrialAccess(f.recipient.id)).toEqual({ status: "none" });
   expect(await pendingTrialInvitations(f.recipient.id)).toEqual([]);

@@ -61,7 +61,7 @@ export function PremiumPass({ premiumAction, standardAction, price = premiumPric
         <div className="premium-pass-detail"><p>Keep real spending separate from estimates, split expenses across your group and see the balances. Attach receipt photos, images or PDFs, and review AI-extracted details.</p><div className="premium-pass-example"><strong>Everything behind the expense stays together.</strong><span>Record repayments after settling outside the app.</span></div></div>
       </details>
     </div>
-    <div className="premium-pass-standard"><div><div className="premium-pass-standard-title"><h2>Standard</h2><strong>Free</strong></div><p>AI for the first 2 days. Add and edit the rest manually, including bookings and packing items. Invite your group and choose who can edit.</p></div><div className="premium-pass-standard-action">{standardAction}<small>{standardNote}</small></div></div>
+    <div className="premium-pass-standard"><div><div className="premium-pass-standard-title"><h2>Free</h2><strong>$0</strong></div><p>AI for the first 2 days. Add and edit the rest manually, including bookings and packing items. Invite your group and choose who can edit.</p></div><div className="premium-pass-standard-action">{standardAction}<small>{standardNote}</small></div></div>
     <p className="premium-pass-both"><strong>Both plans:</strong> any group size, organizer/editor/viewer roles, manual edits, group voting and booking reminders.</p>
   </section>;
 }

@@ -100,15 +100,15 @@ export function TodayView(p: {
         </label>
       </div>
 
-      {(p.day.weather || p.alerts.length > 0 || p.weatherStatus === "unavailable") && (
+      {(p.day.weather || p.alerts.length > 0) && (
         <Card>
-          <h2 className="text-sm font-semibold">Weather & alerts</h2>
+          <h2 className="text-sm font-semibold">{p.day.weather ? "Weather & alerts" : "Alerts"}</h2>
           {p.day.weather ? (
             <p className="mt-1 text-sm">
               <Badge tone={p.day.weather.kind === "forecast" ? "sage" : "neutral"}>{p.day.weather.kind === "forecast" ? "Forecast" : "Typical for this date — not a forecast"}</Badge>{" "}
               {p.day.weather.summary}{p.day.weather.tMax !== null ? `, ${Math.round(p.day.weather.tMax)}° / ${Math.round(p.day.weather.tMin ?? 0)}°C` : ""}{p.day.weather.precipProb !== null ? `, ${p.day.weather.precipProb}% chance of rain` : ""}
             </p>
-          ) : <p className="mt-1 text-sm text-muted">Weather data is unavailable right now.</p>}
+          ) : null}
           {p.alerts.map((a) => <p key={a} className="mt-2 rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn-ink">{a}</p>)}
           {p.day.isTravelDay && <p className="mt-2 text-sm">Travel day{p.day.driveMinutes ? ` — about ${Math.round(p.day.driveMinutes / 60)} h of driving (estimate)` : ""}. Leave buffer for breaks.</p>}
           {p.day.destination?.parkingNotes && <p className="mt-1 text-sm">Parking: {p.day.destination.parkingNotes}</p>}
