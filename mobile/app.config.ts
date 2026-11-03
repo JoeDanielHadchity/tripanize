@@ -5,7 +5,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "Tripanize",
   slug: "tripanize-mobile",
   owner: "tripanizeapp",
-  extra: { eas: { projectId: "dac6638c-94ea-4d44-9edb-3bebf71da3df" } },
+  // Google Maps keys come from EAS environment variables at build time. A build without
+  // a key for its platform keeps the OpenStreetMap map. Restrict the Android key to this
+  // package name and signing certificate, and the iOS key to the bundle identifier.
+  extra: { eas: { projectId: "dac6638c-94ea-4d44-9edb-3bebf71da3df" }, googleMaps: { android: Boolean(process.env.GOOGLE_MAPS_ANDROID_KEY), ios: Boolean(process.env.GOOGLE_MAPS_IOS_KEY) } },
   version: "0.3.1",
   scheme: "tripanize",
   orientation: "portrait",
@@ -17,6 +20,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // FCM credentials for Android push. EAS provides the file as a secret file variable.
   android: { package: "app.tripanize.mobile", ...(process.env.GOOGLE_SERVICES_JSON ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON } : {}), icon: "./assets/app-icon-transparent.png" },
   web: { bundler: "metro", output: "single", favicon: "./assets/favicon-transparent.png" },
-  plugins: ["./plugins/with-transparent-launcher.cjs", "expo-router", "expo-secure-store", "expo-font", "expo-web-browser", "expo-sharing", "expo-document-picker", ["expo-image-picker", { photosPermission: "Choose images to attach to your Tripanize bookings and payments.", cameraPermission: "Take receipt photos for your Tripanize payments.", microphonePermission: false }], ["expo-location", { locationWhenInUsePermission: "Share your location with your trip members only when you turn sharing on.", isIosBackgroundLocationEnabled: false, isAndroidBackgroundLocationEnabled: false, isAndroidForegroundServiceEnabled: false }], ["expo-splash-screen", { image: "./assets/intro/start.png", imageWidth: 110, backgroundColor: "#f6f2e9" }], ["expo-notifications", { icon: "./assets/notification-icon.png", color: "#3f6d83", defaultChannel: "chat" }], "expo-iap"],
+  plugins: ["./plugins/with-transparent-launcher.cjs", "expo-router", "expo-secure-store", "expo-font", "expo-web-browser", "expo-sharing", "expo-document-picker", ["expo-image-picker", { photosPermission: "Choose images to attach to your Tripanize bookings and payments.", cameraPermission: "Take receipt photos for your Tripanize payments.", microphonePermission: false }], ["expo-location", { locationWhenInUsePermission: "Share your location with your trip members only when you turn sharing on.", isIosBackgroundLocationEnabled: false, isAndroidBackgroundLocationEnabled: false, isAndroidForegroundServiceEnabled: false }], ["expo-splash-screen", { image: "./assets/intro/start.png", imageWidth: 110, backgroundColor: "#f6f2e9" }], ["expo-notifications", { icon: "./assets/notification-icon.png", color: "#3f6d83", defaultChannel: "chat" }], "expo-iap", ["react-native-maps", { ...(process.env.GOOGLE_MAPS_ANDROID_KEY ? { androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_KEY } : {}), ...(process.env.GOOGLE_MAPS_IOS_KEY ? { iosGoogleMapsApiKey: process.env.GOOGLE_MAPS_IOS_KEY } : {}) }]],
   experiments: { typedRoutes: true, ...(process.env.EXPO_PUBLIC_MOBILE_PREVIEW === "1" ? { baseUrl: "/mobile-preview" } : {}) },
 });

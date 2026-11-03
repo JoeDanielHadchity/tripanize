@@ -57,6 +57,15 @@ SDK 57 is deliberately used for current Expo Go compatibility. Native production
 
 The default native API origin is `https://www.tripanize.app`. Set the public `EXPO_PUBLIC_API_URL` environment variable to use a local backend on a device-reachable address. It is an origin, never a secret. Do not put private API keys in any `EXPO_PUBLIC_` variable. Web preview uses its own origin to share the existing website session and does not require permissive CORS.
 
+## Google Maps
+
+The chat & locations map uses Google Maps on Android and iOS when the build has a key, and the OpenStreetMap tile map otherwise (also on web preview). Add these as EAS environment variables for the `preview` and `production` environments, then rebuild:
+
+- `GOOGLE_MAPS_ANDROID_KEY`: a Google Cloud key with **Maps SDK for Android** enabled, restricted to Android apps with package `app.tripanize.mobile` and the SHA-1 fingerprints of the EAS upload key and the Google Play app signing key.
+- `GOOGLE_MAPS_IOS_KEY` (optional): a key with **Maps SDK for iOS** enabled, restricted to the bundle identifier `app.tripanize.mobile`.
+
+These keys are built into the app package, so the app restrictions are what protect them. They are not `EXPO_PUBLIC_` variables and are read only by `app.config.ts`.
+
 ## Validate
 
 ```sh
