@@ -220,7 +220,8 @@
 .ai-fab:hover { filter:brightness(1.08); text-decoration:none; }
 @media (max-width:1023px) {
   /* Phones: the original placement, a coral "AI assistant" pill floating just above the tab bar. */
-  .ai-fab { right:16px; bottom:112px; }
+  /* The tab bar is 68px tall and sits 12px (or the safe area) above the bottom: leave an 8px gap above it. */
+  .ai-fab { right:16px; bottom:calc(max(12px, env(safe-area-inset-bottom)) + 76px); }
   .trip-workspace { padding-bottom:110px; }
 }
 
