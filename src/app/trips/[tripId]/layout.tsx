@@ -8,7 +8,7 @@ import { TripNav } from "@/components/trip-nav";
 import { SyncWatcher } from "@/components/sync";
 import { SaveOfflineSnapshot } from "@/components/offline";
 import { Badge } from "@/components/ui";
-import { formatDateRange, todayIn, tripCountdown } from "@/lib/dates";
+import { formatDateRange, todayIn, travelersToday, tripCountdown, tripIsLive } from "@/lib/dates";
 import { LocationSharingProvider } from "@/components/location-sharing";
 import { getChatSummary } from "@/server/chat/service";
 import { TripAssistant } from "@/components/trip-assistant";
@@ -19,6 +19,7 @@ import { PremiumStar } from "@/components/premium-star";
 import { SetupReminder } from "@/components/setup-reminder";
 import { JourneyCover } from "@/components/journey-cover";
 import { savedTripImage } from "@/server/images";
+import { InviteButton } from "@/components/invite";
 
 export default async function TripLayout({ children, params }: { children: React.ReactNode; params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
@@ -35,8 +36,10 @@ export default async function TripLayout({ children, params }: { children: React
   const trial = await userTrialAccess(user.id);
   const chat = plan.premium ? await getChatSummary(user.id, tripId) : { unread: 0, readSeq: 0, revision: 0 };
   const tripToday = todayIn(trip.timezone);
-  const destinationToday = todayIn(trip.destinations.find(d => (!d.arriveDate || d.arriveDate <= tripToday) && (!d.departDate || d.departDate >= tripToday))?.timezone ?? trip.timezone);
-  const defaultDate = trip.startDate && trip.endDate && destinationToday >= trip.startDate && destinationToday <= trip.endDate ? destinationToday : trip.startDate;
+  const destinationToday = travelersToday(trip);
+  const live = tripIsLive(trip, destinationToday);
+  const defaultDate = live ? destinationToday : trip.startDate;
+  const invite = access.role === "OWNER" ? <InviteButton tripId={trip.id} tripName={trip.name} travelers={trip.travelers.filter(t => !t.userId && !t.isChild).map(t => ({ id: t.id, name: t.name }))} /> : null;
   return (
     <>
       <AppHeader user={user} />
@@ -52,8 +55,8 @@ export default async function TripLayout({ children, params }: { children: React
             {plan.premium ? plan.source === "trial" ? "Premium trial active" : "Premium active" : trial.status === "available" ? "Activate free Premium trial" : "Premium · $15 / trip"}
           </Link>
         </div>
-        <JourneyCover tripId={trip.id} image={savedTripImage(trip, trip.destinations[0])} name={trip.name} dates={formatDateRange(trip.startDate, trip.endDate)} destinations={trip.destinations.map(d => d.name)} countdown={tripCountdown(trip.startDate, trip.endDate, tripToday)} />
-        <TripNav tripId={trip.id} initialChat={chat} premium={plan.premium} />
+        <JourneyCover tripId={trip.id} image={savedTripImage(trip, trip.destinations[0])} name={trip.name} dates={formatDateRange(trip.startDate, trip.endDate)} destinations={trip.destinations.map(d => d.name)} countdown={tripCountdown(trip.startDate, trip.endDate, tripToday)} action={invite} />
+        <TripNav tripId={trip.id} initialChat={chat} premium={plan.premium} live={live} />
         <main id="main" className="min-w-0">{(!plan.premium || trial.status === "active" && trial.tripId === trip.id) && <TrialAccessBanner access={trial} tripId={trip.id} canActivate={access.role === "OWNER"} />}{access.role === "OWNER" && !["PLAN", "COMPLETE"].includes(trip.onboardingStage) && <SetupReminder tripId={trip.id} />}{children}</main>
       </div>
       {plan.premium && <TripAssistant key={`assistant-${trip.id}`} tripId={trip.id} defaultDate={defaultDate} />}

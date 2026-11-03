@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import type { DestinationImage } from "@/server/images";
 import { TripCoverPhoto } from "./trip-cover-photo";
 
-export function JourneyCover({ tripId, name, dates, destinations, countdown, image }: { tripId: string; name: string; dates: string; destinations: string[]; countdown?: { value: string; label: string } | null; image?: DestinationImage | null }) {
+export function JourneyCover({ tripId, name, dates, destinations, countdown, image, action }: { tripId: string; name: string; dates: string; destinations: string[]; countdown?: { value: string; label: string } | null; image?: DestinationImage | null; action?: React.ReactNode }) {
   const path = usePathname();
   const section = path.split("/")[3] ?? "itinerary";
   if (["premium", "onboarding", "plan"].includes(section)) return null;
@@ -15,6 +15,7 @@ export function JourneyCover({ tripId, name, dates, destinations, countdown, ima
     <span className="journey-cover-shade" aria-hidden="true" />
     <div className="journey-cover-text"><p>{destinations.join(" → ")}{dates && <>{destinations.length > 0 ? " · " : ""}{dates}</>}</p><h2>{name}</h2></div>
     {countdown && <p className="journey-cover-count"><strong>{countdown.value}</strong> <span>{countdown.label}</span></p>}
+    {action && <div className="journey-cover-action">{action}</div>}
   </div>;
 }
 

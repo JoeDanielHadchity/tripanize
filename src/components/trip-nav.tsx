@@ -7,6 +7,8 @@ import { cx } from "./ui";
 import { PremiumStar } from "./premium-star";
 import { newerChatSummary, type ChatSummary } from "@/lib/chat";
 
+const TODAY = { slug: "today", label: "Today", icon: "M12 3v2M12 19v2M5.6 5.6 7 7M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4 7 17M17 7l1.4-1.4M12 16a4 4 0 100-8 4 4 0 000 8z" } as const;
+
 const SECTIONS = [
   { slug: "itinerary", label: "Itinerary", icon: "M4 6h16M4 12h10M4 18h7" },
   { slug: "expenses", label: "Expenses", icon: "M4 7h16v10H4zM8 12h.01M16 12h.01M12 10a2 2 0 110 4 2 2 0 010-4z" },
@@ -24,8 +26,11 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-/** One navigation per breakpoint: a row of pills on desktop, a floating dark tab bar (with "More") on phones. */
-export function TripNav({ tripId, initialChat, premium = true }: { tripId: string; initialChat: ChatSummary; premium?: boolean }) {
+/**
+ * One navigation per breakpoint: a row of pills on desktop, a floating dark tab bar (with "More") on phones.
+ * While the trip is happening (`live`), "Today" comes first, and on phones Expenses and Chat stay in the bar.
+ */
+export function TripNav({ tripId, initialChat, premium = true, live = false }: { tripId: string; initialChat: ChatSummary; premium?: boolean; live?: boolean }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
   const [chat, setChat] = useState(initialChat);
@@ -43,16 +48,17 @@ export function TripNav({ tripId, initialChat, premium = true }: { tripId: strin
   const destination = (slug: string) => `/trips/${tripId}/${slug === "events" && !premium ? "bookings" : slug}`;
   const label = (slug: string, text: string) => <span className="inline-flex items-center justify-center gap-1">{slug === "events" && !premium ? "Bookings & votes" : text}{(["expenses", "chat"].includes(slug) || (slug === "events" && premium)) && <PremiumStar />}</span>;
   const active = (slug: string) => path.startsWith(`/trips/${tripId}/${slug}`)
-    || (slug === "itinerary" && ["plan", "today"].some(s => path.startsWith(`/trips/${tripId}/${s}`)))
+    || (slug === "itinerary" && ["plan", ...(live ? [] : ["today"])].some(s => path.startsWith(`/trips/${tripId}/${s}`)))
     || (slug === "chat" && path.startsWith(`/trips/${tripId}/members`))
     || (slug === "events" && ["bookings", "votes"].some(view => path.startsWith(`/trips/${tripId}/${view}`)));
-  const primary = SECTIONS.slice(0, 4);
-  const rest = SECTIONS.slice(4);
+  const sections = live ? [TODAY, ...SECTIONS] : SECTIONS;
+  const primary = sections.slice(0, 4);
+  const rest = sections.slice(4);
   return (
     <>
       <nav aria-label="Trip sections" className="mb-6 hidden lg:block">
         <ul className="flex flex-wrap gap-2">
-          {SECTIONS.map((s) => (
+          {sections.map((s) => (
             <li key={s.slug}>
               <Link href={destination(s.slug)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-11 items-center gap-2 rounded-full px-5 text-[15px] font-bold", active(s.slug) ? "bg-night text-night-ink" : "border border-line bg-surface text-ink hover:bg-surface-2")}>
                 {label(s.slug, s.label)}

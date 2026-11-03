@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { Badge, Button, Card, Field, Input, Notice, Select } from "@/components/ui";
 import { useAction, useConfirm } from "@/components/client";
-import { addTravelerAction, changeRoleAction, createInviteAction, removeMemberAction, removeTravelerAction, renameTravelerAction, revokeInviteAction, transferOwnerAction } from "@/app/actions/members";
+import { addTravelerAction, changeRoleAction, removeMemberAction, removeTravelerAction, renameTravelerAction, revokeInviteAction, transferOwnerAction } from "@/app/actions/members";
 import { deleteTripAction } from "@/app/actions/trips";
 import { formatDate } from "@/lib/dates";
+import { InviteForm } from "@/components/invite";
 
 type Props = {
   tripId: string; tripName: string; meId: string; role: string; isOwner: boolean; canEdit: boolean; emailReady: boolean; appUrl: string; localOnly: boolean;
@@ -17,8 +18,6 @@ type Props = {
 export function SharingPanel(p: Props) {
   const { run, pending } = useAction();
   const confirm = useConfirm();
-  const [link, setLink] = useState<{ url: string; emailStatus: string | null } | null>(null);
-  const [copied, setCopied] = useState(false);
   const [newName, setNewName] = useState("");
   const [deleteName, setDeleteName] = useState("");
   const unlinked = p.travelers.filter((t) => !t.linked && !t.left && !t.isChild);
@@ -74,34 +73,13 @@ export function SharingPanel(p: Props) {
 
         {p.isOwner && (
           <Card>
-            <h3 className="font-semibold">Invite someone</h3>
+            <h3 id="invite" className="scroll-mt-20 font-semibold">Invite someone</h3>
             {p.localOnly ? (
               <Notice tone="warn" className="mt-2" title="Others can't reach this server yet">Invitation links point to {p.appUrl}, which only works on this machine. Deploy Tripanize to a public address (and set APP_URL) before invited travelers can sign up and accept.</Notice>
             ) : (
               <p className="mt-1 text-xs text-muted">Links point to {p.appUrl}. Recipients must be able to open that address and sign in with their own account.</p>
             )}
-            <form className="mt-3 grid gap-3 sm:grid-cols-2" onSubmit={async (e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              setCopied(false);
-              const r = await run(() => createInviteAction(p.tripId, { role: String(f.get("role")) as "COLLABORATOR" | "VIEWER", email: String(f.get("email") || "") || null, travelerId: String(f.get("traveler") || "") || null }));
-              if (r) setLink({ url: r.url, emailStatus: r.emailStatus });
-            }}>
-              <Field label="Role" htmlFor="inv-role"><Select id="inv-role" name="role" defaultValue="COLLABORATOR"><option value="COLLABORATOR">Editor — can edit shared trip info</option><option value="VIEWER">Viewer — read-only</option></Select></Field>
-              <Field label="Connect to traveler (optional)" htmlFor="inv-trav" hint="Keeps their existing expense history."><Select id="inv-trav" name="traveler" defaultValue=""><option value="">New traveler</option>{unlinked.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
-              <Field label="Email (optional)" htmlFor="inv-email" hint="If set, only an account with this email can accept." className="sm:col-span-2"><Input id="inv-email" name="email" type="email" placeholder="friend@example.com" /></Field>
-              <div className="sm:col-span-2"><Button type="submit" variant="primary" disabled={pending}>Create invitation link</Button></div>
-            </form>
-            {link && (
-              <div className="mt-4 space-y-2 rounded-xl bg-sage-soft p-3 text-sm">
-                <p className="font-semibold text-sage-ink">Invitation link (expires in 7 days, single use)</p>
-                <div className="flex gap-2"><Input readOnly value={link.url} aria-label="Invitation link" onFocus={(e) => e.currentTarget.select()} /><Button onClick={async () => { await navigator.clipboard.writeText(link.url); setCopied(true); }}>{copied ? "Copied" : "Copy"}</Button></div>
-                <p className="text-sage-ink">This link is shown only once. Share it privately.</p>
-                {link.emailStatus === "sent" && <p>Email accepted by the mail server for delivery.</p>}
-                {link.emailStatus === "not_configured" && <p className="text-warn-ink">No email was sent: email delivery isn't configured on this server. Share the link yourself.</p>}
-                {link.emailStatus?.startsWith("failed") && <p className="text-danger">The email couldn't be sent ({link.emailStatus.slice(8)}). Share the link yourself.</p>}
-              </div>
-            )}
+            <div className="mt-3"><InviteForm tripId={p.tripId} tripName={p.tripName} travelers={unlinked} /></div>
             {p.invitations.length > 0 && (
               <div className="mt-4">
                 <h4 className="text-sm font-semibold">Pending invitations</h4>
