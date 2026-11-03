@@ -2,10 +2,12 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/server/auth/session";
 import { runAction } from "@/server/errors";
-import { chooseNormal, createTripDraft, retryOnboarding, saveOnboardingDetails, startOnboardingPlan } from "@/server/trips/onboarding";
+import { chooseNormal, createTripDraft, retryOnboarding, saveOnboardingDetails, startOnboardingPlan, startTrip } from "@/server/trips/onboarding";
+import { detectTimezone } from "@/server/trips/timezone";
 import type { TripInput } from "@/server/trips/schemas";
 
 export async function createDraftAction(name: string, trialInvitationId?: string) { return runAction(async () => { const result = await createTripDraft((await requireUser()).id, name, trialInvitationId); revalidatePath("/trips", "layout"); revalidatePath("/start"); return result; }); }
+export async function startTripAction(input: TripInput, trialInvitationId?: string) { return runAction(async () => { const result = await startTrip((await requireUser()).id, input, trialInvitationId); await detectTimezone(result.id).catch(() => undefined); revalidatePath("/trips", "layout"); revalidatePath("/start"); return result; }); }
 export async function chooseNormalAction(tripId: string) { return runAction(async () => { const r = await chooseNormal((await requireUser()).id, tripId); revalidatePath(`/trips/${tripId}`, "layout"); return r; }); }
 export async function onboardingDetailsAction(tripId: string, input: TripInput, version: number) { return runAction(async () => { await saveOnboardingDetails((await requireUser()).id, tripId, input, version); revalidatePath(`/trips/${tripId}`, "layout"); }); }
 export async function onboardingAnswersAction(tripId: string, input: { answers: { q: string; a: string[] }[]; note: string | null; foodNotes?: string | null }) { return runAction(async () => { const r = await startOnboardingPlan((await requireUser()).id, tripId, input); revalidatePath(`/trips/${tripId}`, "layout"); return r; }); }

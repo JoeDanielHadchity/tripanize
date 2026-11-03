@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { prisma } from "@/server/db";
 import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
-import { createTripDraft, chooseNormal, saveOnboardingDetails, startOnboardingPlan, finishOnboarding, retryOnboarding } from "@/server/trips/onboarding";
+import { createTripDraft, chooseNormal, saveOnboardingDetails, startOnboardingPlan, finishOnboarding, retryOnboarding, startTrip } from "@/server/trips/onboarding";
 import { claimJob, runJob, type Generator } from "@/server/planner/run";
 import { getPlanQuestions, STANDARD_QUESTIONS } from "@/server/planner/questions";
 import { listBookings, createBooking } from "@/server/bookings/service";
@@ -126,4 +126,43 @@ it("plans the itinerary even when the setup event search fails, without paying f
   expect(calls.filter(c => c === "events")).toHaveLength(1);
   expect(calls).toContain("trip_plan");
   expect(JSON.stringify(job.progress)).toMatch(/Events couldn't be checked right now/);
+});
+
+it("starts a new trip with where and when first, on the free plan, straight to the travel questions", async () => {
+  const owner = await makeUser("Owner"); const calls: string[] = []; const generate = generator(calls);
+  const started = await startTrip(owner.id, details);
+  expect(started).toMatchObject({ next: `/trips/${started.id}/onboarding`, trial: false });
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: started.id }, include: { destinations: true, days: true } });
+  expect(trip).toMatchObject({ name: "Lisbon in May", onboardingStage: "QUESTIONS", onboardingPlan: "NORMAL", startDate: "2027-05-01", endDate: "2027-05-04" });
+  expect(trip.destinations.map(d => d.name)).toEqual(["Lisbon"]); expect(trip.days).toHaveLength(4);
+  expect((await getPlanQuestions(owner.id, started.id)).source).toBe("standard");
+  const { jobId } = await startOnboardingPlan(owner.id, started.id, { answers, note: null });
+  await claimJob(jobId); await runJob(jobId, generate);
+  const finish = await prisma.generationJob.findFirstOrThrow({ where: { tripId: started.id, kind: "setup" } });
+  await claimJob(finish.id); await runJob(finish.id, generate);
+  const days = await prisma.itineraryDay.findMany({ where: { tripId: started.id }, include: { stops: true }, orderBy: { date: "asc" } });
+  expect(days.map(d => d.stops.length)).toEqual([1, 1, 0, 0]);
+  expect(calls).toEqual(["trip_plan"]);
+  expect((await prisma.trip.findUniqueOrThrow({ where: { id: started.id } })).onboardingStage).toBe("COMPLETE");
+});
+it("needs a destination and both dates before creating anything", async () => {
+  const owner = await makeUser("Owner");
+  await expect(startTrip(owner.id, { ...details, endDate: null })).rejects.toMatchObject({ code: "VALIDATION" });
+  await expect(startTrip(owner.id, { ...details, destinations: [] })).rejects.toMatchObject({ code: "VALIDATION" });
+  await expect(startTrip(owner.id, { ...details, destinations: [{ name: "Lisbon" }, { name: "Porto" }] })).rejects.toMatchObject({ code: "VALIDATION" });
+  expect(await prisma.trip.count()).toBe(0);
+});
+it("activates a pending Premium trial on a trip started with where and when first", async () => {
+  const owner = await makeUser("Owner"); const admin = await makeUser("Company", "company-trial@example.test");
+  await prisma.user.update({ where: { id: admin.id }, data: { emailVerified: true } });
+  await prisma.user.update({ where: { id: owner.id }, data: { emailVerified: true } });
+  setTestRuntime({ ...currentRuntime(), companyAdminEmail: admin.email });
+  await adminAuthenticationFixture(admin.id);
+  const invitation = await createTrialInvitation(admin.id, owner.email);
+  const started = await startTrip(owner.id, details, invitation.id);
+  expect(started.trial).toBe(true);
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: started.id }, include: { destinations: true } });
+  expect(trip).toMatchObject({ onboardingStage: "QUESTIONS", onboardingPlan: "PREMIUM", startDate: "2027-05-01" });
+  expect(trip.destinations.map(d => d.name)).toEqual(["Lisbon"]);
+  expect(await prisma.trip.count()).toBe(1);
 });

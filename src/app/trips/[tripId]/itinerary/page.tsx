@@ -1,5 +1,6 @@
 import { readMealOptions } from "@/lib/meal-options";
 import { PremiumStar } from "@/components/premium-star";
+import { FirstPlanOffer } from "@/components/first-plan-offer";
 import { getTripPlan } from "@/server/plans/access";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth/session";
@@ -18,9 +19,9 @@ import { todayIn, tripLength } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Itinerary" };
 
-export default async function ItineraryPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ checkout?: string }> }) {
+export default async function ItineraryPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ checkout?: string; ready?: string }> }) {
   const { tripId } = await params;
-  const { checkout } = await searchParams;
+  const { checkout, ready } = await searchParams;
   const user = await requireUser();
   const { access, days, ideas } = await getItinerary(user.id, tripId);
   const [trip, versions, { profile }] = await Promise.all([prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: { destinations: true, travelers: { where: { leftAt: null } }, bookings: { select: { status: true } } } }), listVersions(user.id, tripId), getProfile(user.id)]);
@@ -52,7 +53,8 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
           </>
         }
       />
-      {checkout === "normal" && !premium && <Notice tone="sage" className="mb-5" title="Normal checkout · $0">Your trip is ready to use. No payment is needed. Add your itinerary, bookings and packing items whenever you like.</Notice>}
+      {checkout === "normal" && !premium && <Notice tone="sage" className="mb-5" title="Free plan · $0">Your trip is ready to use. No payment is needed. Add your itinerary, bookings and packing items whenever you like.</Notice>}
+      {ready === "1" && !premium && access.role === "OWNER" && <FirstPlanOffer tripId={tripId} planned={planned} total={days.length} />}
       <TripReadiness items={[
         { label: "Daily plans", done: days.length > 0 && planned === days.length, detail: `${planned} of ${days.length} days have stops planned`, href: `${base}/itinerary` },
         { label: "Stay details", done: trip.destinations.length > 0 && stays === trip.destinations.length, detail: `${stays} of ${trip.destinations.length} destinations have accommodation details`, href: `${base}/settings#details` },

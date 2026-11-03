@@ -45,7 +45,7 @@ it("carries selected destination and answers into an unpaid draft, with idempote
   const chosen = await chooseDestination(user.id, queued.id, 2), duplicate = await chooseDestination(user.id, queued.id, 2);
   expect(duplicate.id).toBe(chosen.id); expect(await prisma.trip.count()).toBe(1); expect(chosen.next).toBe(`/trips?selected=${chosen.id}`);
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: chosen.id }, include: { destinations: true, days: true } });
-  expect(trip.onboardingStage).toBe("PLAN"); expect(trip.destinations[0].name).toBe("Istanbul"); expect(trip.days).toHaveLength(4);
+  expect(trip.onboardingStage).toBe("DETAILS"); expect(trip.onboardingPlan).toBe("NORMAL"); expect(trip.destinations[0].name).toBe("Istanbul"); expect(trip.days).toHaveLength(4);
   expect(trip.budgetMinor).toBe(450000); expect(trip.currency).toBe("USD"); expect(trip.interests).toEqual(input.interests); expect(trip.adults).toBe(2); expect(trip.children).toBe(1);
   expect(trip.preferences).toContain(input.constraints); expect((await getTripPlan(chosen.id)).premium).toBe(false); expect(await prisma.premiumCheckout.count()).toBe(0);
   await chooseNormal(user.id, chosen.id);

@@ -5,18 +5,10 @@ import { requireUser } from "@/server/auth/session";
 import { runAction } from "@/server/errors";
 import { createTrip, deleteTrip, previewTripChange, updateTrip } from "@/server/trips/service";
 import type { TripInput } from "@/server/trips/schemas";
-import { ensureDestinationCoords } from "@/server/weather/trip";
-import { prisma } from "@/server/db";
+import { detectTimezone } from "@/server/trips/timezone";
 import { addTask, deleteTask, toggleTask } from "@/server/trips/tasks";
 import { copyExample } from "@/server/examples/copy";
 
-/** Best effort: fill the trip time zone from the first destination when the traveler left it blank. */
-async function detectTimezone(tripId: string) {
-  const dests = await Promise.race([ensureDestinationCoords(tripId), new Promise<null>((r) => setTimeout(() => r(null), 4000))]);
-  const trip = await prisma.trip.findUnique({ where: { id: tripId } });
-  const tz = dests?.find((d) => d.timezone)?.timezone;
-  if (trip && trip.timezone === "UTC" && tz) await prisma.trip.update({ where: { id: tripId }, data: { timezone: tz } });
-}
 
 export async function createTripAction(input: TripInput) {
   return runAction(async () => {

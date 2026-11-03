@@ -14,15 +14,12 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   await page.waitForURL("**/start");
   await page.goto("/trips/new");
   await page.getByLabel("Trip name").fill("Stub trip");
-  await page.getByRole("button", { name: "Next: choose Free or Premium" }).click();
-  await page.waitForURL("**/premium?created=1");
-  const tripUrl = page.url().split("/premium")[0];
-  await page.getByRole("button", { name: "Continue free" }).click();
-  await page.waitForURL("**/onboarding");
   await page.getByLabel("Start date").fill("2027-05-01");
   await page.getByLabel("End date").fill("2027-05-03");
   await page.getByLabel("City or region").fill("Lisbon");
-  await page.getByRole("button", { name: "Continue to travel questions" }).click();
+  await page.getByRole("button", { name: "Next: travel questions" }).click();
+  await page.waitForURL("**/onboarding");
+  const tripUrl = page.url().split("/onboarding")[0];
 
   await page.goto(`${tripUrl}/plan`);
   await page.getByRole("button", { name: /Plan with AI$/ }).click();
