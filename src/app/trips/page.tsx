@@ -85,7 +85,8 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
             {EXAMPLES.map((e) => (
               <li key={e.slug}>
                 <Link href={`/examples/${e.slug}`} className="group block overflow-hidden rounded-2xl border border-line bg-surface">
-                  <div className="relative h-28" style={{ background: e.image }}>
+                  <div className="relative h-36 overflow-hidden bg-night">
+                    <img src={e.image} alt="" width={800} height={600} loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
                     <Badge tone="warn" className="absolute left-3 top-3">Example</Badge>
                   </div>
                   <div className="p-4">

@@ -17,6 +17,8 @@ export const GUIDE_REVIEWED_ON = content.preparedOn;
 export const GUIDE_PHOTOS: Record<string, { pageUrl: string; license: string; licenseUrl: string; description: string; width: number; height: number }> = photos;
 export const guideImage = (slug: string) => `/editorial/city-guides/${slug}.webp`;
 export const guideCardImage = (slug: string) => `/editorial/city-guides/${slug}-card.webp?v=full-frame-20261027`;
+/** 800px card photo used wherever example trips are listed (every example has one). */
+export const guideCardPreview = (slug: string) => `/editorial/city-guides/${slug}-card-small.webp?v=full-frame-20261027`;
 
 /** Display times are suggestions, not provider opening hours or reservations. */
 export function guideDuration(label: string): number | undefined {

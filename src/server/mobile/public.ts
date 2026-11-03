@@ -20,7 +20,7 @@ export function publicMobileGuide(slug: string): MobilePublicGuide | null {
   const ex = EXAMPLES.find(g => g.slug === slug);
   if (!ex) return null;
   return {
-    slug: ex.slug, title: ex.name, intro: ex.summary, image: "/editorial/guide.webp", alt: "Lisbon and Porto example trip",
+    slug: ex.slug, title: ex.name, intro: ex.summary, image: guideImage("lisbon-porto"), alt: GUIDE_PHOTOS["lisbon-porto"].description,
     days: ex.days.map(d => ({ title: d.title, area: d.area, note: d.notes ?? "", planB: d.stops.filter(s => s.plan === "B").map(s => s.title).join(", "), stops: d.stops.filter(s => !s.plan).map(s => ({ time: s.startTime, title: s.title, detail: s.reason, duration: s.durationMin ? `${s.durationMin} min` : "", ...(s.officialUrl ? { url: s.officialUrl } : {}) })) })),
     tips: [], bookings: ex.bookings.map(b => ({ label: b.title, note: b.whenToBook, ...(b.url ? { url: b.url } : {}) })), sources: [],
   };
