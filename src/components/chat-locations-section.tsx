@@ -10,10 +10,10 @@ export function ChatLocationsSection({ tripId, selected, children }: {
   return (
     <>
       <PageHeader title="Chat & locations" subtitle="Stay in touch and find each other during your trip." />
-      <nav aria-label="Chat and member locations" className="mb-5 flex gap-1 rounded-2xl border border-line bg-surface-2 p-1">
+      <nav aria-label="Chat and member locations" className="mb-5 flex gap-1 rounded-full border border-line bg-surface p-1">
         {(["chat", "members"] as const).map(view => (
           <Link key={view} href={`/trips/${tripId}/${view}`} aria-current={selected === view ? "page" : undefined}
-            className={cx("flex min-h-11 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-semibold", selected === view ? "bg-accent text-on-accent" : "text-muted hover:bg-surface")}>
+            className={cx("flex min-h-11 flex-1 items-center justify-center rounded-full px-4 text-center text-sm font-bold", selected === view ? "bg-night text-night-ink" : "text-muted hover:bg-surface-2 hover:text-ink")}>
             <span className="inline-flex items-center gap-1.5">{view === "chat" ? "Chat" : "Member locations"} <PremiumStar className="text-current" /></span>
           </Link>
         ))}

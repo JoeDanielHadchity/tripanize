@@ -59,33 +59,33 @@ export function TodayView(p: {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm font-medium text-accent-ink">{p.isPreview ? "Preview" : "Today"}{now ? ` · ${now} local time (${p.timezone})` : ""}</p>
-        <h1 className="font-display text-2xl font-semibold leading-tight sm:text-3xl">{formatDate(p.date, { weekday: "long", day: "numeric", month: "long" })}</h1>
+        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-accent-ink">{p.isPreview ? "Preview" : "Today"}{now ? ` · ${now} local time (${p.timezone})` : ""}</p>
+        <h1 className="font-display text-4xl font-extrabold leading-tight sm:text-5xl">{formatDate(p.date, { weekday: "long", day: "numeric", month: "long" })}</h1>
         <p className="text-muted">{[p.day.title, p.day.area ?? p.day.destination?.name].filter(Boolean).join(" · ")}</p>
       </header>
 
       {focus && (
-        <Card className="border-accent bg-accent-soft/40">
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent-ink">{current ? "Happening now" : now ? "Up next" : "First stop"}</p>
-          <p className="mt-1 font-display text-2xl font-semibold leading-tight">{focus.title}</p>
+        <Card className="night-card border-0 bg-accent text-on-accent">
+          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-on-accent">{current ? "Happening now" : now ? "Up next" : "First stop"}</p>
+          <p className="mt-1 font-display text-4xl font-extrabold leading-tight">{focus.title}</p>
           <p className="mt-1 text-sm">
             {focus.startTime ?? "No time set"}{focus.durationMin ? ` · ${focus.durationMin} min` : ""}
             {" · "}
             {focus.booking ? (confirmed(focus.booking.status) ? "Booked" : `Booking ${focus.booking.status.toLowerCase().replace("_", " ")}`) : focus.isFixed ? "Fixed commitment" : focus.status === "SUGGESTED" ? "Suggestion (not booked)" : "Planned"}
           </p>
-          {focus.address && <p className="mt-1 text-sm text-muted">{focus.address}</p>}
+          {focus.address && <p className="mt-1 text-sm opacity-90">{focus.address}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
-            {directionsUrl(focus, mapsApp) && <a href={directionsUrl(focus, mapsApp)!} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center rounded-xl bg-accent px-5 font-semibold text-on-accent">Directions</a>}
-            {focus.officialUrl && <a href={focus.officialUrl} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex min-h-12 items-center rounded-xl border border-line bg-surface px-4 font-medium">{focus.booking ? "Tickets / booking" : "Official site"}</a>}
+            {directionsUrl(focus, mapsApp) && <a href={directionsUrl(focus, mapsApp)!} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center rounded-full bg-bg px-6 font-extrabold text-accent-ink">Directions</a>}
+            {focus.officialUrl && <a href={focus.officialUrl} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex min-h-12 items-center rounded-full border-[1.5px] border-white/60 px-5 font-extrabold text-on-accent">{focus.booking ? "Tickets / booking" : "Official site"}</a>}
           </div>
         </Card>
       )}
       {!focus && stops.length > 0 && <Notice tone="accent">That's everything planned for today. Enjoy the evening.</Notice>}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="group" aria-label="Plan A or B" className="flex rounded-xl border border-line bg-surface p-0.5">
+        <div role="group" aria-label="Plan A or B" className="flex rounded-full border border-line bg-surface p-1">
           {(["A", "B"] as const).map((pl) => (
-            <button key={pl} type="button" aria-pressed={p.day.activePlan === pl} disabled={!p.canEdit || pending} onClick={() => run(() => setActivePlanAction(p.tripId, p.day.id, pl), { success: `Switched to Plan ${pl}` })} className={cx("min-h-11 rounded-lg px-4 text-sm font-medium", p.day.activePlan === pl ? "bg-accent text-on-accent" : "text-muted")}>
+            <button key={pl} type="button" aria-pressed={p.day.activePlan === pl} disabled={!p.canEdit || pending} onClick={() => run(() => setActivePlanAction(p.tripId, p.day.id, pl), { success: `Switched to Plan ${pl}` })} className={cx("min-h-10 rounded-full px-4 text-sm font-bold", p.day.activePlan === pl ? "bg-night text-night-ink" : "text-muted")}>
               Plan {pl}{pl === "B" ? " (indoor)" : ""}
             </button>
           ))}
@@ -116,7 +116,7 @@ export function TodayView(p: {
       )}
 
       <section aria-labelledby="tl">
-        <h2 id="tl" className="mb-2 font-display text-lg font-semibold">Timeline</h2>
+        <h2 id="tl" className="mb-2 font-display text-2xl font-extrabold">Timeline</h2>
         {stops.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">Nothing scheduled{p.day.activePlan === "B" ? " in Plan B" : ""}. <Link className="text-accent-ink underline" href={`/trips/${p.tripId}/itinerary#day-${p.date}`}>Plan this day</Link></p>
         ) : (

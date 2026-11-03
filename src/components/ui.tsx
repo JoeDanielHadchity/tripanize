@@ -5,14 +5,16 @@ export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
 }
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "sage";
-const base = "inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-11 px-4 text-[15px] whitespace-normal text-center";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "sage" | "ai";
+const base = "inline-flex items-center justify-center gap-2 rounded-full font-extrabold transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-11 px-5 text-[15px] whitespace-normal text-center";
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-on-accent hover:brightness-95 shadow-sm",
-  secondary: "bg-surface text-ink border border-line hover:bg-surface-2",
+  primary: "bg-accent text-on-accent hover:brightness-110",
+  secondary: "bg-accent-soft text-accent-ink hover:brightness-95",
   ghost: "text-ink hover:bg-surface-2",
   danger: "bg-danger-soft text-danger border border-danger/30 hover:brightness-95",
   sage: "bg-sage-soft text-sage-ink hover:brightness-95",
+  // Coral is reserved for AI actions.
+  ai: "bg-ai text-on-ai hover:brightness-110",
 };
 
 export function buttonClass(variant: Variant = "secondary", extra?: string) {
@@ -28,7 +30,7 @@ export function LinkButton({ variant = "secondary", className, ...props }: Compo
 }
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div {...props} className={cx("rounded-lg border border-line bg-surface p-4 sm:p-5", className)} />;
+  return <div {...props} className={cx("rounded-[24px] border border-line bg-surface p-5 sm:p-6", className)} />;
 }
 
 export function Field({ label, hint, error, children, htmlFor, className }: { label: ReactNode; hint?: ReactNode; error?: string | null; children: ReactNode; htmlFor?: string; className?: string }) {
@@ -48,7 +50,7 @@ export function Field({ label, hint, error, children, htmlFor, className }: { la
   );
 }
 
-const inputCls = "w-full min-h-11 rounded-md border border-line bg-surface px-3 py-2 text-[16px] text-ink placeholder:text-muted/70 focus:border-accent";
+const inputCls = "w-full min-h-12 rounded-2xl border-[1.5px] border-muted/35 bg-surface px-3 py-2 text-[16px] text-ink placeholder:text-muted/70 focus:border-accent";
 
 export function Input(props: ComponentProps<"input">) {
   return <input {...props} className={cx(inputCls, props.className)} />;
@@ -60,17 +62,18 @@ export function Textarea(props: ComponentProps<"textarea">) {
   return <textarea rows={3} {...props} className={cx(inputCls, "min-h-20", props.className)} />;
 }
 
-type Tone = "neutral" | "accent" | "sage" | "warn" | "danger";
+type Tone = "neutral" | "accent" | "sage" | "warn" | "danger" | "ai";
 const tones: Record<Tone, string> = {
   neutral: "bg-surface-2 text-muted",
   accent: "bg-accent-soft text-accent-ink",
   sage: "bg-sage-soft text-sage-ink",
   warn: "bg-warn-soft text-warn-ink",
   danger: "bg-danger-soft text-danger",
+  ai: "bg-ai-soft text-ai-ink",
 };
 export function Badge({ tone = "neutral", children, className, title }: { tone?: Tone; children: ReactNode; className?: string; title?: string }) {
   return (
-    <span title={title} className={cx("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium", tones[tone], className)}>
+    <span title={title} className={cx("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold", tones[tone], className)}>
       {children}
     </span>
   );
@@ -78,7 +81,7 @@ export function Badge({ tone = "neutral", children, className, title }: { tone?:
 
 export function Notice({ tone = "neutral", title, children, className }: { tone?: Tone; title?: ReactNode; children?: ReactNode; className?: string }) {
   return (
-    <div role={tone === "danger" ? "alert" : "status"} className={cx("rounded-xl px-4 py-3 text-sm", tones[tone], className)}>
+    <div role={tone === "danger" ? "alert" : "status"} className={cx("rounded-[18px] px-4 py-3 text-sm", tones[tone], className)}>
       {title && <p className="font-semibold">{title}</p>}
       {children && <div className={cx(title ? "mt-1" : "", "space-y-1")}>{children}</div>}
     </div>
@@ -87,8 +90,8 @@ export function Notice({ tone = "neutral", title, children, className }: { tone?
 
 export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-line bg-surface/60 px-6 py-10 text-center">
-      <p className="font-display text-xl text-ink">{title}</p>
+    <div className="rounded-[28px] border-2 border-dashed border-line bg-surface/60 px-6 py-12 text-center">
+      <p className="font-display text-2xl font-extrabold text-ink">{title}</p>
       {children && <div className="mx-auto mt-2 max-w-md text-sm text-muted">{children}</div>}
       {action && <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div>}
     </div>
@@ -99,7 +102,7 @@ export function PageHeader({ title, subtitle, actions }: { title: ReactNode; sub
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{title}</h1>
+        <h1 className="font-display text-3xl font-extrabold text-ink sm:text-5xl">{title}</h1>
         {subtitle && <div className="mt-1 text-sm text-muted">{subtitle}</div>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}

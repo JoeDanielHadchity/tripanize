@@ -44,8 +44,8 @@ export function AppearanceSetting() {
 }
 
 function ThemePreview({ kind }: { kind: ThemeChoice }) {
-  const light = { bg: "#faf7f1", card: "#ffffff", line: "#dfe3eb", accent: "#0e8388", text: "#1b273b" };
-  const dark = { bg: "#121a2b", card: "#1a2438", line: "#35415a", accent: "#55bec1", text: "#f2f3f7" };
+  const light = { bg: "#f6f2e9", card: "#fffdf8", line: "#e6dfd0", accent: "#0b6e74", text: "#172e33" };
+  const dark = { bg: "#0f1e21", card: "#172e33", line: "#2f4a50", accent: "#5fc4bb", text: "#f3efe6" };
   const pane = (c: typeof light, clip?: string) => (
     <g clipPath={clip}>
       <rect width="96" height="60" fill={c.bg} />

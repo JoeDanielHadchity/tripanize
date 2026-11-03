@@ -73,7 +73,7 @@ export function TripAssistant({ tripId, defaultDate }: { tripId: string; default
     if (await command({ op: "send", ...attempt.current }, "send")) { setDraft(""); attempt.current = null; }
   }
   return <>
-    <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className="fixed bottom-20 right-4 z-20 inline-flex min-h-12 items-center gap-2 rounded-full border border-accent/30 bg-accent px-4 font-semibold text-on-accent shadow-lg lg:bottom-6 lg:right-6">
+    <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className="fixed bottom-28 right-4 z-20 inline-flex min-h-12 items-center gap-2 rounded-full bg-ai px-5 font-extrabold text-on-ai shadow-lg lg:bottom-6 lg:right-6">
       <PremiumStar className="text-current" /> AI assistant
       {active && <span className="h-2 w-2 animate-pulse rounded-full bg-current" aria-label="Preparing a reply" />}
     </button>

@@ -24,7 +24,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-/** One navigation per breakpoint: a sidebar on desktop, a bottom bar (with "More") on phones. */
+/** One navigation per breakpoint: a row of pills on desktop, a floating dark tab bar (with "More") on phones. */
 export function TripNav({ tripId, initialChat, premium = true }: { tripId: string; initialChat: ChatSummary; premium?: boolean }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
@@ -50,25 +50,24 @@ export function TripNav({ tripId, initialChat, premium = true }: { tripId: strin
   const rest = SECTIONS.slice(4);
   return (
     <>
-      <nav aria-label="Trip sections" className="hidden lg:block">
-        <ul className="sticky top-20 space-y-1">
+      <nav aria-label="Trip sections" className="mb-6 hidden lg:block">
+        <ul className="flex flex-wrap gap-2">
           {SECTIONS.map((s) => (
             <li key={s.slug}>
-              <Link href={destination(s.slug)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium", active(s.slug) ? "bg-accent-soft text-accent-ink" : "text-muted hover:bg-surface-2 hover:text-ink")}>
-                <Icon d={s.icon} />
+              <Link href={destination(s.slug)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-11 items-center gap-2 rounded-full px-5 text-[15px] font-bold", active(s.slug) ? "bg-night text-night-ink" : "border border-line bg-surface text-ink hover:bg-surface-2")}>
                 {label(s.slug, s.label)}
-                {s.slug === "chat" && <span className="ml-auto">{unreadBadge}</span>}
+                {s.slug === "chat" && unreadBadge}
               </Link>
             </li>
           ))}
         </ul>
       </nav>
-      <nav aria-label="Trip sections" className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur lg:hidden">
+      <nav aria-label="Trip sections" className="trip-tabbar fixed inset-x-3 z-30 overflow-hidden rounded-[30px] bg-night text-night-muted shadow-[0_12px_30px_rgb(23_46_51/0.3)] lg:hidden">
         {more && (
-          <ul className={cx("grid gap-1 border-b border-line px-2 py-2", rest.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
+          <ul className={cx("grid gap-1 border-b border-night-line px-2 py-2", rest.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
             {rest.map((s) => (
               <li key={s.slug}>
-                <Link href={destination(s.slug)} onClick={() => setMore(false)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-center text-xs font-medium", active(s.slug) ? "bg-accent-soft text-accent-ink" : "text-muted")}>
+                <Link href={destination(s.slug)} onClick={() => setMore(false)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-[20px] px-1 text-center text-xs font-bold", active(s.slug) ? "bg-[#0f7f86] text-white" : "text-night-muted")}>
                   <Icon d={s.icon} />
                   {label(s.slug, s.label)}
                 </Link>
@@ -76,17 +75,17 @@ export function TripNav({ tripId, initialChat, premium = true }: { tripId: strin
             ))}
           </ul>
         )}
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-5 gap-1 p-1.5">
           {primary.map((s) => (
             <li key={s.slug}>
-              <Link href={destination(s.slug)} onClick={() => setMore(false)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-center text-[11px] font-medium", active(s.slug) ? "text-accent-ink" : "text-muted")}>
+              <Link href={destination(s.slug)} onClick={() => setMore(false)} aria-current={active(s.slug) ? "page" : undefined} className={cx("flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[24px] px-1 text-center text-xs font-bold leading-tight", active(s.slug) ? "bg-[#0f7f86] text-white" : "text-night-muted")}>
                 <span className="relative"><Icon d={s.icon} />{s.slug === "chat" && unreadBadge && <span className="absolute -right-4 -top-1">{unreadBadge}</span>}</span>
                 {label(s.slug, s.label)}
               </Link>
             </li>
           ))}
           <li>
-            <button type="button" aria-expanded={more} onClick={() => setMore((m) => !m)} className={cx("flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium", rest.some((s) => active(s.slug)) ? "text-accent-ink" : "text-muted")}>
+            <button type="button" aria-expanded={more} onClick={() => setMore((m) => !m)} className={cx("flex min-h-14 w-full flex-col items-center justify-center gap-0.5 rounded-[24px] text-xs font-bold", rest.some((s) => active(s.slug)) ? "bg-[#0f7f86] text-white" : "text-night-muted")}>
               <Icon d="M5 12h.01M12 12h.01M19 12h.01" />
               More
             </button>

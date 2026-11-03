@@ -1,11 +1,12 @@
 @import "tailwindcss";
-@import "./nunito-font.css";
-@import "./fraunces-font.css";
+@import "./manrope-font.css";
+@import "./bricolage-font.css";
 @import "./caveat-font.css";
 @import "./window-seat.css";
 @import "./feature-pages.css";
 @import "./city-guides.css";
 @import "./premium-pass.css";
+@import "./night-pass.css";
 
 /* Tailwind dark: variant follows the same rule as the color tokens. */
 @custom-variant dark {
@@ -14,73 +15,107 @@
 }
 
 :root {
+  /* Design 004 (Night Pass in Design 001 colours): cream ground, deep ink for bold
+     pieces, teal for every action, coral only for AI. */
   --bg: #f6f2e9;
   --surface: #fffdf8;
-  --surface-2: #eee7d9;
+  --surface-2: #ede7da;
   --ink: #172e33;
-  --muted: #485a5d;
-  --line: #d9d3c6;
-  --accent: #3f6d83;
-  --accent-ink: #244e61;
-  --accent-soft: #e3edf0;
-  --on-accent: #fffdf8;
-  /* Legacy "sage" tokens hold the burnt orange secondary color. */
-  --sage: #b55a3c;
-  --sage-ink: #924027;
-  --sage-soft: #f6e6dc;
-  --warn-ink: #7a4f00;
-  --warn-soft: #fbefd5;
+  --muted: #56656a;
+  --line: #e6dfd0;
+  --accent: #0b6e74;
+  --accent-ink: #0b6e74;
+  --accent-soft: #e2f0ef;
+  --on-accent: #ffffff;
+  /* Legacy "sage" tokens: a second teal for success and secondary highlights. */
+  --sage: #0f7f86;
+  --sage-ink: #0b6e74;
+  --sage-soft: #e2f0ef;
+  --on-sage: #ffffff;
+  /* Coral is reserved for AI features. */
+  --ai: #b4502d;
+  --ai-ink: #8f3c1f;
+  --ai-soft: #fbe9e0;
+  --on-ai: #ffffff;
+  --warn-ink: #8a5a00;
+  --warn-soft: #fff3d6;
   --danger: #a3261c;
   --danger-soft: #f9e0dc;
-  --focus: #3f6d83;
-  --brand-gradient: linear-gradient(150deg, #244e61 0%, #3f6d83 65%, #b55a3c 100%);
+  --focus: #0b6e74;
+  /* Ink surfaces: trip banner, tickets, phone tab bar. */
+  --night: #172e33;
+  --night-ink: #f6f2e9;
+  --night-muted: #a9bcbd;
+  --night-accent: #7fd1c9;
+  --night-line: #3b5358;
+  --brand-gradient: linear-gradient(150deg, #172e33 0%, #0b6e74 100%);
   color-scheme: light;
 }
 
 /* Dark colors: when the person picks Dark in Settings, or picks System (the default) on a device in dark mode. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #191e24;
-    --surface: #242a32;
-    --surface-2: #303641;
-    --ink: #f3eee5;
-    --muted: #b6bdbb;
-    --line: #424b54;
-    --accent: #a2c9df;
-    --accent-ink: #c8e0ec;
-    --accent-soft: #2c424f;
-    --on-accent: #192e38;
-    --sage: #eeaa87;
-    --sage-ink: #f6c1a4;
-    --sage-soft: #49352e;
+    --bg: #0f1e21;
+    --surface: #172e33;
+    --surface-2: #1f3a40;
+    --ink: #f3efe6;
+    --muted: #a9bcbd;
+    --line: #2f4a50;
+    --accent: #5fc4bb;
+    --accent-ink: #7fd1c9;
+    --accent-soft: #1d4044;
+    --on-accent: #0f1e21;
+    --sage: #5fc4bb;
+    --sage-ink: #7fd1c9;
+    --sage-soft: #1d4044;
+    --on-sage: #0f1e21;
+    --ai: #f4a27f;
+    --ai-ink: #f7b89a;
+    --ai-soft: #4a2c22;
+    --on-ai: #0f1e21;
     --warn-ink: #f1c76b;
     --warn-soft: #3a2f17;
     --danger: #f08a7e;
     --danger-soft: #3d201c;
-    --focus: #a2c9df;
+    --focus: #7fd1c9;
+    --night: #0a1a1d;
+    --night-ink: #f6f2e9;
+    --night-muted: #a9bcbd;
+    --night-accent: #7fd1c9;
+    --night-line: #2f4a50;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #191e24;
-  --surface: #242a32;
-  --surface-2: #303641;
-  --ink: #f3eee5;
-  --muted: #b6bdbb;
-  --line: #424b54;
-  --accent: #a2c9df;
-  --accent-ink: #c8e0ec;
-  --accent-soft: #2c424f;
-  --on-accent: #192e38;
-  --sage: #eeaa87;
-  --sage-ink: #f6c1a4;
-  --sage-soft: #49352e;
+  --bg: #0f1e21;
+  --surface: #172e33;
+  --surface-2: #1f3a40;
+  --ink: #f3efe6;
+  --muted: #a9bcbd;
+  --line: #2f4a50;
+  --accent: #5fc4bb;
+  --accent-ink: #7fd1c9;
+  --accent-soft: #1d4044;
+  --on-accent: #0f1e21;
+  --sage: #5fc4bb;
+  --sage-ink: #7fd1c9;
+  --sage-soft: #1d4044;
+  --on-sage: #0f1e21;
+  --ai: #f4a27f;
+  --ai-ink: #f7b89a;
+  --ai-soft: #4a2c22;
+  --on-ai: #0f1e21;
   --warn-ink: #f1c76b;
   --warn-soft: #3a2f17;
   --danger: #f08a7e;
   --danger-soft: #3d201c;
-  --focus: #a2c9df;
+  --focus: #7fd1c9;
+  --night: #0a1a1d;
+  --night-ink: #f6f2e9;
+  --night-muted: #a9bcbd;
+  --night-accent: #7fd1c9;
+  --night-line: #2f4a50;
   color-scheme: dark;
 }
 
@@ -98,12 +133,22 @@
   --color-sage: var(--sage);
   --color-sage-ink: var(--sage-ink);
   --color-sage-soft: var(--sage-soft);
+  --color-on-sage: var(--on-sage);
+  --color-ai: var(--ai);
+  --color-ai-ink: var(--ai-ink);
+  --color-ai-soft: var(--ai-soft);
+  --color-on-ai: var(--on-ai);
   --color-warn-ink: var(--warn-ink);
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: "Nunito Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
+  --color-night: var(--night);
+  --color-night-ink: var(--night-ink);
+  --color-night-muted: var(--night-muted);
+  --color-night-accent: var(--night-accent);
+  --color-night-line: var(--night-line);
+  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
@@ -150,6 +195,7 @@ dialog[open] {
 .font-display {
   font-family: var(--font-display);
   font-optical-sizing: auto;
+  letter-spacing: -0.02em;
 }
 
 .brand-backdrop {

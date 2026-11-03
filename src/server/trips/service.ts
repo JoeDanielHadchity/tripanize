@@ -267,6 +267,7 @@ export async function listTrips(userId: string, opts: { q?: string; phase?: stri
         imageCredit: coverImage?.credit ?? null,
         coverImage,
         phase: tripPhase(t.startDate, t.endDate, today),
+        today,
         updatedAt: t.updatedAt,
       };
     })

@@ -35,12 +35,16 @@ function List({ tripId, title, items, shared, editable, emptyText }: { tripId: s
   const cats = [...new Set(items.map((i) => i.category))].sort();
   return (
     <Card>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold">{title}</h2>
-        <p className="text-sm text-muted">{done} of {items.length} packed</p>
-      </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${title} progress`}>
-        <div className="h-full bg-sage" style={{ width: `${pct}%` }} />
+      {/* Design 004: a progress ring that fills as items are packed. */}
+      <div className="flex items-center gap-4">
+        <div className="relative h-20 w-20 shrink-0" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${title} progress`}>
+          <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90" aria-hidden="true"><circle cx="40" cy="40" r="33" fill="none" strokeWidth="9" className="stroke-surface-2" /><circle cx="40" cy="40" r="33" fill="none" strokeWidth="9" strokeLinecap="round" className="stroke-accent" strokeDasharray={`${(pct / 100) * 207.3} 207.3`} /></svg>
+          <span className="absolute inset-0 flex items-center justify-center font-display text-lg font-extrabold">{done}/{items.length}</span>
+        </div>
+        <div className="min-w-0">
+          <h2 className="font-display text-2xl font-extrabold">{title}</h2>
+          <p className="text-sm font-semibold text-muted">{done} of {items.length} packed</p>
+        </div>
       </div>
       {items.length === 0 && <p className="mt-4 text-sm text-muted">{emptyText}</p>}
       {cats.map((c) => (
@@ -49,7 +53,7 @@ function List({ tripId, title, items, shared, editable, emptyText }: { tripId: s
           <ul className="mt-1 divide-y divide-line">
             {items.filter((i) => i.category === c).map((i) => (
               <li key={i.id} className="flex items-start gap-3 py-2">
-                <input type="checkbox" className="mt-1 h-6 w-6 shrink-0 accent-[var(--sage)]" aria-label={`Packed: ${i.label}`} checked={packed(i)} disabled={!editable} onChange={() => toggle(i)} />
+                <input type="checkbox" className="mt-1 h-6 w-6 shrink-0 accent-[var(--accent)]" aria-label={`Packed: ${i.label}`} checked={packed(i)} disabled={!editable} onChange={() => toggle(i)} />
                 <div className="min-w-0 flex-1">
                   {editing === i.id ? (
                     <form className="flex flex-wrap gap-2" onSubmit={async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const r = await run(() => updatePackingAction(tripId, i.id, { label: String(f.get("label")), category: String(f.get("category")), quantity: Number(f.get("qty")) || 1 }, i.version), { success: "Saved" }); if (r !== null) setEditing(null); }}>
@@ -94,7 +98,7 @@ export function PackingView({ tripId, canEditShared, premium, personal, shared, 
   const [result, setResult] = useState<string | null>(null);
   return (
     <div className="space-y-6">
-      {premium && <Card className="bg-sage-soft/40">
+      {premium && <Card className="bg-ai-soft/60">
         <h2 className="flex items-center gap-2 font-display text-lg font-semibold">Packing suggestions <PremiumStar /></h2>
         <p className="mt-1 text-sm text-muted">Customized for your destinations, local customs, events, travel preferences, dates and season, trip length, weather (live forecast within 14 days, otherwise typical conditions — always labeled), planned activities, road-trip and accommodation changes, and preferences you've shared. Refreshing keeps your own items and checkmarks, never re-adds items you removed, and doesn't create duplicates.</p>
         <div className="mt-3 flex flex-wrap items-end gap-2">

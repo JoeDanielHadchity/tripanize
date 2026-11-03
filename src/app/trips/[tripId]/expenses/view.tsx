@@ -63,7 +63,7 @@ export function ExpensesView(p: Props) {
         <h2 id="actual-spending-h" className="font-display text-xl font-semibold">Actual spending</h2>
         <div className="flex flex-wrap gap-2">
         {p.canEdit && <Button variant="primary" onClick={() => setEditing("new")}>+ Add expense</Button>}
-        {p.canEdit && <Button variant={anyBalance ? "sage" : "secondary"} className="font-semibold" onClick={() => setSettle({})}>Settle up</Button>}
+        {p.canEdit && <Button variant="secondary" onClick={() => setSettle({})}>Settle up</Button>}
         </div>
       </div>
       {p.budget.committedBookingsMinor > 0 && <Notice>Booked items awaiting an expense: {formatMoney(p.budget.committedBookingsMinor, p.tripCurrency)}. <Link href={`/trips/${p.tripId}/bookings`} className="font-medium underline">Record their payments</Link> to include them in actual spending.</Notice>}
@@ -90,7 +90,7 @@ export function ExpensesView(p: Props) {
                   ))}
                 </ul>
               </Card>
-            ) : <p className="text-sm text-sage-ink">✓ Everyone is settled up in {l.currency}.</p>}
+            ) : <p className="text-sm font-bold text-accent-ink">✓ Everyone is settled up in {l.currency}.</p>}
             <details>
               <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-muted">Detailed contributions & balances</summary>
             <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
@@ -265,18 +265,18 @@ function BudgetCard({ b, tripId, canEdit }: { b: BudgetSummary; tripId: string; 
   const used = b.budgetMinor && b.budgetMinor > 0 ? Math.min(100, Math.max(0, b.actualMinor / b.budgetMinor * 100)) : null;
   const unconverted = b.otherCurrencies.filter(o => o.actualMinor > 0);
   return (
-    <section aria-labelledby="budget-h" className="rounded-3xl border-2 border-accent bg-accent-soft p-5 sm:p-6">
+    <section aria-labelledby="budget-h" className="night-card rounded-[28px] bg-night p-6 text-night-ink sm:p-7">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="budget-h" className="font-display text-xl font-semibold">Trip budget</h2>
-        {canEdit && <Link href={`/trips/${tripId}/settings#details`} className="text-sm font-medium text-accent-ink underline">{b.budgetMinor === null ? "Set budget" : "Edit budget"}</Link>}
+        <h2 id="budget-h" className="text-xs font-extrabold uppercase tracking-[0.14em] text-night-accent">Trip budget</h2>
+        {canEdit && <Link href={`/trips/${tripId}/settings#details`} className="text-sm font-bold text-night-accent underline">{b.budgetMinor === null ? "Set budget" : "Edit budget"}</Link>}
       </div>
       <dl className="mt-5 grid gap-5 sm:grid-cols-3">
-        <div><dt className="text-sm text-muted">Overall budget · {b.currency}</dt><dd className="mt-1 font-display text-3xl font-semibold tabular-nums">{b.budgetMinor === null ? "Not set" : formatMoney(b.budgetMinor, b.currency)}</dd></div>
-        <div><dt className="text-sm text-muted">Actually spent</dt><dd className="mt-1 font-display text-3xl font-semibold tabular-nums">{formatMoney(b.actualMinor, b.currency)}</dd></div>
-        <div><dt className="text-sm font-medium">{over ? "Over budget" : "Budget remaining"}</dt><dd className={cx("mt-1 font-display text-3xl font-semibold tabular-nums", over ? "text-danger" : "text-sage-ink")}>{b.remainingMinor === null ? "—" : formatMoney(Math.abs(b.remainingMinor), b.currency)}</dd></div>
+        <div><dt className="text-sm font-bold text-night-muted">Overall budget · {b.currency}</dt><dd className="mt-1 font-display text-5xl font-extrabold tabular-nums">{b.budgetMinor === null ? "Not set" : formatMoney(b.budgetMinor, b.currency)}</dd></div>
+        <div><dt className="text-sm font-bold text-night-muted">Actually spent</dt><dd className="mt-1 font-display text-5xl font-extrabold tabular-nums">{formatMoney(b.actualMinor, b.currency)}</dd></div>
+        <div><dt className="text-sm font-bold text-night-muted">{over ? "Over budget" : "Budget remaining"}</dt><dd className={cx("mt-1 font-display text-5xl font-extrabold tabular-nums", over ? "text-[#ffb8ab]" : "text-night-accent")}>{b.remainingMinor === null ? "—" : formatMoney(Math.abs(b.remainingMinor), b.currency)}</dd></div>
       </dl>
-      {used !== null && <div role="progressbar" aria-label="Trip budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(used)} aria-valuetext={`${formatMoney(b.actualMinor, b.currency)} spent of ${formatMoney(b.budgetMinor!, b.currency)}`} className="mt-5 h-2.5 overflow-hidden rounded-full bg-surface"><div className={cx("h-full rounded-full transition-all", over ? "bg-danger" : "bg-accent")} style={{ width: `${used}%` }} /></div>}
-      <p className="mt-3 text-sm text-muted">{b.budgetMinor === null ? "Set an overall budget to track what remains as you record expenses." : "Budget remaining = overall budget − actual expenses."}</p>
+      {used !== null && <div role="progressbar" aria-label="Trip budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(used)} aria-valuetext={`${formatMoney(b.actualMinor, b.currency)} spent of ${formatMoney(b.budgetMinor!, b.currency)}`} className="mt-6 h-3 overflow-hidden rounded-full bg-night-line"><div className={cx("h-full rounded-full transition-all", over ? "bg-[#ffb8ab]" : "bg-night-accent")} style={{ width: `${used}%` }} /></div>}
+      <p className="mt-3 text-sm text-night-muted">{b.budgetMinor === null ? "Set an overall budget to track what remains as you record expenses." : "Budget remaining = overall budget − actual expenses."}</p>
       {unconverted.length > 0 && <Notice tone="warn" className="mt-3">{unconverted.map(o => formatMoney(o.actualMinor, o.currency)).join(" · ")} in other currencies is not yet deducted. Edit those expenses and add a {b.currency} conversion to include them in this balance.</Notice>}
     </section>
   );

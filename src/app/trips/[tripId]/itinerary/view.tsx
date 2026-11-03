@@ -88,7 +88,7 @@ export function ItineraryView(p: Props) {
         <Input id="stop-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search stops, addresses, categories…" className="sm:max-w-sm" />
         <div className="flex gap-1" role="group" aria-label="View">
           {(["split", "list", "map"] as const).map((v) => (
-            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={cx("min-h-11 rounded-xl px-4 text-sm font-medium", view === v ? "bg-ink text-bg" : "border border-line bg-surface text-muted")}>
+            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={cx("min-h-11 rounded-full px-4 text-sm font-bold", view === v ? "bg-night text-night-ink" : "border border-line bg-surface text-muted")}>
               {v === "split" ? "Plan & map" : v === "list" ? "List" : "Map"}
             </button>
           ))}
@@ -150,7 +150,7 @@ export function ItineraryView(p: Props) {
                       {(hasB || p.canEdit) && (
                         <div role="group" aria-label="Plan A or B" className="flex rounded-xl border border-line bg-surface p-0.5">
                           {(["A", "B"] as const).map((pl) => (
-                            <button key={pl} type="button" aria-pressed={d.activePlan === pl} disabled={!p.canEdit || pending} onClick={() => run(() => setActivePlanAction(p.tripId, d.id, pl))} className={cx("min-h-10 rounded-lg px-3 text-sm font-medium", d.activePlan === pl ? "bg-accent text-on-accent" : "text-muted")}>
+                            <button key={pl} type="button" aria-pressed={d.activePlan === pl} disabled={!p.canEdit || pending} onClick={() => run(() => setActivePlanAction(p.tripId, d.id, pl))} className={cx("min-h-10 rounded-full px-4 text-sm font-bold", d.activePlan === pl ? "bg-night text-night-ink" : "text-muted")}>
                               Plan {pl}
                             </button>
                           ))}

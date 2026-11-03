@@ -13,7 +13,7 @@ export type TripGuide = { name: string; dates: string; destinations: string; day
 
 const W = 595.28, H = 841.89, M = 44, RIGHT = W - M, CW = W - M * 2, BOTTOM = 776;
 const hex = (v: string) => rgb(parseInt(v.slice(0, 2), 16) / 255, parseInt(v.slice(2, 4), 16) / 255, parseInt(v.slice(4, 6), 16) / 255);
-const C = { ink: hex("172e33"), muted: hex("485a5d"), primary: hex("3f6d83"), primaryInk: hex("244e61"), primarySoft: hex("e3edf0"), paper: hex("f6f2e9"), line: hex("d9d3c6"), secondary: hex("b55a3c"), secondarySoft: hex("f6e6dc"), white: rgb(1, 1, 1) };
+const C = { ink: hex("172e33"), muted: hex("56656a"), primary: hex("0b6e74"), primaryInk: hex("0b6e74"), primarySoft: hex("e2f0ef"), paper: hex("f6f2e9"), line: hex("d9d3c6"), secondary: hex("b4502d"), secondarySoft: hex("fbe9e0"), white: rgb(1, 1, 1) };
 type Face = "body" | "bold" | "display";
 type Line = { text: string; face: Face; size: number; color: RGB; leading: number; links?: GuideLink[] };
 
