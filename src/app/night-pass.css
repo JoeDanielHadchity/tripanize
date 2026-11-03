@@ -276,3 +276,7 @@
 .section-skeleton>span { display:block; border-radius:20px; background:var(--surface-2); animation:skeleton-pulse 1.4s ease-in-out infinite; }
 @keyframes skeleton-pulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
 @media (prefers-reduced-motion: reduce) { .section-skeleton>span { animation:none; } }
+
+/* Final check: the city switcher stays on one line on phones (scrolls sideways), and notes inside the ink budget card are readable. */
+@media(max-width:700px){ .guide-city-nav { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .guide-city-nav::-webkit-scrollbar { display:none; } .guide-city-nav a { flex:none; } }
+.guide-budget .guide-small-note, .guide-budget .guide-budget-basis { color:var(--night-muted); }
