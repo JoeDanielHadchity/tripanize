@@ -215,18 +215,13 @@
   .public-header nav { gap:6px; }
 }
 
-/* 2 · AI assistant button: a pill on desktop; on phones a small coral circle that sits above the tab bar,
-   with enough bottom space on the page that nothing ends up hidden under either. */
+/* 2 · AI assistant button: the coral pill, bottom right (above the tab bar on phones). */
 .ai-fab { position:fixed; right:24px; bottom:24px; z-index:20; display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:48px; padding:0 20px; border-radius:999px; background:var(--ai); color:var(--on-ai); font-weight:800; box-shadow:0 10px 24px rgb(180 80 45 / .32); }
 .ai-fab:hover { filter:brightness(1.08); text-decoration:none; }
 @media (max-width:1023px) {
-  /* The AI button sits beside the tab bar, in the same row, so it never floats over content. */
-  .ai-fab { right:12px; bottom:calc(max(12px, env(safe-area-inset-bottom)) + 4px); width:60px; height:60px; min-height:0; padding:0; z-index:31; }
-  body:has(.ai-fab) .trip-tabbar { right:78px; }
-  body:has(.ai-fab) .trip-tabbar :is(a,button) { font-size:10.5px; letter-spacing:-.01em; padding-left:1px; padding-right:1px; }
-  .ai-fab svg { width:22px; height:22px; }
-  .ai-fab-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
-  .trip-workspace { padding-bottom:120px; }
+  /* Phones: the original placement, a coral "AI assistant" pill floating just above the tab bar. */
+  .ai-fab { right:16px; bottom:112px; }
+  .trip-workspace { padding-bottom:110px; }
 }
 
 /* 3 · Setup reminder: one card on the itinerary, dismissible. */
