@@ -30,6 +30,30 @@ export async function createTripDraft(userId: string, name: string, trialInvitat
   return { id, next: `/trips/${id}/premium?created=1`, trial: false };
 }
 
+/**
+ * New setup order: where and when first, on one screen. The trip starts on the free plan and goes straight
+ * to the travel questions; Premium is offered once the first plan is ready (or any time from the trip banner).
+ * A pending Premium trial invitation still activates on the new trip, as before.
+ */
+export async function startTrip(userId: string, input: TripInput, trialInvitationId?: string) {
+  const parsed = tripInput.safeParse(input);
+  if (!parsed.success) throw new AppError("VALIDATION", parsed.error.issues[0]?.message ?? "Check the trip details.");
+  if (!parsed.data.name.trim()) throw new AppError("VALIDATION", "Give your trip a name.");
+  if (!parsed.data.startDate || !parsed.data.endDate || !parsed.data.destinations.length) throw new AppError("VALIDATION", "Add your destination and both trip dates before continuing.");
+  if (parsed.data.destinations.length > 1 && parsed.data.destinations.some(d => !d.arriveDate || !d.departDate)) throw new AppError("VALIDATION", "Add arrival and departure dates for each destination.");
+  const [trial] = await pendingTrialInvitations(userId);
+  if (trial || trialInvitationId) {
+    const draft = await createTripDraft(userId, parsed.data.name, trialInvitationId);
+    const version = (await prisma.trip.findUniqueOrThrow({ where: { id: draft.id } })).version;
+    await saveOnboardingDetails(userId, draft.id, input, version);
+    return { id: draft.id, next: `/trips/${draft.id}/onboarding`, trial: true };
+  }
+  const id = await createTrip(userId, input);
+  await prisma.trip.update({ where: { id }, data: { onboardingStage: "QUESTIONS", onboardingPlan: "NORMAL", planQuestions: Prisma.DbNull } });
+  await getPlanQuestions(userId, id);
+  return { id, next: `/trips/${id}/onboarding`, trial: false };
+}
+
 export async function chooseNormal(userId: string, tripId: string) {
   await requireTrip(tripId, userId, "manage");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });

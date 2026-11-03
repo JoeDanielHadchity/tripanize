@@ -1,4 +1,4 @@
-import { CreateTrip } from "@/components/create-trip";
+import { TripForm } from "@/components/trip-form";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/server/auth/session";
@@ -17,9 +17,10 @@ export default async function NewTripPage() {
       <AppHeader user={user} current="trips" />
       <main id="main" className="mx-auto max-w-3xl px-4 pb-32 pt-6">
         <Link href="/trips" className="text-sm text-muted hover:text-ink">← My trips</Link>
+        <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wider text-accent-ink">Step 1 of 3 · Where and when</p>
         <PageHeader title="Create a trip" />
         {trial.status !== "available" && <TrialAccessBanner access={trial} />}
-        <CreateTrip trial={trial.status === "available" ? { invitationId: trial.invitationId, durationDays: trial.durationDays } : undefined} />
+        <TripForm mode="create" trial={trial.status === "available" ? { invitationId: trial.invitationId, durationDays: trial.durationDays } : undefined} />
         <p className="mt-5 text-sm text-muted">Still deciding where to go? <Link href="/destinations" className="font-semibold text-accent-ink underline underline-offset-2">Find a destination</Link></p>
       </main>
     </>

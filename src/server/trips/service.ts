@@ -130,7 +130,7 @@ export async function createTrip(userId: string, input: TripInput, destinationSe
     }
     // The company account's trips are test trips: automatic (paid) event searches
     // start off there and can be switched on per trip under Events.
-    const trip = await tx.trip.create({ data: { ...scalarFields(t), ownerId: userId, autoDiscovery: !isCompanyAccount(user), ...(destinationSearchId ? { onboardingStage: "PLAN" } : {}) } });
+    const trip = await tx.trip.create({ data: { ...scalarFields(t), ownerId: userId, autoDiscovery: !isCompanyAccount(user), ...(destinationSearchId ? { onboardingStage: "DETAILS", onboardingPlan: "NORMAL" } : {}) } });
     const me = await tx.traveler.create({ data: { tripId: trip.id, name, userId } });
     await tx.tripMembership.create({ data: { tripId: trip.id, userId, role: "OWNER", travelerId: me.id } });
     const seen = new Set([name.trim().toLowerCase()]);

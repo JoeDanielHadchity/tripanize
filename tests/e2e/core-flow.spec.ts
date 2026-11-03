@@ -47,12 +47,6 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   // 2. Trip setup
   await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
   await ana.getByLabel("Trip name").fill(`Lisbon ${run}`);
-  await ana.getByRole("button", { name: "Next: choose Free or Premium" }).click();
-  await ana.waitForURL("**/premium?created=1");
-  const tripUrl = ana.url().split("/premium")[0];
-  await expect(ana.getByRole("heading", { name: "Choose how you want to travel" })).toBeVisible();
-  await ana.getByRole("button", { name: "Continue free" }).click();
-  await ana.waitForURL("**/onboarding");
   await ana.getByLabel("Start date").fill(isoDate(-1));
   await ana.getByLabel("End date").fill(isoDate(2));
   await ana.getByLabel("City or region").fill("Lisbon");
@@ -61,7 +55,9 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   await ana.getByText("Places & commitments").click();
   await ana.getByLabel("Must-see places").fill("Belém Tower");
   await ana.getByLabel("Must-see places").press("Enter");
-  await ana.getByRole("button", { name: "Continue to travel questions" }).click();
+  await ana.getByRole("button", { name: "Next: travel questions" }).click();
+  await ana.waitForURL("**/onboarding");
+  const tripUrl = ana.url().split("/onboarding")[0];
 
   // 3. Plan with AI — honest state without OPENAI_API_KEY
   await ana.goto(`${tripUrl}/plan?start=1`);

@@ -5,8 +5,8 @@ import { useState, type ReactNode } from "react";
 import { Button, Field, Input, Notice, Select, Textarea, cx } from "./ui";
 import { useAction, useConfirm } from "./client";
 import { DateRangeCalendar } from "./date-range";
-import { createTripAction, previewTripChangeAction, updateTripAction } from "@/app/actions/trips";
-import { onboardingDetailsAction } from "@/app/actions/onboarding";
+import { previewTripChangeAction, updateTripAction } from "@/app/actions/trips";
+import { onboardingDetailsAction, startTripAction } from "@/app/actions/onboarding";
 import { CURRENCIES } from "@/lib/money";
 import { INTERESTS, TRANSPORT } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
@@ -79,7 +79,7 @@ function ListEditor({ label, items, onChange, placeholder }: { label: string; it
   );
 }
 
-export function TripForm({ mode, tripId, initial, canEdit = true, onboarding = false }: { mode: "create" | "edit"; tripId?: string; initial?: TripFormInitial; canEdit?: boolean; onboarding?: boolean }) {
+export function TripForm({ mode, tripId, initial, canEdit = true, onboarding = false, trial }: { mode: "create" | "edit"; tripId?: string; initial?: TripFormInitial; canEdit?: boolean; onboarding?: boolean; trial?: { invitationId: string; durationDays: number | null } }) {
   const router = useRouter();
   const { run, pending } = useAction();
   const confirm = useConfirm();
@@ -138,8 +138,9 @@ export function TripForm({ mode, tripId, initial, canEdit = true, onboarding = f
     setError(null);
     const data = payload();
     if (mode === "create") {
-      const r = await run(() => createTripAction(data), { onError: (r) => setError(r.error), refresh: false });
-      if (r) router.push(`/trips/${r.id}/premium?created=1`);
+      // Where and when first; the travel questions come next, and Premium is offered after the first plan.
+      const r = await run(() => startTripAction(data, trial?.invitationId), { onError: (r) => setError(r.error), refresh: false });
+      if (r) { if (r.trial) window.location.assign(r.next); else router.push(r.next); }
       return;
     }
     if (onboarding) {
@@ -215,7 +216,7 @@ export function TripForm({ mode, tripId, initial, canEdit = true, onboarding = f
           </div>
         </Section>
 
-        <Section title="Who's going" hint="Count everyone, including yourself and children. You can add names later." open={mode === "create" || onboarding}>
+        <Section title="Who's going" hint="Count everyone, including yourself and children. You can add names later." open={onboarding}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Adults" htmlFor="adults"><Input id="adults" type="number" min={1} max={50} value={t.adults} onChange={(e) => set("adults", e.target.value)} /></Field>
             <Field label="Children" htmlFor="children"><Input id="children" type="number" min={0} max={50} value={t.children} onChange={(e) => set("children", e.target.value)} /></Field>
@@ -223,7 +224,8 @@ export function TripForm({ mode, tripId, initial, canEdit = true, onboarding = f
           {mode === "create" ? <ListEditor label="Other travelers' names (you're added automatically)" items={travelers} onChange={setTravelers} placeholder="e.g. Sam" /> : <p className="text-sm text-muted">Manage traveler names and invitations under “Travelers & sharing” below.</p>}
         </Section>
 
-        {mode === "edit" && <>
+        {/* Optional sections stay folded, so a new trip is just name, dates and place unless people want more. */}
+        <>
         <Section title="Travel style & budget" open={onboarding}>
           <fieldset>
             <legend className="mb-2 text-sm font-medium">Pace</legend>
@@ -280,15 +282,15 @@ export function TripForm({ mode, tripId, initial, canEdit = true, onboarding = f
           <Field label="Other preferences" htmlFor="prefs"><Textarea id="prefs" value={t.preferences ?? ""} onChange={(e) => set("preferences", e.target.value)} placeholder="e.g. early risers, no museums on sunny days" /></Field>
           <Field label="Notes" htmlFor="notes"><Textarea id="notes" value={t.notes ?? ""} onChange={(e) => set("notes", e.target.value)} /></Field>
         </Section>
-        </>}
+        </>
       </fieldset>
 
       {error && <Notice tone="danger"><span id="trip-form-error">{error}</span></Notice>}
-      {mode === "create" && <p className="text-sm text-muted">Creating your trip is free. Next, add your information and choose any optional Premium features. Nothing is charged automatically.</p>}
+      {mode === "create" && <p className="text-sm text-muted">{trial ? `Your free Premium trial opens for this trip. ${trial.durationDays ? `All Premium features are included for ${trial.durationDays} days from activation.` : "All Premium features are included until revoked."} No payment details are needed.` : "Planning is free. Next come a few quick travel questions, then your first days are planned. You can add Premium later if you want more."}</p>}
       {canEdit && (
         <div className="sticky bottom-20 z-10 flex justify-end lg:bottom-4">
           <Button type="submit" variant="primary" disabled={pending} className="shadow-lg">
-            {pending ? "Saving…" : mode === "create" ? "Create trip" : onboarding ? "Continue to travel questions" : "Save trip details"}
+            {pending ? "Saving…" : mode === "create" ? (trial ? "Create trial trip" : "Next: travel questions") : onboarding ? "Continue to travel questions" : "Save trip details"}
           </Button>
         </div>
       )}

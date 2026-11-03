@@ -11,17 +11,19 @@ import { PlanQuestions } from "../plan/questions";
 import { OnboardingProgress } from "./progress";
 import type { PlanPrefs } from "@/server/planner/questions";
 export const metadata: Metadata = { title: "Prepare your trip" };
-export default async function OnboardingPage({ params }: { params: Promise<{ tripId: string }> }) {
-  const { tripId } = await params; const user = await requireUser(); const access = await requireTrip(tripId, user.id);
+export default async function OnboardingPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ step?: string }> }) {
+  const { tripId } = await params; const { step } = await searchParams; const user = await requireUser(); const access = await requireTrip(tripId, user.id);
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, include: { destinations: { orderBy: { position: "asc" } }, places: true } });
   const plan = await getTripPlan(tripId);
   if (trip.onboardingStage === "PLAN" || (trip.onboardingPlan === "PREMIUM" && !plan.premium)) redirect(`/trips/${tripId}/premium`);
   if (trip.onboardingStage === "COMPLETE") redirect(`/trips/${tripId}/itinerary`);
   if (access.role !== "OWNER") return <Notice title="The organizer is preparing this trip">You can open the shared itinerary once it is ready. <LinkButton href={`/trips/${tripId}/itinerary`}>Open itinerary</LinkButton></Notice>;
+  // On the questions step, "Edit trip details" reopens step 1 without losing the answers step.
+  const details = trip.onboardingStage === "DETAILS" || (trip.onboardingStage === "QUESTIONS" && step === "details");
   return <>
-    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-accent-ink">{plan.premium ? "Premium" : "Free"} · {trip.onboardingStage === "DETAILS" ? "1. Trip details" : trip.onboardingStage === "QUESTIONS" ? "2. Your travel style" : "3. Building your trip"}</p>
-    <PageHeader title={trip.onboardingStage === "DETAILS" ? "Trip details" : trip.onboardingStage === "QUESTIONS" ? "Travel preferences" : "Preparing your trip"} />
-    {trip.onboardingStage === "DETAILS" ? <TripForm mode="edit" onboarding tripId={tripId} initial={{
+    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-accent-ink">{details ? "Step 1 of 3 · Where and when" : trip.onboardingStage === "QUESTIONS" ? "Step 2 of 3 · Your travel style" : "Step 3 of 3 · Planning your first days"}{plan.premium ? " · Premium" : ""}</p>
+    <PageHeader title={details ? "Trip details" : trip.onboardingStage === "QUESTIONS" ? "Travel preferences" : "Preparing your trip"} actions={!details && trip.onboardingStage === "QUESTIONS" ? <LinkButton href={`/trips/${tripId}/onboarding?step=details`}>Edit trip details</LinkButton> : undefined} />
+    {details ? <TripForm mode="edit" onboarding tripId={tripId} initial={{
               version: trip.version, name: trip.name, startDate: trip.startDate, endDate: trip.endDate, timezone: trip.timezone === "UTC" ? "" : trip.timezone, currency: trip.currency,
               budget: trip.budgetMinor !== null ? minorToDecimalString(trip.budgetMinor, trip.currency) : "", pace: trip.pace, interests: trip.interests, transport: trip.transport,
               accessibility: trip.accessibility, preferences: trip.preferences, dietary: trip.dietary, restaurantPrefs: trip.restaurantPrefs, departureCity: trip.departureCity,

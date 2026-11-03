@@ -14,11 +14,6 @@ test("pick trip dates on the calendar", async ({ browser }, info) => {
   await page.goto("/trips/new");
 
   await page.getByLabel("Trip name").fill("Calendar trip");
-  await page.getByRole("button", { name: "Next: choose Free or Premium" }).click();
-  await page.waitForURL("**/premium?created=1");
-  const tripUrl = page.url().split("/premium")[0];
-  await page.getByRole("button", { name: "Continue free" }).click();
-  await page.waitForURL("**/onboarding");
 
   // Two months ahead, the 10th to the 13th.
   await page.getByRole("button", { name: "Next month" }).click();
@@ -46,7 +41,9 @@ test("pick trip dates on the calendar", async ({ browser }, info) => {
 
   await page.getByLabel("Trip name").fill("Calendar trip");
   await page.getByLabel("City or region").fill("Lisbon");
-  await page.getByRole("button", { name: "Continue to travel questions" }).click();
+  await page.getByRole("button", { name: "Next: travel questions" }).click();
+  await page.waitForURL("**/onboarding");
+  const tripUrl = page.url().split("/onboarding")[0];
   await page.goto(`${tripUrl}/itinerary`);
   await expect(page.getByRole("navigation", { name: "Days" }).getByRole("link")).toHaveCount(4);
   await ctx.close();
