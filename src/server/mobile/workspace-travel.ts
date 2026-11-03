@@ -63,7 +63,7 @@ export async function travelBlocks(userId: string, tripId: string, screen: strin
   const data = await listEvents(userId, tripId);
   const days = await prisma.itineraryDay.findMany({ where: { tripId }, orderBy: { date: "asc" }, select: { id: true, date: true } });
   const pref = await prisma.notificationPreference.findUnique({ where: { userId_tripId: { userId, tripId } } });
-  const blocks: MobileBlock[] = [header, { id: "cadence", title: data.settings.cadence, text: data.settings.nextDiscoveryAt ? `Next search: ${data.settings.nextDiscoveryAt.toISOString()}` : "Automatic search is off.", actions: canEdit ? [act("Find events now", "events.discover"), go("Add your own event", "event", tripId)] : [] }];
+  const blocks: MobileBlock[] = [header, { id: "cadence", title: data.settings.cadence, text: data.settings.nextDiscoveryAt ? `Next search: ${data.settings.nextDiscoveryAt.toISOString()}` : data.settings.autoDiscovery ? "No automatic checks left before this trip." : "Automatic search is off.", actions: canEdit ? [act("Find events now", "events.discover"), go("Add your own event", "event", tripId)] : [] }];
   for (const e of data.events) {
     if (e.status === "HIDDEN" && item !== "hidden") continue;
     blocks.push({ id: e.id, title: e.title, meta: [e.date, e.startTime, e.venue, e.status, e.cancelled ? "Cancelled" : "", e.soldOut ? "Sold out" : ""].filter(Boolean).join(" · "), text: e.whyFits ?? undefined, lines: [e.priceText, e.uncertainty, e.availability].filter((s): s is string => Boolean(s)), actions: [

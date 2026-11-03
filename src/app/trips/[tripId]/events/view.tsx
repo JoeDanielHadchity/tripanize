@@ -73,8 +73,8 @@ export function EventsView(p: Props) {
           <form className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-4" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); run(() => discoverySettingsAction(p.tripId, { autoDiscovery: f.get("auto") === "on" }), { success: "Automatic checks updated" }); }}>
             <label className="flex min-h-11 items-center gap-2 text-sm font-medium"><input type="checkbox" name="auto" defaultChecked={p.settings.autoDiscovery} className="h-5 w-5" /> Check automatically</label>
             <div className="w-full rounded-xl bg-accent-soft p-4 text-sm text-accent-ink">
-              <p className="font-semibold">Searches adapt as your trip gets closer</p>
-              <ul className="mt-2 space-y-1"><li>More than 14 days before departure: weekly, on Monday</li><li>The last 14 days before departure: every 3 days</li><li>During the trip: paused. Use Find events whenever you like</li></ul>
+              <p className="font-semibold">Up to 10 checks, closer together as the trip nears</p>
+              <ul className="mt-2 space-y-1"><li>45, 30, 21 and 14 days before the trip</li><li>Then 10, 7, 5, 3 and 1 days before, and the morning of the first day</li><li>After that: use Find events whenever you like</li></ul>
               <p className="mt-3 font-medium">Current schedule: {p.settings.cadence}</p>
               <p className="mt-1 text-xs">Around 9 am in the trip’s time zone. Searches use your interests, questionnaire answers and saved preferences.</p>
             </div>
