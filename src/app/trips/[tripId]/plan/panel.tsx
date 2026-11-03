@@ -133,7 +133,7 @@ export function PlanPanel(props: { tripId: string; currency: string; premium: bo
 
   return (
     <div className="space-y-6">
-      {!props.premium && <Notice tone="accent">Normal includes an AI draft for the first 2 days per trip. Add the remaining days manually. <Link href={`/trips/${tripId}/premium#feature-advancedPlanning`} className="inline-flex items-center gap-1 font-semibold underline">Premium <PremiumStar /></Link> unlocks longer AI plans, selected-day regeneration and the AI assistant.</Notice>}
+      {!props.premium && <Notice tone="accent">The free plan includes an AI draft for the first 2 days per trip. Add the remaining days manually. <Link href={`/trips/${tripId}/premium#feature-advancedPlanning`} className="inline-flex items-center gap-1 font-semibold underline">Premium <PremiumStar /></Link> unlocks longer AI plans, selected-day regeneration and the AI assistant.</Notice>}
       {props.canEdit && !running && (
         <Card id="plan-form">
           <h2 className="font-display text-xl font-semibold">{!props.premium ? "Draft your first 2 days" : props.hasPlan ? "Regenerate with AI" : "Draft my itinerary"}</h2>

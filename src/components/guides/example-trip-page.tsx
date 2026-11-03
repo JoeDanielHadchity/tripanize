@@ -48,7 +48,7 @@ export function ExampleTripPage({ example, user }: { example: Example; user: Ses
         </figure>
       </section>
       <GuideDays days={days} heading={`Your ${example.nights + 1}-day route.`}>
-        <aside className="guide-sidebar">
+        <div className="guide-sidebar">
           {example.budget && <section className="guide-budget" aria-labelledby="guide-budget-title">
             <h2 className="guide-eyebrow" id="guide-budget-title">Planning budget</h2>
             <p className="guide-budget-total">≈ €{example.budget.toLocaleString("en")}</p>
@@ -56,7 +56,7 @@ export function ExampleTripPage({ example, user }: { example: Example; user: Ses
             <p className="guide-small-note">Illustrative estimate for the group, not live prices. Set your own budget after saving a copy.</p>
           </section>}
           <section className="guide-bookings"><h2>Before you book.</h2><p>What to reserve, and when · reservations are separate</p><ul>{example.bookings.map(booking => <li key={booking.title}>{booking.url ? <a href={booking.url} target="_blank" rel="noopener noreferrer">{booking.title} <span aria-hidden="true">↗</span></a> : <strong>{booking.title}</strong>}<p>{booking.whenToBook}</p></li>)}</ul></section>
-        </aside>
+        </div>
       </GuideDays>
       <section className="guide-copy" id="use-itinerary" aria-labelledby="guide-copy-title"><div><h2 id="guide-copy-title">Same starting point. Your own trip.</h2><p>{authenticated ? "Choose a start date to save an editable copy. Everything shifts to your dates." : "Sign in, choose your dates and save an editable copy to My trips."}</p></div>{authenticated ? <CopyExample slug={example.slug} /> : <LinkButton href={signIn} variant="primary">Use this itinerary <span aria-hidden="true">→</span></LinkButton>}</section>
       <section className="guide-faq" aria-label="About this itinerary">

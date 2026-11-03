@@ -151,13 +151,13 @@ function TripTile({ trip, selected = false }: { trip: TripCard; selected?: boole
         <Badge tone={p.tone} className="absolute left-3 top-3 shadow-sm">{p.label}</Badge>
       </div>
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="font-display text-lg font-semibold leading-tight">{trip.name}</h3>
+        <h2 className="font-display text-lg font-semibold leading-tight">{trip.name}</h2>
         <p className="mt-1 text-sm text-muted">{trip.destinations.length ? trip.destinations.join(" → ") : "No destination yet"}</p>
         <p className="mt-1 text-sm">{formatDateRange(trip.startDate, trip.endDate)}{days ? ` · ${days} day${days === 1 ? "" : "s"}` : ""}</p>
         <p className="mt-1 text-sm text-muted">{trip.travelers.join(", ")}</p>
         <div className="mt-auto pt-4">
           <LinkButton href={`/trips/${trip.id}/${trip.role !== "OWNER" || trip.onboardingStage === "COMPLETE" ? "itinerary" : trip.onboardingStage === "PLAN" ? "premium" : "onboarding"}`} variant="secondary" className="w-full" aria-label={`Open ${trip.name}`}>{trip.role === "OWNER" && trip.onboardingStage !== "COMPLETE" ? "Continue setup" : "Open trip"}</LinkButton>
-          <Link href={`/trips/${trip.id}/premium`} className="mt-2 flex min-h-11 items-center justify-center rounded-xl text-sm font-semibold text-accent-ink hover:bg-accent-soft" aria-label={`Features and checkout for ${trip.name}`}>Normal & Premium</Link>
+          <Link href={`/trips/${trip.id}/premium`} className="mt-2 flex min-h-11 items-center justify-center rounded-xl text-sm font-semibold text-accent-ink hover:bg-accent-soft" aria-label={`Features and checkout for ${trip.name}`}>Free & Premium</Link>
         </div>
       </div>
     </article>

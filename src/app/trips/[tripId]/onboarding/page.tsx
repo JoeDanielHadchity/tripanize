@@ -19,7 +19,7 @@ export default async function OnboardingPage({ params }: { params: Promise<{ tri
   if (trip.onboardingStage === "COMPLETE") redirect(`/trips/${tripId}/itinerary`);
   if (access.role !== "OWNER") return <Notice title="The organizer is preparing this trip">You can open the shared itinerary once it is ready. <LinkButton href={`/trips/${tripId}/itinerary`}>Open itinerary</LinkButton></Notice>;
   return <>
-    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-accent-ink">{plan.premium ? "Premium" : "Normal"} · {trip.onboardingStage === "DETAILS" ? "1. Trip details" : trip.onboardingStage === "QUESTIONS" ? "2. Your travel style" : "3. Building your trip"}</p>
+    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-accent-ink">{plan.premium ? "Premium" : "Free"} · {trip.onboardingStage === "DETAILS" ? "1. Trip details" : trip.onboardingStage === "QUESTIONS" ? "2. Your travel style" : "3. Building your trip"}</p>
     <PageHeader title={trip.onboardingStage === "DETAILS" ? "Trip details" : trip.onboardingStage === "QUESTIONS" ? "Travel preferences" : "Preparing your trip"} />
     {trip.onboardingStage === "DETAILS" ? <TripForm mode="edit" onboarding tripId={tripId} initial={{
               version: trip.version, name: trip.name, startDate: trip.startDate, endDate: trip.endDate, timezone: trip.timezone === "UTC" ? "" : trip.timezone, currency: trip.currency,

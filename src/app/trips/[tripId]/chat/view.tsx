@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CHAT_MAX_LENGTH, CHAT_POLL_MS, mergeChatMessages, newerChatSummary, type ChatMessageView, type ChatPage, type ChatSummary } from "@/lib/chat";
 import { formatDate, formatTimestamp, todayIn } from "@/lib/dates";
-import { Button, EmptyState, Notice, Textarea, cx } from "@/components/ui";
+import { Button, EmptyState, Notice, Textarea, buttonClass, cx } from "@/components/ui";
+import { InviteButton } from "@/components/invite";
 import { useConfirm } from "@/components/client";
 import { useOnline } from "@/components/offline";
 
@@ -17,7 +18,7 @@ async function request<T>(tripId: string, query = "", body?: object): Promise<T>
 }
 const announce = (tripId: string, summary: ChatSummary) => window.dispatchEvent(new CustomEvent("tripanize:chat-unread", { detail: { tripId, ...summary } }));
 
-export function ChatView({ tripId, userId, isOwner, initial }: { tripId: string; userId: string; isOwner: boolean; initial: ChatPage }) {
+export function ChatView({ tripId, userId, isOwner, initial, invite = null }: { tripId: string; userId: string; isOwner: boolean; initial: ChatPage; invite?: { tripName: string; travelers: { id: string; name: string }[] } | null }) {
   const [messages, setMessages] = useState(initial.messages);
   const [summary, setSummary] = useState(initial.summary);
   const [hasOlder, setHasOlder] = useState(initial.hasMore);
@@ -156,7 +157,7 @@ export function ChatView({ tripId, userId, isOwner, initial }: { tripId: string;
     <div className="flex h-[72dvh] min-h-[28rem] max-h-[50rem] flex-col overflow-hidden rounded-2xl border border-line bg-surface">
       <div ref={feed} role="log" aria-label="Trip chat messages" aria-live="polite" aria-relevant="additions text" tabIndex={0} onScroll={e => { const el = e.currentTarget; const close = el.scrollHeight - el.scrollTop - el.clientHeight < 80; nearBottom.current = close; setAtBottom(close); if (close) void markRead(); }} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5">
         {hasOlder && <div className="mb-4 text-center"><Button variant="ghost" disabled={loadingOlder || blocked} onClick={earlier}>{loadingOlder ? "Loading…" : "Load earlier messages"}</Button></div>}
-        {!messages.length && <EmptyState title={blocked ? "Chat unavailable" : "Start the conversation"}>{blocked ? "You need access to this trip to view its chat." : "Coordinate meetups, ask a question or share a quick update with your travel group."}</EmptyState>}
+        {!messages.length && <EmptyState title={blocked ? "Chat unavailable" : "Start the conversation"} action={!blocked && invite && initial.memberCount < 2 ? <InviteButton tripId={tripId} tripName={invite.tripName} travelers={invite.travelers} label="Invite your group" className={buttonClass("primary", "gap-2")} /> : undefined}>{blocked ? "You need access to this trip to view its chat." : invite && initial.memberCount < 2 ? "You're the only one here so far. Invite the people you're travelling with to plan together." : "Coordinate meetups, ask a question or share a quick update with your travel group."}</EmptyState>}
         {messages.map((message, index) => {
           const mine = message.senderId === userId;
           const day = todayIn(initial.timezone, new Date(message.createdAt));

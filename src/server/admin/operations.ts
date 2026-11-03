@@ -141,7 +141,7 @@ export async function adminTrips(actorId: string, q: string, page: number) {
   const total = Number(counts[0]?.total ?? 0);
   const rows = await prisma.trip.findMany({ where: { id: { in: ids.map(t => t.id) } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, name: true, createdAt: true, startDate: true, endDate: true, owner: { select: { email: true } }, destinations: { select: { name: true } }, _count: { select: { memberships: true } } } });
   const data = [];
-  for (const row of rows) { const plan = await getTripPlan(row.id); data.push({ ...row, plan: plan.premium ? "Premium" : "Normal", source: plan.source, people: plan.people }); }
+  for (const row of rows) { const plan = await getTripPlan(row.id); data.push({ ...row, plan: plan.premium ? "Premium" : "Free", source: plan.source, people: plan.people }); }
   return { total, rows: data };
 }
 export async function adminPayments(actorId: string, page: number) {

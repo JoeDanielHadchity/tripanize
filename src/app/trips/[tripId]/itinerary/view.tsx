@@ -23,7 +23,7 @@ const TripMap = dynamic(() => import("@/components/itinerary/trip-map"), { ssr: 
 
 type Props = {
   tripId: string; canEdit: boolean; premium: boolean; currency: string; mapsApp: MapsApp; aiReady: boolean; routingLive: boolean; timezone: string; todayDate: string;
-  days: DayView[]; ideas: StopView[]; versions: { id: string; reason: string; createdAt: string }[]; weatherNote: string | null;
+  days: DayView[]; ideas: StopView[]; versions: { id: string; reason: string; createdAt: string }[];
 };
 
 export function ItineraryView(p: Props) {
@@ -99,7 +99,6 @@ export function ItineraryView(p: Props) {
           <Button onClick={() => setShowVersions(true)}>Versions{p.versions.length ? ` (${p.versions.length})` : ""}</Button>
         </div>
       </div>
-      {p.weatherNote && <Notice tone="warn">{p.weatherNote}</Notice>}
       {!p.routingLive && <p className="text-xs text-muted">Travel times are estimates. Open Directions for live routes.</p>}
 
       {!query && <DayStrip days={p.days} active={selectedDay?.date ?? null} todayDate={p.todayDate} onSelect={selectDay} />}
@@ -217,6 +216,7 @@ export function ItineraryView(p: Props) {
                       })}
                     </ol>
                   )}
+                  {p.canEdit && stops.length > 0 && <button type="button" aria-label={`Add a stop on ${formatDate(d.date)}${d.activePlan === "B" ? " to Plan B" : ""}`} onClick={() => setEditing({ dayId: d.id, plan: d.activePlan, label: formatDate(d.date) })} className="mt-2 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line text-sm font-bold text-accent-ink hover:bg-surface-2"><span aria-hidden="true">+</span> Add stop{d.activePlan === "B" ? " to Plan B" : ""}</button>}
                   <MealRecommendations key={d.id} meals={d.mealOptions} currency={p.currency} mapsApp={p.mapsApp} preferencesHref={p.canEdit ? `/trips/${p.tripId}/plan#food-preferences` : undefined} />
                   {d.questions.length > 0 && (
                     <div className="mt-3 rounded-xl bg-accent-soft/60 px-3 py-2 text-sm">

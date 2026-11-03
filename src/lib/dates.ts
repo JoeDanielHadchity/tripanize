@@ -69,6 +69,18 @@ export function tripPhase(start: string | null | undefined, end: string | null |
 }
 
 /** "12 days to go", "Day 2 of 4", or null when the trip is undated or over. */
+/** Today's date where the travelers are: the time zone of the destination they're in today, else the trip's. */
+export function travelersToday(trip: { timezone: string; destinations: { arriveDate: string | null; departDate: string | null; timezone?: string | null }[] }, now = new Date()): string {
+  const tripToday = todayIn(trip.timezone, now);
+  const here = trip.destinations.find((d) => (!d.arriveDate || d.arriveDate <= tripToday) && (!d.departDate || d.departDate >= tripToday));
+  return todayIn(here?.timezone ?? trip.timezone, now);
+}
+
+/** True while the trip is happening: today (where the travelers are) falls between its first and last day. */
+export function tripIsLive(trip: { startDate: string | null; endDate: string | null }, today: string): boolean {
+  return Boolean(trip.startDate && trip.endDate && today >= trip.startDate && today <= trip.endDate);
+}
+
 export function tripCountdown(start: string | null | undefined, end: string | null | undefined, today: string): { value: string; label: string } | null {
   if (!start || !end) return null;
   if (today < start) { const n = daysBetween(today, start); return { value: String(n), label: n === 1 ? "day to go" : "days to go" }; }

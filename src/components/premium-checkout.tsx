@@ -69,7 +69,7 @@ export function PremiumCheckout({ tripId, initial, trial }: { tripId: string; in
       paddle.Checkout.open({ transactionId: data.transactionId, settings: { displayMode: "overlay", showAddDiscounts: false, showAddTaxId: true } });
     } catch (e) { setError(e instanceof Error ? e.message : "Checkout could not be opened."); } finally { setBusy(false); }
   }
-  const standardAction = <Button disabled={busy || !summary.canPurchase || hasPremium} onClick={normal}>{hasPremium ? "Premium is already active" : summary.onboardingStage === "COMPLETE" ? "Continue with Standard" : "Continue free"}</Button>;
+  const standardAction = <Button disabled={busy || !summary.canPurchase || hasPremium} onClick={normal}>{hasPremium ? "Premium is already active" : summary.onboardingStage === "COMPLETE" ? "Continue with Free" : "Continue free"}</Button>;
   const premiumAction = offer ? <ActivateTrialButton invitationId={offer.invitationId} tripId={tripId} durationDays={offer.durationDays} />
     : hasPremium ? summary.onboardingStage === "PLAN" && summary.canPurchase ? <Button onClick={normal} disabled={busy} variant="primary">Continue to trip questions</Button>
       : <LinkButton href={`/trips/${tripId}`} variant="primary">{summary.onboardingStage === "COMPLETE" ? "Premium active · open trip" : "Continue to trip questions"}</LinkButton>
@@ -89,7 +89,7 @@ export function PremiumCheckout({ tripId, initial, trial }: { tripId: string; in
     />
 
     {!summary.canPurchase && <Notice>Only the trip organizer can choose or pay for the plan. Your role is managed in Trip settings.</Notice>}
-    {!summary.available && !hasPremium && !offer && <Notice>Premium checkout is temporarily unavailable. You can continue with Standard.</Notice>}
+    {!summary.available && !hasPremium && !offer && <Notice>Premium checkout is temporarily unavailable. You can continue free.</Notice>}
     {summary.reviewRequired && <Notice tone="warn">A payment adjustment needs review. Contact support before making another purchase.</Notice>}
     {summary.environment === "sandbox" && <Notice tone="warn">Payment test environment. No real charges.</Notice>}
     <p className="text-xs text-muted">No subscription. Premium covers this trip and every member. Usage limits apply to AI requests. Location sharing is optional. Suggested events and booking links are not confirmed reservations. <Link href="/terms" className="underline">Terms</Link> · <Link href="/privacy" className="underline">Privacy</Link> · <Link href="/refunds" className="underline">Refunds</Link></p>

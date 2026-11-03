@@ -76,8 +76,8 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
   const doc: MobileWorkspace = { title: titles[screen], tripId, premium: plan.premium, role: access.role, trip: { ...trip, destinations: trip.destinations.map(d => d.name) }, blocks: [], tabs: mobileTripTabs(tripId) };
   if (screen === "premium" || (screen === "setup" && (await onboardingState(userId, tripId)).onboardingStage === "PLAN")) {
     doc.blocks = [{ id: "premium", title: "Premium pass · $15 per trip", text: plan.premium ? `Premium is active${plan.validUntil ? ` until ${plan.validUntil}` : ""}. Everyone in this trip is included.` : "One payment covers your whole group. No subscription.", tone: "accent", lines: PLAN_COMPARISON.map(row => `${row.feature}: ${row.premium}`) },
-      { id: "standard", title: "Standard · Free", text: "AI planning for the first 2 days. Edit all days and add bookings and packing manually. Group roles and voting included." },
-      ...(access.role === "OWNER" ? [{ id: "continue", actions: [act(plan.premium ? "Continue with Premium" : "Continue with Standard", "trip.standard")] }] : []),
+      { id: "standard", title: "Free · $0", text: "AI planning for the first 2 days. Edit all days and add bookings and packing manually. Group roles and voting included." },
+      ...(access.role === "OWNER" ? [{ id: "continue", actions: [act(plan.premium ? "Continue with Premium" : "Continue with Free", "trip.standard")] }] : []),
       ...(!plan.premium ? [{ id: "store-setup", text: "Premium purchases in the mobile app are not enabled yet. Existing purchased access and accepted trials work automatically.", tone: "warning" as const }] : []),
     ]; return doc;
   }

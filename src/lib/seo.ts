@@ -50,7 +50,7 @@ export const SITE_STRUCTURED_DATA = {
     { "@type": "Organization", "@id": `${SITE_ORIGIN}/#organization`, name: "Tripanize.app", url: `${SITE_ORIGIN}/`, logo: `${SITE_ORIGIN}/brand/tripanize-icon-512.png`, contactPoint: { "@type": "ContactPoint", contactType: "customer support", url: `${SITE_ORIGIN}/contact` } },
     { "@type": "WebSite", "@id": `${SITE_ORIGIN}/#website`, name: "Tripanize", url: `${SITE_ORIGIN}/`, inLanguage: "en", publisher: { "@id": `${SITE_ORIGIN}/#organization` } },
     { "@type": "WebApplication", "@id": `${SITE_ORIGIN}/#application`, name: "Tripanize", url: `${SITE_ORIGIN}/`, description: SITE_DESCRIPTION, applicationCategory: "TravelApplication", operatingSystem: "Web", browserRequirements: "Requires a modern web browser", publisher: { "@id": `${SITE_ORIGIN}/#organization` }, offers: [
-      { "@type": "Offer", name: "Standard", price: "0", priceCurrency: "USD", url: `${SITE_ORIGIN}/plans`, description: "2 AI-planned days per trip, with manual itinerary editing, bookings and packing." },
+      { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD", url: `${SITE_ORIGIN}/plans`, description: "2 AI-planned days per trip, with manual itinerary editing, bookings and packing." },
       { "@type": "Offer", name: "Premium", price: "15", priceCurrency: "USD", url: `${SITE_ORIGIN}/plans`, description: "One-time payment per trip, for all travelers. Applicable taxes are shown before payment." },
     ] },
   ],

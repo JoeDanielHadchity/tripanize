@@ -264,6 +264,14 @@ function BudgetCard({ b, tripId, canEdit }: { b: BudgetSummary; tripId: string; 
   const over = b.remainingMinor !== null && b.remainingMinor < 0;
   const used = b.budgetMinor && b.budgetMinor > 0 ? Math.min(100, Math.max(0, b.actualMinor / b.budgetMinor * 100)) : null;
   const unconverted = b.otherCurrencies.filter(o => o.actualMinor > 0);
+  // No budget yet: one slim line, so "Add expense" stays on the first phone screen.
+  if (b.budgetMinor === null) return (
+    <section aria-labelledby="budget-h" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl bg-night px-5 py-3 text-night-ink">
+      <p className="text-sm"><span id="budget-h" className="font-extrabold">No budget yet</span>{b.actualMinor > 0 && <span className="text-night-muted"> · {formatMoney(b.actualMinor, b.currency)} spent</span>}</p>
+      {canEdit && <Link href={`/trips/${tripId}/settings#details`} className="inline-flex min-h-11 items-center text-sm font-bold text-night-accent underline">Set one</Link>}
+      {unconverted.length > 0 && <p className="w-full text-xs text-night-muted">{unconverted.map(o => formatMoney(o.actualMinor, o.currency)).join(" · ")} in other currencies is recorded separately.</p>}
+    </section>
+  );
   return (
     <section aria-labelledby="budget-h" className="night-card rounded-[28px] bg-night p-6 text-night-ink sm:p-7">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -271,9 +279,9 @@ function BudgetCard({ b, tripId, canEdit }: { b: BudgetSummary; tripId: string; 
         {canEdit && <Link href={`/trips/${tripId}/settings#details`} className="text-sm font-bold text-night-accent underline">{b.budgetMinor === null ? "Set budget" : "Edit budget"}</Link>}
       </div>
       <dl className="mt-5 grid gap-5 sm:grid-cols-3">
-        <div><dt className="text-sm font-bold text-night-muted">Overall budget · {b.currency}</dt><dd className="mt-1 font-display text-5xl font-extrabold tabular-nums">{b.budgetMinor === null ? "Not set" : formatMoney(b.budgetMinor, b.currency)}</dd></div>
-        <div><dt className="text-sm font-bold text-night-muted">Actually spent</dt><dd className="mt-1 font-display text-5xl font-extrabold tabular-nums">{formatMoney(b.actualMinor, b.currency)}</dd></div>
-        <div><dt className="text-sm font-bold text-night-muted">{over ? "Over budget" : "Budget remaining"}</dt><dd className={cx("mt-1 font-display text-5xl font-extrabold tabular-nums", over ? "text-[#ffb8ab]" : "text-night-accent")}>{b.remainingMinor === null ? "—" : formatMoney(Math.abs(b.remainingMinor), b.currency)}</dd></div>
+        <div><dt className="text-sm font-bold text-night-muted">Overall budget · {b.currency}</dt><dd className="mt-1 font-display text-3xl font-extrabold tabular-nums sm:text-5xl">{b.budgetMinor === null ? "Not set" : formatMoney(b.budgetMinor, b.currency)}</dd></div>
+        <div><dt className="text-sm font-bold text-night-muted">Actually spent</dt><dd className="mt-1 font-display text-3xl font-extrabold tabular-nums sm:text-5xl">{formatMoney(b.actualMinor, b.currency)}</dd></div>
+        <div><dt className="text-sm font-bold text-night-muted">{over ? "Over budget" : "Budget remaining"}</dt><dd className={cx("mt-1 font-display text-3xl font-extrabold tabular-nums sm:text-5xl", over ? "text-[#ffb8ab]" : "text-night-accent")}>{b.remainingMinor === null ? "—" : formatMoney(Math.abs(b.remainingMinor), b.currency)}</dd></div>
       </dl>
       {used !== null && <div role="progressbar" aria-label="Trip budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(used)} aria-valuetext={`${formatMoney(b.actualMinor, b.currency)} spent of ${formatMoney(b.budgetMinor!, b.currency)}`} className="mt-6 h-3 overflow-hidden rounded-full bg-night-line"><div className={cx("h-full rounded-full transition-all", over ? "bg-[#ffb8ab]" : "bg-night-accent")} style={{ width: `${used}%` }} /></div>}
       <p className="mt-3 text-sm text-night-muted">{b.budgetMinor === null ? "Set an overall budget to track what remains as you record expenses." : "Budget remaining = overall budget − actual expenses."}</p>
