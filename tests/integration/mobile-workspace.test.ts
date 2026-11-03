@@ -278,7 +278,7 @@ it("provides the reference-style trip layout without mixing days, plans or viewe
   await cmd(owner.id, tripId, "stop.save", { dayId: days[0].id, plan: "B", title: "Rainy day museum", startTime: "10:00", durationMin: 90 });
   await cmd(owner.id, tripId, "stop.save", { dayId: days[1].id, plan: "A", title: "Another day only" });
   const restaurant = { name: "Test café", cuisine: "French breakfast", area: "Old town", address: "1 Test Street", whyFits: "Before the morning walk", pricePerPerson: 15, officialUrl: "https://example.test/cafe", sourceUrls: ["https://example.test/cafe"], hoursNote: "Opens at 07:00" };
-  await prisma.itineraryDay.update({ where: { id: days[0].id }, data: { title: "A relaxed first day", area: "Old town", isTravelDay: true, driveMinutes: 165, estCostMinor: 9450, mealOptions: { breakfast: [restaurant, { ...restaurant, name: "Second café" }], lunch: [], dinner: [] } } });
+  await prisma.itineraryDay.update({ where: { id: days[0].id }, data: { title: "A relaxed first day", area: "Old town", isTravelDay: true, driveMinutes: 165, estCostMinor: 9450, mealOptions: { breakfast: [restaurant, { ...restaurant, name: "Second café", officialUrl: "https://second-cafe.example/menu" }], lunch: [], dinner: [] } } });
   const doc = await page(owner.id, "itinerary", tripId, days[0].id);
   expect(doc.trip).toMatchObject({ name: "Lisbon long weekend", destinations: ["Lisbon"], startDate: "2027-05-01" });
   expect(doc.itinerary?.days).toHaveLength(4);

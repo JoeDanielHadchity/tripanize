@@ -1,4 +1,5 @@
 import { readMealOptions, type DayMeals } from "@/lib/meal-options";
+import { RestaurantRegistry, restaurantRefs, uniqueMealOptions } from "@/lib/restaurant-diversity";
 import { z } from "zod";
 import { prisma, type Tx } from "@/server/db";
 import { AppError, conflictError } from "@/server/errors";
@@ -133,7 +134,11 @@ export async function getItinerary(userId: string, tripId: string) {
     }),
     prisma.stop.findMany({ where: { tripId, dayId: null }, include: stopInclude, orderBy: { createdAt: "desc" } }),
   ]);
-  return { access, days, ideas };
+  // Old saved recommendations get the same trip-wide read guard. This does not
+  // delete bookings/manual work or silently generate billable AI requests.
+  const restaurants = new RestaurantRegistry(days.flatMap(d => d.stops.filter(s => s.status !== "SKIPPED" && (s.isMeal || s.category === "food" || s.category === "cafe") && (s.isFixed || s.bookingId || s.eventId || s.origin === "MANUAL"))
+    .map(s => ({ name: effectiveStop(s).locationName || effectiveStop(s).title, officialUrl: s.officialUrl }))));
+  return { access, days: days.map(d => ({ ...d, mealOptions: uniqueMealOptions(d.mealOptions, restaurants) })), ideas };
 }
 
 // ───────────── Mutations ─────────────
@@ -395,6 +400,14 @@ export async function replaceStop(userId: string, tripId: string, stopId: string
   }
   if (opts.dryRun) return { impact };
   await prisma.$transaction(async (tx) => {
+    if (opts.origin === "AI") {
+      const allDays = await tx.itineraryDay.findMany({ where: { tripId }, include: { stops: true } });
+      const used = new RestaurantRegistry(allDays.flatMap(d => [
+        ...d.stops.filter(s => s.id !== stopId && s.status !== "SKIPPED").map(s => ({ name: s.locationName || s.title, officialUrl: s.officialUrl })),
+        ...(d.id !== stop.dayId ? restaurantRefs(d.mealOptions) : []),
+      ]));
+      if (used.has({ name: String(data.locationName || data.title), officialUrl: data.officialUrl as string | null })) throw new AppError("CONFLICT", "This place is already used elsewhere in the trip. Choose a different alternative.");
+    }
     const res = await tx.stop.updateMany({
       where: { id: stopId, version: opts.version },
       data: {

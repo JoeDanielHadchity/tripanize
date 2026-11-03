@@ -8,6 +8,9 @@ import { snapshotItinerary } from "@/server/itinerary/service";
 import type { PlanStop, Proposal } from "./schema";
 import type { Prisma } from "@/generated/prisma/client";
 import { requirePlanDates } from "@/server/plans/planning";
+import { RestaurantRegistry, restaurantRefs, uniqueMealOptions } from "@/lib/restaurant-diversity";
+import { alignMealStops, stopRestaurantRef } from "./restaurants";
+import { checkProposal } from "./checks";
 
 export function planStopData(s: PlanStop, currency: string, position: number, plan: "A" | "B"): Omit<Prisma.StopUncheckedCreateInput, "tripId" | "dayId"> {
   const factor = 10 ** currencyDigits(currency);
@@ -61,8 +64,22 @@ export async function applyProposal(userId: string, tripId: string, jobId: strin
 
   await prisma.$transaction(
     async (tx) => {
+      // Re-check against LIVE unchanged days, not just the state at generation.
+      // This also safely cleans drafts created before trip-wide deduplication.
+      const current = await tx.itineraryDay.findMany({ where: { tripId }, include: { stops: true } });
+      const acceptedDates = new Set(chosen.map(d => d.date));
+      const used = new RestaurantRegistry(current.flatMap(d => [
+        ...(!acceptedDates.has(d.date) ? restaurantRefs(d.mealOptions) : []),
+        ...d.stops.filter(s => s.status !== "SKIPPED" && (s.isMeal || s.category === "food" || s.category === "cafe") && (!acceptedDates.has(d.date) || s.isFixed || s.bookingId || s.eventId)).map(stopRestaurantRef),
+      ]));
+      const checked = checkProposal({ ...proposal, days: [...chosen].sort((a, b) => a.date.localeCompare(b.date)) }, {
+        dates: chosen.map(d => d.date), anchors: [], mustSee: [], arrivalAt: null, departureAt: null,
+        excludedRestaurants: used.references,
+        excludedPlaces: current.flatMap(d => d.stops.filter(s => s.status !== "SKIPPED" && (!acceptedDates.has(d.date) || s.isFixed || s.bookingId || s.eventId)).map(s => s.locationName || s.title)),
+      });
       await snapshotItinerary(tx, tripId, `Before applying AI plan (${chosen.length} day${chosen.length > 1 ? "s" : ""})`, userId);
-      for (const d of chosen) {
+      for (const raw of checked.proposal.days) {
+        const d = alignMealStops({ ...raw, meals: uniqueMealOptions(raw.meals, used) });
         const day = await tx.itineraryDay.findUnique({ where: { tripId_date: { tripId, date: d.date } } });
         if (!day) continue; // trip dates changed since generation
         await tx.stop.deleteMany({ where: { dayId: day.id, isFixed: false, bookingId: null, eventId: null } });

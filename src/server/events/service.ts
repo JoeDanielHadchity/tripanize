@@ -111,7 +111,7 @@ export async function listEvents(userId: string, tripId: string) {
   const [events, runs, trip] = await Promise.all([
     prisma.tripEvent.findMany({ where: { tripId }, include: { booking: { select: { id: true, status: true } }, sources: true, stop: { select: { id: true, dayId: true, day: { select: { date: true } } } } }, orderBy: [{ date: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }] }),
     prisma.discoveryRun.findMany({ where: { tripId }, orderBy: { createdAt: "desc" }, take: 5 }),
-    prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { autoDiscovery: true, discoveryEveryHours: true, nextDiscoveryAt: true, startDate: true, endDate: true, timezone: true } }),
+    prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { autoDiscovery: true, nextDiscoveryAt: true, startDate: true, endDate: true, timezone: true } }),
   ]);
   const lastSuccess = await prisma.discoveryRun.findFirst({ where: { tripId, status: "succeeded" }, orderBy: { finishedAt: "desc" } });
   return { access, events, runs, lastSuccess, settings: { ...trip, cadence: discoveryCadence(trip), nextDiscoveryAt: trip.autoDiscovery ? trip.nextDiscoveryAt ?? (lastSuccess?.finishedAt ? nextDiscoveryAt(trip, lastSuccess.finishedAt) : null) : null } };
@@ -234,14 +234,14 @@ export async function scheduleEvent(userId: string, tripId: string, eventId: str
   });
 }
 
-export async function updateDiscoverySettings(userId: string, tripId: string, input: { autoDiscovery: boolean; everyHours?: number }) {
+export async function updateDiscoverySettings(userId: string, tripId: string, input: { autoDiscovery: boolean }) {
   await requirePremiumTrip(tripId, userId, "events", "edit");
   if (typeof input.autoDiscovery !== "boolean") throw new AppError("VALIDATION", "Choose whether automatic search is on.");
   await prisma.$transaction(async tx => {
     const trip = await tx.trip.findUniqueOrThrow({ where: { id: tripId } });
     const success = await tx.discoveryRun.findFirst({ where: { tripId, status: "succeeded" }, orderBy: { finishedAt: "desc" } });
     const next = success?.finishedAt ? nextDiscoveryAt(trip, success.finishedAt) : new Date(Date.now() + 60_000);
-    await tx.trip.update({ where: { id: tripId }, data: { autoDiscovery: input.autoDiscovery, discoveryEveryHours: 24, nextDiscoveryAt: input.autoDiscovery ? next : null } });
+    await tx.trip.update({ where: { id: tripId }, data: { autoDiscovery: input.autoDiscovery, nextDiscoveryAt: input.autoDiscovery ? next : null } });
     await recordChange(tx, { tripId, actorId: userId, entity: "discovery", entityId: tripId, action: "update" });
   });
 }

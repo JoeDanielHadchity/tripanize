@@ -249,3 +249,10 @@ it("keeps the daily research allowance after successful searches are deleted", a
   await expect(startDestinationSearch(user.id, input, draft.id)).rejects.toMatchObject({ code: "RATE_LIMITED" });
   expect((await getDestinationWorkspace(user.id)).searches.map(s => s.id)).toEqual([draft.id]);
 });
+
+it("caps paid research attempts per day, counting failed searches too", async () => {
+  const { MAX_DAILY_ATTEMPTS } = await import("@/server/destinations/service");
+  const user = await makeUser("Explorer");
+  for (let i = 0; i < MAX_DAILY_ATTEMPTS; i++) { const q = await startDestinationSearch(user.id, input); await prisma.destinationSearch.update({ where: { id: q.id }, data: { status: "FAILED" } }); }
+  await expect(startDestinationSearch(user.id, input)).rejects.toMatchObject({ code: "RATE_LIMITED" });
+});

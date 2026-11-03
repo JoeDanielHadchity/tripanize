@@ -87,3 +87,38 @@ it("rolls events and alerts back together and discards searches made stale by pr
   expect((await prisma.discoveryRun.findUniqueOrThrow({ where: { id: r.id } })).status).toBe("failed");
   expect(await prisma.tripEvent.count({ where: { tripId: f.tripId } })).toBe(0); expect(await prisma.tripNotification.count({ where: { tripId: f.tripId, kind: "event" } })).toBe(0);
 });
+
+it("keeps a paid search when only details the search doesn't use change while it runs", async () => {
+  const f = await fixture();
+  const r = await prisma.discoveryRun.create({ data: { tripId: f.tripId, trigger: "manual" } });
+  await runDiscovery(r.id, (async () => { await prisma.trip.update({ where: { id: f.tripId }, data: { name: "Renamed while searching", version: { increment: 1 } } }); return { data: { events: [event()] }, model: "fixture", sources: [], usage: null }; }) as Generator);
+  expect((await prisma.discoveryRun.findUniqueOrThrow({ where: { id: r.id } })).status).toBe("succeeded");
+  expect(await prisma.tripEvent.count({ where: { tripId: f.tripId } })).toBe(1);
+});
+
+it("leaves trips that ended days ago out of the hourly scan", async () => {
+  const f = await fixture();
+  const stale = new Date("2030-06-01T09:00Z");
+  await prisma.trip.update({ where: { id: f.tripId }, data: { autoDiscovery: true, nextDiscoveryAt: stale } });
+  expect(await queueDueDiscoveries(new Date("2030-07-01T12:00Z"))).toBe(0);
+  // Not even loaded: an ended trip's row is no longer touched every hour.
+  expect((await prisma.trip.findUniqueOrThrow({ where: { id: f.tripId } })).nextDiscoveryAt?.toISOString()).toBe(stale.toISOString());
+});
+
+it("starts the company account's test trips with automatic searches off, and everyone else's on", async () => {
+  const company = await makeUser("Company", "company-events@example.test");
+  await prisma.user.update({ where: { id: company.id }, data: { emailVerified: true } });
+  setTestRuntime({ ...currentRuntime(), companyAdminEmail: company.email });
+  const customer = await makeUser("Customer");
+  const testTrip = await makeTrip(company.id, { startDate: "2030-06-15", endDate: "2030-06-20" });
+  const realTrip = await makeTrip(customer.id, { startDate: "2030-06-15", endDate: "2030-06-20" });
+  expect((await prisma.trip.findUniqueOrThrow({ where: { id: testTrip } })).autoDiscovery).toBe(false);
+  expect((await prisma.trip.findUniqueOrThrow({ where: { id: realTrip } })).autoDiscovery).toBe(true);
+});
+
+it("stops automatic searches once the trip has started", async () => {
+  const f = await fixture();
+  await prisma.discoveryRun.create({ data: { tripId: f.tripId, trigger: "manual", status: "succeeded", finishedAt: new Date("2030-06-13T09:30Z") } });
+  expect(await queueDueDiscoveries(new Date("2030-06-16T10:00Z"))).toBe(0);
+  expect((await prisma.trip.findUniqueOrThrow({ where: { id: f.tripId } })).nextDiscoveryAt).toBeNull();
+});

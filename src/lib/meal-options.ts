@@ -20,14 +20,14 @@ export function readMealOptions(raw: unknown, observedSources?: Iterable<string>
   const observed = observedSources ? new Set([...observedSources].map(safeUrl).filter((url): url is string => Boolean(url)).map(canonical)) : null;
   const result: DayMeals = { breakfast: [], lunch: [], dinner: [] };
   const value = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const seen = new Set<string>();
   for (const meal of MEALS) {
-    const seen = new Set<string>();
     for (const item of Array.isArray(value[meal]) ? value[meal] as unknown[] : []) {
       const parsed = RestaurantOptionSchema.safeParse(item);
       if (!parsed.success) continue;
       const r = parsed.data;
       const name = r.name.trim().slice(0, 160);
-      const key = name.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+      const key = name.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
       const sources = [...new Set(r.sourceUrls.map(safeUrl).filter((url): url is string => Boolean(url)))].filter(url => !observed || observed.has(canonical(url))).slice(0, 3);
       if (!key || seen.has(key) || !sources.length) continue;
       seen.add(key);

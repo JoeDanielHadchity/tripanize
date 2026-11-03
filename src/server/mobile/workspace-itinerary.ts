@@ -1,4 +1,4 @@
-import { savedTripImage } from "@/server/images";
+import { savedTripImage, scheduleTripCover } from "@/server/images";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { getItinerary, effectiveStop, listVersions } from "@/server/itinerary/service";
@@ -43,6 +43,8 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
       const stopId = job.params && typeof job.params === "object" && !Array.isArray(job.params) && typeof job.params.stopId === "string" ? job.params.stopId : "";
       const sourceStop = await prisma.stop.findFirst({ where: { id: stopId, tripId }, select: { version: true } });
       if (parsed.success) for (const [index, s] of parsed.data.alternatives.entries()) blocks.push({ id: `swap-${index}`, title: s.title, text: s.reason, meta: `${s.startTime} · ${s.durationMin} minutes`, actions: [...link("Official website", s.officialUrl), ...(canEdit ? [act("Choose this alternative", "plan.swap", { id: job.id, index, version: sourceStop?.version ?? 0 }, "Replace the original stop with this alternative?")] : [])] });
+    } else if (job.kind === "restaurants" && job.status === "SUCCEEDED") {
+      blocks.push({ id: "restaurants-ready", title: "Restaurants refreshed", text: "Bookings and manual activities kept. Undo is available in History & undo.", actions: [go("View itinerary", "itinerary", tripId)] });
     } else if (job.status === "SUCCEEDED") {
       const proposal = ProposalSchema.safeParse(job.proposal);
       if (proposal.success) {
@@ -82,6 +84,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   }
   const destination = await prisma.destination.findFirst({ where: { tripId }, orderBy: { position: "asc" } });
   const cover = savedTripImage(trip, destination ?? undefined);
+  if (!cover && destination) scheduleTripCover(tripId);
   const blocks: MobileBlock[] = [...(cover ? [{ id: "cover", image: { url: cover.url, credit: cover.credit } }] : []), { id: "tools", title: trip.name, meta: premium ? "★ Premium" : "Standard", actions: [...(canEdit ? [go("Plan with AI", "plan", tripId)] : []), ...(premium ? [go("Trip assistant", "assistant", tripId)] : []), go("Group voting", "votes", tripId), go("History & undo", "versions", tripId), { label: "Save itinerary offline", device: "offline" }, { label: "Download trip PDF", device: "file", url: `/api/mobile/files?tripId=${encodeURIComponent(tripId)}&kind=pdf`, fileName: "Tripanize-trip.pdf" }] },
     { id: "days", actions: days.map((d, i) => go(`Day ${i + 1} · ${d.date.slice(5)}`, "itinerary", tripId, d.id)) },
   ];

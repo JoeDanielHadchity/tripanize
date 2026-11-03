@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { RestaurantRegistry, restaurantRefs, venueName } from "@/lib/restaurant-diversity";
 import { prisma, type Tx } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { stopInclude, effectiveStop, toSched } from "@/server/itinerary/service";
@@ -115,6 +116,17 @@ export function previewAssistantEdits(state: AssistantState, edits: AssistantEdi
   if (reroute.size) warnings.push("Travel times between activities need checking after these route changes.");
   for (const id of reroute) for (const s of stops.filter(s => s.dayId === id && !protectedStop(s))) { s.travelToNextMin = null; s.travelMode = null; s.travelNote = null; }
   const conflicts: string[] = [];
+  // Guard the final simulated state too: prompts alone cannot enforce diversity.
+  // Existing duplicates never prevent unrelated edits, but AI cannot add another.
+  for (const s of stops) {
+    const before = state.stops.find(x => x.id === s.id);
+    if (protectedStop(s) || s.status === "SKIPPED" || s.isFreeTime || ["transport", "accommodation", "rest"].includes(s.category)) continue;
+    const ref = { name: s.locationName || s.title, officialUrl: s.officialUrl };
+    if (before && venueName(before.locationName || before.title) === venueName(ref.name)) continue;
+    const used = new RestaurantRegistry(stops.filter(x => x.id !== s.id && x.status !== "SKIPPED").map(x => ({ name: x.locationName || x.title, officialUrl: x.officialUrl })));
+    if (s.isMeal || ["food", "cafe"].includes(s.category)) for (const day of days.filter(d => d.id !== s.dayId)) for (const r of restaurantRefs(day.mealOptions)) used.add(r);
+    if (used.has(ref)) conflicts.push(`“${ref.name}” is already used elsewhere in this trip. Choose a different place.`);
+  }
   for (const id of touched) for (const plan of ["A", "B"]) {
     const planned = stops.filter(s => s.dayId === id && s.plan === plan).sort((a, b) => (effectiveStop(a).startTime ?? "99:99").localeCompare(effectiveStop(b).startTime ?? "99:99") || a.position - b.position);
     for (const [position, s] of planned.entries()) s.position = position;

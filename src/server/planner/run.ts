@@ -13,6 +13,8 @@ import { generatePlanQuestions } from "./questions";
 import { requireTrip } from "@/server/auth/permissions";
 import { AppError } from "@/server/errors";
 import { planningScope, requirePlanDates } from "@/server/plans/planning";
+import { dayRestaurantRefs, researchRestaurants, stopRestaurantRef } from "./restaurants";
+import { RestaurantRegistry, restaurantRefs } from "@/lib/restaurant-diversity";
 
 export type Generator = typeof generateStructured;
 export type PlanCheckpoint = { dates: string[]; completedDates: string[]; proposal: Proposal; sources: string[] };
@@ -81,7 +83,9 @@ async function runJobInContext(job: GenerationJob, generate: Generator, checkpoi
         if (["failed", "running"].includes(previous.status)) await prisma.discoveryRun.update({ where: { id }, data: { status: "queued", error: null } });
         await runDiscovery(id, generate);
         const result = await prisma.discoveryRun.findUniqueOrThrow({ where: { id } });
-        if (result.status !== "succeeded") throw new AIError("UPSTREAM", result.error ?? "Event research could not finish. Please retry to continue.");
+        // Events are optional: a failed search must not stop (or re-charge on retry)
+        // the itinerary the traveler is waiting for. Scheduled checks try again later.
+        if (result.status !== "succeeded") await progress(jobId, "Events couldn't be checked right now. Your itinerary is being planned anyway, and events will be searched again automatically.");
       }
       await prisma.generationJob.update({ where: { id: jobId }, data: { params: { ...params, eventsReady: true } as Prisma.InputJsonValue } });
       if (checkpoint) return; // A fresh alarm keeps event research separate from itinerary generation.
@@ -107,6 +111,13 @@ async function runJobInContext(job: GenerationJob, generate: Generator, checkpoi
     const missing = await missingEssentials(job.tripId);
     if (missing.length) throw new AIError("INVALID_RESPONSE", `Missing essentials: ${missing.map((m) => m.question).join(" ")}`);
     const ctx = await buildContext(job.tripId, scope);
+    let refresh: Awaited<ReturnType<typeof import("./restaurant-refresh").restaurantRefreshInput>> | undefined;
+    if (job.kind === "restaurants") {
+      const { restaurantRefreshInput, restaurantRefreshState } = await import("./restaurant-refresh");
+      if (!params.restaurantBaseHash || (await restaurantRefreshState(prisma, job.tripId)).hash !== params.restaurantBaseHash) throw new AppError("CONFLICT", "Your itinerary changed. Start a fresh restaurant search; your itinerary was not changed.");
+      refresh = await restaurantRefreshInput(job.tripId, ctx.dates, ctx.trip.currency);
+      ctx.restaurantExclusions.push(...refresh.excluded);
+    }
     if (!ctx.dates.length) throw new AIError("INVALID_RESPONSE", "None of the selected days are within the trip dates.");
     if (saved && JSON.stringify(saved.dates) !== JSON.stringify(ctx.dates)) {
       partialDays.length = 0;
@@ -127,19 +138,25 @@ async function runJobInContext(job: GenerationJob, generate: Generator, checkpoi
       await requirePlanDates(job.tripId, job.kind, ctx.dates);
       if (controller.signal.aborted || (await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } })).cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
       await progress(jobId, ctx.dates.length > CHUNK_DAYS ? `Planning ${chunk[0]} – ${chunk[chunk.length - 1]} (${completedDates.size} of ${ctx.dates.length} days drafted)` : "Researching places and drafting your itinerary");
-      const res = await generate({
+      const res = refresh ? { data: { summary: "Fresh restaurant choices", days: refresh.days.filter(d => chunk.includes(d.date)), generalNotes: [], unplacedMustSees: [] }, sources: [] } : await generate({
         schema: ProposalSchema,
         name: "trip_plan",
         metering: { userId: job.requestedById, tripId: job.tripId, jobId },
         instructions: PLANNER_INSTRUCTIONS,
-        input: buildPlannerInput(ctx, { chunkDates: chunk, previouslyPlanned: partialDays.map((d) => ({ date: d.date, titles: d.stops.map((s) => s.title) })), extraInstruction: params.instruction }),
+        input: buildPlannerInput(ctx, { chunkDates: chunk, previouslyPlanned: partialDays.map((d) => ({ date: d.date, titles: [...d.stops, ...d.planB].map((s) => s.locationName || s.title) })), excludedRestaurants: dayRestaurantRefs(partialDays), extraInstruction: params.instruction }),
         webSearch: true,
         signal: controller.signal,
       });
       await requirePlanDates(job.tripId, job.kind, ctx.dates);
       if (controller.signal.aborted || (await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } })).cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
-      res.sources.forEach((s) => allSources.add(s));
-      partialDays.push(...res.data.days.filter((d) => chunk.includes(d.date)).map(d => ({ ...d, ...(d.meals ? { meals: readMealOptions(d.meals, res.sources) } : {}) })));
+      await progress(jobId, "Checking restaurant diversity across every meal and day; researching any missing choices.");
+      const food = await researchRestaurants({ ctx, days: res.data.days.filter(d => chunk.includes(d.date)),
+        excluded: [...ctx.restaurantExclusions, ...dayRestaurantRefs(partialDays)], sources: res.sources,
+        generate, jobId, userId: job.requestedById, signal: controller.signal });
+      await requirePlanDates(job.tripId, job.kind, ctx.dates);
+      if (controller.signal.aborted || (await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } })).cancelRequested) throw new AIError("CANCELLED", "Generation was cancelled.");
+      food.sources.forEach((s) => allSources.add(s));
+      partialDays.push(...food.days);
       partialMeta = {
         summary: [partialMeta.summary, res.data.summary].filter(Boolean).join(" "),
         unplacedMustSees: [...partialMeta.unplacedMustSees, ...res.data.unplacedMustSees.filter((u) => !partialMeta.unplacedMustSees.some((x) => x.name === u.name))],
@@ -153,10 +170,17 @@ async function runJobInContext(job: GenerationJob, generate: Generator, checkpoi
       if (checkpoint && completedDates.size < ctx.dates.length) return;
     }
 
+    if (job.kind === "restaurants") {
+      const { saveRestaurantRefresh } = await import("./restaurant-refresh");
+      await saveRestaurantRefresh({ tripId: job.tripId, userId: job.requestedById, jobId, baseHash: params.restaurantBaseHash!, days: partialDays, sources: [...allSources] });
+      await progress(jobId, "Restaurant choices refreshed across the trip. Bookings and manual activities kept; undo is available in Versions.");
+      return;
+    }
+
     // Must-sees placed on days outside this regeneration count as placed.
     const elsewhere = ctx.otherDaysPlanned.flatMap((d) => d.stops);
     const mustSee = ctx.trip.places.filter((p) => p.kind === "MUST_SEE").map((p) => p.name).filter((m) => job.kind === "full" || !elsewhere.some((t) => t.toLowerCase().includes(m.toLowerCase())));
-    const { proposal, issues } = checkProposal({ ...partialMeta, days: partialDays }, { dates: ctx.dates, anchors: ctx.anchors, mustSee, arrivalAt: ctx.trip.arrivalAt, departureAt: ctx.trip.departureAt });
+    const { proposal, issues } = checkProposal({ ...partialMeta, days: partialDays }, { dates: ctx.dates, anchors: ctx.anchors, mustSee, arrivalAt: ctx.trip.arrivalAt, departureAt: ctx.trip.departureAt, excludedRestaurants: ctx.restaurantExclusions, excludedPlaces: [...ctx.otherDaysPlanned.flatMap(d => d.stops), ...ctx.anchors.map(a => a.title)] });
     await progress(jobId, `Checked dates, timing, fixed commitments and must-sees: ${issues.filter((i) => i.severity === "conflict").length} conflict(s), ${issues.filter((i) => i.severity === "warning").length} warning(s)`);
     await prisma.$transaction(async tx => {
       await tx.generationJob.update({ where: { id: jobId }, data: { status: "SUCCEEDED", finishedAt: new Date(), proposal: proposal as unknown as Prisma.InputJsonValue, checks: { issues, sources: [...allSources].slice(0, 50) } as unknown as Prisma.InputJsonValue } });
@@ -200,6 +224,8 @@ async function runSwap(jobId: string, tripId: string, params: JobParams, generat
   const stopRow = await prisma.stop.findFirst({ where: { id: params.stopId!, tripId }, include: { day: { include: { destination: true, stops: { include: stopInclude, orderBy: { position: "asc" } } } } } });
   if (!stopRow) throw new AIError("INVALID_RESPONSE", "The stop to swap no longer exists.");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
+  const allDays = await prisma.itineraryDay.findMany({ where: { tripId }, include: { stops: { include: stopInclude } } });
+  const excludedRestaurants = allDays.flatMap(d => [...restaurantRefs(d.mealOptions), ...d.stops.filter(s => s.status !== "SKIPPED").map(stopRestaurantRef)]);
   await progress(jobId, `Looking for alternatives to “${stopRow.title}”`);
   const dayStops = stopRow.day?.stops ?? [];
   const idx = dayStops.findIndex((s) => s.id === stopRow.id);
@@ -221,6 +247,10 @@ async function runSwap(jobId: string, tripId: string, params: JobParams, generat
     previousStop: prev ? { title: effectiveStop(prev).title, address: effectiveStop(prev).address, endsAround: prev.startTime } : null,
     nextStop: next ? { title: effectiveStop(next).title, address: effectiveStop(next).address, startsAt: effectiveStop(next).startTime, fixed: next.isFixed || Boolean(next.bookingId) } : null,
     otherStopsToday: dayStops.filter((s) => s.id !== stopRow.id).map((s) => effectiveStop(s).title),
+    excludedRestaurants,
+    foodPreferences: trip.planPrefs,
+    dietary: trip.dietary,
+    restaurantPreferences: trip.restaurantPrefs,
     interests: trip.interests,
     accessibility: trip.accessibility,
     currency: trip.currency,
@@ -234,13 +264,9 @@ async function runSwap(jobId: string, tripId: string, params: JobParams, generat
     { summary: "", unplacedMustSees: [], generalNotes: [], days: [{ date: "2000-01-01", area: "", title: "", isTravelDay: false, driveMinutes: null, stops: res.data.alternatives, planB: [], planBNote: null, notes: [], questions: [], estCost: null }] },
     { dates: ["2000-01-01"], anchors: [], mustSee: [], arrivalAt: null, departureAt: null },
   );
-  const alternatives = checked.proposal.days[0]?.stops.map((s) => ({ ...s, startTime: stopRow.startTime ?? s.startTime })) ?? [];
+  const used = new RestaurantRegistry(excludedRestaurants);
+  const alternatives = (checked.proposal.days[0]?.stops ?? []).filter(s => { const ref = stopRestaurantRef(s); if (used.has(ref)) return false; used.add(ref); return true; }).map((s) => ({ ...s, startTime: stopRow.startTime ?? s.startTime }));
   await prisma.generationJob.update({ where: { id: jobId }, data: { status: "SUCCEEDED", finishedAt: new Date(), proposal: { alternatives, note: res.data.note } as unknown as Prisma.InputJsonValue, checks: { issues: [], sources: res.sources.slice(0, 20) } as Prisma.InputJsonValue } });
   await progress(jobId, `Found ${alternatives.length} alternative(s)`);
 }
 
-/** Marks jobs whose worker died mid-run as failed (they never touched the itinerary). */
-export async function failStaleJobs() {
-  const cutoff = new Date(Date.now() - 20 * 60_000);
-  await prisma.generationJob.updateMany({ where: { status: "RUNNING", startedAt: { lt: cutoff } }, data: { status: "FAILED", finishedAt: new Date(), error: "The planning worker stopped unexpectedly. Your itinerary was not changed — please try again.", errorCode: "UPSTREAM" } });
-}

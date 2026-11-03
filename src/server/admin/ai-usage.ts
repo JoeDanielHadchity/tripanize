@@ -16,12 +16,16 @@ export async function reserveAiUsage(kind: string, model: string, context?: AiMe
     return db.aiUsage.create({ data: { kind, model, userId: context?.userId, tripId: context?.tripId, jobId: context?.jobId } });
   });
 }
-export async function captureAiUsage(id: string, response: { model: string; usage?: { input_tokens: number; output_tokens: number } | null; output?: { type: string }[] }) {
+/** Cached input is billed at a fraction of the input rate (5-10% for current
+ * OpenAI models); 10% keeps the estimate on the safe, slightly high side. */
+const CACHED_INPUT_SHARE = 0.1;
+export async function captureAiUsage(id: string, response: { model: string; usage?: { input_tokens: number; output_tokens: number; input_tokens_details?: { cached_tokens?: number } | null } | null; output?: { type: string }[] }) {
   const settings = await prisma.platformSettings.findUnique({ where: { id: "platform" } });
   const searches = response.output?.filter(o => o.type === "web_search_call").length ?? 0;
   const match = settings?.pricingModel && (response.model === settings.pricingModel || response.model.startsWith(settings.pricingModel + "-"));
   const known = Boolean(response.usage && match && settings?.inputUsdPerMillion != null && settings?.outputUsdPerMillion != null && (!searches || settings.searchUsdPerThousand != null));
-  const estimate = known ? Math.ceil(response.usage!.input_tokens * settings!.inputUsdPerMillion! + response.usage!.output_tokens * settings!.outputUsdPerMillion! + searches * (settings!.searchUsdPerThousand ?? 0) * 1000) : null;
+  const cached = Math.min(response.usage?.input_tokens_details?.cached_tokens ?? 0, response.usage?.input_tokens ?? 0);
+  const estimate = known ? Math.ceil((response.usage!.input_tokens - cached + cached * CACHED_INPUT_SHARE) * settings!.inputUsdPerMillion! + response.usage!.output_tokens * settings!.outputUsdPerMillion! + searches * (settings!.searchUsdPerThousand ?? 0) * 1000) : null;
   await prisma.aiUsage.update({ where: { id }, data: { model: response.model, inputTokens: response.usage?.input_tokens, outputTokens: response.usage?.output_tokens, searchCalls: searches, estimatedCostMicros: estimate !== null && Number.isSafeInteger(estimate) && estimate <= 2147483647 ? estimate : null } });
 }
 export async function finishAiUsage(id: string, status: "SUCCEEDED" | "FAILED", errorCode?: string) {

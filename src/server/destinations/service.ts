@@ -44,6 +44,8 @@ export async function saveDestinationDraft(userId: string, id: string, input: un
   const saved = await prisma.destinationSearch.updateMany({ where: { id, userId, deletedAt: null, status: "DRAFT" }, data: { input: parsed.data } });
   return { saved: saved.count > 0 };
 }
+/** Paid research attempts per account per rolling day, successful or not. */
+export const MAX_DAILY_ATTEMPTS = 8;
 export async function startDestinationSearch(userId: string, input: unknown, searchId?: string) {
   const parsed = discoveryInput.safeParse(input);
   if (!parsed.success) throw new AppError("VALIDATION", parsed.error.issues.map(i => i.message).join(" · "));
@@ -60,8 +62,13 @@ export async function startDestinationSearch(userId: string, input: unknown, sea
       const same = active.find(s => JSON.stringify(s.input) === JSON.stringify(details));
       if (same) return same.id;
     }
-    const used = await tx.destinationSearch.count({ where: { userId, queuedAt: { gte: new Date(Date.now() - 86400_000) }, status: { in: ["QUEUED", "RUNNING", "SUCCEEDED"] } } });
+    const since = new Date(Date.now() - 86400_000);
+    // Failed searches don't use up the five-a-day allowance, but OpenAI still bills
+    // them, so every paid attempt (failed or deleted too) counts toward a hard cap.
+    const used = await tx.destinationSearch.count({ where: { userId, queuedAt: { gte: since }, status: { in: ["QUEUED", "RUNNING", "SUCCEEDED"] } } });
     if (used >= 5) throw new AppError("RATE_LIMITED", "You've explored five sets of destinations today. Come back tomorrow for more ideas. Your draft is saved.");
+    const attempts = await tx.destinationSearch.count({ where: { userId, queuedAt: { gte: since } } });
+    if (attempts >= MAX_DAILY_ATTEMPTS) throw new AppError("RATE_LIMITED", "Destination search has had trouble finishing today. Please try again tomorrow. Your draft is saved.");
     if (draft) {
       await tx.destinationSearch.update({ where: { id: draft.id }, data: { status: "QUEUED", input: details, queuedAt: new Date() } });
       return draft.id;

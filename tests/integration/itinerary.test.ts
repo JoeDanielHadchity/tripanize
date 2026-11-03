@@ -138,7 +138,7 @@ describe("AI planning jobs", () => {
     const view = await getItinerary(owner.id, tripId);
     expect(view.days[0].stops.map((s) => s.title)).toEqual(["Belém Tower 2027-05-01"]);
     expect(view.days[0].stops[0].status).toBe("SUGGESTED");
-    expect(view.days[1].stops.map((s) => s.title)).toEqual(["Belém Tower 2027-05-02", "Friend's wedding"]);
+    expect(view.days[1].stops.map((s) => s.title)).toEqual(["Friend's wedding"]); // a second visit to the same venue is rejected
     expect(view.days[3].stops.map((s) => s.title)).toEqual(["My own plan"]); // unaccepted day untouched
     expect(manual).toBeTruthy();
 

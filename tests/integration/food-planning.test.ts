@@ -48,7 +48,9 @@ describe("food preferences and daily restaurant options", () => {
     await claimJob(job.id);
     const generate = (async (opts: { input: string }) => {
       const input = JSON.parse(opts.input.match(/<trip_data>\n([\s\S]*)\n<\/trip_data>/)![1]);
-      return { data: { summary: "Food-aware trip", generalNotes: [], unplacedMustSees: [], days: input.datesToPlan.map((date: string) => ({ date, title: "Explore", area: "Lisbon", isTravelDay: false, driveMinutes: null, stops: [], planB: [], planBNote: null, notes: [], questions: [], estCost: null, meals })) }, model: "isolated", sources: ["https://restaurant.example/menu"], usage: null };
+      const sources = ["https://local.example/guide", "https://reviews.example/food", "https://tourism.example/restaurants"];
+      const variedMeals = (date: string) => Object.fromEntries(MEALS.map((meal, index) => [meal, meals[meal].map(r => ({ ...r, name: `${r.name} ${date}`, officialUrl: null, sourceUrls: [sources[index]] }))]));
+      return { data: { summary: "Food-aware trip", generalNotes: [], unplacedMustSees: [], days: input.datesToPlan.map((date: string) => ({ date, title: "Explore", area: "Lisbon", isTravelDay: false, driveMinutes: null, stops: [], planB: [], planBNote: null, notes: [], questions: [], estCost: null, meals: variedMeals(date) })) }, model: "isolated", sources, usage: null };
     }) as unknown as Generator;
     await runJob(job.id, generate);
     expect((await prisma.generationJob.findUniqueOrThrow({ where: { id: job.id } })).status).toBe("SUCCEEDED");

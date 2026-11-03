@@ -6,7 +6,7 @@ import { getTripPlan } from "@/server/plans/access";
 import { getItinerary } from "@/server/itinerary/service";
 import { toStopView, type StopView } from "@/server/itinerary/view";
 import { roleAllows } from "@/server/auth/permissions";
-import { savedTripImage } from "@/server/images";
+import { savedTripImage, scheduleTripCover } from "@/server/images";
 import { readMealOptions } from "@/lib/meal-options";
 import { todayIn, tripPhase } from "@/lib/dates";
 import { discoveryWireResult, normalizeDiscoveryResult } from "@/server/destinations/schema";
@@ -41,11 +41,13 @@ export async function getMobileItinerary(userId: string, tripId: string): Promis
   const { days, ideas } = await getItinerary(userId, tripId);
   const today = todayIn(trip.timezone);
   const plan = await getTripPlan(tripId);
+  const image = savedTripImage(trip, trip.destinations[0]);
+  if (!image && trip.destinations[0]) scheduleTripCover(tripId);
   return {
     trip: { id: trip.id, name: trip.name, role: access.role, startDate: trip.startDate, endDate: trip.endDate,
       destinations: trip.destinations.map(d => d.name), travelers: trip.travelers.map(t => t.name),
       phase: tripPhase(trip.startDate, trip.endDate, today), onboardingStage: trip.onboardingStage,
-      premium: plan.premium, image: savedTripImage(trip, trip.destinations[0]) },
+      premium: plan.premium, image },
     timezone: trip.timezone, today, canEdit: roleAllows(access.role, "edit"),
     days: days.map(day => ({ id: day.id, date: day.date, title: day.title, area: day.area, notes: day.notes,
       destination: day.destination?.name ?? null, activePlan: day.activePlan,

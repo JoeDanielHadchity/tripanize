@@ -74,12 +74,12 @@ export function EventsView(p: Props) {
             <label className="flex min-h-11 items-center gap-2 text-sm font-medium"><input type="checkbox" name="auto" defaultChecked={p.settings.autoDiscovery} className="h-5 w-5" /> Check automatically</label>
             <div className="w-full rounded-xl bg-accent-soft p-4 text-sm text-accent-ink">
               <p className="font-semibold">Searches adapt as your trip gets closer</p>
-              <ul className="mt-2 space-y-1"><li>30 or more days before departure: weekly, on Monday</li><li>15–29 days before departure: Mondays and Thursdays</li><li>14 days before departure through the trip: daily</li></ul>
+              <ul className="mt-2 space-y-1"><li>More than 14 days before departure: weekly, on Monday</li><li>The last 14 days before departure: every 3 days</li><li>During the trip: paused. Use Find events whenever you like</li></ul>
               <p className="mt-3 font-medium">Current schedule: {p.settings.cadence}</p>
               <p className="mt-1 text-xs">Around 9 am in the trip’s time zone. Searches use your interests, questionnaire answers and saved preferences.</p>
             </div>
             <Button type="submit" disabled={pending}>Save</Button>
-            <p className="w-full text-xs text-muted">Automatic checks continue while the app is closed{p.settings.autoDiscovery && p.settings.nextAt ? `; next check around ${formatTimestamp(p.settings.nextAt, p.timezone)}` : ""}. They stop after the trip ends. Results go to “New” — nothing is added to your days automatically.</p>
+            <p className="w-full text-xs text-muted">Automatic checks continue while the app is closed{p.settings.autoDiscovery && p.settings.nextAt ? `; next check around ${formatTimestamp(p.settings.nextAt, p.timezone)}` : ""}. They stop when the trip starts. Results go to “New” — nothing is added to your days automatically.</p>
           </form>
         )}
       </Card>

@@ -213,11 +213,13 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
   async alarm() { await this.ready; await this.aiTasks.alarm(); }
   async fetch(request: Request): Promise<Response> {
     await this.ready;
-    // Let uploads and support delivery complete without blocking other members.
+    // External photo lookups, uploads and support delivery must not hold the
+    // whole HTTP queue. Only their database operations share the lock.
     // Each database operation and complete transaction still shares the lock.
     const payment = request.method === "POST" && /^\/api\/trips\/[^/]+\/expenses\/?$/.test(new URL(request.url).pathname);
     const receiptScan = request.method === "POST" && /^\/api\/trips\/[^/]+\/receipts\/scan\/?$/.test(new URL(request.url).pathname);
-    const independent = receiptScan || payment || (request.method === "POST" && new URL(request.url).pathname === "/api/support");
+    const cover = request.method === "GET" && /^\/api\/trips\/[^/]+\/cover\/?$/.test(new URL(request.url).pathname);
+    const independent = cover || receiptScan || payment || (request.method === "POST" && new URL(request.url).pathname === "/api/support");
     const runtime = this.runtime();
     const context = independent ? { ...runtime, database: serializedDatabase(runtime.database, run => this.serialize(run)) } : runtime;
     const run = () => appRuntime.run(context, async () => {
