@@ -16,7 +16,7 @@ export function Chip({ children, accent = false }: { children: ReactNode; accent
 
 /** Chip-like actions; the first one can be the primary call to action. */
 export function ActionRow({ actions, onAction, busy, primary = false }: { actions: MobileAction[]; onAction: RunAction; busy?: boolean; primary?: boolean }) {
-  return <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{actions.map((action, i) => <Button key={`${action.label}-${i}`} compact secondary={!primary || i > 0} tone={action.danger ? "danger" : action.device === "purchase" ? "coral" : undefined} leadingIcon={actionIcon(action)} disabled={busy} onPress={() => onAction(action)}>{action.label}</Button>)}</View>;
+  return <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{actions.map((action, i) => <Button key={`${action.label}-${i}`} compact secondary={!primary || i > 0} tone={action.danger ? "danger" : undefined} leadingIcon={actionIcon(action)} disabled={busy} onPress={() => onAction(action)}>{action.label}</Button>)}</View>;
 }
 
 /** A small icon helps scanning; only well-known actions get one. */
@@ -148,15 +148,16 @@ export function TripNavigation({ tripId, screen, premium, onAction }: { tripId: 
   ];
   const tab = (id: string, label: string, icon: IconName, activeIcon: IconName, onPress: () => void, locked = false) => {
     const on = selected === id;
-    return <Pressable key={id} accessibilityRole="tab" accessibilityLabel={`${label}${locked ? ", Premium" : ""}`} accessibilityState={{ selected: on }} onPress={onPress} style={({ pressed }) => ({ flex: 1, minHeight: 54, alignItems: "center", justifyContent: "center", gap: 3, opacity: pressed ? 0.6 : 1 })}>
-      <View style={{ paddingHorizontal: 16, paddingVertical: 4, borderRadius: 14, backgroundColor: on ? c.soft : "transparent" }}><Ionicons name={on ? activeIcon : icon} size={21} color={on ? c.accent : c.muted} />{locked && <View style={{ position: "absolute", right: 8, top: 1 }}><Ionicons name="sparkles" size={9} color={c.coral} /></View>}</View>
-      <T style={{ fontSize: 10, lineHeight: 13, fontFamily: on ? "NunitoBold" : "Nunito", color: on ? c.accent : c.muted }}>{label}</T>
+    return <Pressable key={id} accessibilityRole="tab" accessibilityLabel={`${label}${locked ? ", Premium" : ""}`} accessibilityState={{ selected: on }} onPress={onPress} style={({ pressed }) => ({ flex: 1, minHeight: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", gap: 2, backgroundColor: on ? c.nightActive : "transparent", opacity: pressed ? 0.7 : 1 })}>
+      <View><Ionicons name={on ? activeIcon : icon} size={19} color={on ? "#ffffff" : c.nightMuted} />{locked && <View style={{ position: "absolute", right: -8, top: -2 }}><Ionicons name="sparkles" size={9} color={c.nightAccent} /></View>}</View>
+      <T style={{ fontSize: 12, lineHeight: 15, fontFamily: "NunitoBold", color: on ? "#ffffff" : c.nightMuted }}>{label}</T>
     </Pressable>;
   };
-  return <><View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={{ flexShrink: 0, backgroundColor: c.tabBar, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, flexDirection: "row", paddingHorizontal: 6, paddingTop: 2 }}>
+  // Design 004: the same floating dark pill as the main tab bar.
+  return <><View style={{ flexShrink: 0, backgroundColor: c.bg, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 6 }}><View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={{ flexDirection: "row", gap: 2, padding: 6, borderRadius: 34, backgroundColor: c.night, boxShadow: `0 10px 26px ${c.dark ? "rgba(0,0,0,0.5)" : "rgba(23,46,51,0.28)"}` }}>
     {TABS.map(t => tab(t.id, t.label, t.icon, t.active, () => { if (screen !== t.id) go({ screen: t.id, tripId }); }, !premium && ["expenses", "chat", "events"].includes(t.id)))}
     {tab("more", "More", "grid-outline", "grid", () => setOpen(true))}
-  </View><Sheet open={open} title="Your trip" close={() => setOpen(false)}>
+  </View></View><Sheet open={open} title="Your trip" close={() => setOpen(false)}>
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{more.map(item => <Pressable key={item.to.screen} accessibilityRole="button" onPress={() => go(item.to)} style={({ pressed }) => ({ width: "31%", flexGrow: 1, minHeight: 92, borderRadius: 18, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", gap: 8, padding: 10, opacity: pressed ? 0.7 : 1 })}><Ionicons name={item.icon} size={24} color={c.accent} /><T style={{ fontSize: 12, lineHeight: 16, textAlign: "center", fontFamily: "NunitoBold" }}>{item.label}</T></Pressable>)}</View>
   </Sheet></>;
 }

@@ -18,7 +18,7 @@ function withArrowFont(children: ReactNode): ReactNode {
 export function T({ style, children, ...props }: TextProps) { const c = useTheme(); return <Text {...props} style={[{ fontFamily: "Nunito", fontSize: 15, lineHeight: 22, color: c.ink }, style]}>{withArrowFont(children)}</Text>; }
 export function Heading({ children, small = false }: { children: ReactNode; small?: boolean }) {
   const c = useTheme(); const marker = typeof children === "string" ? /^([★✓])\s*/u.exec(children) : null;
-  const label = <T accessibilityRole="header" style={{ flexShrink: 1, fontFamily: "NunitoHeading", fontSize: small ? 22 : 32, lineHeight: small ? 28 : 38, letterSpacing: small ? -0.2 : -0.5 }}>{marker ? (children as string).slice(marker[0].length) : children}</T>;
+  const label = <T accessibilityRole="header" style={{ flexShrink: 1, fontFamily: "NunitoHeading", fontSize: small ? 22 : 34, lineHeight: small ? 28 : 38, letterSpacing: small ? -0.4 : -1 }}>{marker ? (children as string).slice(marker[0].length) : children}</T>;
   return marker ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Ionicons accessible={false} name={marker[1] === "★" ? "star" : "checkmark"} color={marker[1] === "★" ? c.coral : c.accent} size={small ? 19 : 25} />{label}</View> : label;
 }
 
@@ -32,11 +32,11 @@ export function useElevation(level: 1 | 2 = 1): ViewStyle {
 export function Button({ children, onPress, busy, disabled, secondary = false, trailingIcon, leadingIcon, style, compact = false, tone }: { children: ReactNode; onPress: () => void; busy?: boolean; disabled?: boolean; secondary?: boolean; trailingIcon?: IconName; leadingIcon?: IconName; style?: StyleProp<ViewStyle>; compact?: boolean; tone?: "coral" | "danger" }) {
   const c = useTheme();
   const fill = secondary ? c.soft : tone === "coral" ? c.coral : tone === "danger" ? c.danger : c.accent;
-  const color = secondary ? (tone === "danger" ? c.danger : c.ink) : tone ? "#ffffff" : c.accentText;
+  const color = secondary ? (tone === "danger" ? c.danger : c.accent) : tone ? (c.dark ? "#0f1e21" : "#ffffff") : c.accentText;
   const marker = typeof children === "string" ? /^([★✓])\s*/u.exec(children) : null;
   const icon = leadingIcon ?? (marker ? marker[1] === "★" ? "sparkles" : "checkmark" : undefined);
   const label = marker ? (children as string).slice(marker[0].length) : children;
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || disabled, busy }} disabled={busy || disabled} onPress={onPress} style={({ pressed }) => [{ minHeight: compact ? 40 : 52, borderRadius: compact ? 20 : 16, justifyContent: "center", alignItems: "center", paddingHorizontal: compact ? 14 : 20, opacity: busy || disabled ? 0.5 : 1, transform: [{ scale: pressed ? 0.98 : 1 }], backgroundColor: fill }, style]}>{busy ? <ActivityIndicator color={color} /> : <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }}>{icon && <Ionicons accessible={false} name={icon} color={color} size={compact ? 16 : 18} />}<T style={{ fontFamily: "NunitoBold", fontSize: compact ? 13 : 15, lineHeight: compact ? 18 : 21, color, flexShrink: 1, textAlign: "center" }}>{label}</T>{trailingIcon && <Ionicons accessible={false} name={trailingIcon} color={color} size={compact ? 16 : 18} />}</View>}</Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || disabled, busy }} disabled={busy || disabled} onPress={onPress} style={({ pressed }) => [{ minHeight: compact ? 40 : 52, borderRadius: compact ? 20 : 26, justifyContent: "center", alignItems: "center", paddingHorizontal: compact ? 14 : 20, opacity: busy || disabled ? 0.5 : 1, transform: [{ scale: pressed ? 0.98 : 1 }], backgroundColor: fill }, style]}>{busy ? <ActivityIndicator color={color} /> : <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }}>{icon && <Ionicons accessible={false} name={icon} color={color} size={compact ? 16 : 18} />}<T style={{ fontFamily: "NunitoBold", fontSize: compact ? 13 : 15, lineHeight: compact ? 18 : 21, color, flexShrink: 1, textAlign: "center" }}>{label}</T>{trailingIcon && <Ionicons accessible={false} name={trailingIcon} color={color} size={compact ? 16 : 18} />}</View>}</Pressable>;
 }
 
 /** Round icon-only control with a 44pt touch target. */
@@ -45,7 +45,7 @@ export function IconButton({ name, label, onPress, filled = false, size = 44, co
   const bg = onImage ? "rgba(255,255,255,0.92)" : filled ? c.accent : c.paper;
   return <Pressable accessibilityRole="button" accessibilityLabel={badge ? `${label}, ${badge} unread` : label} disabled={disabled} hitSlop={6} onPress={onPress} style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: "center", justifyContent: "center", backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.75 : 1 }, !filled && !onImage ? { borderWidth: StyleSheet.hairlineWidth, borderColor: c.line } : null]}>
     <Ionicons accessible={false} name={name} size={Math.round(size * 0.48)} color={color ?? (onImage ? "#172e33" : filled ? c.accentText : c.ink)} />
-    {!!badge && <View style={{ position: "absolute", top: 2, right: 2, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, backgroundColor: c.coral, alignItems: "center", justifyContent: "center" }}><T style={{ color: "#fff", fontSize: 10, lineHeight: 13, fontFamily: "NunitoBold" }}>{badge > 9 ? "9+" : badge}</T></View>}
+    {!!badge && <View style={{ position: "absolute", top: 2, right: 2, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" }}><T style={{ color: c.accentText, fontSize: 10, lineHeight: 13, fontFamily: "NunitoBold" }}>{badge > 9 ? "9+" : badge}</T></View>}
   </Pressable>;
 }
 
@@ -73,11 +73,11 @@ export function Brand({ compact = false }: { compact?: boolean }) {
 }
 export function Card({ children, style, onPress, accessibilityLabel }: { children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; accessibilityLabel?: string }) {
   const c = useTheme(); const elevation = useElevation();
-  const base: ViewStyle = { backgroundColor: c.paper, borderRadius: 20, padding: 18, gap: 12, ...elevation };
+  const base: ViewStyle = { backgroundColor: c.paper, borderRadius: 24, padding: 18, gap: 12, ...elevation };
   if (!onPress) return <View style={[base, style]}>{children}</View>;
   return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress} style={({ pressed }) => [base, { transform: [{ scale: pressed ? 0.985 : 1 }] }, style]}>{children}</Pressable>;
 }
-export function Eyebrow({ children, color }: { children: ReactNode; color?: ColorValue }) { const c = useTheme(); return <T style={{ color: color ?? c.coral, fontSize: 11, lineHeight: 15, fontFamily: "NunitoBold", letterSpacing: 1.6, textTransform: "uppercase" }}>{children}</T>; }
+export function Eyebrow({ children, color }: { children: ReactNode; color?: ColorValue }) { const c = useTheme(); return <T style={{ color: color ?? c.accent, fontSize: 11, lineHeight: 15, fontFamily: "NunitoBold", letterSpacing: 1.6, textTransform: "uppercase" }}>{children}</T>; }
 export function Muted({ children, style }: { children: ReactNode; style?: TextProps["style"] }) { const c = useTheme(); return <T style={[{ color: c.muted, fontSize: 13, lineHeight: 19 }, style]}>{children}</T>; }
 export function ErrorNotice({ message, retry }: { message: string; retry?: () => void }) { const c = useTheme(); return <View accessibilityRole="alert" style={{ padding: 16, borderRadius: 16, backgroundColor: c.coralSoft, gap: 12, flexDirection: "row", alignItems: "flex-start" }}><Ionicons name="alert-circle" size={20} color={c.danger} /><View style={{ flex: 1, gap: 10 }}><T style={{ color: c.dark ? c.ink : c.danger }}>{message}</T>{retry && <Button compact secondary onPress={retry} style={{ alignSelf: "flex-start" }}>Try again</Button>}</View></View>; }
 export function Loading({ label = "Loading" }: { label?: string }) { const c = useTheme(); return <View style={{ padding: 48, alignItems: "center", gap: 12 }}><ActivityIndicator color={c.accent} accessibilityLabel={label} /></View>; }
@@ -141,7 +141,7 @@ export function Badge({ children, icon, tone = "default", onImage = false }: { c
 
 export function Avatar({ name, size = 40 }: { name?: string | null; size?: number }) {
   const c = useTheme(); const letter = (name?.trim()[0] ?? "T").toUpperCase();
-  return <View accessible={false} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.coral, alignItems: "center", justifyContent: "center" }}><T style={{ color: "#fff", fontFamily: "NunitoBold", fontSize: size * 0.42, lineHeight: size * 0.55 }}>{letter}</T></View>;
+  return <View accessible={false} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.night, alignItems: "center", justifyContent: "center" }}><T style={{ color: "#fff", fontFamily: "NunitoBold", fontSize: size * 0.42, lineHeight: size * 0.55 }}>{letter}</T></View>;
 }
 
 export function EmptyState({ icon, title, text, action }: { icon: IconName; title: string; text?: string; action?: ReactNode }) {

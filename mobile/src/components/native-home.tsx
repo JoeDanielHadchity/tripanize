@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { authClient, photo } from "../lib/auth";
 import { useApi, tripDates } from "../lib/data";
@@ -40,14 +41,44 @@ function NextTrip() {
   const upcoming = data.trips.filter(t => t.phase === "current" || t.phase === "upcoming").sort((a, b) => (a.startDate ?? "9").localeCompare(b.startDate ?? "9"));
   const next = upcoming[0] ?? data.trips.find(t => t.phase === "undated");
   if (!next) return <Card style={{ backgroundColor: c.soft, alignItems: "center", paddingVertical: 28 }}><Icon name="airplane" size={30} /><Heading small>Where to next?</Heading><Muted style={{ textAlign: "center" }}>Create your first trip and get a day-by-day plan in minutes.</Muted><CreateTripButton /></Card>;
-  const when = countdown(next.startDate, next.endDate);
-  return <View style={{ gap: 10 }}>
-    <View style={[styles.row, { paddingHorizontal: 4 }]}><T style={{ fontFamily: "NunitoBold", fontSize: 17 }}>{next.phase === "current" ? "On your trip" : "Your next trip"}</T>{data.trips.length > 1 && <Pressable accessibilityRole="button" onPress={() => router.navigate("/trips")} style={{ minHeight: 40, justifyContent: "center" }}><T style={{ color: c.accent, fontFamily: "NunitoBold", fontSize: 13 }}>All trips</T></Pressable>}</View>
-    <PhotoCard source={next.image?.url} height={280} label={`Open ${next.name}`} onPress={() => openTrip(next)} top={<>{when ? <Badge onImage icon="time-outline">{when}</Badge> : <View />}{next.premium && <Badge onImage icon="sparkles">Premium</Badge>}</>}>
-      <OnPhoto size="small">{next.destinations.join(" · ") || "Your trip"}</OnPhoto>
-      <OnPhoto size="title">{next.name}</OnPhoto>
-      <View style={[styles.row, { marginTop: 4 }]}><OnPhoto>{tripDates(next.startDate, next.endDate)} · {next.travelers.length || 1} {next.travelers.length === 1 ? "traveler" : "travelers"}</OnPhoto><View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center" }}><Icon name="arrow-forward" size={18} color="#172e33" /></View></View>
-    </PhotoCard>
+  return <TripTicket trip={next} more={data.trips.length > 1} />;
+}
+
+const daysUntil = (date: string) => { const today = new Date(); today.setHours(12, 0, 0, 0); return Math.round((Date.parse(`${date}T12:00:00`) - today.getTime()) / 86_400_000); };
+
+/** Design 004: a big countdown, then the trip as a dark boarding pass. */
+function TripTicket({ trip, more }: { trip: MobileTripCard; more: boolean }) {
+  const c = useTheme();
+  const days = trip.startDate ? daysUntil(trip.startDate) : null;
+  const place = (trip.destinations[0] ?? trip.name).split(",")[0].trim();
+  const route = trip.destinations.map(d => d.split(",")[0].trim()).filter(Boolean);
+  const length = trip.startDate && trip.endDate ? daysUntil(trip.endDate) - daysUntil(trip.startDate) + 1 : null;
+  const crew = trip.travelers.length || 1;
+  const label = (text: string) => <T style={{ fontSize: 11, lineHeight: 14, letterSpacing: 1.3, fontFamily: "NunitoBold", color: c.nightMuted }}>{text.toUpperCase()}</T>;
+  return <View style={{ gap: 12 }}>
+    {days !== null && days > 0 ? <View accessible accessibilityLabel={`${days} ${days === 1 ? "day" : "days"} to ${place}`} style={{ flexDirection: "row", alignItems: "flex-end", gap: 12, paddingHorizontal: 2 }}>
+      <T style={{ fontFamily: "NunitoHeading", fontSize: 108, lineHeight: 104, letterSpacing: -5, color: c.accent }}>{days}</T>
+      <T style={{ fontFamily: "NunitoHeading", fontSize: 28, lineHeight: 30, paddingBottom: 10, flexShrink: 1 }}>{days === 1 ? "day to" : "days to"}{"\n"}{place}</T>
+    </View> : <View style={[styles.row, { paddingHorizontal: 4 }]}><T style={{ fontFamily: "NunitoHeading", fontSize: 24, lineHeight: 30 }}>{trip.phase === "current" ? `On your trip in ${place}` : "Your next trip"}</T></View>}
+    <Pressable accessibilityRole="button" accessibilityLabel={`Open ${trip.name}`} onPress={() => openTrip(trip)} style={({ pressed }) => ({ borderRadius: 28, backgroundColor: c.night, overflow: "hidden", transform: [{ scale: pressed ? 0.99 : 1 }], boxShadow: "0 12px 26px rgba(23,46,51,0.22)" })}>
+      {trip.image?.url ? <Image source={{ uri: trip.image.url }} style={{ height: 150 }} contentFit="cover" accessible={false} /> : <View style={{ height: 70, backgroundColor: c.nightLine }} />}
+      {trip.premium && <View style={{ position: "absolute", left: 14, top: 14, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: c.nightInk }}><T style={{ fontSize: 11, lineHeight: 14, letterSpacing: 1, fontFamily: "NunitoBold", color: "#0b6e74" }}>PREMIUM</T></View>}
+      <View style={{ paddingHorizontal: 20, paddingTop: 14, gap: 4 }}>
+        <T style={{ fontFamily: "NunitoHeading", fontSize: 24, lineHeight: 28, color: c.nightInk }}>{trip.name}</T>
+        {route.length > 0 && <T style={{ fontFamily: "NunitoBold", fontSize: 14, lineHeight: 19, color: c.nightAccent }}>{route.join(" → ")}</T>}
+      </View>
+      <View style={{ height: 22, justifyContent: "center", marginTop: 6 }}>
+        <View style={{ position: "absolute", left: -11, width: 22, height: 22, borderRadius: 11, backgroundColor: c.bg }} />
+        <View style={{ marginHorizontal: 20, borderTopWidth: 2, borderStyle: "dashed", borderColor: c.nightLine }} />
+        <View style={{ position: "absolute", right: -11, width: 22, height: 22, borderRadius: 11, backgroundColor: c.bg }} />
+      </View>
+      <View style={{ flexDirection: "row", paddingHorizontal: 20, paddingBottom: 18, paddingTop: 2, gap: 8 }}>
+        <View style={{ flex: 1.4, gap: 2 }}>{label("Dates")}<T style={{ fontFamily: "NunitoBold", fontSize: 14, lineHeight: 19, color: c.nightInk }}>{tripDates(trip.startDate, trip.endDate) || "Not set"}</T></View>
+        <View style={{ flex: 0.7, gap: 2 }}>{label("Days")}<T style={{ fontFamily: "NunitoBold", fontSize: 14, lineHeight: 19, color: c.nightInk }}>{length ?? "—"}</T></View>
+        <View style={{ flex: 1, gap: 2 }}>{label("Crew")}<T style={{ fontFamily: "NunitoBold", fontSize: 14, lineHeight: 19, color: c.nightInk }}>{crew} {crew === 1 ? "person" : "people"}</T></View>
+      </View>
+    </Pressable>
+    {more && <Pressable accessibilityRole="button" onPress={() => router.navigate("/trips")} style={{ alignSelf: "flex-end", minHeight: 40, justifyContent: "center", paddingHorizontal: 4 }}><T style={{ color: c.accent, fontFamily: "NunitoBold", fontSize: 14 }}>All trips</T></Pressable>}
   </View>;
 }
 
@@ -90,10 +121,10 @@ function PremiumPromo() {
 export function NativeHome() {
   const c = useTheme(); const { data: session } = authClient.useSession();
   if (session) return <Screen>
-    <View style={[styles.row, { paddingTop: 4 }]}><View style={{ flex: 1, gap: 2 }}><Muted>{greeting()}</Muted><Heading>{session.user.name?.split(" ")[0] || "Traveler"}</Heading></View><Pressable accessibilityRole="button" accessibilityLabel="Your account" onPress={() => router.navigate("/account")}><Avatar name={session.user.name || session.user.email} size={46} /></Pressable></View>
+    <View style={[styles.row, { paddingTop: 4 }]}><View style={{ flex: 1, gap: 2 }}><Muted>{greeting()}, {session.user.name?.split(" ")[0] || "traveler"}</Muted></View><Button compact leadingIcon="add" onPress={() => router.push(workspaceHref({ screen: "new" }))}>New trip</Button></View>
     <NextTrip />
     <View style={{ flexDirection: "row", gap: 8 }}>
-      <QuickAction icon="add" label="New trip" tint={c.coral} onPress={() => router.push(workspaceHref({ screen: "new" }))} />
+      <QuickAction icon="add" label="New trip" tint={c.accent} onPress={() => router.push(workspaceHref({ screen: "new" }))} />
       <QuickAction icon="compass-outline" label="Find a place" onPress={() => router.push("/destinations")} />
       <QuickAction icon="mail-open-outline" label="Invitations" onPress={() => router.push(workspaceHref({ screen: "trips" }))} />
       <QuickAction icon="cloud-offline-outline" label="Offline" onPress={() => router.push("/offline")} />

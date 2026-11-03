@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { AppState, Pressable, StyleSheet, View } from "react-native";
+import { AppState, Pressable, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useGlobalSearchParams, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api, authClient } from "../lib/auth";
-import { workspaceHref } from "../lib/workspace";
 import { isMobileTripRoute, mobileNavigationSection } from "../../../src/lib/mobile-public";
 import { T, type IconName } from "./ui";
 import { useTheme } from "./theme";
@@ -35,19 +34,17 @@ export function NativeBottomNavigation() {
   const selected = mobileNavigationSection(pathname, Array.isArray(params.view) ? params.view[0] : params.view);
   if (isMobileTripRoute(pathname, params.tripId)) return null;
   const open = (tab: Tab) => { if (tab.auth && !session) router.navigate({ pathname: "/sign-in", params: { next: tab.id === "inbox" ? "trips" : tab.id } }); else tab.go(); };
-  const create = () => session ? router.push(workspaceHref({ screen: "new" })) : router.push({ pathname: "/sign-in", params: { next: "new" } });
   const item = (tab: Tab) => {
     const on = tab.id === selected;
-    return <Pressable key={tab.id} accessibilityRole="tab" accessibilityLabel={tab.id === "inbox" && unread ? `${tab.label}, ${unread} unread` : tab.label} accessibilityState={{ selected: on }} onPress={() => { if (!on) open(tab); }} style={({ pressed }) => ({ flex: 1, minHeight: 54, alignItems: "center", justifyContent: "center", gap: 3, opacity: pressed ? 0.6 : 1 })}>
-      <View><Ionicons name={on ? tab.active : tab.icon} size={23} color={on ? c.accent : c.muted} />{tab.id === "inbox" && unread > 0 && <View style={{ position: "absolute", top: -3, right: -8, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, backgroundColor: c.coral, alignItems: "center", justifyContent: "center" }}><T style={{ color: "#fff", fontSize: 9, lineHeight: 12, fontFamily: "NunitoBold" }}>{unread > 9 ? "9+" : unread}</T></View>}</View>
-      <T style={{ fontFamily: on ? "NunitoBold" : "Nunito", fontSize: 10, lineHeight: 13, color: on ? c.accent : c.muted }}>{tab.label}</T>
+    return <Pressable key={tab.id} accessibilityRole="tab" accessibilityLabel={tab.id === "inbox" && unread ? `${tab.label}, ${unread} unread` : tab.label} accessibilityState={{ selected: on }} onPress={() => { if (!on) open(tab); }} style={({ pressed }) => ({ flex: 1, minHeight: 52, borderRadius: 26, flexDirection: on ? "row" : "column", alignItems: "center", justifyContent: "center", gap: on ? 6 : 2, backgroundColor: on ? c.nightActive : "transparent", opacity: pressed ? 0.7 : 1 })}>
+      <View><Ionicons name={on ? tab.active : tab.icon} size={on ? 19 : 21} color={on ? "#ffffff" : c.nightMuted} />{tab.id === "inbox" && unread > 0 && <View style={{ position: "absolute", top: -3, right: -8, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, backgroundColor: c.nightAccent, alignItems: "center", justifyContent: "center" }}><T style={{ color: "#172e33", fontSize: 9, lineHeight: 12, fontFamily: "NunitoBold" }}>{unread > 9 ? "9+" : unread}</T></View>}</View>
+      <T style={{ fontFamily: "NunitoBold", fontSize: on ? 13 : 12, lineHeight: 16, color: on ? "#ffffff" : c.nightMuted }}>{tab.label}</T>
     </Pressable>;
   };
-  return <SafeAreaView edges={["bottom", "left", "right"]} style={{ flexShrink: 0, backgroundColor: c.tabBar, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }}>
-    <View accessibilityRole="tablist" accessibilityLabel="Main app navigation" style={{ width: "100%", maxWidth: 600, alignSelf: "center", flexDirection: "row", alignItems: "center", paddingHorizontal: 6 }}>
-      {TABS.slice(0, 2).map(item)}
-      <View style={{ flex: 1, alignItems: "center" }}><Pressable accessibilityRole="button" accessibilityLabel="Create a trip" onPress={create} style={({ pressed }) => ({ width: 52, height: 52, borderRadius: 26, marginTop: -18, backgroundColor: c.coral, alignItems: "center", justifyContent: "center", transform: [{ scale: pressed ? 0.94 : 1 }], boxShadow: `0 6px 16px ${c.dark ? "rgba(0,0,0,0.5)" : "rgba(181,90,60,0.35)"}`, borderWidth: 4, borderColor: c.tabBar })}><Ionicons name="add" size={28} color="#fff" /></Pressable></View>
-      {TABS.slice(2).map(item)}
+  // Design 004: a floating dark pill. Creating a trip lives on Home and Trips, not in the bar.
+  return <SafeAreaView edges={["bottom", "left", "right"]} style={{ flexShrink: 0, backgroundColor: c.bg, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 8 }}>
+    <View accessibilityRole="tablist" accessibilityLabel="Main app navigation" style={{ width: "100%", maxWidth: 560, alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 4, padding: 6, borderRadius: 34, backgroundColor: c.night, boxShadow: `0 10px 26px ${c.dark ? "rgba(0,0,0,0.5)" : "rgba(23,46,51,0.28)"}` }}>
+      {TABS.map(item)}
     </View>
   </SafeAreaView>;
 }

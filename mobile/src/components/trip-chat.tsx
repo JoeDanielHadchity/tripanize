@@ -41,7 +41,7 @@ function LocationPanel({ tripId }: { tripId: string }) {
       </View>
       {share.error && <ErrorNotice message={share.error} />}
       {share.blocked && <Button compact secondary leadingIcon="settings-outline" onPress={share.openSettings}>Open phone settings</Button>}
-      {others.length > 0 && <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>{others.map(p => <View key={p.id} style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 14, backgroundColor: c.bg }}><View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: c.coral }} /><T style={{ fontSize: 12 }}>{p.name}{p.updated ? ` · ${ago(p.updated)}` : ""}</T></View>)}</View>}
+      {others.length > 0 && <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>{others.map(p => <View key={p.id} style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 14, backgroundColor: c.bg }}><View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: c.night }} /><T style={{ fontSize: 12 }}>{p.name}{p.updated ? ` · ${ago(p.updated)}` : ""}</T></View>)}</View>}
       {share.sharing && <Pressable accessibilityRole="button" onPress={share.stopEverywhere}><T style={{ fontSize: 12, color: c.muted, textDecorationLine: "underline" }}>Stop sharing on all my devices</T></Pressable>}
     </Card>
   </View>;

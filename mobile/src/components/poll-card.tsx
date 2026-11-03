@@ -24,7 +24,7 @@ export function PollCard({ block, busy, onAction }: { block: MobileBlock; busy: 
   const options = readOptions(block), total = Math.max(1, options.reduce((n, o) => n + o.count, 0));
   const status = (block.meta ?? "").split(" · ")[0], open = status === "OPEN";
   return <Card style={{ gap: 12 }}>
-    <View style={styles.row}><Badge tone={open ? "accent" : "coral"} icon={open ? "hand-left-outline" : "checkmark-done"}>{open ? "Poll · open" : status === "DECIDED" ? "Decided" : "Archived"}</Badge><Muted>{(block.meta ?? "").split(" · ")[1]}</Muted></View>
+    <View style={styles.row}><Badge tone={open ? "accent" : "default"} icon={open ? "hand-left-outline" : "checkmark-done"}>{open ? "Poll · open" : status === "DECIDED" ? "Decided" : "Archived"}</Badge><Muted>{(block.meta ?? "").split(" · ")[1]}</Muted></View>
     <T style={{ fontFamily: "NunitoHeading", fontSize: 21, lineHeight: 27 }}>{block.title}</T>
     {block.text && <Muted>{block.text}</Muted>}
     <View style={{ gap: 8 }}>{options.map(o => {

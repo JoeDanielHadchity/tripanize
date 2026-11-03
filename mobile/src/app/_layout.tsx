@@ -35,7 +35,8 @@ function useSignedInDevice(userId?: string) {
 
 function Navigation() {
   const { data: session, isPending } = authClient.useSession();
-  const [loaded, error] = useFonts({ ...Ionicons.font, Nunito: require("../../assets/fonts/Nunito-Regular.ttf"), NunitoBold: require("../../assets/fonts/Nunito-Bold.ttf"), NunitoHeading: require("../../assets/fonts/Nunito-ExtraBold.ttf") });
+  const [loaded, error] = useFonts({ ...Ionicons.font, Nunito: require("../../assets/fonts/Manrope-Medium.ttf"), NunitoBold: require("../../assets/fonts/Manrope-ExtraBold.ttf"), NunitoHeading: require("../../assets/fonts/BricolageGrotesque-ExtraBold.ttf") });
+  // Design 004 fonts under the original keys: body Manrope, headings Bricolage Grotesque.
   const c = useTheme();
   const pathname = usePathname(), params = useGlobalSearchParams<{ tripId?: string | string[] }>();
   const inTrip = isMobileTripRoute(pathname, params.tripId);

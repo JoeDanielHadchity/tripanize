@@ -231,7 +231,7 @@ function Inbox({ blocks, busy, loading, onAction }: { blocks: MobileBlock[]; bus
       return <Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`${unread ? "Unread. " : ""}${n.title}. ${n.text}`} onPress={() => { if (read) onAction(read); if (view) onAction(view); }} style={({ pressed }) => ({ flexDirection: "row", gap: 12, paddingVertical: 14, borderBottomWidth: i === items.length - 1 ? 0 : StyleSheet.hairlineWidth, borderBottomColor: c.line, opacity: pressed ? 0.6 : 1 })}>
         <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: unread ? c.soft : c.bg, alignItems: "center", justifyContent: "center" }}><Icon name={icon(n.text!)} size={18} color={unread ? c.accent : c.muted} /></View>
         <View style={{ flex: 1, gap: 2 }}><View style={styles.row}><T numberOfLines={1} style={{ flex: 1, fontFamily: "NunitoBold", fontSize: 14 }}>{n.title}</T><T style={{ fontSize: 11, color: c.muted }}>{ago(when)}</T></View><T style={{ fontSize: 14, lineHeight: 20, color: unread ? c.ink : c.muted }}>{n.text}</T></View>
-        {unread && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.coral, marginTop: 6 }} />}
+        {unread && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent, marginTop: 6 }} />}
       </Pressable>;
     })}</Card>}
     {older && <Button secondary compact onPress={() => onAction(older)}>Older notifications</Button>}
