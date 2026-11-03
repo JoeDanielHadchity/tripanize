@@ -12,6 +12,8 @@ interface CloudflareEnv {
   OPENAI_LIGHT_MODEL?: string;
   OPENAI_WEB_SEARCH?: string;
   OPENAI_MAX_SEARCHES?: string;
+  GOOGLE_MAPS_BROWSER_KEY?: string;
+  GOOGLE_MAPS_MAP_ID?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
   SUPPORT_EMAIL?: string;
