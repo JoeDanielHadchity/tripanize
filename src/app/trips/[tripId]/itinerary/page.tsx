@@ -11,7 +11,6 @@ import { getTripWeather } from "@/server/weather/trip";
 import { aiConfigured } from "@/server/ai/openai";
 import { routingConfigured } from "@/server/routing";
 import { getProfile } from "@/server/profile";
-import { googleMapsConfig } from "@/server/maps";
 import { LinkButton, Notice, PageHeader } from "@/components/ui";
 import { TripReadiness } from "@/components/trip-readiness";
 import { ItineraryView } from "./view";
@@ -70,7 +69,6 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
         premium={premium}
         aiReady={premium && aiConfigured()}
         routingLive={routingConfigured()}
-        googleMaps={googleMapsConfig()}
         days={days.map((d) => ({
           id: d.id, date: d.date, title: d.title, area: d.area, notes: d.notes, questions: d.questions, mealOptions: readMealOptions(d.mealOptions), isTravelDay: d.isTravelDay, driveMinutes: d.driveMinutes, activePlan: d.activePlan as "A" | "B", planBNote: d.planBNote, version: d.version, estCostMinor: d.estCostMinor,
           destination: d.destination ? { name: d.destination.name, accommodationName: d.destination.accommodationName, checkInTime: d.destination.checkInTime, checkOutTime: d.destination.checkOutTime, parkingNotes: d.destination.parkingNotes } : null,
