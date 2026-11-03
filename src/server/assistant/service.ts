@@ -3,6 +3,8 @@ import { prisma } from "@/server/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { roleAllows } from "@/server/auth/permissions";
 import { requirePremiumTrip, requirePremiumAccess } from "@/server/plans/access";
+import { CREDIT_PRICES } from "@/lib/credits";
+import { hold, settle, settleRef } from "@/server/credits/service";
 import { AppError } from "@/server/errors";
 import { AIError, aiConfigured } from "@/server/ai/openai";
 import { currentRuntime } from "@/server/cloudflare/runtime";
@@ -61,7 +63,9 @@ export async function sendAssistantMessage(userId: string, tripId: string, raw: 
   await rateLimit(`assistant:hour:${userId}`, 30, 3600, "You've reached the hourly assistant limit. Please try again later.");
   const selected = input.selectedDate ? await prisma.itineraryDay.findFirst({ where: { tripId, date: input.selectedDate } }) : null;
   const params: AssistantParams = { membershipId: m.id, clientId: input.clientId, message: input.message, selectedDate: selected?.date ?? null };
-  await prisma.generationJob.create({ data: { id, tripId, kind: "assistant", params: json(params), requestedById: userId, createdAt: new Date(Math.max(Date.now(), (latest?.createdAt.getTime() ?? 0) + 1)), progress: [{ at: new Date().toISOString(), message: "Reading your trip and preparing a reply" }] } });
+  // Two credits per question, held until the reply finishes (refunded if it fails or is cancelled).
+  const held = await hold({ actorId: userId, tripId, action: "assistant", credits: CREDIT_PRICES.assistant, refKind: "job", refId: id });
+  try { await prisma.generationJob.create({ data: { id, tripId, kind: "assistant", params: json(params), requestedById: userId, createdAt: new Date(Math.max(Date.now(), (latest?.createdAt.getTime() ?? 0) + 1)), progress: [{ at: new Date().toISOString(), message: "Reading your trip and preparing a reply" }] } }); } catch (error) { await settle(held?.id, "refunded"); throw error; }
   await currentRuntime().wakeAi?.();
   return { id };
 }
@@ -165,4 +169,5 @@ export async function cancelAssistantReply(userId: string, tripId: string, id: s
   const job = await requireAssistantJob(userId, tripId, id);
   if (!["QUEUED", "RUNNING"].includes(job.status)) return;
   await prisma.generationJob.update({ where: { id }, data: { cancelRequested: true, ...(job.status === "QUEUED" ? { status: "CANCELLED", finishedAt: new Date() } : {}) } });
+  await settleRef("job", id);
 }

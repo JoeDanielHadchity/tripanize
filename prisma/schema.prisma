@@ -45,6 +45,8 @@ model User {
   trialsCreated TrialInvitation[] @relation("TrialCreator")
   trialsAccepted TrialInvitation[] @relation("TrialRecipient")
   tripVotes TripVote[]
+  creditEntries CreditEntry[]
+  creditHolds CreditHold[]
 
   @@map("user")
 }
@@ -250,6 +252,7 @@ model Trip {
   version   Int      @default(1)
   // Event discovery settings
   autoDiscovery        Boolean   @default(false)
+  membersUseCredits    Boolean   @default(true) // members' AI use is paid from the organizer's credits
   discoveryEveryHours  Int       @default(24)
   nextDiscoveryAt      DateTime?
   createdAt DateTime @default(now())
@@ -869,6 +872,44 @@ enum JobStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+}
+
+// ───────────────────────── Credits ─────────────────────────
+// Every addition or spend is one entry; the balance is the sum of entries minus open holds.
+// Nobody edits a balance directly.
+model CreditEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Int // positive = added, negative = spent
+  kind        String // welcome | purchase | grant | spend | adjust
+  note        String?
+  tripId      String?
+  holdId      String?  @unique // the hold a spend settles
+  dedupeKey   String?  @unique // one-time grants and purchases are recorded once
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// Credits reserved while an AI action runs: spent when it succeeds, released when it fails.
+model CreditHold {
+  id        String    @id @default(cuid())
+  userId    String // who pays (the trip's organizer for members' actions)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actorId   String // who asked
+  tripId    String?
+  action    String // plan | regenerate | restaurants | events | destination | assistant | swap | packing
+  credits   Int
+  refKind   String // job | discovery | destination | inline
+  refId     String?
+  status    String    @default("held") // held | spent | refunded
+  createdAt DateTime  @default(now())
+  settledAt DateTime?
+
+  @@index([userId, status])
+  @@index([refKind, refId])
 }
 
 model GenerationJob {

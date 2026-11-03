@@ -1,4 +1,6 @@
 import { prisma } from "@/server/db";
+import { CREDIT_PRICES } from "@/lib/credits";
+import { attachHold, hold } from "@/server/credits/service";
 import { Prisma } from "@/generated/prisma/client";
 import { AppError } from "@/server/errors";
 import { AIError, aiConfigured, generateStructured } from "@/server/ai/openai";
@@ -69,12 +71,17 @@ export async function startDestinationSearch(userId: string, input: unknown, sea
     if (used >= 5) throw new AppError("RATE_LIMITED", "You've explored five sets of destinations today. Come back tomorrow for more ideas. Your draft is saved.");
     const attempts = await tx.destinationSearch.count({ where: { userId, queuedAt: { gte: since } } });
     if (attempts >= MAX_DAILY_ATTEMPTS) throw new AppError("RATE_LIMITED", "Destination search has had trouble finishing today. Please try again tomorrow. Your draft is saved.");
+    // Four credits per search, held until it finishes: a failed search gives them back.
+    const held = await hold({ actorId: userId, action: "destination", credits: CREDIT_PRICES.destination, refKind: "destination" }, tx);
     if (draft) {
       await tx.destinationSearch.update({ where: { id: draft.id }, data: { status: "QUEUED", input: details, queuedAt: new Date() } });
+      await attachHold(held?.id, draft.id, tx);
       return draft.id;
     }
     const last = await tx.destinationSearch.findFirst({ where: { userId }, orderBy: { number: "desc" }, select: { number: true } });
-    return (await tx.destinationSearch.create({ data: { userId, number: (last?.number ?? 0) + 1, input: details, queuedAt: new Date() } })).id;
+    const created = (await tx.destinationSearch.create({ data: { userId, number: (last?.number ?? 0) + 1, input: details, queuedAt: new Date() } })).id;
+    await attachHold(held?.id, created, tx);
+    return created;
   });
   await currentRuntime().wakeAi?.();
   return { id };

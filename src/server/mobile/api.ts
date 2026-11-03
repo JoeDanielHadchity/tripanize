@@ -18,7 +18,7 @@ export async function mobileRead(request: Request, read: (userId: string, sessio
   } catch (error) {
     if (error instanceof ZodError) return Response.json({ error: error.issues.map(i => i.message).join(" · "), code: "VALIDATION" }, { status: 400, headers });
     if (error instanceof AppError) {
-      const statuses = { UNAUTHENTICATED: 401, FORBIDDEN: 403, NOT_FOUND: 404, VALIDATION: 400, CONFLICT: 409, RATE_LIMITED: 429, NOT_CONFIGURED: 503, UPSTREAM: 502, TIMEOUT: 504 };
+      const statuses = { UNAUTHENTICATED: 401, FORBIDDEN: 403, NOT_FOUND: 404, VALIDATION: 400, CONFLICT: 409, RATE_LIMITED: 429, CREDITS: 402, NOT_CONFIGURED: 503, UPSTREAM: 502, TIMEOUT: 504 };
       return Response.json({ error: error.message, code: error.code, ...(error.details ? { details: error.details } : {}) }, { status: statuses[error.code], headers });
     }
     console.error("[mobile-api]", error instanceof Error ? error.message : "Unexpected error");
