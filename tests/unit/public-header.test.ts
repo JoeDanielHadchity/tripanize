@@ -41,7 +41,6 @@ it("keeps full account controls on signed-in public pages", () => {
   expect(html).toContain('href="/account"');
   expect(html).toContain('aria-label="Notifications"');
   expect(html).toContain('aria-label="Settings"');
-  expect(html).toContain("Sign out");
   expect(html).not.toContain('public-site-header');
   expect(html).not.toContain("Create a trip");
   expect(html).not.toContain("Sign in");

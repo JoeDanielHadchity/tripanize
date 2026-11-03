@@ -25,7 +25,7 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
 
   await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
   await ana.getByLabel("Trip name").fill(`Porto ${run}`);
-  await ana.getByRole("button", { name: "Continue to plans" }).click();
+  await ana.getByRole("button", { name: "Next: choose Free or Premium" }).click();
   await ana.waitForURL("**/premium?created=1");
   const tripUrl = ana.url().split("/premium")[0];
   await ana.getByRole("button", { name: "Continue free" }).click();

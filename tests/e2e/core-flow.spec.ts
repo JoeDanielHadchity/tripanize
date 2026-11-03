@@ -47,7 +47,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   // 2. Trip setup
   await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
   await ana.getByLabel("Trip name").fill(`Lisbon ${run}`);
-  await ana.getByRole("button", { name: "Continue to plans" }).click();
+  await ana.getByRole("button", { name: "Next: choose Free or Premium" }).click();
   await ana.waitForURL("**/premium?created=1");
   const tripUrl = ana.url().split("/premium")[0];
   await expect(ana.getByRole("heading", { name: "Choose how you want to travel" })).toBeVisible();
