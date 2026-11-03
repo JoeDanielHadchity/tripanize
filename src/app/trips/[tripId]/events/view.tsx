@@ -127,7 +127,7 @@ export function EventsView(p: Props) {
         <div className="mt-3 flex gap-1 overflow-x-auto" role="tablist" aria-label="Event lists">
           {TABS.map(([k, l]) => {
             const n = p.events.filter((e) => e.status === k).length;
-            return <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} className={cx("min-h-11 shrink-0 rounded-xl px-4 text-sm font-medium", tab === k ? "bg-ink text-bg" : "border border-line bg-surface text-muted")}>{l}{n ? ` (${n})` : ""}</button>;
+            return <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} className={cx("min-h-11 shrink-0 rounded-full px-4 text-sm font-bold", tab === k ? "bg-night text-night-ink" : "border border-line bg-surface text-muted")}>{l}{n ? ` (${n})` : ""}</button>;
           })}
         </div>
         <div className="mt-4 space-y-3" role="tabpanel">
@@ -136,10 +136,13 @@ export function EventsView(p: Props) {
           ) : shown.length === 0 ? <p className="text-sm text-muted">Nothing in this list.</p> : shown.map((e) => (
             <Card key={e.id} id={`event-${e.id}`} className="scroll-mt-24">
               <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-1 gap-4">
+                  {e.date && <div aria-hidden="true" className="flex w-16 shrink-0 flex-col items-center justify-center rounded-[18px] bg-night py-2 text-night-ink"><span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-night-accent">{new Date(`${e.date}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</span><span className="font-display text-3xl font-extrabold leading-none">{Number(e.date.slice(8, 10))}</span><span className="text-[11px] font-extrabold uppercase tracking-[0.12em]">{new Date(`${e.date}T12:00:00Z`).toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" })}</span></div>}
                 <div className="min-w-0">
-                  <h3 className="font-medium">{e.title}</h3>
+                  <h3 className="font-display text-xl font-extrabold">{e.title}</h3>
                   <p className="text-sm text-muted">{e.category}{e.venue ? ` · ${e.venue}` : ""}{e.city ? `, ${e.city}` : ""}</p>
                   <p className="text-sm">{e.date ? `${formatDate(e.date)}${e.endDate && e.endDate !== e.date ? ` – ${formatDate(e.endDate)}` : ""}${e.startTime ? ` · ${e.startTime}` : ""}` : "Date unknown"} {e.date && (e.dateVerified ? <Badge tone="sage">Date verified at source</Badge> : <Badge tone="warn">Date not verified</Badge>)}</p>
+                </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {e.origin === "user" && <Badge>Added by you</Badge>}

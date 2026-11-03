@@ -26,7 +26,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             role={t.tone === "error" ? "alert" : "status"}
             className={cx(
               "pointer-events-auto max-w-md rounded-xl px-4 py-3 text-sm shadow-lg",
-              t.tone === "error" ? "bg-danger text-white dark:text-black" : t.tone === "success" ? "bg-ink text-bg" : "bg-surface text-ink border border-line",
+              t.tone === "error" ? "bg-danger text-white dark:text-black" : t.tone === "success" ? "bg-night text-night-ink" : "bg-surface text-ink border border-line",
             )}
           >
             {t.message}

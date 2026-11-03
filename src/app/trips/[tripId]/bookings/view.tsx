@@ -84,7 +84,7 @@ export function BookingsView({ tripId, timezone, reminderEmail, emailAvailable, 
         </div>
         <div className="mt-3 flex gap-1 overflow-x-auto" role="group" aria-label="Filter bookings">
           {(["all", "open", "confirmed", "cancelled"] as const).map((f) => (
-            <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)} className={cx("min-h-11 rounded-xl px-4 text-sm font-medium", filter === f ? "bg-ink text-bg" : "border border-line bg-surface text-muted")}>
+            <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)} className={cx("min-h-11 rounded-full px-4 text-sm font-bold", filter === f ? "bg-night text-night-ink" : "border border-line bg-surface text-muted")}>
               {f === "all" ? "Active" : f === "open" ? "To do" : f === "confirmed" ? "Booked" : "Cancelled"}
             </button>
           ))}

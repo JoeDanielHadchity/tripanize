@@ -167,7 +167,7 @@ export function ChatView({ tripId, userId, isOwner, initial }: { tripId: string;
             <div className={cx("mb-3 flex", mine ? "justify-end" : "justify-start")}>
               <div className="min-w-0 max-w-[90%] sm:max-w-[78%]">
                 <p className={cx("mb-1 text-xs font-medium text-muted", mine && "text-right")}>{mine ? "You" : message.senderName || "Trip member"}</p>
-                <div className={cx("rounded-2xl px-4 py-2.5", mine ? "rounded-br-sm bg-accent-soft text-accent-ink" : "rounded-bl-sm border border-line bg-surface-2 text-ink")}>
+                <div className={cx("rounded-2xl px-4 py-2.5", mine ? "rounded-br-md bg-accent font-semibold text-on-accent" : "rounded-bl-md bg-surface-2 font-semibold text-ink")}>
                   <p className={cx("whitespace-pre-wrap break-words text-[15px] [overflow-wrap:anywhere]", message.deletedAt && "italic text-muted")}>{message.deletedAt ? "Message deleted" : message.body}</p>
                 </div>
                 <div className={cx("mt-1 flex flex-wrap items-center gap-x-3 text-[11px] text-muted", mine && "justify-end")}><time dateTime={message.createdAt}>{formatTimestamp(message.createdAt, initial.timezone)}</time>{!message.deletedAt && (mine || isOwner) && <button type="button" className="min-h-8 hover:text-danger" disabled={Boolean(deleting) || blocked || !online} aria-label={`Delete message from ${mine ? "you" : message.senderName} at ${formatTimestamp(message.createdAt, initial.timezone)}`} onClick={() => remove(message)}>{deleting === message.id ? "Deleting…" : "Delete"}</button>}</div>

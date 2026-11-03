@@ -17,7 +17,7 @@ export function StopBadges({ s }: { s: StopView }) {
       ) : s.isFixed ? (
         <Badge tone="sage">✓ Fixed commitment</Badge>
       ) : s.status === "SUGGESTED" ? (
-        <Badge tone="accent" title="Suggested by AI — not booked or confirmed">Suggestion</Badge>
+        <Badge tone="ai" title="Suggested by AI — not booked or confirmed">AI suggestion</Badge>
       ) : null}
       {s.status === "SKIPPED" && <Badge>Skipped</Badge>}
       {s.eventId && <Badge tone="accent">Event</Badge>}
@@ -45,15 +45,15 @@ export function StopCard({ s, tripId, currency, mapsApp, canEdit, handlers, next
   const skipped = s.status === "SKIPPED";
   const actionCls = "block min-h-11 w-full rounded-lg px-3 text-left text-sm font-medium hover:bg-surface-2 disabled:opacity-40";
   return (
-    <li {...reorder?.dragProps} className={cx("group relative rounded-2xl border bg-surface p-3 sm:p-4", highlight === "now" ? "border-accent ring-2 ring-accent/30" : highlight === "next" ? "border-sage" : "border-line", skipped && "opacity-60")}>
+    <li {...reorder?.dragProps} className={cx("group relative rounded-2xl border bg-surface p-3 sm:p-4", highlight === "now" ? "border-accent ring-2 ring-accent/30" : highlight === "next" ? "border-accent/50" : "border-line", skipped && "opacity-60")}>
       <div className="flex gap-3">
-        <div className="w-14 shrink-0 pt-0.5 text-right">
-          <p className="font-mono text-[15px] font-semibold">{s.startTime ?? "—"}</p>
+        <div className="w-16 shrink-0 pt-0.5 text-right">
+          <p className="font-display text-xl font-extrabold tabular-nums">{s.startTime ?? "—"}</p>
           {s.durationMin ? <p className="text-xs text-muted">{formatDuration(s.durationMin)}</p> : null}
         </div>
         <div className="min-w-0 flex-1">
           {highlight && <p className="text-xs font-semibold uppercase tracking-wide text-accent-ink">{highlight === "now" ? "Now" : "Next"}</p>}
-          <h4 className={cx("font-medium leading-snug", skipped && "line-through")}>{s.title}</h4>
+          <h4 className={cx("text-[17px] font-extrabold leading-snug", skipped && "line-through")}>{s.title}</h4>
           <div className="mt-1 flex flex-wrap gap-1"><StopBadges s={s} /></div>
           {(s.address || s.locationName) && <p className="mt-1 text-sm text-muted">{[s.locationName !== s.title ? s.locationName : null, s.address].filter(Boolean).join(", ")}</p>}
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">

@@ -14,7 +14,7 @@ const variants: Record<Variant, string> = {
   danger: "bg-danger-soft text-danger border border-danger/30 hover:brightness-95",
   sage: "bg-sage-soft text-sage-ink hover:brightness-95",
   // Coral is reserved for AI actions.
-  ai: "bg-sage text-on-sage hover:brightness-110",
+  ai: "bg-ai text-on-ai hover:brightness-110",
 };
 
 export function buttonClass(variant: Variant = "secondary", extra?: string) {
@@ -62,13 +62,14 @@ export function Textarea(props: ComponentProps<"textarea">) {
   return <textarea rows={3} {...props} className={cx(inputCls, "min-h-20", props.className)} />;
 }
 
-type Tone = "neutral" | "accent" | "sage" | "warn" | "danger";
+type Tone = "neutral" | "accent" | "sage" | "warn" | "danger" | "ai";
 const tones: Record<Tone, string> = {
   neutral: "bg-surface-2 text-muted",
   accent: "bg-accent-soft text-accent-ink",
   sage: "bg-sage-soft text-sage-ink",
   warn: "bg-warn-soft text-warn-ink",
   danger: "bg-danger-soft text-danger",
+  ai: "bg-ai-soft text-ai-ink",
 };
 export function Badge({ tone = "neutral", children, className, title }: { tone?: Tone; children: ReactNode; className?: string; title?: string }) {
   return (

@@ -27,11 +27,16 @@
   --accent-ink: #0b6e74;
   --accent-soft: #e2f0ef;
   --on-accent: #ffffff;
-  /* Legacy "sage" tokens hold the coral used for AI. */
-  --sage: #b4502d;
-  --sage-ink: #8f3c1f;
-  --sage-soft: #fbe9e0;
+  /* Legacy "sage" tokens: a second teal for success and secondary highlights. */
+  --sage: #0f7f86;
+  --sage-ink: #0b6e74;
+  --sage-soft: #e2f0ef;
   --on-sage: #ffffff;
+  /* Coral is reserved for AI features. */
+  --ai: #b4502d;
+  --ai-ink: #8f3c1f;
+  --ai-soft: #fbe9e0;
+  --on-ai: #ffffff;
   --warn-ink: #8a5a00;
   --warn-soft: #fff3d6;
   --danger: #a3261c;
@@ -60,10 +65,14 @@
     --accent-ink: #7fd1c9;
     --accent-soft: #1d4044;
     --on-accent: #0f1e21;
-    --sage: #f4a27f;
-    --sage-ink: #f7b89a;
-    --sage-soft: #4a2c22;
+    --sage: #5fc4bb;
+    --sage-ink: #7fd1c9;
+    --sage-soft: #1d4044;
     --on-sage: #0f1e21;
+    --ai: #f4a27f;
+    --ai-ink: #f7b89a;
+    --ai-soft: #4a2c22;
+    --on-ai: #0f1e21;
     --warn-ink: #f1c76b;
     --warn-soft: #3a2f17;
     --danger: #f08a7e;
@@ -89,10 +98,14 @@
   --accent-ink: #7fd1c9;
   --accent-soft: #1d4044;
   --on-accent: #0f1e21;
-  --sage: #f4a27f;
-  --sage-ink: #f7b89a;
-  --sage-soft: #4a2c22;
+  --sage: #5fc4bb;
+  --sage-ink: #7fd1c9;
+  --sage-soft: #1d4044;
   --on-sage: #0f1e21;
+  --ai: #f4a27f;
+  --ai-ink: #f7b89a;
+  --ai-soft: #4a2c22;
+  --on-ai: #0f1e21;
   --warn-ink: #f1c76b;
   --warn-soft: #3a2f17;
   --danger: #f08a7e;
@@ -121,6 +134,10 @@
   --color-sage-ink: var(--sage-ink);
   --color-sage-soft: var(--sage-soft);
   --color-on-sage: var(--on-sage);
+  --color-ai: var(--ai);
+  --color-ai-ink: var(--ai-ink);
+  --color-ai-soft: var(--ai-soft);
+  --color-on-ai: var(--on-ai);
   --color-warn-ink: var(--warn-ink);
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);

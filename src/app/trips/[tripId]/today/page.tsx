@@ -37,9 +37,21 @@ export default async function TodayPage({ params, searchParams }: { params: Prom
   }
   if (!day) {
     const before = today < trip.startDate;
+    const left = before ? daysBetween(today, trip.startDate) : 0;
     return (
       <div className="space-y-4">
-        <h1 className="font-display text-2xl font-semibold">{formatDate(today, { weekday: "long", day: "numeric", month: "long" })}</h1>
+        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-accent-ink">Today</p>
+        <h1 className="font-display text-4xl font-extrabold sm:text-5xl">{formatDate(today, { weekday: "long", day: "numeric", month: "long" })}</h1>
+        {before && (
+          <div className="night-card flex items-center gap-5 rounded-[28px] bg-night p-6 text-night-ink">
+            <p className="font-display text-6xl font-extrabold leading-none text-night-accent">{left}</p>
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-night-muted">{left === 1 ? "day to go" : "days to go"}</p>
+              <p className="mt-1 font-display text-xl font-extrabold">{trip.name}</p>
+              <p className="text-sm text-night-muted">Starts {formatDate(trip.startDate, { weekday: "long", day: "numeric", month: "long" })}</p>
+            </div>
+          </div>
+        )}
         <EmptyState
           title={before ? `Your trip starts in ${daysBetween(today, trip.startDate)} day${daysBetween(today, trip.startDate) === 1 ? "" : "s"}` : "This trip has ended"}
           action={<><LinkButton href={`/trips/${tripId}/itinerary`} variant="primary">Open the itinerary</LinkButton>{before && <LinkButton href={`/trips/${tripId}/today?date=${trip.startDate}`}>Preview day 1</LinkButton>}</>}

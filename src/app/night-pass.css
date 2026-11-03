@@ -103,3 +103,73 @@
 .next-trip-body dd { font-size:15px; font-weight:800; }
 .next-trip-ticket:hover .next-trip-name { text-decoration:underline; text-underline-offset:5px; }
 @media(max-width:700px){ .next-trip-count strong{font-size:110px} .next-trip-count span{font-size:28px} .next-trip-name{font-size:24px} }
+
+/* Sign-in pages: photo panel with an ink fade. */
+.auth-artwork.has-photo>div { background:linear-gradient(0deg,rgb(23 46 51 / .92),rgb(23 46 51 / 0)); color:#fff; }
+.auth-eyebrow { font-size:13px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--night-accent); margin-bottom:10px; }
+.auth-layout h1, .auth-layout h2 { font-family:var(--font-display); font-weight:800; letter-spacing:-.02em; }
+
+/* Accent words in headings: teal, upright, no underline. */
+.tripanize-app :is(h1,h2) em { font-style:normal; color:var(--accent); text-decoration:none; }
+
+/* Feature pages: bold display type, the preview becomes an ink ticket, the price strip turns teal. */
+.feature-hero h1, .feature-preview figcaption>strong, .feature-content h2, .feature-content h3 { font-weight:800; letter-spacing:-.03em; }
+.feature-hero h1 em { font-style:normal; color:var(--accent); }
+.feature-preview { border:0; border-radius:32px; background:var(--night); color:var(--night-ink); box-shadow:0 22px 46px rgb(23 46 51 / .2); }
+.tripanize-app .feature-preview :is(h2,h3,strong,b) { color:var(--night-ink); -webkit-text-fill-color:var(--night-ink); }
+.feature-preview figcaption { border-bottom:2px dashed var(--night-line); }
+.feature-preview .feature-eyebrow, .feature-preview figcaption>span:first-child { color:var(--night-accent); }
+.feature-preview figcaption>span:last-child, .preview-day-strip, .preview-stops li span, .preview-members li>div>span, .preview-budget dt { color:var(--night-muted); }
+.preview-day-strip, .preview-stops li, .preview-members li { border-color:var(--night-line); }
+.preview-day-strip strong { border-radius:999px; background:#0f7f86; color:#fff; }
+.preview-handwritten, .preview-stops time, .preview-members b { color:var(--night-accent); }
+.preview-footnote { background:rgb(255 255 255 / .06); color:var(--night-muted); }
+.preview-footnote a { color:var(--night-accent); }
+.preview-avatar { border:0; background:#0f7f86; color:#fff; }
+.preview-members li:nth-child(2) .preview-avatar { background:var(--night-ink); color:var(--night); }
+.preview-members li:nth-child(3) .preview-avatar { background:var(--night-line); color:var(--night-ink); }
+.preview-budget { background:rgb(255 255 255 / .06); }
+.tripanize-app .preview-budget dd { color:var(--night-ink); }
+.preview-payments li, .preview-settlements { border-color:var(--night-line); }
+.preview-payments small { color:var(--night-muted); }
+.preview-settlements>p { color:var(--night-accent); }
+.feature-content h2 { font-size:34px; }
+.feature-steps h3 { font-size:24px; }
+.feature-steps li { border:1px solid var(--line); border-radius:24px; background:var(--surface); padding:22px; }
+.feature-faq summary>span, .feature-role-guide dt { color:var(--accent); }
+.feature-fare { border:0; border-radius:32px; background:var(--accent); color:var(--on-accent); padding:30px 32px; }
+.tripanize-app .feature-fare h2 { color:var(--on-accent); -webkit-text-fill-color:var(--on-accent); }
+.feature-fare .feature-eyebrow, .feature-fare>div>p:last-child { color:var(--on-accent); opacity:.9; }
+.feature-fare>a { background:var(--bg); color:var(--accent); }
+
+/* Any ink card: headings stay light. */
+.tripanize-app .night-card :is(h1,h2,h3,h4) { color:var(--night-ink); -webkit-text-fill-color:var(--night-ink); }
+
+/* Section headings a step larger, in the display face. */
+.tripanize-app h2.font-display.text-lg { font-size:1.375rem; line-height:1.2; }
+.tripanize-app h2.font-display.text-xl { font-size:1.625rem; line-height:1.2; }
+
+/* City guides and trip ideas. */
+.guide-hero h1, .guide-section-heading h2, .guide-content h2, .guide-day-heading h3, .guide-food h3, .guide-budget-total, .guide-practical h3, .trip-idea h3, .guide-index-heading h1 { font-weight:800; letter-spacing:-.03em; }
+.guide-subtitle { font-family:var(--font-display); font-style:normal; font-weight:800; color:var(--accent); }
+.guide-photo img { border:0; border-radius:32px; box-shadow:none; }
+.guide-day-buttons button { border-radius:20px; }
+.guide-day-buttons button[aria-pressed="true"] { background:var(--night); border-color:var(--night); color:var(--night-ink); }
+.guide-day-buttons button[aria-pressed="true"]>span { color:var(--night-accent); }
+.guide-stops time { font-family:var(--font-display); font-size:18px; color:var(--ink); }
+.guide-budget { border:0; border-radius:28px; background:var(--night); color:var(--night-ink); box-shadow:none; }
+.tripanize-app .guide-budget :is(h2,h3) { color:var(--night-ink); -webkit-text-fill-color:var(--night-ink); }
+.guide-budget h2.guide-eyebrow { color:var(--night-accent); -webkit-text-fill-color:var(--night-accent); }
+.guide-budget-basis, .guide-budget dt { color:var(--night-muted); }
+.guide-budget dl>div { border-color:var(--night-line); }
+.guide-budget summary, .guide-budget summary::after { color:var(--night-accent); }
+.guide-budget details>p { color:var(--night-muted); }
+.guide-copy { border:0; border-radius:32px; background:var(--accent); color:var(--on-accent); }
+.tripanize-app .guide-copy h2 { color:var(--on-accent); -webkit-text-fill-color:var(--on-accent); }
+.guide-copy p { color:var(--on-accent); opacity:.9; }
+.trip-idea { border-radius:24px; box-shadow:none; }
+.guide-index-list>a { border:1px solid var(--line); border-radius:24px; background:var(--surface); padding:22px 24px; }
+.guide-index-list>a:hover { border-color:var(--accent); }
+.guide-index-list { gap:16px; }
+.guide-city-nav a[aria-current="page"] { color:var(--ink); }
+.guide-copy>a, .guide-copy :is(button,a).bg-accent { background:var(--bg); color:var(--accent); }

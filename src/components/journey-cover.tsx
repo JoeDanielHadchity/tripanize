@@ -25,8 +25,10 @@ export function JourneyCover({ name, dates, destinations, countdown }: { name: s
 
 export function AuthArtwork() {
   const path = usePathname();
-  return <aside className={`auth-artwork${path === "/sign-in" ? " has-photo" : ""}`} aria-hidden="true">
-    {path === "/sign-in" && <img decoding="async" src="/editorial/auth.webp" alt="" />}
-    <div><p className="font-display text-4xl font-semibold">Plan less.<br />Travel more.</p></div>
+  // Design 004: every sign-in style page gets the photo panel with an ink fade and a big headline.
+  const copy = path === "/sign-in" ? ["Welcome back", <>Your next trip<br />is waiting.</>] : path === "/sign-up" ? ["Start free", <>Plan less.<br />Travel more.</>] : ["Tripanize", <>Plan less.<br />Travel more.</>];
+  return <aside className="auth-artwork has-photo" aria-hidden="true">
+    <img decoding="async" src="/editorial/auth.webp" alt="" />
+    <div><p className="auth-eyebrow">{copy[0]}</p><p className="font-display text-5xl font-extrabold leading-[0.95]">{copy[1]}</p></div>
   </aside>;
 }

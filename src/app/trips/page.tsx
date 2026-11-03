@@ -55,7 +55,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
             <input type="hidden" name="phase" value={phase} />
             <div className="flex gap-1 overflow-x-auto" role="group" aria-label="Filter trips">
               {FILTERS.map(([key, label]) => (
-                <Link key={key} href={`/trips?phase=${key}${q ? `&q=${encodeURIComponent(q)}` : ""}`} aria-current={phase === key ? "page" : undefined} className={cx("min-h-11 rounded-xl px-4 py-2.5 text-sm font-medium", phase === key ? "bg-ink text-bg" : "bg-surface text-muted border border-line hover:text-ink")}>
+                <Link key={key} href={`/trips?phase=${key}${q ? `&q=${encodeURIComponent(q)}` : ""}`} aria-current={phase === key ? "page" : undefined} className={cx("min-h-11 rounded-full px-4 py-2.5 text-sm font-bold", phase === key ? "bg-night text-night-ink" : "bg-surface text-muted border border-line hover:text-ink")}>
                   {label}
                 </Link>
               ))}

@@ -146,5 +146,5 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs, onboarding = fa
 }
 
 function QuestionChoices({ q, picked, toggle }: { q: PlanQuestion; picked: string[]; toggle: (id: string, option: string, multi: boolean) => void }) {
-  return <fieldset><legend className="font-medium">{q.q}</legend><p className="text-xs text-muted">{q.multi ? "Choose any" : "Choose one"}</p><div className="mt-2 flex flex-wrap gap-2">{q.options.map(option => <button key={option} type="button" aria-pressed={picked.includes(option)} onClick={() => toggle(q.id, option, q.multi)} className={cx("min-h-11 rounded-full border px-4 text-sm", picked.includes(option) ? "border-accent bg-accent text-on-accent" : "border-line bg-surface hover:bg-surface-2")}>{option}</button>)}</div></fieldset>;
+  return <fieldset><legend className="font-extrabold">{q.q}</legend><p className="text-xs text-muted">{q.multi ? "Choose any" : "Choose one"}</p><div className="mt-2 flex flex-wrap gap-2">{q.options.map(option => <button key={option} type="button" aria-pressed={picked.includes(option)} onClick={() => toggle(q.id, option, q.multi)} className={cx("min-h-11 rounded-full border px-4 text-sm font-bold", picked.includes(option) ? "border-accent bg-accent text-on-accent" : "border-line bg-surface hover:bg-surface-2")}>{option}</button>)}</div></fieldset>;
 }
