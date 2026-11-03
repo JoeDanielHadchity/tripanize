@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import type { DayView, StopView } from "./types";
 import { formatDate } from "@/lib/dates";
 
-const COLORS = ["#3f6d83", "#b55a3c", "#7a4f00", "#65416f", "#497559", "#326b82", "#a3261c", "#555"];
+const COLORS = ["#0b6e74", "#172e33", "#7a4f00", "#65416f", "#497559", "#326b82", "#a3261c", "#555"];
 
 /** Map of stops that have coordinates. Coordinates come from the AI or travelers and are approximate. */
 export default function TripMap({ days, ideas, compact = false }: { days: DayView[]; ideas: StopView[]; compact?: boolean }) {

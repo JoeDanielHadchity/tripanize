@@ -37,7 +37,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
         <Notice tone="accent" title="Your trip is created" className="mb-5">
           <p>Choose how to start. You can switch any time.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <a href="#plan-form" className="inline-flex min-h-11 items-center rounded-xl bg-accent px-4 font-medium text-on-accent">Plan with AI</a>
+            <a href="#plan-form" className="inline-flex min-h-11 items-center rounded-full bg-sage px-5 font-extrabold text-on-sage">Plan with AI</a>
             <LinkButton href={`/trips/${tripId}/itinerary`}>Start planning manually</LinkButton>
           </div>
         </Notice>

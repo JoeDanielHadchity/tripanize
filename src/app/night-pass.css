@@ -1,0 +1,105 @@
+/* Design 004: Night Pass in Design 001 colours. Loaded last, so it refines the older layers.
+   Cream ground, deep ink (--night) for the bold pieces, teal for actions, coral only for AI. */
+
+.tripanize-app .rounded-xl { border-radius:18px; }
+.tripanize-app .rounded-2xl { border-radius:24px; }
+.tripanize-app .rounded-3xl { border-radius:28px; }
+.tripanize-app .font-display { font-weight:800; }
+.tripanize-app :is(h1,h2,h3) { letter-spacing:-0.015em; }
+
+/* Header links: pills, the current page in ink. */
+.public-site-header nav>a, .app-main-nav .public-nav-link { padding:0 14px; border-radius:999px; font-weight:700; }
+.public-site-header .public-nav-link:hover, .app-main-nav .public-nav-link:hover { background:var(--surface-2); color:var(--ink); text-decoration:none; }
+.public-site-header .public-nav-link[aria-current="page"], .app-main-nav .public-nav-link[aria-current="page"] { background:var(--night); color:var(--night-ink); text-decoration:none; }
+.public-header nav { gap:4px; }
+
+/* Every serif-weight heading from the older layers becomes the bold display style. */
+.hero-copy h1, .home-features>h2, .home-features h3, .home-fare h2, .home-price, .start-heading, .start-choice h2,
+.journey-cover h2, .premium-pass-intro h1, .premium-pass-ticket-heading h2, .premium-pass-price strong,
+.premium-pass-section-heading h2, .premium-pass-step-title strong, .hero-airports { font-weight:800; letter-spacing:-0.03em; }
+
+/* Home page: the hero becomes the dark boarding pass. */
+.hero-ticket { background:var(--night); color:var(--night-ink); border:0; border-radius:32px; box-shadow:0 24px 50px rgb(23 46 51 / .2); }
+.ticket-tape { display:none; }
+.tripanize-app .hero-ticket :is(h1,h2,h3) { color:var(--night-ink); -webkit-text-fill-color:var(--night-ink); }
+.hero-copy h1 em { color:var(--night-accent); font-style:normal; text-decoration:none; }
+.hero-copy>p { color:var(--night-muted); }
+.hero-watch { color:var(--night-accent); }
+.travel-window { border:0; background:var(--night-line); box-shadow:none; transform:rotate(-3deg); }
+.travel-window img { border:0; }
+.hero-stub { border-left:2px dashed var(--night-line); }
+.hero-stub:before, .hero-stub:after { width:26px; height:13px; left:-14px; background:var(--bg); border:0; }
+.hero-airports { border-color:var(--night-line); font-family:var(--font-display); font-size:24px; }
+.hero-ticket .text-muted { color:var(--night-muted); }
+.hero-airports span { color:var(--night-accent); }
+.hero-ticket .ticket-label { color:var(--night-muted); }
+.hero-ticket .ticket-barcode { background:repeating-linear-gradient(90deg,var(--night-ink) 0,var(--night-ink) 1px,transparent 1px,transparent 3px,var(--night-ink) 3px,var(--night-ink) 6px,transparent 6px,transparent 7px,var(--night-ink) 7px,var(--night-ink) 8px,transparent 8px,transparent 12px); }
+.home-features>h2 { font-size:44px; }
+.home-features article { border:1px solid var(--line); border-radius:28px; background:var(--surface); padding:24px; }
+.feature-number { font-family:var(--font-display); font-size:36px; line-height:1; font-weight:800; color:var(--accent); }
+.home-fare { border:0; border-radius:32px; background:var(--accent); color:var(--on-accent); padding:28px 32px; }
+.tripanize-app .home-fare h2 { color:var(--on-accent); -webkit-text-fill-color:var(--on-accent); font-size:34px; }
+.home-fare>div>p, .home-price small { color:var(--on-accent); opacity:.9; }
+.flight-note { border-radius:24px; transform:none; box-shadow:none; }
+.start-choice { border-radius:28px; box-shadow:none; }
+.start-choice:hover { border-color:var(--accent); }
+.auth-artwork { border-radius:36px; }
+
+/* Trip pages: back link and badges, the dark trip banner, then the section tabs. */
+.trip-workspace { display:block; max-width:1360px; padding:20px 32px 100px; }
+.trip-topline { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; margin-bottom:12px; }
+.trip-back { display:inline-flex; align-items:center; min-height:44px; margin-right:6px; font-size:14px; font-weight:700; color:var(--muted); }
+.trip-back:hover { color:var(--ink); }
+.trip-topline .premium-link { display:inline-flex; align-items:center; min-height:44px; font-size:13px; font-weight:800; color:var(--accent-ink); }
+.journey-cover { display:flex; flex-wrap:wrap; align-items:center; gap:14px 20px; min-height:0; margin-bottom:16px; padding:18px 26px; border:0; border-radius:28px; background:var(--night); color:var(--night-ink); }
+.journey-cover.has-photo { padding-left:14px; }
+.journey-cover>img { position:static; inset:auto; width:132px; height:92px; flex:none; border-radius:18px; object-fit:cover; }
+.journey-cover.has-photo:after { display:none; }
+.journey-cover-text { flex:1 1 280px; min-width:0; }
+.journey-cover .journey-cover-text>p, .journey-cover.has-photo .journey-cover-text>p { color:var(--night-accent); font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
+.tripanize-app .journey-cover h2 { color:var(--night-ink); -webkit-text-fill-color:var(--night-ink); font-family:var(--font-display); font-size:36px; line-height:1.05; margin-top:4px; }
+.journey-cover p.journey-cover-count { display:flex; align-items:baseline; gap:8px; margin:0; color:var(--night-muted); font-size:15px; font-weight:800; letter-spacing:0; text-transform:none; }
+.journey-cover-count strong { font-family:var(--font-display); font-size:44px; line-height:1; color:var(--night-accent); }
+.trip-tabbar { bottom:max(12px, env(safe-area-inset-bottom)); }
+
+/* Premium pass: the ticket turns ink with a teal action. */
+.premium-pass-intro h1 { font-size:56px; line-height:1; }
+.premium-pass-ticket { border-radius:32px; background:var(--night); color:var(--night-ink); padding:26px; box-shadow:0 20px 44px rgb(23 46 51 / .2); }
+.tripanize-app .premium-pass-ticket :is(h1,h2,h3) { color:var(--night-ink); -webkit-text-fill-color:var(--night-ink); }
+.premium-pass-divider { border-top:2px dashed var(--night-line); margin-left:-26px; margin-right:-26px; }
+.premium-pass-divider::before, .premium-pass-divider::after { width:26px; height:26px; top:-14px; }
+.premium-pass-divider::before { left:-13px; }
+.premium-pass-divider::after { right:-13px; }
+.premium-pass-action :is(button,a) { min-height:52px; border:0; border-radius:999px; background:#0f7f86; color:#fff; justify-content:center; }
+.premium-pass-action :is(button,a):focus-visible { outline-color:var(--night-accent); }
+
+@media(max-width:1023px){ .trip-workspace{ padding:16px 16px 110px; } }
+@media(max-width:700px){
+  .journey-cover { padding:16px 18px; }
+  .journey-cover>img { width:88px; height:64px; border-radius:14px; }
+  .tripanize-app .journey-cover h2 { font-size:26px; }
+  .journey-cover-count strong { font-size:32px; }
+  .home-features>h2 { font-size:34px; }
+  .premium-pass-intro h1 { font-size:40px; }
+}
+
+/* My trips: countdown and next trip as a boarding pass. */
+.next-trip { display:flex; flex-wrap:wrap; align-items:center; gap:24px 32px; margin-bottom:36px; }
+.next-trip-count { flex:1 1 280px; }
+.next-trip-count>p { font-size:16px; font-weight:700; color:var(--muted); }
+.next-trip-count>div { display:flex; align-items:flex-end; gap:14px; }
+.next-trip-count strong { font-family:var(--font-display); font-size:150px; line-height:.8; font-weight:800; letter-spacing:-.06em; color:var(--accent); }
+.next-trip-count span { font-family:var(--font-display); font-size:38px; line-height:1.05; font-weight:800; letter-spacing:-.02em; padding-bottom:4px; }
+.next-trip-ticket { flex:1 1 520px; max-width:720px; min-width:0; display:flex; flex-wrap:wrap; overflow:hidden; border-radius:32px; background:var(--night); color:var(--night-ink); box-shadow:0 20px 44px rgb(23 46 51 / .2); }
+.next-trip-ticket>img, .next-trip-art { flex:1 1 200px; min-height:200px; width:200px; object-fit:cover; }
+.next-trip-body { flex:1 1 300px; min-width:0; padding:22px 26px; display:flex; flex-direction:column; gap:10px; }
+.next-trip-top { display:flex; justify-content:space-between; gap:10px; font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--night-accent); }
+.next-trip-top span:last-child { color:var(--night-muted); letter-spacing:0; text-transform:none; font-size:13px; }
+.next-trip-name { font-family:var(--font-display); font-size:30px; line-height:1.05; font-weight:800; letter-spacing:-.02em; }
+.next-trip-route { font-family:var(--font-display); font-size:22px; font-weight:800; }
+.next-trip-route span { color:var(--night-accent); }
+.next-trip-body dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; border-top:2px dashed var(--night-line); padding-top:12px; margin-top:auto; }
+.next-trip-body dt { font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--night-muted); }
+.next-trip-body dd { font-size:15px; font-weight:800; }
+.next-trip-ticket:hover .next-trip-name { text-decoration:underline; text-underline-offset:5px; }
+@media(max-width:700px){ .next-trip-count strong{font-size:110px} .next-trip-count span{font-size:28px} .next-trip-name{font-size:24px} }

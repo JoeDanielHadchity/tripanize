@@ -68,6 +68,14 @@ export function tripPhase(start: string | null | undefined, end: string | null |
   return "current";
 }
 
+/** "12 days to go", "Day 2 of 4", or null when the trip is undated or over. */
+export function tripCountdown(start: string | null | undefined, end: string | null | undefined, today: string): { value: string; label: string } | null {
+  if (!start || !end) return null;
+  if (today < start) { const n = daysBetween(today, start); return { value: String(n), label: n === 1 ? "day to go" : "days to go" }; }
+  if (today > end) return null;
+  return { value: `Day ${daysBetween(start, today) + 1}`, label: `of ${daysBetween(start, end) + 1}` };
+}
+
 export function formatDate(date: string | null | undefined, opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" }) {
   if (!date) return "Date not set";
   return new Intl.DateTimeFormat("en-GB", { ...opts, timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));

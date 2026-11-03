@@ -4,7 +4,7 @@ import { requireUser } from "@/server/auth/session";
 import { listTrips, type TripCard } from "@/server/trips/service";
 import { AppHeader } from "@/components/shell";
 import { Badge, EmptyState, LinkButton, Notice, PageHeader, cx } from "@/components/ui";
-import { formatDateRange, tripLength } from "@/lib/dates";
+import { formatDateRange, tripCountdown, tripLength } from "@/lib/dates";
 import { EXAMPLES } from "@/server/examples/data";
 import { listPendingInvitations } from "@/server/invitations/service";
 import { PendingInvites } from "@/components/pending-invites";
@@ -23,7 +23,7 @@ const FILTERS = [
 
 const PHASE: Record<TripCard["phase"], { label: string; tone: "accent" | "sage" | "neutral" | "warn" }> = {
   current: { label: "Happening now", tone: "accent" },
-  upcoming: { label: "Upcoming", tone: "sage" },
+  upcoming: { label: "Upcoming", tone: "neutral" },
   past: { label: "Past", tone: "neutral" },
   undated: { label: "Dates not set", tone: "warn" },
 };
@@ -37,10 +37,13 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
   if (selectedTrip) trips.sort((a, b) => Number(b.id === selectedTrip.id) - Number(a.id === selectedTrip.id));
   const invites = await listPendingInvitations(user.id);
   const trial = await userTrialAccess(user.id);
+  // Trips are sorted current first, then upcoming by date.
+  const nextTrip = all.find(t => t.phase === "current" || t.phase === "upcoming");
   return (
     <>
       <AppHeader user={user} current="trips" />
       <main id="main" className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+        {nextTrip && <NextTrip trip={nextTrip} firstName={user.name.split(" ")[0] ?? ""} />}
         <PageHeader title="My trips"  actions={<><LinkButton href="/destinations">Find a destination</LinkButton><LinkButton href="/plans">Upgrade to Premium</LinkButton><LinkButton href="/trips/new" variant="primary">+ Create a trip</LinkButton></>} />
         {selectedTrip && <Notice tone="accent" className="mb-5">Your chosen destination is saved in <strong>{selectedTrip.name}</strong>. Continue planning from your trip below.</Notice>}
         <PendingInvites invites={invites} />
@@ -96,6 +99,40 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
         </section>
       </main>
     </>
+  );
+}
+
+function tripHref(trip: TripCard) {
+  return `/trips/${trip.id}/${trip.role !== "OWNER" || trip.onboardingStage === "COMPLETE" ? "itinerary" : trip.onboardingStage === "PLAN" ? "premium" : "onboarding"}`;
+}
+
+/** Design 004: the big countdown next to the next trip as a boarding pass. */
+function NextTrip({ trip, firstName }: { trip: TripCard; firstName: string }) {
+  const count = tripCountdown(trip.startDate, trip.endDate, trip.today);
+  if (!count) return null;
+  const places = trip.destinations.map(d => d.split(",")[0].trim()).filter(Boolean);
+  const first = places[0] ?? trip.name;
+  const days = tripLength(trip.startDate, trip.endDate);
+  return (
+    <section className="next-trip" aria-label="Your next trip">
+      <div className="next-trip-count">
+        <p>{firstName ? `Hi ${firstName}` : "Your next trip"}</p>
+        <div><strong>{count.value}</strong><span>{trip.phase === "current" ? <>{count.label}<br />in {first}</> : <>{count.label.replace(" to go", "")} to<br />{first}</>}</span></div>
+      </div>
+      <Link href={tripHref(trip)} className="next-trip-ticket" aria-label={`Open ${trip.name}`}>
+        {trip.imageUrl ? <img src={trip.imageUrl} alt="" /> : <span className="next-trip-art brand-backdrop" aria-hidden="true" />}
+        <div className="next-trip-body">
+          <div className="next-trip-top"><span>{trip.phase === "current" ? "Happening now" : "Next trip"} · {trip.role === "OWNER" ? "Organizer" : trip.role === "VIEWER" ? "Viewer" : "Editor"}</span><span aria-hidden="true">Open trip →</span></div>
+          <p className="next-trip-name">{trip.name}</p>
+          {places.length > 1 && <p className="next-trip-route">{places[0]} <span aria-hidden="true">→</span><span className="sr-only">to</span> {places[places.length - 1]}</p>}
+          <dl>
+            <div><dt>Dates</dt><dd>{formatDateRange(trip.startDate, trip.endDate)}</dd></div>
+            <div><dt>Days</dt><dd>{days ?? "—"}</dd></div>
+            <div><dt>Crew</dt><dd>{trip.travelers.length || 1} {(trip.travelers.length || 1) === 1 ? "person" : "people"}</dd></div>
+          </dl>
+        </div>
+      </Link>
+    </section>
   );
 }
 

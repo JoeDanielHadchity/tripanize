@@ -7,13 +7,9 @@
 .tripanize-app :is(h1,h2,h3,h4) { color:var(--ink); opacity:1; -webkit-text-fill-color:currentColor; }
 .tripanize-app .photo-title,.journey-cover.has-photo h2 { color:#fffdf8; -webkit-text-fill-color:#fffdf8; }
 .tripanize-app :is(h1,h2,h3).text-danger { color:var(--danger); }
-.tripanize-app .rounded-xl { border-radius:6px; }
-.tripanize-app .rounded-2xl { border-radius:9px; }
-.tripanize-app .rounded-3xl { border-radius:12px; }
 .tripanize-app :is(input,textarea,select) { accent-color:var(--accent); }
 .tripanize-app :is(button,a,input,select,textarea) { -webkit-tap-highlight-color:transparent; }
 .tripanize-app main { min-width:0; }
-.tripanize-app .font-display { font-variation-settings:"SOFT" 100,"WONK" 1; }
 
 .public-header { max-width:1120px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:22px 24px; }
 .public-header nav { display:flex; align-items:center; gap:19px; font-size:14px; }
@@ -98,10 +94,10 @@
 .auth-artwork { border-radius:120px 120px 10px 10px; background:var(--accent-soft); display:flex; align-items:end; overflow:hidden; position:relative; min-height:450px; }
 .auth-artwork img { position:absolute; width:100%; height:100%; object-fit:cover; }
 .auth-artwork>div { padding:38px; z-index:1; position:relative; width:100%; }
-.auth-artwork.has-photo>div { background:linear-gradient(0deg,#102c36d9,transparent); color:#fffdf8; padding-top:110px; }
+.auth-artwork.has-photo>div { background:linear-gradient(0deg,#172e33d9,transparent); color:#fffdf8; padding-top:110px; }
 .journey-cover { padding:22px; min-height:106px; border:1px solid var(--line); background:var(--accent-soft); border-radius:8px; position:relative; overflow:hidden; display:flex; align-items:end; margin-bottom:26px; }
 .journey-cover>img { position:absolute; width:100%; height:100%; inset:0; object-fit:cover; }
-.journey-cover.has-photo:after { content:""; position:absolute; inset:0; background:linear-gradient(90deg,#102c36ed,#102c3699); }
+.journey-cover.has-photo:after { content:""; position:absolute; inset:0; background:linear-gradient(90deg,#172e33ed,#172e3399); }
 .journey-cover>div { position:relative; z-index:1; min-width:0; }
 .journey-cover p { font-size:12px; color:var(--muted); line-height:1.6; overflow-wrap:anywhere; }
 .journey-cover.has-photo p { color:#fffdf8; }
