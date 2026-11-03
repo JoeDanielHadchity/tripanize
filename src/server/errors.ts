@@ -5,6 +5,7 @@ export type ErrorCode =
   | "VALIDATION"
   | "CONFLICT"
   | "RATE_LIMITED"
+  | "CREDITS"
   | "NOT_CONFIGURED"
   | "UPSTREAM"
   | "TIMEOUT";

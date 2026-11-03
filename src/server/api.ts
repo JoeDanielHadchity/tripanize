@@ -12,7 +12,7 @@ export async function withUser(fn: (userId: string) => Promise<Response>) {
     return await fn(session.user.id);
   } catch (e) {
     if (e instanceof AppError) {
-      const status = { NOT_FOUND: 404, FORBIDDEN: 403, VALIDATION: 400, CONFLICT: 409, RATE_LIMITED: 429, NOT_CONFIGURED: 503, UNAUTHENTICATED: 401, UPSTREAM: 502, TIMEOUT: 504 }[e.code];
+      const status = { NOT_FOUND: 404, FORBIDDEN: 403, VALIDATION: 400, CONFLICT: 409, RATE_LIMITED: 429, CREDITS: 402, NOT_CONFIGURED: 503, UNAUTHENTICATED: 401, UPSTREAM: 502, TIMEOUT: 504 }[e.code];
       return NextResponse.json({ error: e.message, code: e.code }, { status });
     }
     console.error("[api]", e instanceof Error ? e.message : e);

@@ -7,7 +7,9 @@ import { missingEssentials } from "./context";
 import type { Prisma } from "@/generated/prisma/client";
 import { currentRuntime, normalUserMode } from "@/server/cloudflare/runtime";
 import { planningScope } from "@/server/plans/planning";
-import { requirePremiumAccess } from "@/server/plans/access";
+import { getTripPlan, requirePremiumAccess } from "@/server/plans/access";
+import { CREDIT_PRICES, planPrice } from "@/lib/credits";
+import { attachHold, hold, settle, settleRef, type CreditAction } from "@/server/credits/service";
 
 export type JobKind = "full" | "days" | "swap" | "restaurants";
 export type JobParams = { dates?: string[]; stopId?: string; instruction?: string | null; onboarding?: boolean; eventsReady?: boolean; normalMode?: boolean; restaurantBaseHash?: string };
@@ -49,9 +51,19 @@ export async function enqueueJob(userId: string, tripId: string, kind: JobKind, 
 
   await rateLimit(`ai:${kind === "swap" ? "swap" : "plan"}:${userId}`, kind === "swap" ? 30 : 12, 3600, "You've reached the hourly limit for AI requests. Please try again later.");
   const restaurantBaseHash = kind === "restaurants" ? (await (await import("./restaurant-refresh")).restaurantRefreshState(prisma, tripId)).hash : undefined;
-  const job = await prisma.generationJob.create({
-    data: { tripId, kind, params: { dates: scope ?? params.dates ?? null, stopId: params.stopId ?? null, instruction: params.instruction?.slice(0, 500) ?? null, ...(restaurantBaseHash ? { restaurantBaseHash } : {}), ...(params.onboarding ? { onboarding: true } : {}), ...(normalUserMode(userId) ? { normalMode: true } : {}) } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your trip is queued and will start shortly" }] },
-  });
+  // Credits are held now and settled when the job ends: spent on success, refunded on failure or cancel.
+  const price = await jobPrice(tripId, kind, scope ?? params.dates ?? null, Boolean(params.onboarding));
+  const held = await hold({ actorId: userId, tripId, action: price.action, credits: price.credits, refKind: "job" });
+  let job;
+  try {
+    job = await prisma.generationJob.create({
+      data: { tripId, kind, params: { dates: scope ?? params.dates ?? null, stopId: params.stopId ?? null, instruction: params.instruction?.slice(0, 500) ?? null, ...(restaurantBaseHash ? { restaurantBaseHash } : {}), ...(params.onboarding ? { onboarding: true } : {}), ...(normalUserMode(userId) ? { normalMode: true } : {}) } as Prisma.InputJsonValue, requestedById: userId, progress: [{ at: new Date().toISOString(), message: "Your trip is queued and will start shortly" }] },
+    });
+    await attachHold(held?.id, job.id);
+  } catch (error) {
+    await settle(held?.id, "refunded");
+    throw error;
+  }
   await currentRuntime().wakeAi?.();
   return { jobId: job.id, existing: false };
 }
@@ -84,7 +96,17 @@ export async function cancelJob(userId: string, tripId: string, jobId: string) {
   }
   if (job.status === "QUEUED") {
     await prisma.generationJob.updateMany({ where: { id: jobId, status: "QUEUED" }, data: { status: "CANCELLED", finishedAt: new Date(), cancelRequested: true } });
+    await settleRef("job", jobId);
   } else if (job.status === "RUNNING") {
     await prisma.generationJob.update({ where: { id: jobId }, data: { cancelRequested: true } });
   }
+}
+
+/** The credits a planning job costs: per day planned (plus events and packing during Premium setup), or per swap. */
+async function jobPrice(tripId: string, kind: JobKind, dates: string[] | null, onboarding: boolean): Promise<{ action: CreditAction; credits: number }> {
+  if (kind === "swap") return { action: "swap", credits: CREDIT_PRICES.swap };
+  const days = dates?.length ?? await prisma.itineraryDay.count({ where: { tripId } });
+  if (kind === "restaurants") return { action: "restaurants", credits: Math.max(1, days) * CREDIT_PRICES.restaurantsDay };
+  if (kind === "days") return { action: "regenerate", credits: planPrice(days) };
+  return { action: "plan", credits: planPrice(days, { setup: onboarding, premium: onboarding && (await getTripPlan(tripId)).premium }) };
 }

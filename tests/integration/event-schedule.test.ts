@@ -122,3 +122,16 @@ it("stops automatic searches once the trip has started", async () => {
   expect(await queueDueDiscoveries(new Date("2030-06-16T10:00Z"))).toBe(0);
   expect((await prisma.trip.findUniqueOrThrow({ where: { id: f.tripId } })).nextDiscoveryAt).toBeNull();
 });
+
+it("waits until 45 days before the trip, and stops after 10 automatic checks", async () => {
+  const f = await fixture();
+  // 2030-06-15 minus 45 days = 2030-05-01: nothing before that, even for a brand-new trip.
+  expect(await queueDueDiscoveries(new Date("2030-04-10T12:00Z"))).toBe(0);
+  // 09:00 in the trip's time zone (Lisbon, UTC+1 in May).
+  expect((await prisma.trip.findUniqueOrThrow({ where: { id: f.tripId } })).nextDiscoveryAt?.toISOString()).toBe("2030-05-01T08:00:00.000Z");
+  expect(await queueDueDiscoveries(new Date("2030-05-01T10:00Z"))).toBe(1);
+  await prisma.discoveryRun.deleteMany({ where: { tripId: f.tripId } });
+  for (let i = 0; i < 10; i++) await prisma.discoveryRun.create({ data: { tripId: f.tripId, trigger: "scheduled", status: "succeeded", finishedAt: new Date(`2030-05-${String(i + 1).padStart(2, "0")}T09:30Z`) } });
+  expect(await queueDueDiscoveries(new Date("2030-06-14T10:00Z"))).toBe(0);
+  expect((await prisma.trip.findUniqueOrThrow({ where: { id: f.tripId } })).nextDiscoveryAt).toBeNull();
+});

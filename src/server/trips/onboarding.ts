@@ -13,6 +13,8 @@ import { refreshSuggestions } from "@/server/packing/service";
 import type { Generator } from "@/server/planner/run";
 import type { Proposal } from "@/server/planner/schema";
 import { acceptTrialInvitation, pendingTrialInvitations, redeemedTrialTrip } from "@/server/admin/trials";
+import { hold } from "@/server/credits/service";
+import { planPrice } from "@/lib/credits";
 
 export async function createTripDraft(userId: string, name: string, trialInvitationId?: string) {
   const [trial] = await pendingTrialInvitations(userId);
@@ -105,6 +107,12 @@ export async function retryOnboarding(userId: string, tripId: string) {
   const state = await onboardingState(userId, tripId);
   if (!state.job || !["FAILED", "CANCELLED"].includes(state.job.status)) throw new AppError("CONFLICT", "This trip is already being prepared.");
   const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: state.job.id } });
+  // The failed attempt's credits were refunded, so a retry the organizer asks for holds them again.
+  if (job.kind === "full") {
+    const dates = (job.params as { dates?: string[] | null }).dates;
+    const days = dates?.length ?? await prisma.itineraryDay.count({ where: { tripId } });
+    await hold({ actorId: userId, tripId, action: "plan", credits: planPrice(days, { setup: true, premium: (await getTripPlan(tripId)).premium }), refKind: "job", refId: job.id });
+  }
   await prisma.generationJob.update({ where: { id: job.id }, data: { status: "QUEUED", requestedById: userId, params: { ...(job.params as Prisma.JsonObject), retryCycle: crypto.randomUUID() }, error: null, errorCode: null, finishedAt: null, cancelRequested: false } });
   await currentRuntime().wakeAi?.();
 }

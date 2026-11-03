@@ -7,6 +7,7 @@ import { claimJob, runJob, type Generator, type PlanCheckpoint } from "@/server/
 import { AIError, generateStructured } from "@/server/ai/openai";
 import type { GenerationJob, Prisma } from "@/generated/prisma/client";
 import { runDiscovery } from "@/server/events/discovery";
+import { settleRef } from "@/server/credits/service";
 import { nextChangeEmailAt, sendNextChangeEmail } from "@/server/notifications/changes";
 import { expireMemberLocations } from "@/server/locations/service";
 import { sendNextTrialEmail } from "@/server/admin/trials";
@@ -92,15 +93,16 @@ export class AiTasks {
             save: (checkpoint) => this.serialize(() => this.storage.put(key, checkpoint)),
             retrySetup: error => this.retrySetup(job, error),
           });
+          await settleRef("job", job.id);
           return;
         }
         const search = await db.destinationSearch.findFirst({ where: { deletedAt: null, status: { in: ["QUEUED", "RUNNING"] } }, orderBy: [{ queuedAt: "asc" }, { createdAt: "asc" }] });
-        if (search) { await runDestinationSearch(search.id, this.generate); return; }
+        if (search) { await runDestinationSearch(search.id, this.generate); await settleRef("destination", search.id); return; }
         // An interrupted event search is reported honestly instead of being left
         // running forever or automatically repeating external notifications.
         await db.discoveryRun.updateMany({ where: { status: "running" }, data: { status: "failed", finishedAt: new Date(), error: "The event search was interrupted. Please run a new check." } });
         const discovery = await db.discoveryRun.findFirst({ where: { status: "queued" }, orderBy: { createdAt: "asc" } });
-        if (discovery) await runDiscovery(discovery.id, this.generate);
+        if (discovery) { await runDiscovery(discovery.id, this.generate); await settleRef("discovery", discovery.id); }
       });
     } finally {
       try {

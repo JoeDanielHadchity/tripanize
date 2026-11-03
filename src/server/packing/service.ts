@@ -1,4 +1,6 @@
 import { prisma } from "@/server/db";
+import { CREDIT_PRICES } from "@/lib/credits";
+import { withCredits } from "@/server/credits/service";
 import { AppError, conflictError } from "@/server/errors";
 import { canEditPackingItem, canViewPackingItem, requireTrip, roleAllows } from "@/server/auth/permissions";
 import { recordChange } from "@/server/audit";
@@ -42,7 +44,18 @@ export async function getPacking(userId: string, tripId: string) {
  * Adds new suggestions without touching existing items: personal additions, edits and packed checkmarks are
  * preserved, removed suggestions stay removed, and the unique (trip, list, normalized label) key prevents duplicates.
  */
+/**
+ * Packing suggestions. Asked for by someone, they cost a credit (refunded if the AI fails);
+ * as part of trip setup (with a jobId) they are already covered by the setup's credits.
+ */
 export async function refreshSuggestions(userId: string, tripId: string, opts: { laundry: boolean | null; personalized?: boolean; generate?: Generator; jobId?: string }) {
+  if (opts.jobId) return generateSuggestions(userId, tripId, opts);
+  await requireTrip(tripId, userId, "view");
+  await requirePremiumAccess(tripId, "packing");
+  return withCredits({ actorId: userId, tripId, action: "packing", credits: CREDIT_PRICES.packing }, () => generateSuggestions(userId, tripId, opts));
+}
+
+async function generateSuggestions(userId: string, tripId: string, opts: { laundry: boolean | null; personalized?: boolean; generate?: Generator; jobId?: string }) {
   const access = await requireTrip(tripId, userId, "view");
   await requirePremiumAccess(tripId, "packing");
   const trip = await prisma.trip.findUniqueOrThrow({

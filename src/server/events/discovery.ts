@@ -1,6 +1,8 @@
 import { nextDiscoveryAt } from "./schedule";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
+import { CREDIT_PRICES } from "@/lib/credits";
+import { attachHold, hold, settle } from "@/server/credits/service";
 import { requirePremiumTrip, requirePremiumAccess } from "@/server/plans/access";
 import { rateLimit } from "@/server/ratelimit";
 import { AIError, aiConfigured, generateStructured } from "@/server/ai/openai";
@@ -17,7 +19,10 @@ export async function requestDiscovery(userId: string, tripId: string) {
   const active = await prisma.discoveryRun.findFirst({ where: { tripId, status: { in: ["queued", "running"] } } });
   if (active) { await currentRuntime().wakeAi?.(); return active; }
   await rateLimit(`discover:${userId}`, 10, 3600, "You've refreshed events a lot recently. Please try again later.");
-  const run = await prisma.discoveryRun.create({ data: { tripId, trigger: "manual", requestedById: userId } });
+  // An event search someone asks for costs credits; the automatic checks are free.
+  const held = await hold({ actorId: userId, tripId, action: "events", credits: CREDIT_PRICES.events, refKind: "discovery" });
+  let run;
+  try { run = await prisma.discoveryRun.create({ data: { tripId, trigger: "manual", requestedById: userId } }); await attachHold(held?.id, run.id); } catch (error) { await settle(held?.id, "refunded"); throw error; }
   await currentRuntime().wakeAi?.();
   return run;
 }
