@@ -32,7 +32,7 @@ async function fixture(error: AIError, failures = 1) {
   } as unknown as DurableObjectStorage;
   let calls = 0;
   const generate = (async (opts: { name: string; metering?: { jobId?: string } }) => {
-    expect(opts.name).toBe("trip_packing"); expect(opts.metering?.jobId).toBe(job.id);
+    expect(opts.name).toBe("trip_packing"); expect((opts as { webSearch?: boolean }).webSearch).toBe(false); expect(opts.metering?.jobId).toBe(job.id);
     if (++calls <= failures) throw error;
     return { data: { items: [{ label: "Light layer", category: "Clothing", reason: "For this trip", shared: false, quantity: 1 }] }, model: "isolated", sources: [], usage: null };
   }) as Generator;

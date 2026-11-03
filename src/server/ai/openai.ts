@@ -31,6 +31,13 @@ export function aiModel(task?: string) {
   return process.env.OPENAI_MODEL || "gpt-6.1-terra";
 }
 
+/** Web searches allowed per request. Each costs $10 per 1,000 plus the pages it
+ * reads, so it is the main cost lever after the model; OPENAI_MAX_SEARCHES overrides it. */
+export function maxSearches() {
+  const n = Number(process.env.OPENAI_MAX_SEARCHES);
+  return Number.isInteger(n) && n >= 1 && n <= 10 ? n : 3;
+}
+
 export function webSearchEnabled() {
   return process.env.OPENAI_WEB_SEARCH !== "false";
 }
@@ -89,7 +96,7 @@ async function requestStructured<S extends z.ZodType>(opts: StructuredOptions<S>
         tools: useSearch ? [{ type: "web_search" }] : undefined,
         include: useSearch ? ["web_search_call.action.sources"] : undefined,
         // Supported by the Responses API; keep compatibility with older SDK typings.
-        ...(useSearch ? { max_tool_calls: 6 } : {}),
+        ...(useSearch ? { max_tool_calls: maxSearches() } : {}),
         text: { format: zodTextFormat(opts.schema, opts.name) },
         max_output_tokens: opts.maxOutputTokens ?? 24000,
         store: false,
