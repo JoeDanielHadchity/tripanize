@@ -18,14 +18,12 @@ import { reorderAction, restoreVersionAction, setActivePlanAction, updateDayActi
 import { formatDate, formatDuration, formatTimestamp } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import type { MapsApp } from "@/lib/maps";
-import type { GoogleMapsConfig } from "@/lib/google-maps";
 
 const TripMap = dynamic(() => import("@/components/itinerary/trip-map"), { ssr: false, loading: () => <p className="text-sm text-muted">Loading map…</p> });
 
 type Props = {
   tripId: string; canEdit: boolean; premium: boolean; currency: string; mapsApp: MapsApp; aiReady: boolean; routingLive: boolean; timezone: string; todayDate: string;
   days: DayView[]; ideas: StopView[]; versions: { id: string; reason: string; createdAt: string }[]; weatherNote: string | null;
-  googleMaps: GoogleMapsConfig | null;
 };
 
 export function ItineraryView(p: Props) {
@@ -120,7 +118,7 @@ export function ItineraryView(p: Props) {
           </ul>
         </section>
       ) : view === "map" ? (
-        <TripMap key={selectedDay?.id} days={selectedDay ? [selectedDay] : []} ideas={[]} google={p.googleMaps} />
+        <TripMap key={selectedDay?.id} days={selectedDay ? [selectedDay] : []} ideas={[]} />
       ) : (
         <>
         <div className={view === "split" ? "itinerary-split" : undefined}>
@@ -231,7 +229,7 @@ export function ItineraryView(p: Props) {
             );
           })}
         </ol>
-        {view === "split" && <aside className="itinerary-map-panel" aria-label="Selected day map"><TripMap key={selectedDay?.id} days={selectedDay ? [selectedDay] : []} ideas={[]} compact google={p.googleMaps} /></aside>}
+        {view === "split" && <aside className="itinerary-map-panel" aria-label="Selected day map"><TripMap key={selectedDay?.id} days={selectedDay ? [selectedDay] : []} ideas={[]} compact /></aside>}
         </div>
         </>
       )}
