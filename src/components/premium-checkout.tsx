@@ -11,7 +11,7 @@ import type { UserTrialAccess } from "@/server/admin/trials";
 import { ActivateTrialButton } from "./trial-access";
 
 type Summary = Awaited<ReturnType<typeof billingSummary>>;
-type Paddle = { Environment: { set: (environment: "sandbox") => void }; Initialize: (opts: { token: string; eventCallback: (event: { name: string }) => void }) => void; Checkout: { open: (opts: { transactionId: string; settings: { displayMode: "overlay"; showAddDiscounts: false; showAddTaxId: true } }) => void } };
+type Paddle = { Environment: { set: (environment: "sandbox") => void }; Initialize: (opts: { token: string; eventCallback: (event: { name: string }) => void }) => void; Checkout: { open: (opts: { transactionId: string; settings: { displayMode: "overlay"; showAddDiscounts: false; showAddTaxId: true } }) => void; close: () => void } };
 declare global { interface Window { Paddle?: Paddle } }
 let paddleLoading: Promise<Paddle> | undefined;
 let paddleInitialized = false;

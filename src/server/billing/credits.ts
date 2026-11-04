@@ -37,9 +37,11 @@ export async function recordCreditTransaction(tx: PaddleTransaction) {
     }
     // The price can be set with tax added on top (subtotal = price) or tax included (total = price).
     const totals = tx.details?.totals, amount = String(intent.amountMinor);
-    if (tx.status === "completed" && (!totals || totals.discount !== "0" || (totals.subtotal !== amount && totals.total !== amount))) throw new AppError("VALIDATION", "Payment total could not be verified.");
+    // "paid" means the payment is captured; Paddle marks it "completed" a few seconds later. Credits land on either.
+    const paid = tx.status === "paid" || tx.status === "completed";
+    if (paid && (!totals || totals.discount !== "0" || (totals.subtotal !== amount && totals.total !== amount))) throw new AppError("VALIDATION", "Payment total could not be verified.");
     const reviewRequired = (tx.adjustments ?? []).some(a => a.status === "approved" && REFUND_ACTIONS.includes(a.action));
-    const status = tx.status === "completed" ? "COMPLETED" : tx.status === "canceled" ? "CANCELED" : "PENDING";
+    const status = paid ? "COMPLETED" : tx.status === "canceled" ? "CANCELED" : "PENDING";
     await db.creditCheckout.update({ where: { id: intent.id }, data: { transactionId: tx.id, status, reviewRequired, ...(tx.details ? { paddleSummary: JSON.parse(JSON.stringify({ currency: tx.currency_code, totals: tx.details.totals, adjusted: tx.details.adjusted_totals, payout: tx.details.payout_totals, adjustments: tx.adjustments, syncedAt: new Date().toISOString() })) as Prisma.InputJsonValue } : {}) } });
     const bundle = CREDIT_BUNDLES.find(b => b.id === intent.bundle);
     await settlePurchaseCredits(db, { userId: intent.buyerId, credits: intent.credits, transactionId: tx.id, status, reviewRequired, note: `${bundle?.name ?? "Credits"}: ${intent.credits} credits`, tripId: intent.tripId });
@@ -95,10 +97,20 @@ export async function beginCreditCheckout(userId: string, bundleId: CreditBundle
   return { transactionId: response.data.id, clientToken: c.clientToken, environment, reused: false };
 }
 
-/** After the checkout window closes: re-reads this person's recent credit payments from Paddle. */
-export async function refreshCreditPayments(userId: string) {
-  await rateLimit(`credit-payment-status:${userId}`, 40, 300);
+/**
+ * Re-reads this person's recent credit payments from Paddle. With a transaction id (right after checkout),
+ * checks that payment first and says whether its credits have been added.
+ */
+export async function refreshCreditPayments(userId: string, transactionId?: string) {
+  await rateLimit(`credit-payment-status:${userId}`, 120, 300);
+  if (transactionId) {
+    const row = await prisma.creditCheckout.findFirst({ where: { buyerId: userId, transactionId, environment: billingEnvironment() } });
+    if (!row) throw new AppError("NOT_FOUND", "Payment not found.");
+    if (row.status !== "COMPLETED") await reconcileCreditPayment(transactionId);
+    const fresh = await prisma.creditCheckout.findUniqueOrThrow({ where: { id: row.id } });
+    return { added: fresh.status === "COMPLETED" && !fresh.reviewRequired, credits: fresh.credits };
+  }
   const recent = await prisma.creditCheckout.findMany({ where: { buyerId: userId, environment: billingEnvironment(), status: { in: ["PENDING", "COMPLETED"] }, transactionId: { not: null }, createdAt: { gt: new Date(Date.now() - 2 * 86400_000) } }, orderBy: { createdAt: "desc" }, take: 3 });
   for (const r of recent) await reconcileCreditPayment(r.transactionId!);
-  return recent.length;
+  return { added: false, credits: 0 };
 }

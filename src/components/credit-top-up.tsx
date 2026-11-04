@@ -25,19 +25,31 @@ export function CreditTopUp({ bundles, trips, available }: { bundles: readonly C
     const r = await fetch("/api/credits/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await r.json() as T & { error?: string }; if (!r.ok) throw new Error(data.error ?? "Please try again."); return data;
   }
-  async function confirm() {
-    setMessage("Confirming your payment…");
-    for (let i = 0; i < 12; i++) {
-      await new Promise(r => setTimeout(r, i ? 3000 : 1500));
-      try { await post({ refresh: true }); notifyCreditsChanged(); router.refresh(); } catch { /* keep trying */ }
+  /** Right after Paddle reports the payment: checks that payment every second until its credits are in. */
+  async function confirm(transactionId: string, credits: number, close: () => void) {
+    setMessage("Payment received. Adding your credits…");
+    for (let i = 0; i < 45; i++) {
+      try {
+        const r = await post<{ added: boolean; balance: number }>({ refresh: true, transactionId });
+        if (r.added) {
+          close(); notifyCreditsChanged(); router.refresh();
+          setMessage(`Done! ${credits} credits added. Your balance is now ${r.balance}.`);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+      } catch { /* keep trying */ }
+      await new Promise(r => setTimeout(r, i < 20 ? 1000 : 3000));
     }
-    setMessage("Thanks! Your credits appear here as soon as Paddle confirms the payment. Refresh this page in a minute if they don't show yet.");
+    setMessage("Your payment went through. Paddle is still confirming it; your credits will appear here within a few minutes.");
   }
   async function buy(b: CreditBundle) {
     setBusy(b.id); setError(""); setMessage("");
     try {
       const data = await post<{ transactionId: string; clientToken: string; environment: "sandbox" | "live" }>({ bundleId: b.id, tripId: b.unlocksPremium ? tripId || null : null });
-      const paddle = await preparePaddle(data.clientToken, data.environment, event => { if (event.name === "checkout.completed") void confirm(); });
+      let started = false;
+      const paddle = await preparePaddle(data.clientToken, data.environment, event => {
+        if (event.name === "checkout.completed" && !started) { started = true; void confirm(data.transactionId, b.credits, () => paddle.Checkout.close()); }
+      });
       paddle.Checkout.open({ transactionId: data.transactionId, settings: { displayMode: "overlay", showAddDiscounts: false, showAddTaxId: true } });
     } catch (e) { setError(e instanceof Error ? e.message : "Checkout could not be opened."); } finally { setBusy(null); }
   }

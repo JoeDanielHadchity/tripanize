@@ -4,7 +4,7 @@ import { prisma } from "@/server/db";
 import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
 import { getTripPlan } from "@/server/plans/access";
 import { recordVerifiedTransaction } from "@/server/billing/service";
-import { beginCreditCheckout, recordCreditTransaction } from "@/server/billing/credits";
+import { beginCreditCheckout, recordCreditTransaction, refreshCreditPayments } from "@/server/billing/credits";
 import { receivePaddleWebhook } from "@/server/billing/webhook";
 import { creditCheckoutAvailable, paddleConfigFromEnv } from "@/server/billing/config";
 import type { PaddleTransaction } from "@/server/billing/paddle";
@@ -63,6 +63,20 @@ it("accepts a price with tax included, where Paddle's subtotal is below the pric
   const other = await bundle(u.id, "topup", 500, 30);
   await expect(recordCreditTransaction({ ...wrong, custom_data: { ...wrong.custom_data, checkoutId: other.id } })).rejects.toMatchObject({ code: "VALIDATION" });
   expect(await balance(u.id)).toBe(45);
+});
+
+it("adds the credits as soon as Paddle says paid, and the page can check that one payment", async () => {
+  const u = await buyer(); const row = await bundle(u.id, "topup", 500, 30);
+  await prisma.creditCheckout.update({ where: { id: row.id }, data: { transactionId: txn(10) } });
+  const paid = tx(row.id, 500, row.priceId, 10, { kind: "credits", status: "paid" });
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ data: paid })));
+  expect(await refreshCreditPayments(u.id, txn(10))).toEqual({ added: true, credits: 30 });
+  expect(await balance(u.id)).toBe(45);
+  // Paddle's later "completed" changes nothing.
+  await recordCreditTransaction({ ...paid, status: "completed" });
+  expect(await balance(u.id)).toBe(45);
+  const stranger = await buyer();
+  await expect(refreshCreditPayments(stranger.id, txn(10))).rejects.toMatchObject({ code: "NOT_FOUND" });
 });
 
 it("unlocks Premium for the chosen trip with a bundle, never with the top-up", async () => {
