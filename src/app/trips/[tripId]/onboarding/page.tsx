@@ -9,8 +9,6 @@ import { LinkButton, Notice, PageHeader } from "@/components/ui";
 import { TripForm } from "@/components/trip-form";
 import { PlanQuestions } from "../plan/questions";
 import { OnboardingProgress } from "./progress";
-import { planPrice } from "@/lib/credits";
-import { planningScope } from "@/server/plans/planning";
 import type { PlanPrefs } from "@/server/planner/questions";
 export const metadata: Metadata = { title: "Prepare your trip" };
 export default async function OnboardingPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ step?: string }> }) {
@@ -34,6 +32,6 @@ export default async function OnboardingPage({ params, searchParams }: { params:
               destinations: trip.destinations.map((d) => ({ id: d.id, name: d.name, country: d.country, arriveDate: d.arriveDate, departDate: d.departDate, accommodationName: d.accommodationName, accommodationAddress: d.accommodationAddress, neighborhood: d.neighborhood, checkInTime: d.checkInTime, checkOutTime: d.checkOutTime, parkingNotes: d.parkingNotes })),
               mustSee: trip.places.filter((p) => p.kind === "MUST_SEE").map((p) => p.name),
               optional: trip.places.filter((p) => p.kind === "OPTIONAL").map((p) => p.name),
-            }} /> : trip.onboardingStage === "QUESTIONS" ? <PlanQuestions tripId={tripId} canEdit aiReady={plan.premium} prefs={trip.planPrefs as PlanPrefs | null} onboarding startCredits={planPrice((await planningScope(tripId, "full").catch(() => []))?.length ?? await prisma.itineraryDay.count({ where: { tripId } }), { setup: true, premium: plan.premium })} /> : <OnboardingProgress tripId={tripId} />}
+            }} /> : trip.onboardingStage === "QUESTIONS" ? <PlanQuestions tripId={tripId} canEdit aiReady={plan.premium} prefs={trip.planPrefs as PlanPrefs | null} onboarding /> : <OnboardingProgress tripId={tripId} />}
   </>;
 }

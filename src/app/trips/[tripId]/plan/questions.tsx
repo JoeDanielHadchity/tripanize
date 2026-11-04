@@ -1,6 +1,5 @@
 "use client";
 import { PremiumStar } from "@/components/premium-star";
-import { CreditNote } from "@/components/credits";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -11,7 +10,7 @@ import { planQuestionsAction, savePlanPrefsAction } from "@/app/actions/itinerar
 import type { PlanPrefs, PlanQuestion, PlanQuestionSet } from "@/server/planner/questions";
 
 // Multiple-choice pre-planning questions. Answers are saved on the trip and used by every later AI plan.
-export function PlanQuestions({ tripId, canEdit, aiReady, prefs, onboarding = false, startCredits = 0 }: { tripId: string; canEdit: boolean; aiReady: boolean; prefs: PlanPrefs | null; onboarding?: boolean; startCredits?: number }) {
+export function PlanQuestions({ tripId, canEdit, aiReady, prefs, onboarding = false }: { tripId: string; canEdit: boolean; aiReady: boolean; prefs: PlanPrefs | null; onboarding?: boolean }) {
   const { run, pending } = useAction();
   const router = useRouter();
   const [set, setSet] = useState<PlanQuestionSet | null>(null);
@@ -140,7 +139,6 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs, onboarding = fa
             {!onboarding && <Button onClick={() => setOpen(false)}>Cancel</Button>}
             {aiReady && <Button variant="ghost" disabled={pending} onClick={() => { setSet(null); load(true); }}>New questions</Button>}
           </div>
-          {onboarding && <CreditNote credits={startCredits} tripId={tripId} />}
         </div>
       )}
     </Card>

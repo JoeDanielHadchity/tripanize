@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { CreditNote } from "@/components/credits";
-import { CREDIT_PRICES } from "@/lib/credits";
 import { Button, Card, Field, Input, LinkButton, Notice, Select, cx } from "@/components/ui";
 import { PremiumStar } from "@/components/premium-star";
 import { useAction, useConfirm } from "@/components/client";
@@ -115,7 +113,6 @@ export function PackingView({ tripId, canEditShared, premium, personal, shared, 
             if (r) setResult(`${r.added ? `Added ${r.added} new suggestion${r.added === 1 ? "" : "s"}.` : "No new suggestions — your lists already cover them."}${r.weatherUsed ? "" : " Weather data wasn't available, so weather-based items rely on the season only."}`);
           }}><PremiumStar className="text-current" />{pending ? "Working…" : personal.length || shared.length ? "Refresh suggestions" : "Suggest a packing list"}</Button>
         </div>
-        <CreditNote credits={CREDIT_PRICES.packing} tripId={tripId} />
         {result && <Notice tone="accent" className="mt-3">{result}</Notice>}
       </Card>}
       {!premium && <Card><h2 className="flex items-center gap-2 font-display text-lg font-semibold">Packing suggestions <PremiumStar /></h2><p className="mt-1 text-sm text-muted">Add your own items above for free, or choose Premium suggestions tailored to your trip.</p><LinkButton href={`/trips/${tripId}/premium#feature-packing`} className="mt-3">Choose packing suggestions <PremiumStar /></LinkButton></Card>}

@@ -1,7 +1,5 @@
 "use client";
 import { PremiumStar } from "@/components/premium-star";
-import { CreditNote } from "@/components/credits";
-import { CREDIT_PRICES } from "@/lib/credits";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -122,7 +120,6 @@ export function EventsView(p: Props) {
           <p className="text-muted">Last checked: {p.lastSuccess ? formatTimestamp(p.lastSuccess, p.timezone) : "never"}{running ? " · Check in progress…" : ""}</p>
           {p.canEdit && <Button disabled={!p.aiReady || pending || Boolean(running)} onClick={() => run(() => discoverEventsAction(p.tripId), { success: "Check started. Results will appear in New." })}>Find events</Button>}
         </div>
-        {p.canEdit && <CreditNote credits={CREDIT_PRICES.events} tripId={p.tripId} className="-mt-2 mb-3 text-right text-xs text-muted" />}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="sl" className="font-display text-lg font-semibold">Shortlist</h2>
           {p.canEdit && <Button onClick={() => setAdding(true)}>+ Add your own event</Button>}

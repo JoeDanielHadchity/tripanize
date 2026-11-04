@@ -26,33 +26,12 @@ export function useCredits(tripId?: string | null) {
   return view;
 }
 
-/** The threshold under which the organizer gets a gentle "running low" note on their trips. */
-export const LOW_CREDITS = 20;
-
-/**
- * The quiet cost line under an AI button: "Uses 18 of your 85 AI credits." Nothing while credits
- * don't apply to this person, so everyone else sees the app exactly as before.
- */
-export function CreditNote({ credits, tripId, className }: { credits: number; tripId?: string | null; className?: string }) {
-  const view = useCredits(tripId);
-  if (!view?.active || credits <= 0) return null;
-  const cls = className ?? "mt-1.5 text-xs text-muted";
-  if (view.membersBlocked) return <p className={cls}>The organizer has turned off AI for members on this trip.</p>;
-  const n = `${credits} AI credit${credits === 1 ? "" : "s"}`;
-  if (view.balance < credits) return <p className={cls}>Needs {n}; {view.payerIsYou ? "you have" : "the organizer has"} {view.balance}. {view.payerIsYou ? <Link href="/credits" className="font-semibold underline">Top up</Link> : "Ask the organizer to top up."}</p>;
-  return <p className={cls}>Uses {credits} of {view.payerIsYou ? "your" : "the organizer's"} {view.balance} AI credits.</p>;
-}
-
-/** On trip pages, for the organizer only: a small heads-up once their AI credits run low. */
-export function LowCreditsNotice({ tripId }: { tripId: string }) {
-  const view = useCredits(tripId);
-  if (!view?.active || !view.payerIsYou || view.balance >= LOW_CREDITS) return null;
-  return <p className="mb-4 rounded-2xl bg-surface-2 px-4 py-3 text-sm text-muted">{view.balance === 0 ? "You've used all your AI credits." : `You're running low on AI credits (${view.balance} left).`} <Link href="/credits" className="font-semibold text-accent-ink underline">Top up</Link> to keep planning with AI. Everything else keeps working.</p>;
-}
-
-/** Account page: one line with the balance and a way to top up. */
-export function AccountCreditsLine() {
+/** Account page: a card with the balance that opens Account › Credits. Nothing while credits don't apply. */
+export function AccountCreditsCard() {
   const view = useCredits();
   if (!view?.active) return null;
-  return <p className="text-sm">AI credits: <span className="font-bold tabular-nums">{view.balance}</span> · <Link href="/credits" className="font-semibold text-accent-ink underline">Top up</Link></p>;
+  return <Link href="/account/credits" className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface px-5 py-4 hover:bg-surface-2">
+    <span><span className="block font-display text-lg font-semibold">Credits</span><span className="block text-sm text-muted">Balance, prices, top up and history</span></span>
+    <span className="shrink-0 text-right"><span className="block font-display text-2xl font-extrabold tabular-nums">{view.balance}</span><span className="block text-xs text-muted">AI credits</span></span>
+  </Link>;
 }

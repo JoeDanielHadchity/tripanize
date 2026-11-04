@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { CreditNote } from "@/components/credits";
-import { planPrice } from "@/lib/credits";
 import { MealRecommendations } from "@/components/itinerary/meal-recommendations";
 import { PremiumStar } from "@/components/premium-star";
 import { useRouter } from "next/navigation";
@@ -180,7 +178,6 @@ export function PlanPanel(props: { tripId: string; currency: string; premium: bo
                 </Button>
                 <p className="text-xs text-muted">{props.aiReady ? `Creates a draft${props.webSearch ? " with web research for opening hours and official links" : ""}. Usually takes a few minutes; longer trips are planned in sections. Your itinerary stays as it is until you accept.` : "AI planning is not available yet."}</p>
               </div>
-              <CreditNote credits={planPrice(scope === "days" ? selDays.length : props.premium ? props.days.length : Math.min(2, props.days.length))} tripId={tripId} />
             </div>
           )}
         </Card>
