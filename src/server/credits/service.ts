@@ -85,7 +85,7 @@ export async function hold(input: { actorId: string; tripId?: string | null; act
   const available = await balance(userId, db);
   if (available < input.credits) {
     const yours = userId === input.actorId;
-    throw new AppError("CREDITS", yours ? `This uses ${input.credits} credits. You have ${Math.max(0, available)}.` : `This uses ${input.credits} of the organizer's credits, and they have ${Math.max(0, available)} left.`, { needed: input.credits, balance: Math.max(0, available), payerIsYou: yours });
+    throw new AppError("CREDITS", yours ? `Not enough credits. This uses ${input.credits} credits and you have ${Math.max(0, available)}.` : `Not enough credits. This uses ${input.credits} of the organizer's credits, and they have ${Math.max(0, available)} left.`, { needed: input.credits, balance: Math.max(0, available), payerIsYou: yours });
   }
   return db.creditHold.create({ data: { userId, actorId: input.actorId, tripId: input.tripId ?? null, action: input.action, credits: input.credits, refKind: input.refKind, refId: input.refId ?? null } });
 }

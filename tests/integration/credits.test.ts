@@ -78,7 +78,7 @@ it("refuses an action the payer can't afford, with the price and balance, and qu
   const first = await enqueueJob(owner.id, tripId, "full", {});
   await finish(first.jobId, "SUCCEEDED"); await settleRef("job", first.jobId);
   // 15 welcome credits − 12 = 3 left; regenerating 2 days needs 6.
-  await expect(enqueueJob(owner.id, tripId, "days", { dates: ["2027-05-02", "2027-05-03"] })).rejects.toMatchObject({ code: "CREDITS", details: { needed: 6, balance: 3, payerIsYou: true } });
+  await expect(enqueueJob(owner.id, tripId, "days", { dates: ["2027-05-02", "2027-05-03"] })).rejects.toMatchObject({ code: "CREDITS", message: "Not enough credits. This uses 6 credits and you have 3.", details: { needed: 6, balance: 3, payerIsYou: true } });
   expect(await prisma.generationJob.count({ where: { kind: "days" } })).toBe(0);
 });
 
