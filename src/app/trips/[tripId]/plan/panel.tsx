@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { CreditPrice } from "@/components/credits";
-import { planPrice } from "@/lib/credits";
 import { MealRecommendations } from "@/components/itinerary/meal-recommendations";
 import { PremiumStar } from "@/components/premium-star";
 import { useRouter } from "next/navigation";
@@ -176,7 +174,7 @@ export function PlanPanel(props: { tripId: string; currency: string; premium: bo
               </Field>
               <div className="flex flex-wrap items-center gap-3">
                 <Button variant="ai" onClick={start} disabled={pending || !props.aiReady || (scope === "days" && !selDays.length)}>
-                  {props.premium && <PremiumStar className="text-current" />}{pending ? "Starting…" : "Plan with AI"}<CreditPrice credits={planPrice(scope === "days" ? selDays.length : props.premium ? props.days.length : Math.min(2, props.days.length))} tripId={tripId} />
+                  {props.premium && <PremiumStar className="text-current" />}{pending ? "Starting…" : "Plan with AI"}
                 </Button>
                 <p className="text-xs text-muted">{props.aiReady ? `Creates a draft${props.webSearch ? " with web research for opening hours and official links" : ""}. Usually takes a few minutes; longer trips are planned in sections. Your itinerary stays as it is until you accept.` : "AI planning is not available yet."}</p>
               </div>

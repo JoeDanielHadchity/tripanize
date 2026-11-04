@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { creditsActiveFor } from "@/server/credits/service";
 import Link from "next/link";
 import { requireUser } from "@/server/auth/session";
 import { billingSummary } from "@/server/billing/service";
@@ -11,5 +12,5 @@ export default async function TripPremiumPage({ params, searchParams }: { params
   const summary = await billingSummary(user.id, tripId);
   const trial = await userTrialAccess(user.id);
   const { created } = await searchParams;
-  return <>{created === "1" && <Notice tone="sage" className="mb-5" title="Your trip is created">{trial.status === "available" ? "Your Premium trial invitation can unlock this trip now, with no payment." : "Choose Standard or Premium before entering your destination and travel details."}</Notice>}<div className="premium-pass-navigation"><Link href={`/trips/${tripId}`}>← Back to trip</Link><Link href="/plans">Plans &amp; pricing</Link></div><PremiumCheckout tripId={tripId} initial={summary} trial={trial} /></>;
+  return <>{created === "1" && <Notice tone="sage" className="mb-5" title="Your trip is created">{trial.status === "available" ? "Your Premium trial invitation can unlock this trip now, with no payment." : "Choose Standard or Premium before entering your destination and travel details."}</Notice>}<div className="premium-pass-navigation"><Link href={`/trips/${tripId}`}>← Back to trip</Link><Link href="/plans">Plans &amp; pricing</Link></div><PremiumCheckout tripId={tripId} initial={summary} creditsNote={await creditsActiveFor(user.id) ? "Includes 100 AI credits, plenty to plan your whole trip. Top up anytime." : undefined} trial={trial} /></>;
 }

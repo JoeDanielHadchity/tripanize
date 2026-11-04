@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { CreditPrice } from "@/components/credits";
-import { CREDIT_PRICES } from "@/lib/credits";
 import { Button, Card, Field, Input, LinkButton, Notice, Select, cx } from "@/components/ui";
 import { PremiumStar } from "@/components/premium-star";
 import { useAction, useConfirm } from "@/components/client";
@@ -113,7 +111,7 @@ export function PackingView({ tripId, canEditShared, premium, personal, shared, 
           <Button variant="primary" disabled={pending} onClick={async () => {
             const r = await run(() => refreshPackingAction(tripId, laundry === "" ? null : laundry === "yes"));
             if (r) setResult(`${r.added ? `Added ${r.added} new suggestion${r.added === 1 ? "" : "s"}.` : "No new suggestions — your lists already cover them."}${r.weatherUsed ? "" : " Weather data wasn't available, so weather-based items rely on the season only."}`);
-          }}><PremiumStar className="text-current" />{pending ? "Working…" : personal.length || shared.length ? "Refresh suggestions" : "Suggest a packing list"}<CreditPrice credits={CREDIT_PRICES.packing} tripId={tripId} /></Button>
+          }}><PremiumStar className="text-current" />{pending ? "Working…" : personal.length || shared.length ? "Refresh suggestions" : "Suggest a packing list"}</Button>
         </div>
         {result && <Notice tone="accent" className="mt-3">{result}</Notice>}
       </Card>}

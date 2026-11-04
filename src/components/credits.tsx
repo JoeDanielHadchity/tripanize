@@ -26,32 +26,12 @@ export function useCredits(tripId?: string | null) {
   return view;
 }
 
-/** "120 credits" in the header, linking to the Credits page; nothing while credits don't apply. */
-export function CreditsBalance() {
+/** Account page: a card with the balance that opens Account › Credits. Nothing while credits don't apply. */
+export function AccountCreditsCard() {
   const view = useCredits();
   if (!view?.active) return null;
-  return <Link href="/credits" className="credits-balance" aria-label={`${view.balance} credits. Get more credits`}>
-    <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8" /><path d="M12 8v8M9.5 10.5h4a1.5 1.5 0 010 3h-3a1.5 1.5 0 000 3h4" /></svg>
-    {view.balance}<span className="credits-balance-word"> credits</span>
+  return <Link href="/account/credits" className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface px-5 py-4 hover:bg-surface-2">
+    <span><span className="block font-display text-lg font-semibold">Credits</span><span className="block text-sm text-muted">Balance, prices, top up and history</span></span>
+    <span className="shrink-0 text-right"><span className="block font-display text-2xl font-extrabold tabular-nums">{view.balance}</span><span className="block text-xs text-muted">AI credits</span></span>
   </Link>;
-}
-
-/**
- * The price shown on an AI button: " · 21 credits". Shows nothing while credits don't apply,
- * so buttons look exactly as before for everyone else.
- */
-export function CreditPrice({ credits, tripId }: { credits: number; tripId?: string | null }) {
-  const view = useCredits(tripId);
-  if (!view?.active || credits <= 0) return null;
-  return <span className="credit-price"> · {credits} credit{credits === 1 ? "" : "s"}</span>;
-}
-
-/** A one-line note under an AI action: what it costs and what's left, or how to get more. */
-export function CreditNote({ credits, tripId, className }: { credits: number; tripId?: string | null; className?: string }) {
-  const view = useCredits(tripId);
-  if (!view?.active || credits <= 0) return null;
-  if (view.membersBlocked) return <p className={className ?? "mt-2 text-xs text-muted"}>The organizer has turned off AI for members on this trip.</p>;
-  const whose = view.payerIsYou ? "You have" : "The organizer has";
-  if (view.balance < credits) return <p className={className ?? "mt-2 text-xs text-muted"}>This uses {credits} credits. {whose} {view.balance}. {view.payerIsYou ? <Link href="/credits" className="font-semibold underline">Get credits</Link> : "Ask the organizer to add credits."}</p>;
-  return <p className={className ?? "mt-2 text-xs text-muted"}>This uses {credits} credit{credits === 1 ? "" : "s"}. {whose} {view.balance}{view.payerIsYou ? "" : " for the group"}.</p>;
 }

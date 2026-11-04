@@ -150,7 +150,7 @@ export function useAction() {
         if (!res.ok) {
           if (opts.onError) opts.onError(res);
           // Not enough credits: say so and offer the bundles right there.
-          else if (res.code === "CREDITS") toast({ tone: "error", message: res.error, action: { label: "Get credits", href: "/credits" } });
+          else if (res.code === "CREDITS") toast({ tone: "error", message: res.error, action: { label: "Top up", href: "/account/credits" } });
           else toast({ tone: "error", message: res.error });
           if (res.code === "CONFLICT") router.refresh();
           return null;
