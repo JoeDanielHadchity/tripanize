@@ -13,6 +13,7 @@ import { supportConfigured } from "@/server/support/service";
 import { rateLimit } from "@/server/ratelimit";
 import { balance, grant } from "@/server/credits/service";
 import { openAiCostCheck } from "./openai-costs";
+import { visitorReport } from "./visitors";
 
 const id = z.string().min(1).max(80);
 const limit = z.number().int().min(1).max(100000).nullable();
@@ -30,6 +31,7 @@ export const adminCommand = z.discriminatedUnion("op", [
   z.object({ op: z.literal("payment.sync"), id }).strict(),
   z.object({ op: z.literal("health.wake") }).strict(),
   z.object({ op: z.literal("openai.costs.refresh") }).strict(),
+  z.object({ op: z.literal("visitors.refresh"), range: z.union([z.literal(7), z.literal(30)]) }).strict(),
 ]);
 export type AdminCommand = z.input<typeof adminCommand>;
 
@@ -45,6 +47,11 @@ export async function executeAdminCommand(actorId: string, input: unknown) {
     await rateLimit(`admin-payment:${checkout.id}`, 6, 300);
     await reconcilePayment(checkout.transactionId);
     await adminAudit(actorId, c.op, "payment", c.id);
+    return;
+  }
+  if (c.op === "visitors.refresh") {
+    await rateLimit(`admin-visitors:${actorId}`, 20, 3600);
+    await visitorReport(actorId, c.range, { refresh: true });
     return;
   }
   if (c.op === "openai.costs.refresh") {

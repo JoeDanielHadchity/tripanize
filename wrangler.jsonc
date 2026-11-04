@@ -59,7 +59,10 @@
     "PADDLE_SANDBOX_CREDITS_PRICE_500": "pri_01m6jwhr5jk76n8s1ydtyrt149",
     "PADDLE_SANDBOX_CREDITS_PRICE_1500": "pri_01m6jwjnnvmt8n5febxr6fd5ht",
     "PADDLE_SANDBOX_CREDITS_PRICE_2500": "pri_01m6jwkdd8rw7mx4v8vpah5kd0",
-    "PADDLE_SANDBOX_CREDITS_PRICE_5000": "pri_01m6jwm04ygsqdmmw9c45cvcrn"
+    "PADDLE_SANDBOX_CREDITS_PRICE_5000": "pri_01m6jwm04ygsqdmmw9c45cvcrn",
+    "CF_ACCOUNT_ID": "26a412ce4b51517e36cf9c5bacfe5473",
+    "CF_ZONE_ID": "10c53ac309763e362c84e371650016cb",
+    "CF_WEB_ANALYTICS_SITE_TAG": "d864545e4fba4c5daf30c087268816ea"
   },
   "triggers": {
     "crons": [
