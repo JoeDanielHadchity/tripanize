@@ -18,7 +18,7 @@ export async function peopleBlocks(userId: string, tripId: string, screen: strin
     const before = query.get("before");
     const data = await getChatPage(userId, tripId, before && /^\d+$/.test(before) ? { before: Number(before) } : {});
     return { pollMs: 3000, blocks: [
-      { id: "tools", actions: [go("Member locations", "locations", tripId), act("Mark chat read", "chat", { op: "read", seq: Math.max(data.summary.readSeq, ...data.messages.map(m => m.seq)) })] },
+      { id: "tools", actions: [go("Group votes", "votes", tripId), go("Member locations", "locations", tripId), act("Mark chat read", "chat", { op: "read", seq: Math.max(data.summary.readSeq, ...data.messages.map(m => m.seq)) })] },
       ...(data.hasMore && data.messages[0] ? [{ id: "earlier", actions: [{ label: "Earlier messages", to: { screen: "chat", tripId, before: String(data.messages[0].seq) } }] }] : []),
       ...data.messages.map(m => ({ id: m.id, title: m.senderName, text: m.deletedAt ? "Message deleted" : m.body, meta: m.createdAt, actions: !m.deletedAt && (m.senderId === userId || owner) ? [act("Delete message", "chat", { op: "delete", id: m.id }, "Delete this message for the group?")] : [] })),
       form("chat", "Message the group", "chat", [f("body", "Message", "long", { required: true })], { op: "send", clientId: crypto.randomUUID() }, "Send"),
@@ -32,7 +32,7 @@ export async function peopleBlocks(userId: string, tripId: string, screen: strin
   }
   if (screen === "votes") {
     const data = await listPolls(userId, tripId);
-    const blocks: MobileBlock[] = [];
+    const blocks: MobileBlock[] = [{ id: "section", actions: [...(data.premium ? [go("Chat", "chat", tripId)] : []), ...(data.premium ? [go("Member locations", "locations", tripId)] : [])] }].filter(b => b.actions.length);
     for (const p of data.polls) {
       blocks.push({ id: p.id, title: p.question, meta: `${p.status} · ${p.totalVotes} votes`, text: p.decisionNote ?? undefined, lines: p.options.map(o => `${o.id === p.chosenOptionId ? "✓ " : ""}${o.label}: ${o.count}${o.id === p.myOptionId ? " · Your vote" : ""}`), actions: p.status === "OPEN" ? [...p.options.map(o => act(o.id === p.myOptionId ? `Undo vote: ${o.label}` : `Vote: ${o.label}`, "poll.vote", { id: p.id, version: p.version, optionId: o.id === p.myOptionId ? null : o.id }))] : [] });
       if (data.canDecide) blocks.push(form(`decide-${p.id}`, "Organizer decision", "poll.decide", [f("command", "Action", "select", { options: options(p.status === "OPEN" ? ["DECIDE", "ARCHIVE"] : ["REOPEN", "ARCHIVE"]), value: p.status === "OPEN" ? "DECIDE" : "REOPEN" }), f("optionId", "Chosen option", "select", { options: [{ value: "", label: "None" }, ...p.options.map(o => ({ value: o.id, label: o.label }))] }), f("note", "Decision note", "long")], { id: p.id, version: p.version, optionId: p.chosenOptionId, note: p.decisionNote }, "Save decision"));
@@ -44,7 +44,7 @@ export async function peopleBlocks(userId: string, tripId: string, screen: strin
   if (screen === "settings") {
     const pref = await prisma.notificationPreference.findUnique({ where: { userId_tripId: { userId, tripId } } });
     return { blocks: [
-      { id: "settings-nav", actions: [go("Travelers & sharing", "sharing", tripId), go("Premium pass", "premium", tripId), go("Group voting", "votes", tripId), { label: "Export trip JSON", device: "file", url: `/api/mobile/files?tripId=${encodeURIComponent(tripId)}&kind=json`, fileName: "Tripanize-trip.json" }] },
+      { id: "settings-nav", actions: [go("Travelers & sharing", "sharing", tripId), go("Premium pass", "premium", tripId), { label: "Export trip JSON", device: "file", url: `/api/mobile/files?tripId=${encodeURIComponent(tripId)}&kind=json`, fileName: "Tripanize-trip.json" }] },
       form("change-alerts", "Your trip change alerts", "notifications.changes", [f("enabled", "Email trip changes", "check")], { enabled: pref?.changeEmailEnabled ?? false }),
       form("booking-alerts", "Your booking reminders", "notifications.bookings", [f("enabled", "Email booking deadlines", "check")], { enabled: pref?.bookingReminderEmailEnabled ?? false }),
       ...(canEdit ? [form("details", "Trip details", "trip.update", tripFields(), await tripFormValues(tripId))] : [{ id: "view", text: "You have viewer access. The organizer or an editor can change the trip." }]),

@@ -35,7 +35,7 @@ export function mobileTripTabs(tripId: string): NonNullable<MobileWorkspace["tab
   return [
     { label: "Itinerary", to: { screen: "itinerary", tripId } },
     { label: "Expenses", to: { screen: "expenses", tripId }, premium: true },
-    { label: "Chat & locations", to: { screen: "chat", tripId }, premium: true },
+    { label: "Chat & votes", to: { screen: "chat", tripId }, premium: true },
     { label: "Events & bookings", to: { screen: "bookings", tripId } },
     { label: "Packing", to: { screen: "packing", tripId } },
     { label: "Trip settings", to: { screen: "settings", tripId } },

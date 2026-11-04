@@ -159,10 +159,10 @@ export function ItineraryView(p: Props) {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {(hasB || p.canEdit) && (
-                        <div role="group" aria-label="Plan A or rainy-day Plan B" title="Plan B is a backup for rain or bad weather" className="flex rounded-xl border border-line bg-surface p-0.5">
+                        <div role="group" aria-label="Plan A or Plan B" title="Plan B is a backup plan for the day" className="flex rounded-xl border border-line bg-surface p-0.5">
                           {(["A", "B"] as const).map((pl) => (
                             <button key={pl} type="button" aria-pressed={d.activePlan === pl} disabled={!p.canEdit || pending} onClick={() => run(() => setActivePlanAction(p.tripId, d.id, pl))} className={cx("min-h-10 rounded-full px-4 text-sm font-bold", d.activePlan === pl ? "bg-night text-night-ink" : "text-muted")}>
-                              {pl === "A" ? "Plan A" : "Plan B · rainy-day"}
+                              {pl === "A" ? "Plan A" : "Plan B"}
                             </button>
                           ))}
                         </div>
@@ -179,11 +179,11 @@ export function ItineraryView(p: Props) {
                       </MenuButton>
                     </div>
                   </header>
-                  {d.activePlan === "B" && <p className="mb-2 rounded-lg bg-sage-soft px-3 py-2 text-sm text-sage-ink">Showing Plan B, the rainy-day plan{d.planBNote ? ` — ${d.planBNote}` : ""}. Plan B costs aren't added to the budget.</p>}
+                  {d.activePlan === "B" && <p className="mb-2 rounded-lg bg-sage-soft px-3 py-2 text-sm text-sage-ink">Showing Plan B, the backup plan{d.planBNote ? ` — ${d.planBNote}` : ""}. Plan B costs aren't added to the budget.</p>}
                   {d.notes && <p className="mb-3 whitespace-pre-line text-sm text-muted"><PlanningText text={d.notes} /></p>}
                   {stops.length === 0 ? (
                     <div className="rounded-2xl bg-surface-2/70 px-4 py-6 text-center text-sm text-muted">
-                      {d.activePlan === "B" ? "No rainy-day Plan B yet." : "Nothing planned — that's allowed."}
+                      {d.activePlan === "B" ? "No Plan B yet." : "Nothing planned — that's allowed."}
                       {p.canEdit && <Button className="ml-2" onClick={() => setEditing({ dayId: d.id, plan: d.activePlan, label: formatDate(d.date) })}>Add a stop</Button>}
                     </div>
                   ) : (

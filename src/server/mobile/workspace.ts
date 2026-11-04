@@ -21,7 +21,7 @@ import { peopleBlocks, adminBlocks } from "./workspace-people";
 import { f, act, go, form, options, tripFields, tripFormValues, wire } from "./presentation";
 import { mobileTripTabs, type MobileWorkspace, type MobileBlock } from "@/lib/mobile-workspace";
 
-const titles: Record<string, string> = { itinerary: "Itinerary", stop: "Edit your stop", day: "Day details", plan: "Plan your trip", job: "Your itinerary draft", versions: "Itinerary history", expenses: "Expenses", expense: "Record a payment", settlement: "Record a repayment", chat: "Chat & locations", locations: "Member locations", assistant: "Trip assistant", events: "Events & bookings", event: "Add an event", bookings: "Bookings", booking: "Booking details", packing: "Packing & prep", settings: "Trip settings", sharing: "Travelers & sharing", votes: "Group decisions", setup: "Create your trip", premium: "Premium pass" };
+const titles: Record<string, string> = { itinerary: "Itinerary", stop: "Edit your stop", day: "Day details", plan: "Plan your trip", job: "Your itinerary draft", versions: "Itinerary history", expenses: "Expenses", expense: "Record a payment", settlement: "Record a repayment", chat: "Chat & votes", locations: "Member locations", assistant: "Trip assistant", events: "Events & bookings", event: "Add an event", bookings: "Bookings", booking: "Booking details", packing: "Packing & prep", settings: "Trip settings", sharing: "Travelers & sharing", votes: "Group votes", setup: "Create your trip", premium: "Premium pass" };
 export async function workspace(userId: string, query: URLSearchParams): Promise<MobileWorkspace> {
   await getMobileUser(userId);
   const screen = (query.get("screen") ?? "trips").slice(0, 40), tripId = query.get("tripId") ?? undefined, item = query.get("item") ?? undefined;
@@ -82,7 +82,7 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
     ]; return doc;
   }
   if (["expenses", "expense", "settlement", "chat", "locations", "assistant", "events", "event"].includes(screen) && !plan.premium) {
-    doc.blocks = [{ id: "locked", title: "★ Included with Premium", text: "The organizer can unlock this feature for the whole trip.", actions: [go("View Premium pass", "premium", tripId), ...(screen === "locations" ? [act("Stop my location sharing", "location", { op: "stop" })] : [])] }]; return doc;
+    doc.blocks = [{ id: "locked", title: "★ Included with Premium", text: screen === "chat" ? "Chat is part of Premium. Group votes are free for every trip." : "The organizer can unlock this feature for the whole trip.", actions: [...(screen === "chat" ? [go("Open group votes", "votes", tripId)] : []), go("View Premium pass", "premium", tripId), ...(screen === "locations" ? [act("Stop my location sharing", "location", { op: "stop" })] : [])] }]; return doc;
   }
   if (screen === "setup") {
     const state = await onboardingState(userId, tripId);

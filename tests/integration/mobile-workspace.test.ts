@@ -62,7 +62,7 @@ it("requires authentication and same-origin or branded native-origin writes, inc
 it("exposes the full trip navigation, one selected day, and native forms without leaking other trips", async () => {
   const owner = await makeUser("Owner"), stranger = await makeUser("Stranger"), tripId = await makeTrip(owner.id);
   const doc = await page(owner.id, "itinerary", tripId);
-  expect(doc.tabs?.map(t => t.label)).toEqual(["Itinerary", "Expenses", "Chat & locations", "Events & bookings", "Packing", "Trip settings"]);
+  expect(doc.tabs?.map(t => t.label)).toEqual(["Itinerary", "Expenses", "Chat & votes", "Events & bookings", "Packing", "Trip settings"]);
   const days = await prisma.itineraryDay.findMany({ where: { tripId }, orderBy: { date: "asc" } });
   await cmd(owner.id, tripId, "stop.save", { dayId: days[0].id, plan: "A", title: "First day stop" });
   await cmd(owner.id, tripId, "stop.save", { dayId: days[1].id, plan: "A", title: "Second day stop" });
@@ -150,7 +150,8 @@ it("lets viewers chat and vote while protecting administrator tools", async () =
   await cmd(viewer.id, tripId, "chat", { op: "send", clientId: randomUUID(), body: "Meet at the hotel" });
   expect((await page(owner.id, "chat", tripId)).blocks.some(b => b.text === "Meet at the hotel")).toBe(true);
   await cmd(owner.id, tripId, "poll.create", { question: "Which museum?", kind: "ACTIVITY", options: ["Art", "History"] });
-  const polls = await page(viewer.id, "votes", tripId), action = polls.blocks[0].actions![0];
+  const polls = await page(viewer.id, "votes", tripId), action = polls.blocks.find(b => b.title === "Which museum?")!.actions![0];
+  expect(polls.blocks[0].actions?.map(a => a.label)).toEqual(["Chat", "Member locations"]);
   await cmd(viewer.id, tripId, action.action!, action.values!);
   expect(await prisma.tripVote.count()).toBe(1);
   await expect(page(viewer.id, "admin")).rejects.toMatchObject({ code: "FORBIDDEN" });

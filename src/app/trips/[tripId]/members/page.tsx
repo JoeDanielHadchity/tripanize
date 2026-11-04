@@ -6,7 +6,7 @@ import { requireTrip } from "@/server/auth/permissions";
 import { ChatLocationsSection } from "@/components/chat-locations-section";
 import { MemberLocationsView } from "./view";
 
-export const metadata: Metadata = { title: "Member locations · Chat & locations" };
+export const metadata: Metadata = { title: "Member locations · Chat & votes" };
 export default async function MembersPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
   const user = await requireUser();

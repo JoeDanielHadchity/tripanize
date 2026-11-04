@@ -8,7 +8,7 @@ import { ChatLocationsSection } from "@/components/chat-locations-section";
 import { ChatView } from "./view";
 import { prisma } from "@/server/db";
 
-export const metadata: Metadata = { title: "Chat & locations" };
+export const metadata: Metadata = { title: "Chat · Chat & votes" };
 export default async function ChatPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
   const user = await requireUser();
