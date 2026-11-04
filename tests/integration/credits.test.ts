@@ -127,3 +127,29 @@ it("refunds inline actions that throw, and the hourly sweep refunds holds left b
   await settleOpenHolds();
   expect(await balance(owner.id)).toBe(14);
 });
+
+it("applies credits before launch only to accounts marked as testers", async () => {
+  const tester = await verified("Tester"), other = await verified("Other");
+  await prisma.user.update({ where: { id: tester.id }, data: { creditsTester: true } });
+  expect(await balance(tester.id)).toBe(15);
+  expect(await balance(other.id)).toBe(0);
+  const otherTrip = await premiumTrip(other.id);
+  await enqueueJob(other.id, otherTrip, "full", {});
+  expect(await prisma.creditHold.count({ where: { userId: other.id } })).toBe(0);
+});
+
+it("lets credits pay for planning every day and packing on a free trip, while swaps stay Premium", async () => {
+  const tester = await verified("Tester");
+  await prisma.user.update({ where: { id: tester.id }, data: { creditsTester: true } });
+  await grant(tester.id, 85, { kind: "purchase", dedupeKey: "fixture-free-trip" });
+  const tripId = await makeTrip(tester.id);
+  const job = await enqueueJob(tester.id, tripId, "full", {});
+  expect((await prisma.generationJob.findUniqueOrThrow({ where: { id: job.jobId } })).params).toMatchObject({ dates: null });
+  expect(await balance(tester.id)).toBe(100 - 12);
+  await finish(job.jobId, "SUCCEEDED"); await settleRef("job", job.jobId);
+  const stop = await prisma.stop.create({ data: { tripId, title: "Fixture stop" } });
+  await expect(enqueueJob(tester.id, tripId, "swap", { stopId: stop.id })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  const { requirePremiumAccess } = await import("@/server/plans/access");
+  await expect(requirePremiumAccess(tripId, "packing")).resolves.toBeUndefined();
+  await expect(requirePremiumAccess(tripId, "expenses")).rejects.toMatchObject({ code: "FORBIDDEN" });
+});

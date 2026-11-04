@@ -1,4 +1,5 @@
 import { getTripPlan } from "@/server/plans/access";
+import { creditsCoverTrip } from "@/server/credits/service";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth/session";
 import { prisma } from "@/server/db";
@@ -13,7 +14,8 @@ export default async function PackingPage({ params }: { params: Promise<{ tripId
   const { tripId } = await params;
   const user = await requireUser();
   const { access, personal, shared } = await getPacking(user.id, tripId);
-  const { premium } = await getTripPlan(tripId);
+  // Packing suggestions are Premium, or paid per use when the trip runs on credits.
+  const premium = (await getTripPlan(tripId)).premium || await creditsCoverTrip(tripId);
   const [tasks, travelers] = await Promise.all([
     prisma.tripTask.findMany({ where: { tripId }, orderBy: [{ done: "asc" }, { position: "asc" }] }),
     prisma.traveler.findMany({ where: { tripId, leftAt: null }, select: { id: true, name: true } }),

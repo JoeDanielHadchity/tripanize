@@ -1,4 +1,5 @@
 import { readMealOptions } from "@/lib/meal-options";
+import { creditsCoverTrip } from "@/server/credits/service";
 import { PremiumStar } from "@/components/premium-star";
 import { FirstPlanOffer } from "@/components/first-plan-offer";
 import { getTripPlan } from "@/server/plans/access";
@@ -33,6 +34,7 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
   }
   const canEdit = roleAllows(access.role, "edit");
   const { premium } = await getTripPlan(tripId);
+  const onCredits = !premium && await creditsCoverTrip(tripId);
   const len = tripLength(trip.startDate, trip.endDate);
   const tripToday = todayIn(trip.timezone);
   const todayDate = todayIn(days.find(d => d.date === tripToday)?.destination?.timezone ?? trip.timezone);
@@ -48,13 +50,13 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
         subtitle={len ? `${len} day${len === 1 ? "" : "s"} · times are local · costs and travel times are estimates` : "Add trip dates in settings to create your days."}
         actions={
           <>
-            {canEdit && <LinkButton href={`/trips/${tripId}/plan`} variant="ai">{premium && <PremiumStar className="text-current" />}{premium ? "Plan with AI" : "AI itinerary · 2 days"}</LinkButton>}
+            {canEdit && <LinkButton href={`/trips/${tripId}/plan`} variant="ai">{premium && <PremiumStar className="text-current" />}{premium || onCredits ? "Plan with AI" : "AI itinerary · 2 days"}</LinkButton>}
             <a href={`/api/trips/${tripId}/export/pdf`} className="inline-flex min-h-11 items-center rounded-xl border border-line bg-surface px-4 text-[15px] font-medium hover:bg-surface-2">Trip PDF</a>
           </>
         }
       />
       {checkout === "normal" && !premium && <Notice tone="sage" className="mb-5" title="Free plan · $0">Your trip is ready to use. No payment is needed. Add your itinerary, bookings and packing items whenever you like.</Notice>}
-      {ready === "1" && !premium && access.role === "OWNER" && <FirstPlanOffer tripId={tripId} planned={planned} total={days.length} />}
+      {ready === "1" && !premium && access.role === "OWNER" && <FirstPlanOffer tripId={tripId} planned={planned} total={days.length} credits={onCredits} />}
       <TripReadiness items={[
         { label: "Daily plans", done: days.length > 0 && planned === days.length, detail: `${planned} of ${days.length} days have stops planned`, href: `${base}/itinerary` },
         { label: "Stay details", done: trip.destinations.length > 0 && stays === trip.destinations.length, detail: `${stays} of ${trip.destinations.length} destinations have accommodation details`, href: `${base}/settings#details` },

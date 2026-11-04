@@ -286,3 +286,9 @@
 .invite-button { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:0 18px; border-radius:999px; background:var(--night-accent); color:var(--night); font-size:14px; font-weight:800; white-space:nowrap; }
 .invite-button:hover { filter:brightness(1.06); }
 .invite-button:focus-visible { outline:3px solid var(--night-ink); outline-offset:2px; }
+
+/* Credits: the balance in the header and the price on AI buttons. */
+.credits-balance { display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 12px; border-radius:999px; background:var(--accent-soft); color:var(--accent-ink); font-size:13px; font-weight:800; white-space:nowrap; }
+.credits-balance:hover { filter:brightness(.97); }
+@media(max-width:520px){ .credits-balance-word { display:none; } .credits-balance { padding:0 10px; } }
+.credit-price { font-weight:600; opacity:.85; white-space:nowrap; }

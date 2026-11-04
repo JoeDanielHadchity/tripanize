@@ -1,4 +1,5 @@
 import { prisma, type Tx } from "@/server/db";
+import { creditsCoverTrip } from "@/server/credits/service";
 import { currentRuntime, normalUserMode } from "@/server/cloudflare/runtime";
 import { requireTrip, type Capability } from "@/server/auth/permissions";
 import { AppError } from "@/server/errors";
@@ -36,8 +37,11 @@ export async function getTripPlan(tripId: string, db: Database = prisma) {
   return { premium: preview || Boolean(source), preview, source, validUntil: source === "trial" ? trial?.trialEndsAt?.toISOString() ?? null : null, people, creditMinor, capacity: band?.capacity ?? 0, bandId: band?.id ?? null, reviewRequired: purchases.some(p => p.reviewRequired) };
 }
 
+/** With credits, planning and packing are paid per use, so they don't need Premium; swaps and the group tools still do. */
+const PAID_WITH_CREDITS: readonly PremiumFeature[] = ["advancedPlanning", "packing"];
 export async function requirePremiumAccess(tripId: string, feature: PremiumFeature, db: Database = prisma) {
   if (!(await getTripPlan(tripId, db)).premium) {
+    if (PAID_WITH_CREDITS.includes(feature) && await creditsCoverTrip(tripId, db as unknown as Parameters<typeof creditsCoverTrip>[1])) return;
     throw new AppError("FORBIDDEN", `${PREMIUM_FEATURES[feature]} requires Premium for this trip. The trip organizer can upgrade for everyone.`, { upgrade: true, feature });
   }
 }

@@ -6,7 +6,7 @@ import { Button, cx } from "./ui";
 
 // ───────────── Toasts ─────────────
 
-type Toast = { id: number; tone: "success" | "error" | "info"; message: string };
+type Toast = { id: number; tone: "success" | "error" | "info"; message: string; action?: { label: string; href: string } };
 const ToastCtx = createContext<(t: Omit<Toast, "id">) => void>(() => undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -30,6 +30,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             )}
           >
             {t.message}
+            {t.action && <a href={t.action.href} className="ml-2 font-bold underline">{t.action.label}</a>}
           </div>
         ))}
       </div>
@@ -148,11 +149,14 @@ export function useAction() {
         }
         if (!res.ok) {
           if (opts.onError) opts.onError(res);
+          // Not enough credits: say so and offer the bundles right there.
+          else if (res.code === "CREDITS") toast({ tone: "error", message: res.error, action: { label: "Get credits", href: "/credits" } });
           else toast({ tone: "error", message: res.error });
           if (res.code === "CONFLICT") router.refresh();
           return null;
         }
         if (opts.success) toast({ tone: "success", message: opts.success });
+        if (typeof window !== "undefined") window.dispatchEvent(new Event("tripanize:credits-changed"));
         if (opts.refresh !== false) router.refresh();
         return res.data;
       } catch {

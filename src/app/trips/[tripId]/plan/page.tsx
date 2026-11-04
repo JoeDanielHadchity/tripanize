@@ -1,4 +1,5 @@
 import { getTripPlan } from "@/server/plans/access";
+import { creditsCoverTrip } from "@/server/credits/service";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth/session";
 import { prisma } from "@/server/db";
@@ -20,7 +21,8 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
   const user = await requireUser();
   const access = await requireTrip(tripId, user.id, "view");
   const canEdit = roleAllows(access.role, "edit");
-  const { premium } = await getTripPlan(tripId);
+  // Planning any days is Premium, or paid per use when the trip runs on credits.
+  const premium = (await getTripPlan(tripId)).premium || await creditsCoverTrip(tripId);
   const [trip, missing, jobs, days] = await Promise.all([
     prisma.trip.findUniqueOrThrow({ where: { id: tripId } }),
     missingEssentials(tripId),

@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "creditsTester" BOOLEAN NOT NULL DEFAULT false;
