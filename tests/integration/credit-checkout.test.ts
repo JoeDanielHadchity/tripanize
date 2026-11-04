@@ -52,6 +52,19 @@ it("adds a top-up's credits once when paid, and takes them back once if refunded
   expect(await balance(u.id)).toBe(15);
 });
 
+it("accepts a price with tax included, where Paddle's subtotal is below the price", async () => {
+  const u = await buyer(); const row = await bundle(u.id, "topup", 500, 30);
+  const paid = tx(row.id, 500, row.priceId, 8, { kind: "credits" });
+  paid.details = { totals: { subtotal: "435", tax: "65", total: "500", discount: "0" } };
+  await recordCreditTransaction(paid);
+  expect(await balance(u.id)).toBe(45);
+  const wrong = tx(row.id, 500, row.priceId, 9, { kind: "credits" });
+  wrong.details = { totals: { subtotal: "300", tax: "45", total: "345", discount: "0" } };
+  const other = await bundle(u.id, "topup", 500, 30);
+  await expect(recordCreditTransaction({ ...wrong, custom_data: { ...wrong.custom_data, checkoutId: other.id } })).rejects.toMatchObject({ code: "VALIDATION" });
+  expect(await balance(u.id)).toBe(45);
+});
+
 it("unlocks Premium for the chosen trip with a bundle, never with the top-up", async () => {
   const u = await buyer(); const tripId = await makeTrip(u.id); const other = await makeTrip(u.id);
   const plus = await bundle(u.id, "plus", 2500, 200, tripId);

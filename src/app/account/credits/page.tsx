@@ -8,7 +8,7 @@ import { MembersCreditsSwitch } from "@/components/members-credits-switch";
 import { creditHistory, creditsView, tripCreditSpending } from "@/server/credits/service";
 import { CREDIT_BUNDLES, CREDIT_PRICES } from "@/lib/credits";
 import { CreditTopUp } from "@/components/credit-top-up";
-import { unlockableTrips } from "@/server/billing/credits";
+import { refreshCreditPayments, unlockableTrips } from "@/server/billing/credits";
 import { creditCheckoutAvailable } from "@/server/billing/config";
 
 // The one place people see their credits: Account › Credits. Not in the menu, not indexed.
@@ -35,6 +35,8 @@ const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month:
 
 export default async function AccountCreditsPage() {
   const user = await requireUser();
+  // Catches up any payment whose confirmation didn't arrive (it is checked with Paddle, never trusted from the page).
+  await refreshCreditPayments(user.id).catch(error => console.error("[credits] refresh on open failed", error instanceof Error ? error.message : error));
   const view = await creditsView(user.id);
   const history = view.active ? await creditHistory(user.id, 50) : [];
   const owned = view.active ? await prisma.trip.findMany({ where: { ownerId: user.id }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, membersUseCredits: true, _count: { select: { memberships: true } } } }) : [];

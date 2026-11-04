@@ -35,7 +35,9 @@ export async function recordCreditTransaction(tx: PaddleTransaction) {
     if (intent.environment !== billingEnvironment() || tx.custom_data.environment !== intent.environment || tx.custom_data.kind !== "credits" || (tx.custom_data.tripId || null) !== intent.tripId || (intent.transactionId && intent.transactionId !== tx.id) || tx.currency_code !== "USD" || tx.subscription_id !== null || tx.discount_id !== null || tx.items.length !== 1 || item.quantity !== 1 || item.price.id !== intent.priceId || item.price.billing_cycle !== null || item.price.unit_price.currency_code !== "USD" || item.price.unit_price.amount !== String(intent.amountMinor)) {
       throw new AppError("VALIDATION", "Payment does not match the saved credit purchase.");
     }
-    if (tx.status === "completed" && (!tx.details || tx.details.totals.subtotal !== String(intent.amountMinor) || tx.details.totals.discount !== "0")) throw new AppError("VALIDATION", "Payment total could not be verified.");
+    // The price can be set with tax added on top (subtotal = price) or tax included (total = price).
+    const totals = tx.details?.totals, amount = String(intent.amountMinor);
+    if (tx.status === "completed" && (!totals || totals.discount !== "0" || (totals.subtotal !== amount && totals.total !== amount))) throw new AppError("VALIDATION", "Payment total could not be verified.");
     const reviewRequired = (tx.adjustments ?? []).some(a => a.status === "approved" && REFUND_ACTIONS.includes(a.action));
     const status = tx.status === "completed" ? "COMPLETED" : tx.status === "canceled" ? "CANCELED" : "PENDING";
     await db.creditCheckout.update({ where: { id: intent.id }, data: { transactionId: tx.id, status, reviewRequired, ...(tx.details ? { paddleSummary: JSON.parse(JSON.stringify({ currency: tx.currency_code, totals: tx.details.totals, adjusted: tx.details.adjusted_totals, payout: tx.details.payout_totals, adjustments: tx.adjustments, syncedAt: new Date().toISOString() })) as Prisma.InputJsonValue } : {}) } });
