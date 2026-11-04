@@ -36,19 +36,18 @@ export function MemberLocationsView({ tripId, userId }: { tripId: string; userId
   return <div className="space-y-5">
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-xl font-semibold">My location sharing</h2><p className="mt-1 text-sm text-muted">Only current members of this trip can see your shared position.</p></div><Badge tone={active ? "sage" : "neutral"}>{sharing.phase === "starting" ? "Starting…" : sharing.phase === "stopping" ? "Stopping…" : sharing.phase === "paused" ? "Updates paused" : active ? "On" : "Off"}</Badge></div>
-      <p className="mt-3 text-sm text-muted">Turning it on asks your browser for location permission. Updates run about every 20 seconds while Tripanize is visible, including on other trip pages. Keep your phone unlocked and the app open for updates.</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {!["sharing", "starting", "stopping", "paused"].includes(sharing.phase) && <Button variant="primary" onClick={sharing.start}>{sharing.self.sessionId ? "Share from this device" : "Turn location on"}</Button>}
         {active && <Button disabled={sharing.phase === "stopping"} onClick={sharing.stop}>Turn location off</Button>}
       </div>
       {sharing.error && <Notice tone="warn" className="mt-3">{sharing.error}</Notice>}
-      <p className="mt-3 text-xs text-muted">Off by default. Turning off clears your point. We keep only the latest position, never a route history. Pins expire after two minutes without an update. Location data isn’t included in trip exports, offline copies or change emails.</p>
+<details className="mt-3 text-sm text-muted"><summary className="cursor-pointer font-semibold">How it works</summary><p className="mt-1">Your browser asks for permission first. While Tripanize is open, your position updates about every 20 seconds, including on other trip pages. Turning it off clears your point. We keep only your latest position, never a route, and a pin disappears after two minutes without an update. Locations are never included in exports, offline copies or emails.</p></details>
     </Card>
     {error && <Notice tone="warn">{error} <button type="button" className="font-semibold underline" onClick={() => setRefresh(n => n + 1)}>Retry</button></Notice>}
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-display text-xl font-semibold">Who’s nearby</h2><Button variant="ghost" onClick={() => setRefresh(n => n + 1)}>Refresh map</Button></div>
       {locations.length ? <LiveMemberMap points={locations} userId={userId} /> : <EmptyState title={data ? "No locations shared yet" : error ? "Map unavailable" : "Loading member locations…"}>Members appear here after they turn location sharing on. You can view the map without sharing your own location.</EmptyState>}
-      <p className="mt-3 text-xs text-muted">Locations are approximate. The accuracy circle shows your device’s reported uncertainty. Map tiles are provided by OpenStreetMap; loading the map requests tiles for the displayed area.</p>
+      <p className="mt-3 text-xs text-muted">Locations are approximate. Map tiles by OpenStreetMap.</p>
     </Card>
     {data && <Card><h2 className="font-display text-xl font-semibold">Trip members</h2><ul className="mt-2 divide-y divide-line">{data.members.map(m => {
       const p = locations.find(p => p.userId === m.userId);

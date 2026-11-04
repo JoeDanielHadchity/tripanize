@@ -40,7 +40,8 @@ it("keeps full account controls on signed-in public pages", () => {
   expect(html).toContain('href="/trips"');
   expect(html).toContain('href="/account"');
   expect(html).toContain('aria-label="Notifications"');
-  expect(html).toContain('aria-label="Settings"');
+  // Signed in, settings are part of Account & settings: no separate gear.
+  expect(html).not.toContain('aria-label="Settings"');
   expect(html).not.toContain('public-site-header');
   expect(html).not.toContain("Create a trip");
   expect(html).not.toContain("Sign in");

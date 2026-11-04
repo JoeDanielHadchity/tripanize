@@ -45,6 +45,7 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   await expect(page.getByRole("heading", { name: "Stub alternative A" })).toBeVisible();
 
   // Undo via versions
+  await page.getByRole("button", { name: "More" }).click();
   await page.getByRole("button", { name: /Versions/ }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Restore" }).first().click();
   await page.getByRole("dialog", { name: "Restore this version?" }).getByRole("button", { name: "Restore" }).click();

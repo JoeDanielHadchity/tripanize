@@ -36,6 +36,7 @@ export function ItineraryView(p: Props) {
   const [view, setView] = useState<"split" | "list" | "map">("split");
   const [q, setQ] = useState("");
   const [showVersions, setShowVersions] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [drag, setDrag] = useState<{ dayId: string; id: string } | null>(null);
   const [notesDay, setNotesDay] = useState<DayView | null>(null);
   const defaultDate = p.days.find(d => d.date === p.todayDate)?.date ?? p.days[0]?.date ?? null;
@@ -83,9 +84,7 @@ export function ItineraryView(p: Props) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <label htmlFor="stop-search" className="sr-only">Search stops</label>
-        <Input id="stop-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search stops, addresses, categories…" className="sm:max-w-sm" />
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1" role="group" aria-label="View">
           {(["split", "list", "map"] as const).map((v) => (
             <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={cx("min-h-11 rounded-full px-4 text-sm font-bold", view === v ? "bg-night text-night-ink" : "border border-line bg-surface text-muted")}>
@@ -93,12 +92,25 @@ export function ItineraryView(p: Props) {
             </button>
           ))}
         </div>
-        <div className="flex gap-2 sm:ml-auto">
-          {p.days.some(d => d.date === p.todayDate) && <Button onClick={() => selectDay(p.todayDate)}>Go to today</Button>}
-          {p.canEdit && <Button onClick={() => setEditing({ dayId: null })}>+ Idea</Button>}
-          <Button onClick={() => setShowVersions(true)}>Versions{p.versions.length ? ` (${p.versions.length})` : ""}</Button>
+        <div className="ml-auto flex gap-2">
+          {p.days.some(d => d.date === p.todayDate) && <Button onClick={() => selectDay(p.todayDate)}>Today</Button>}
+          <MenuButton label="More">
+            {(close) => (
+              <>
+                <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm hover:bg-surface-2" onClick={() => { close(); setShowSearch(true); requestAnimationFrame(() => document.getElementById("stop-search")?.focus()); }}>Search stops</button>
+                {p.canEdit && <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm hover:bg-surface-2" onClick={() => { close(); setEditing({ dayId: null }); }}>Add an idea for later</button>}
+                <button type="button" className="block min-h-11 w-full rounded-lg px-3 text-left text-sm hover:bg-surface-2" onClick={() => { close(); setShowVersions(true); }}>Versions{p.versions.length ? ` (${p.versions.length})` : ""}</button>
+                <a className="block min-h-11 content-center rounded-lg px-3 text-sm hover:bg-surface-2" href={`/api/trips/${p.tripId}/export/pdf`}>Trip PDF</a>
+              </>
+            )}
+          </MenuButton>
         </div>
       </div>
+      {(showSearch || q) && <div className="flex gap-2">
+        <label htmlFor="stop-search" className="sr-only">Search stops</label>
+        <Input id="stop-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search stops, addresses, categories…" className="sm:max-w-sm" />
+        <Button onClick={() => { setQ(""); setShowSearch(false); }}>Close</Button>
+      </div>}
       {!p.routingLive && <p className="text-xs text-muted">Travel times are estimates. Open Directions for live routes.</p>}
 
       {!query && <DayStrip days={p.days} active={selectedDay?.date ?? null} todayDate={p.todayDate} onSelect={selectDay} />}
@@ -132,7 +144,7 @@ export function ItineraryView(p: Props) {
                   <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-accent-ink">{formatDate(d.date, { weekday: "long", day: "numeric", month: "long" })}</p>
-                      <h3 id={`h-${d.id}`} className="font-display text-xl font-semibold leading-tight">{d.title || d.area || (d.stops.length ? "Plans for the day" : "Not planned yet")}</h3>
+                      <h2 id={`h-${d.id}`} className="font-display text-xl font-semibold leading-tight">{d.title || d.area || (d.stops.length ? "Plans for the day" : "Not planned yet")}</h2>
                       <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
                         {d.date === p.todayDate && <Badge tone="accent">Today</Badge>}
                         {d.destination && <Badge>{d.destination.name}{d.destination.accommodationName ? ` · ${d.destination.accommodationName}` : ""}</Badge>}

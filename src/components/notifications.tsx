@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { markNotificationsReadAction, changeEmailPreferenceAction } from "@/app/actions/notifications";
+import { markNotificationsReadAction } from "@/app/actions/notifications";
 import type { listChangeNotifications } from "@/server/notifications/changes";
-import { Dialog, useAction, useToast } from "./client";
+import { Dialog, useToast } from "./client";
 import { Button, Card, EmptyState, Notice, cx } from "./ui";
 import { formatTimestamp } from "@/lib/dates";
 
@@ -92,22 +92,4 @@ export function NotificationsInbox({ initial }: { initial: Inbox }) {
     <NotificationItems items={data.items} timezone={data.timezone} />
     {data.nextCursor && <Button className="mt-4 w-full" disabled={pending} onClick={() => load(true)}>{pending ? "Loading…" : "Load earlier updates"}</Button>}
   </Card>;
-}
-
-export function TripChangeAlerts({ tripId, enabled, emailReady, email, verified }: { tripId: string; enabled: boolean; emailReady: boolean; email: string; verified: boolean }) {
-  const { run, pending } = useAction();
-  const [checked, setChecked] = useState(enabled);
-  return <section id="notifications" aria-labelledby={`notifications-${tripId}`} className="scroll-mt-20">
-    <Card>
-      <h2 id={`notifications-${tripId}`} className="font-display text-xl font-semibold">My trip change alerts</h2>
-      <p className="mt-1 text-sm text-muted">The bell shows changes other members make to your itinerary, bookings, expenses, events and other shared trip details. Your own edits and personal packing stay quiet.</p>
-      <form className="mt-3 space-y-3" onSubmit={e => { e.preventDefault(); void run(() => changeEmailPreferenceAction(tripId, checked), { success: "Trip change email preferences saved", refresh: false }); }}>
-        <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="h-5 w-5 shrink-0" checked={checked} onChange={e => setChecked(e.target.checked)} disabled={!enabled && (!emailReady || !verified)} /> Also email me after each shared change</label>
-        <p className="text-xs text-muted">Emails go to {email}. This setting only affects your account and future changes; you can turn it off anytime.</p>
-        {!emailReady && <Notice tone="warn">Email delivery is unavailable. In-app alerts are still on.</Notice>}
-        {!verified && <Notice tone="warn">Sign in with an email code to verify your address before enabling emails.</Notice>}
-        <Button type="submit" disabled={pending || (!enabled && (!emailReady || !verified))}>Save change alerts</Button>
-      </form>
-    </Card>
-  </section>;
 }

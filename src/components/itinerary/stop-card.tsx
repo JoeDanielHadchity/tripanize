@@ -53,7 +53,7 @@ export function StopCard({ s, tripId, currency, mapsApp, canEdit, handlers, next
         </div>
         <div className="min-w-0 flex-1">
           {highlight && <p className="text-xs font-semibold uppercase tracking-wide text-accent-ink">{highlight === "now" ? "Now" : "Next"}</p>}
-          <h4 className={cx("text-[17px] font-extrabold leading-snug", skipped && "line-through")}>{s.title}</h4>
+          <h3 className={cx("text-[17px] font-extrabold leading-snug", skipped && "line-through")}>{s.title}</h3>
           <div className="mt-1 flex flex-wrap gap-1"><StopBadges s={s} /></div>
           {(s.address || s.locationName) && <p className="mt-1 text-sm text-muted">{[s.locationName !== s.title ? s.locationName : null, s.address].filter(Boolean).join(", ")}</p>}
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">

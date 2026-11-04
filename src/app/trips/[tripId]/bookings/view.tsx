@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, EmptyState, ExternalLink, Field, Input, Notice, Select, Textarea, cx } from "@/components/ui";
 import { Dialog, useAction, useConfirm } from "@/components/client";
-import { bookingReminderPreferenceAction, deleteAttachmentAction, deleteBookingAction, saveBookingAction, setBookingStatusAction, uploadAttachmentAction } from "@/app/actions/bookings";
+import { deleteAttachmentAction, deleteBookingAction, saveBookingAction, setBookingStatusAction, uploadAttachmentAction } from "@/app/actions/bookings";
 import { BOOKING_CATEGORIES, BOOKING_STATUSES } from "@/lib/constants";
 import { CURRENCIES, formatMoney, minorToDecimalString } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
@@ -47,14 +47,14 @@ export function BookingsView({ tripId, timezone, reminderEmail, emailAvailable, 
 
   return (
     <div className="space-y-6">
-      <Notice tone="neutral">Tripanize records reservations — it doesn't book anything with providers. Book through the official link, then mark it <strong>Booked</strong> here so everyone sees it. Don't store card numbers; confirmation numbers are only shown in a booking's details.</Notice>
+      <div className="text-sm">
+        <p>Book through the official link, then mark it <strong>Booked</strong> here so everyone sees it.</p>
+        <details className="mt-1"><summary className="cursor-pointer text-muted">How it works</summary><p className="mt-1 text-muted">Tripanize records reservations; it doesn't book anything with providers. Don't store card numbers here. Confirmation numbers only show inside a booking's details.</p></details>
+      </div>
 
       <Card className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-lg font-semibold">Deadlines & reminders</h2>
-          <Button disabled={pending || (!reminderEmail && !emailAvailable)} onClick={() => run(() => bookingReminderPreferenceAction(tripId, !reminderEmail), { success: reminderEmail ? "Reminder emails turned off" : "Reminder emails turned on" })}>{reminderEmail ? "Turn off reminder emails" : "Email me reminders"}</Button>
-        </div>
-        <p className="text-sm text-muted">Add deadlines when editing a booking. Everyone receives in-app reminders 24 hours before and at the deadline, while action is still needed. Times use {timezone}. Email reminders are your personal choice.</p>
-        {!emailAvailable && !reminderEmail && <p className="text-xs text-muted">Email reminders require a verified email and available email delivery.</p>}
+        <h2 className="font-display text-lg font-semibold">Deadlines & reminders</h2>
+        <p className="text-sm text-muted">Everyone gets a reminder in the bell 24 hours before each deadline (times in {timezone}). Reminder emails: <strong className="text-ink">{reminderEmail ? "on" : "off"}</strong> · <Link href={`/trips/${tripId}/settings#alerts`} className="font-semibold text-ink underline">Change in Alerts</Link></p>
         {deadlines.length ? <ul className="divide-y divide-line text-sm">{deadlines.map(d => <li key={`${d.booking.id}-${d.label}`} className="flex flex-wrap justify-between gap-2 py-2"><a href={`#b-${d.booking.id}`} onClick={() => { setOpen(d.booking.id); setFilter("all"); }} className="text-accent-ink underline">{d.booking.title}</a><span>{d.label}: {d.local!.replace("T", " · ")}</span></li>)}</ul> : <p className="text-sm text-muted">No deadlines set. Add the confirmed dates from your booking provider.</p>}
       </Card>
 

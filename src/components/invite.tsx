@@ -61,7 +61,7 @@ export function InviteButton({ tripId, tripName, travelers, className, label = "
     <Dialog open={open} onClose={() => setOpen(false)} title="Invite people to this trip">
       <p className="mb-4 text-sm text-muted">Create a link and send it to the people you're travelling with.</p>
       <InviteForm tripId={tripId} tripName={tripName} travelers={travelers} compact />
-      <p className="mt-4 text-xs text-muted"><Link href={`/trips/${tripId}/settings#travelers`} onClick={() => setOpen(false)} className="font-semibold underline">Manage people and pending invitations</Link></p>
+      <p className="mt-4 text-xs text-muted"><Link href={`/trips/${tripId}/settings#people`} onClick={() => setOpen(false)} className="font-semibold underline">Manage people and pending invitations</Link></p>
     </Dialog>
   );
   return (

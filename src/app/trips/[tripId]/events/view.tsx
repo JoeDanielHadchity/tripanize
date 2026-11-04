@@ -5,9 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge, Button, Card, EmptyState, ExternalLink, Field, Input, Notice, Select, Textarea, cx } from "@/components/ui";
 import { Dialog, useAction } from "@/components/client";
-import { ackEventAction, addCustomEventAction, discoverEventsAction, discoverySettingsAction, notificationPrefsAction, previewEventAction, scheduleEventAction, setEventStatusAction } from "@/app/actions/events";
+import { ackEventAction, addCustomEventAction, discoverEventsAction, discoverySettingsAction, previewEventAction, scheduleEventAction, setEventStatusAction } from "@/app/actions/events";
 import { formatDate, formatTimestamp } from "@/lib/dates";
-import { NOTIFY_CHANGE_TYPES } from "@/lib/constants";
 
 type Ev = {
   booking: { id: string; status: string } | null;
@@ -84,23 +83,9 @@ export function EventsView(p: Props) {
         )}
       </Card>
 
-      <Card>
-        <h2 className="font-display text-lg font-semibold">My event alerts</h2>
-        <p className="mt-2 text-sm text-muted">Every trip member receives in-app alerts for new matches and event changes. Known events are not announced again unless something changes. Open an alert to see the event and its booking links.</p>
-        {!p.emailReady && <Notice tone="warn" className="mt-2">Email delivery isn't set up on this server yet (Resend or SMTP), so alerts can't be sent. Your preferences are saved and nothing will be reported as sent.</Notice>}
-        <form className="mt-3 space-y-3" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); run(() => notificationPrefsAction(p.tripId, { emailEnabled: f.get("email") === "on", frequency: String(f.get("freq")), changeTypes: f.getAll("types").map(String) }), { success: "Alert preferences saved" }); }}>
-          <label className="flex min-h-11 items-center gap-2 text-sm font-medium"><input type="checkbox" name="email" defaultChecked={p.pref.emailEnabled} className="h-5 w-5" /> Also email me about event matches and changes (opt-in)</label>
-          <Field label="Frequency" htmlFor="freq"><Select id="freq" name="freq" defaultValue={p.pref.frequency} className="w-auto"><option value="immediate">As soon as found</option><option value="daily">Daily digest</option></Select></Field>
-          <fieldset><legend className="mb-1 text-sm font-medium">Which changes</legend>
-            <div className="flex flex-wrap gap-x-4">{NOTIFY_CHANGE_TYPES.map(([v, l]) => <label key={v} className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="types" value={v} defaultChecked={p.pref.changeTypes.includes(v)} className="h-5 w-5" />{l}</label>)}</div>
-          </fieldset>
-          <Button type="submit" disabled={pending}>Save alerts</Button>
-        </form>
-        {p.deliveries.length > 0 && (
-          <details className="mt-3 text-sm"><summary className="cursor-pointer text-muted">Recent alert deliveries</summary>
-            <ul className="mt-1 space-y-1">{p.deliveries.map((d) => <li key={d.id}>{formatTimestamp(d.at, p.timezone)} — {d.subject} — <strong>{d.status === "sent" ? "sent (accepted by email provider)" : d.status === "not_configured" ? "not sent: email not configured" : d.status === "digest" ? "waiting for daily digest" : d.status === "queued" ? "waiting for delivery" : d.status === "cancelled" ? "cancelled" : "failed"}</strong></li>)}</ul>
-          </details>
-        )}
+      <Card className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm"><span className="font-semibold">Event alert emails: {p.pref.emailEnabled ? "on" : "off"}.</span> <span className="text-muted">New finds and changes always show in the bell.</span></p>
+        <Link href={`/trips/${p.tripId}/settings#alerts`} className="text-sm font-semibold underline">Change in Alerts</Link>
       </Card>
 
         </div>

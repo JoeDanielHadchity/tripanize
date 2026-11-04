@@ -13,6 +13,8 @@ type Props = {
   travelers: { id: string; name: string; isChild: boolean; linked: boolean; left: boolean }[];
   members: { userId: string; name: string; email: string | null; role: string }[];
   invitations: { id: string; role: string; email: string | null; expiresAt: string; emailStatus: string | null; traveler: string | null }[];
+  /** Which part of the panel to show: travelers and invites, or export / leave / delete. */
+  part: "people" | "data";
 };
 
 export function SharingPanel(p: Props) {
@@ -24,8 +26,7 @@ export function SharingPanel(p: Props) {
 
   return (
     <>
-      <section id="travelers" aria-labelledby="trav-h" className="scroll-mt-20 space-y-4">
-        <h2 id="trav-h" className="font-display text-xl font-semibold">Travelers & sharing</h2>
+      {p.part === "people" && <section id="travelers" aria-label="Travelers and invites" className="scroll-mt-20 space-y-4">
         <Card>
           <h3 className="font-semibold">Travelers</h3>
           <p className="text-sm text-muted">Everyone who shares costs. People without an account can still be included in expenses; inviting them later links their account to the same traveler, keeping their history.</p>
@@ -96,10 +97,10 @@ export function SharingPanel(p: Props) {
             {!p.emailReady && <p className="mt-3 text-xs text-muted">Email invitations need email delivery (Resend or SMTP) set up on the server. Links work without it.</p>}
           </Card>
         )}
-      </section>
+      </section>}
 
-      <section aria-labelledby="data-h" className="space-y-3">
-        <h2 id="data-h" className="font-display text-xl font-semibold">Your data</h2>
+      {p.part === "data" && <><section aria-labelledby="data-h" className="space-y-3">
+        <h2 id="data-h" className="font-semibold">Export</h2>
         <Card className="flex flex-wrap gap-2">
           <a href={`/api/trips/${p.tripId}/export/json`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 font-medium">Export full trip (JSON)</a>
           <a href={`/api/trips/${p.tripId}/export/pdf`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 font-medium">Itinerary PDF</a>
@@ -108,7 +109,7 @@ export function SharingPanel(p: Props) {
       </section>
 
       <section aria-labelledby="danger-h" className="space-y-3">
-        <h2 id="danger-h" className="font-display text-xl font-semibold text-danger">Leave or delete</h2>
+        <h2 id="danger-h" className="font-semibold text-danger">Leave or delete</h2>
         <Card className="space-y-4 border-danger/30">
           {!p.isOwner && (
             <div>
@@ -123,7 +124,7 @@ export function SharingPanel(p: Props) {
             </form>
           )}
         </Card>
-      </section>
+      </section></>}
     </>
   );
 }

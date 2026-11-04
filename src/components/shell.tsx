@@ -34,8 +34,7 @@ export function AppHeader({ user, current, currentPath }: { user: SessionUser; c
           {user.companyAdmin && link("/company", "Admin", current === "admin")}
           {link("/account", (user.companyAdminEligible || user.companyAdmin) ? "Account" : user.name.split(" ")[0] || "Account", current === "account")}
           <NotificationBell />
-          <SettingsLink active={current === "settings" || currentPath === "/settings"} />
-          <SiteMenu extra={<><Link href="/account" className="site-menu-phone-only">Account</Link><SignOutButton className="site-menu-signout" /></>} />
+          <SiteMenu extra={<><Link href="/account" className="site-menu-phone-only">Account &amp; settings</Link><SignOutButton className="site-menu-signout" /></>} />
         </nav>
       </div>
       {user.normalMode && <div className="border-t border-line bg-accent-soft px-4 py-1.5 text-center text-xs text-accent-ink">Normal mode · Premium included <Link href="/account" className="ml-2 font-semibold underline">Account mode</Link></div>}

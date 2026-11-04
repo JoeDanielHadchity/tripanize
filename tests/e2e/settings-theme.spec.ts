@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 // Every new document starts light. Explicit choices last during client-side browsing.
 const bg = (page: import("@playwright/test").Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 const LIGHT = "rgb(246, 242, 233)";
-const DARK = "rgb(25, 30, 36)";
+const DARK = "rgb(15, 30, 33)";
 
 test("appearance starts light and allows dark or system until the next reload", async ({ browser }, info) => {
   const mobile = Boolean(info.project.use.isMobile);
@@ -18,8 +18,8 @@ test("appearance starts light and allows dark or system until the next reload", 
   await page.waitForURL("**/start");
   expect(await bg(page)).toBe(LIGHT); // Light even on a dark device with an old saved preference.
 
-  await page.getByRole("link", { name: "Settings" }).click();
-  await page.waitForURL("**/settings");
+  await page.goto("/settings"); // Signed-in people land in Account & settings.
+  await page.waitForURL(/\/account(#appearance)?$/);
   await expect(page.getByRole("heading", { name: "Appearance" })).toBeVisible();
   await expect(page.getByRole("radio", { name: /Light/ })).toBeChecked();
 
@@ -38,8 +38,10 @@ test("appearance starts light and allows dark or system until the next reload", 
   await page.getByRole("link", { name: "My trips", exact: true }).click();
   await page.waitForURL("**/trips");
   expect(await bg(page)).toBe(DARK);
-  await page.getByRole("link", { name: "Settings" }).click();
-  await page.waitForURL("**/settings");
+  // Client-side navigation keeps the explicit choice (a full reload starts light again).
+  if (mobile) { await page.getByRole("button", { name: "Open menu" }).click(); await page.getByRole("link", { name: "Account & settings" }).click(); }
+  else await page.getByRole("link", { name: "Theo", exact: true }).click();
+  await page.waitForURL(/\/account$/);
   await expect(page.getByRole("radio", { name: /Dark/ })).toBeChecked();
   await page.getByText("System", { exact: true }).click();
   await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);

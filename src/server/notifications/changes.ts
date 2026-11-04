@@ -51,7 +51,7 @@ export async function queueChangeNotifications(tx: Tx, change: AuditLog) {
       userId: member.userId, tripId: change.tripId, auditId: change.id, tripName: trip.name, summary, href,
       ...(email ? {
         emailTo: member.user.email, emailSubject: `Tripanize: ${trip.name.replace(/[\r\n]+/g, " ").slice(0, 100)} updated`,
-        emailText: `${summary}\n\nTrip: ${trip.name}\n\nView the change:\n${origin}${href}\n\nYou enabled emails for shared trip changes. Manage your alerts:\n${origin}/trips/${change.tripId}/settings#notifications`,
+        emailText: `${summary}\n\nTrip: ${trip.name}\n\nView the change:\n${origin}${href}\n\nYou enabled emails for shared trip changes. Manage your alerts:\n${origin}/trips/${change.tripId}/settings#alerts`,
         emailStatus: "queued", nextAttemptAt: new Date(),
       } : {}),
     } });

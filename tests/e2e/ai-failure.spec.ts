@@ -23,7 +23,8 @@ test("Plan with AI failure keeps the itinerary and reports the real reason", asy
 
   // Existing manual plan
   await page.goto(`${tripUrl}/itinerary`);
-  await page.getByRole("button", { name: "+ Idea" }).click();
+  await page.getByRole("button", { name: "More" }).click();
+  await page.getByRole("button", { name: "Add an idea for later" }).click();
   await page.getByRole("dialog").getByLabel("Title").fill("My saved idea");
   await page.getByRole("dialog").getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByRole("heading", { name: "My saved idea" })).toBeVisible();

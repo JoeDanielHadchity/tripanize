@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Badge, Button, Card, EmptyState, Field, Input, Notice, Select, Textarea, cx } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Field, Input, Select, Textarea, cx } from "@/components/ui";
 import { Dialog, useAction, useConfirm } from "@/components/client";
 import { castVoteAction, createPollAction, decidePollAction } from "@/app/actions/voting";
 import type { PollView } from "@/lib/voting";
@@ -16,8 +16,7 @@ export function VotesView({ tripId, polls, canCreate, canDecide, suggestions }: 
   const [archived, setArchived] = useState(false);
   const shown = polls.filter(p => archived ? p.status === "ARCHIVED" : p.status !== "ARCHIVED");
   return <div className="space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-display text-xl font-semibold">Let the group choose</h2><p className="mt-1 text-sm text-muted">Vote on destinations or activities. Each member has one vote per question and can change it until the organizer decides.</p></div>{canCreate && <Button variant="primary" onClick={() => { setChoices(""); setCreating(true); }}>+ Create vote</Button>}</div>
-    <Notice tone="neutral">Voting is included for every trip, including viewers. Results show totals; only the organizer can finalize or reopen a decision. Finalizing records the choice so the group can plan it together.</Notice>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-display text-xl font-semibold">Let the group choose</h2><p className="mt-1 text-sm text-muted">Vote on destinations or activities. Everyone on the trip can vote.</p><details className="mt-1 text-sm text-muted"><summary className="cursor-pointer font-semibold">How it works</summary><p className="mt-1">Each member has one vote per question and can change it until the organizer decides. Results show totals. Only the organizer can finalize or reopen a decision; finalizing records the choice so the group can plan it together.</p></details></div>{canCreate && <Button variant="primary" onClick={() => { setChoices(""); setCreating(true); }}>+ Create vote</Button>}</div>
     <div className="flex gap-2" role="group" aria-label="Filter group votes"><Button aria-pressed={!archived} onClick={() => setArchived(false)}>Active & decided</Button><Button aria-pressed={archived} onClick={() => setArchived(true)}>Archived</Button></div>
     {!shown.length && <EmptyState title={archived ? "No archived votes" : "Make your next decision together"}>{canCreate ? "Create a destination or activity question with 2–8 choices. You can use suggestions already in the trip or add your own." : "The organizer or an editor can create a vote. You can then choose your favorite."}</EmptyState>}
     {shown.map(p => <Card key={p.id} className="space-y-4" id={`vote-${p.id}`}>

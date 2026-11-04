@@ -287,3 +287,18 @@
 .invite-button:hover { filter:brightness(1.06); }
 .invite-button:focus-visible { outline:3px solid var(--night-ink); outline-offset:2px; }
 
+
+/* Phones: the trip banner is a slim strip, so each section's own content starts on the first screen. */
+@media (max-width:639px) {
+  .trip-topline { margin-bottom:6px; gap:2px 8px; }
+  .trip-topline .trip-back, .trip-topline .premium-link { min-height:40px; }
+  .journey-cover { flex-wrap:nowrap; align-items:center; gap:10px; min-height:0; margin-bottom:12px; padding:10px 10px 10px 14px; border-radius:18px; }
+  .journey-cover.has-photo { padding-left:14px; }
+  .journey-cover-text { flex:1 1 auto; min-width:0; }
+  .journey-cover .journey-cover-text>p, .journey-cover.has-photo .journey-cover-text>p { overflow:hidden; font-size:10px; letter-spacing:.08em; white-space:nowrap; text-overflow:ellipsis; }
+  .tripanize-app .journey-cover h2 { overflow:hidden; margin-top:1px; font-size:19px; line-height:1.15; white-space:nowrap; text-overflow:ellipsis; }
+  .journey-cover p.journey-cover-count { flex:none; flex-direction:column; align-items:center; gap:0; font-size:11px; line-height:1.1; }
+  .journey-cover-count strong { font-size:20px; }
+  .journey-cover-action { margin-left:0; }
+  .journey-cover .invite-button { min-height:40px; padding:0 12px; font-size:13px; }
+}

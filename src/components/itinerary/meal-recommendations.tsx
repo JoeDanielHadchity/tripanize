@@ -12,10 +12,10 @@ export function MealRecommendations({ meals: raw, currency, mapsApp = "GOOGLE", 
   const [meal, setMeal] = useState<Meal>("breakfast");
   const meals = readMealOptions(raw);
   if (!MEALS.some(key => meals[key].length)) {
-    return preferencesHref ? <section className="mt-4 rounded-xl border border-line bg-surface p-4" aria-label="Restaurant options"><h4 className="font-semibold">Restaurant options</h4><p className="mt-1 text-sm text-muted">Add food preferences, then generate your itinerary for meal choices.</p><Link href={preferencesHref} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-accent-ink underline">Food preferences</Link></section> : null;
+    return preferencesHref ? <section className="mt-4 rounded-xl border border-line bg-surface p-4" aria-label="Restaurant options"><h3 className="font-semibold">Restaurant options</h3><p className="mt-1 text-sm text-muted">Add food preferences, then generate your itinerary for meal choices.</p><Link href={preferencesHref} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-accent-ink underline">Food preferences</Link></section> : null;
   }
   return <section className="mt-4 rounded-xl border border-line bg-surface p-4" aria-label="Restaurant options">
-    <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="font-display text-lg font-semibold">Restaurant options</h4>{preferencesHref && <Link href={preferencesHref} className="text-xs text-accent-ink underline">Food preferences</Link>}</div>
+    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-lg font-semibold">Restaurant options</h3>{preferencesHref && <Link href={preferencesHref} className="text-xs text-accent-ink underline">Food preferences</Link>}</div>
     <div role="group" aria-label="Choose a meal" className="my-3 flex gap-1">{MEALS.map(key => <button key={key} type="button" aria-pressed={meal === key} onClick={() => setMeal(key)} className={cx("min-h-11 rounded-lg px-3 text-sm capitalize", meal === key ? "bg-accent text-on-accent" : "text-muted hover:bg-surface-2")}>{key}</button>)}</div>
     {meals[meal].length ? <div className="grid gap-3 sm:grid-cols-2">{meals[meal].map((restaurant, index) => {
       const directions = directionsUrl({ title: restaurant.name, address: restaurant.address ?? restaurant.area }, mapsApp);

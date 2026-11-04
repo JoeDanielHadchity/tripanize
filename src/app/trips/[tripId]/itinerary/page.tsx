@@ -51,7 +51,6 @@ export default async function ItineraryPage({ params, searchParams }: { params: 
         actions={
           <>
             {canEdit && <LinkButton href={`/trips/${tripId}/plan`} variant="ai">{premium && <PremiumStar className="text-current" />}{premium || onCredits ? "Plan with AI" : "AI itinerary · 2 days"}</LinkButton>}
-            <a href={`/api/trips/${tripId}/export/pdf`} className="inline-flex min-h-11 items-center rounded-xl border border-line bg-surface px-4 text-[15px] font-medium hover:bg-surface-2">Trip PDF</a>
           </>
         }
       />

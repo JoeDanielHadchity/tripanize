@@ -185,6 +185,6 @@ export function ChatView({ tripId, userId, isOwner, initial, invite = null }: { 
         {sendError && <p role="alert" className="mt-2 text-sm text-danger">{sendError} Your message stays in the box so you can retry.</p>}
       </form>
     </div>
-    <p className="text-xs text-muted">Chat alerts appear in the notification bell. Message text isn’t sent by email or saved in offline trip copies. You can delete your own messages; the trip owner can moderate the conversation.</p>
+<details className=" text-sm text-muted"><summary className="cursor-pointer font-semibold">How it works</summary><p className="mt-1">New messages show in the bell. Message text is never emailed or saved in offline copies. You can delete your own messages, and the organizer can moderate the chat.</p></details>
   </div>;
 }
