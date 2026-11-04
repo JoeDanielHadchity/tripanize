@@ -1,6 +1,6 @@
 "use client";
 import { PremiumStar } from "@/components/premium-star";
-import { CreditNote, CreditPrice } from "@/components/credits";
+import { CreditNote } from "@/components/credits";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -136,7 +136,7 @@ export function PlanQuestions({ tripId, canEdit, aiReady, prefs, onboarding = fa
           </Field>
           {onboarding ? set.questions.some(q => !(picked[q.id]?.length)) && <Notice>Choose an answer to each question to prepare your trip.</Notice> : Object.values(picked).every((a) => !a.length) && !note && !foodNotes && <Notice tone="neutral">Pick at least one answer, or cancel to plan without preferences.</Notice>}
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" disabled={pending || (onboarding ? set.questions.some(q => !(picked[q.id]?.length)) : (Object.values(picked).every((a) => !a.length) && !note && !foodNotes))} onClick={save}>{onboarding ? <>Generate my trip{<CreditPrice credits={startCredits} tripId={tripId} />}</> : "Save answers"}</Button>
+            <Button variant="primary" disabled={pending || (onboarding ? set.questions.some(q => !(picked[q.id]?.length)) : (Object.values(picked).every((a) => !a.length) && !note && !foodNotes))} onClick={save}>{onboarding ? "Generate my trip" : "Save answers"}</Button>
             {!onboarding && <Button onClick={() => setOpen(false)}>Cancel</Button>}
             {aiReady && <Button variant="ghost" disabled={pending} onClick={() => { setSet(null); load(true); }}>New questions</Button>}
           </div>

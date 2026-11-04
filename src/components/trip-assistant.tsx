@@ -1,6 +1,6 @@
 "use client";
 import { PremiumStar } from "./premium-star";
-import { CreditPrice, notifyCreditsChanged } from "@/components/credits";
+import { CreditNote, notifyCreditsChanged } from "@/components/credits";
 import { CREDIT_PRICES } from "@/lib/credits";
 
 import Link from "next/link";
@@ -85,7 +85,7 @@ export function TripAssistant({ tripId, defaultDate }: { tripId: string; default
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <p className="shrink-0 text-xs text-muted">Your conversation is private to you. The assistant uses your trip details and itinerary. Changes are shared with the trip only after you apply them.</p>
         {!online && <Notice tone="warn">You’re offline. Reconnect to use the assistant.</Notice>}
-        {error && <Notice tone="warn">{error} {needsCredits ? <a href="/credits" className="font-semibold underline">Get credits</a> : !blocked && <button type="button" className="font-semibold underline" onClick={() => setRefresh(n => n + 1)}>Retry</button>}</Notice>}
+        {error && <Notice tone="warn">{error} {needsCredits ? <a href="/credits" className="font-semibold underline">Top up</a> : !blocked && <button type="button" className="font-semibold underline" onClick={() => setRefresh(n => n + 1)}>Retry</button>}</Notice>}
         {conversation && !conversation.aiReady && <Notice tone="warn">The AI assistant is not configured yet.</Notice>}
         {conversation && !conversation.canEdit && <Notice>You have view-only access. You can ask about the trip; itinerary changes need an owner or collaborator.</Notice>}
         <div ref={feed} role="log" aria-label="Conversation with AI trip assistant" aria-live="polite" onScroll={() => { const el = feed.current; if (el) nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90; }} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-1">
@@ -115,7 +115,8 @@ export function TripAssistant({ tripId, defaultDate }: { tripId: string; default
         <form className="shrink-0 space-y-2 border-t border-line pt-3" onSubmit={e => { e.preventDefault(); void send(); }}>
           <label htmlFor={`assistant-message-${tripId}`} className="text-sm font-medium">Ask about this trip</label>
           <Textarea id={`assistant-message-${tripId}`} value={draft} onChange={e => setDraft(e.target.value)} maxLength={ASSISTANT_MAX_MESSAGE} rows={2} placeholder="Move the museum to day 4, or suggest a more relaxed afternoon…" disabled={blocked || !online || conversation?.aiReady === false} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
-          <div className="flex items-center justify-between gap-2"><p className="text-[11px] text-muted">{draft.length} / {ASSISTANT_MAX_MESSAGE.toLocaleString()} · Enter to send</p><Button variant="primary" type="submit" disabled={!draft.trim() || Boolean(pending) || Boolean(active) || !online || !conversation?.aiReady || blocked}>{pending === "send" ? "Sending…" : <>Ask assistant<CreditPrice credits={CREDIT_PRICES.assistant} tripId={tripId} /></>}</Button></div>
+          <div className="flex items-center justify-between gap-2"><p className="text-[11px] text-muted">{draft.length} / {ASSISTANT_MAX_MESSAGE.toLocaleString()} · Enter to send</p><Button variant="primary" type="submit" disabled={!draft.trim() || Boolean(pending) || Boolean(active) || !online || !conversation?.aiReady || blocked}>{pending === "send" ? "Sending…" : "Ask assistant"}</Button></div>
+          <CreditNote credits={CREDIT_PRICES.assistant} tripId={tripId} className="text-[11px] text-muted" />
           <p className="text-[11px] text-muted">Bookings and fixed commitments stay protected. Estimates stay separate from actual expenses.</p>
         </form>
       </div>

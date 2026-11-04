@@ -26,32 +26,33 @@ export function useCredits(tripId?: string | null) {
   return view;
 }
 
-/** "120 credits" in the header, linking to the Credits page; nothing while credits don't apply. */
-export function CreditsBalance() {
-  const view = useCredits();
-  if (!view?.active) return null;
-  return <Link href="/credits" className="credits-balance" aria-label={`${view.balance} credits. Get more credits`}>
-    <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8" /><path d="M12 8v8M9.5 10.5h4a1.5 1.5 0 010 3h-3a1.5 1.5 0 000 3h4" /></svg>
-    {view.balance}<span className="credits-balance-word"> credits</span>
-  </Link>;
-}
+/** The threshold under which the organizer gets a gentle "running low" note on their trips. */
+export const LOW_CREDITS = 20;
 
 /**
- * The price shown on an AI button: " · 21 credits". Shows nothing while credits don't apply,
- * so buttons look exactly as before for everyone else.
+ * The quiet cost line under an AI button: "Uses 18 of your 85 AI credits." Nothing while credits
+ * don't apply to this person, so everyone else sees the app exactly as before.
  */
-export function CreditPrice({ credits, tripId }: { credits: number; tripId?: string | null }) {
-  const view = useCredits(tripId);
-  if (!view?.active || credits <= 0) return null;
-  return <span className="credit-price"> · {credits} credit{credits === 1 ? "" : "s"}</span>;
-}
-
-/** A one-line note under an AI action: what it costs and what's left, or how to get more. */
 export function CreditNote({ credits, tripId, className }: { credits: number; tripId?: string | null; className?: string }) {
   const view = useCredits(tripId);
   if (!view?.active || credits <= 0) return null;
-  if (view.membersBlocked) return <p className={className ?? "mt-2 text-xs text-muted"}>The organizer has turned off AI for members on this trip.</p>;
-  const whose = view.payerIsYou ? "You have" : "The organizer has";
-  if (view.balance < credits) return <p className={className ?? "mt-2 text-xs text-muted"}>This uses {credits} credits. {whose} {view.balance}. {view.payerIsYou ? <Link href="/credits" className="font-semibold underline">Get credits</Link> : "Ask the organizer to add credits."}</p>;
-  return <p className={className ?? "mt-2 text-xs text-muted"}>This uses {credits} credit{credits === 1 ? "" : "s"}. {whose} {view.balance}{view.payerIsYou ? "" : " for the group"}.</p>;
+  const cls = className ?? "mt-1.5 text-xs text-muted";
+  if (view.membersBlocked) return <p className={cls}>The organizer has turned off AI for members on this trip.</p>;
+  const n = `${credits} AI credit${credits === 1 ? "" : "s"}`;
+  if (view.balance < credits) return <p className={cls}>Needs {n}; {view.payerIsYou ? "you have" : "the organizer has"} {view.balance}. {view.payerIsYou ? <Link href="/credits" className="font-semibold underline">Top up</Link> : "Ask the organizer to top up."}</p>;
+  return <p className={cls}>Uses {credits} of {view.payerIsYou ? "your" : "the organizer's"} {view.balance} AI credits.</p>;
+}
+
+/** On trip pages, for the organizer only: a small heads-up once their AI credits run low. */
+export function LowCreditsNotice({ tripId }: { tripId: string }) {
+  const view = useCredits(tripId);
+  if (!view?.active || !view.payerIsYou || view.balance >= LOW_CREDITS) return null;
+  return <p className="mb-4 rounded-2xl bg-surface-2 px-4 py-3 text-sm text-muted">{view.balance === 0 ? "You've used all your AI credits." : `You're running low on AI credits (${view.balance} left).`} <Link href="/credits" className="font-semibold text-accent-ink underline">Top up</Link> to keep planning with AI. Everything else keeps working.</p>;
+}
+
+/** Account page: one line with the balance and a way to top up. */
+export function AccountCreditsLine() {
+  const view = useCredits();
+  if (!view?.active) return null;
+  return <p className="text-sm">AI credits: <span className="font-bold tabular-nums">{view.balance}</span> · <Link href="/credits" className="font-semibold text-accent-ink underline">Top up</Link></p>;
 }

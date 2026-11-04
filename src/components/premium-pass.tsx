@@ -12,6 +12,8 @@ type PassProps = {
   premiumFooter?: string;
   standardNote?: string;
   groupNote?: string;
+  /** Shown under the price once AI credits apply: what the $15 includes. */
+  creditsNote?: string;
 };
 
 // Use the same stroke icons as the trip navigation.
@@ -29,7 +31,7 @@ function Check() {
 }
 
 /** Shared presentation only. Checkout, trial activation and access stay with callers. */
-export function PremiumPass({ premiumAction, standardAction, price = premiumPrice(PREMIUM_PRICE_MINOR), priceLabel = "USD / trip", priceIsStatus = false, priceNote = "One payment for the whole group.", premiumFooter = "Any group size. No subscription.", standardNote = "Upgrade this trip anytime.", groupNote = "One upgrade for everyone on this trip." }: PassProps) {
+export function PremiumPass({ premiumAction, standardAction, price = premiumPrice(PREMIUM_PRICE_MINOR), priceLabel = "USD / trip", priceIsStatus = false, priceNote = "One payment for the whole group.", premiumFooter = "Any group size. No subscription.", standardNote = "Upgrade this trip anytime.", groupNote = "One upgrade for everyone on this trip." , creditsNote}: PassProps) {
   return <section className="premium-pass" aria-labelledby="premium-pass-title">
     <div className="premium-pass-hero">
       <div className="premium-pass-intro"><p className="premium-pass-eyebrow">Choose your plan</p><h1 id="premium-pass-title">Your trip,<br />thoughtfully organized.</h1><p className="premium-pass-lead">A full itinerary, places you&apos;ll enjoy, and shared tools to keep your group together.</p><p className="premium-pass-group">{groupNote}</p></div>
@@ -37,6 +39,7 @@ export function PremiumPass({ premiumAction, standardAction, price = premiumPric
         <div className="premium-pass-ticket-heading"><h2>Premium</h2><span aria-hidden="true"><PremiumStar className="text-current" /></span></div>
         <div className={`premium-pass-price${priceIsStatus ? " premium-pass-price-status" : ""}`}><strong>{price}</strong><span>{priceLabel}</span></div>
         <p className="premium-pass-price-note">{priceNote}</p>
+        {creditsNote && <p className="premium-pass-price-note">{creditsNote}</p>}
         <div className="premium-pass-divider" aria-hidden="true" />
         <div className="premium-pass-action">{premiumAction}</div>
         <p className="premium-pass-ticket-foot">{premiumFooter}</p>

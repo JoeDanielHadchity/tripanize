@@ -34,7 +34,7 @@ export async function preparePaddle(token: string, environment: "sandbox" | "liv
   }
   return paddle;
 }
-export function PremiumCheckout({ tripId, initial, trial }: { tripId: string; initial: Summary; trial?: UserTrialAccess }) {
+export function PremiumCheckout({ tripId, initial, trial, creditsNote }: { tripId: string; initial: Summary; trial?: UserTrialAccess; creditsNote?: string }) {
   const router = useRouter();
   const [summary, setSummary] = useState(initial); const [busy, setBusy] = useState(false); const [awaiting, setAwaiting] = useState(false); const [error, setError] = useState(""); const [message, setMessage] = useState("");
   useEffect(() => { setSummary(initial); }, [initial]);
@@ -86,6 +86,7 @@ export function PremiumCheckout({ tripId, initial, trial }: { tripId: string; in
       premiumFooter={included || offer ? "No payment required." : hasPremium ? "Premium is already active for this trip." : "Any group size. No subscription."}
       standardNote={hasPremium ? "This trip already has Premium." : "Upgrade this trip anytime."}
       groupNote={hasPremium ? "Premium is active for everyone on this trip." : offer ? "Your trial includes everyone on this trip." : undefined}
+      creditsNote={!included && !offer && !hasPremium ? creditsNote : undefined}
     />
 
     {!summary.canPurchase && <Notice>Only the trip organizer can choose or pay for the plan. Your role is managed in Trip settings.</Notice>}

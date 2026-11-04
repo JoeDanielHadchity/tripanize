@@ -5,7 +5,6 @@ import { AccountModeSync } from "./account-mode";
 import { NotificationBell } from "./notifications";
 import { SiteNavigation } from "./site-navigation";
 import { SiteMenu } from "./site-menu";
-import { CreditsBalance } from "./credits";
 
 export function Logo({ small }: { small?: boolean }) {
   return (
@@ -34,7 +33,6 @@ export function AppHeader({ user, current, currentPath }: { user: SessionUser; c
           {link("/trips", "My trips", current === "trips")}
           {user.companyAdmin && link("/company", "Admin", current === "admin")}
           {link("/account", (user.companyAdminEligible || user.companyAdmin) ? "Account" : user.name.split(" ")[0] || "Account", current === "account")}
-          <CreditsBalance />
           <NotificationBell />
           <SettingsLink active={current === "settings" || currentPath === "/settings"} />
           <SiteMenu extra={<><Link href="/account" className="site-menu-phone-only">Account</Link><SignOutButton className="site-menu-signout" /></>} />
