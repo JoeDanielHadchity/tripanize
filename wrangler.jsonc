@@ -42,7 +42,7 @@
     "OPENAI_MAX_SEARCHES": "3",
     "EMAIL_FROM": "Tripanize <hello@tripanize.app>",
     "PLAN_ACCESS_ENABLED": "true",
-    "PADDLE_ENVIRONMENT": "live",
+    "PADDLE_ENVIRONMENT": "sandbox",
     "PADDLE_CHECKOUT_ENABLED": "true",
     "PADDLE_PRICE_900": "pri_01m5j5asrjaa1ktb24g3xyw0n1",
     "PADDLE_PRICE_1500": "pri_01m5j5d0wvpvrhjmzdq1ph03z7",
