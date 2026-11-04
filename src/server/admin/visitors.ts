@@ -38,8 +38,8 @@ const RUM = `query Visitors($account: string!, $zone: string!, $filter: AccountR
     accounts(filter: { accountTag: $account }) {
       total: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 1) { count sum { visits } }
       days: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 40, orderBy: [date_ASC]) { count sum { visits } dimensions { key: date } }
-      pages: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 10, orderBy: [count_DESC]) { count sum { visits } dimensions { key: requestPath } }
-      referrers: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 10, orderBy: [count_DESC]) { count sum { visits } dimensions { key: refererHost } }
+      pages: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 60, orderBy: [count_DESC]) { count sum { visits } dimensions { key: requestPath } }
+      referrers: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 15, orderBy: [count_DESC]) { count sum { visits } dimensions { key: refererHost } }
       countries: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 10, orderBy: [count_DESC]) { count sum { visits } dimensions { key: countryName } }
       devices: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 5, orderBy: [count_DESC]) { count sum { visits } dimensions { key: deviceType } }
       browsers: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 8, orderBy: [count_DESC]) { count sum { visits } dimensions { key: userAgentBrowser } }
@@ -51,6 +51,24 @@ const RUM = `query Visitors($account: string!, $zone: string!, $filter: AccountR
 }`;
 
 type Group = { count?: number; sum?: { visits?: number }; dimensions?: { key?: string | null } };
+/** Trip and invitation pages carry private IDs; group them so the list shows kinds of pages. */
+export function pageGroup(path: string) {
+  return (path || "/")
+    .replace(/^\/trips\/(?!new\b)[^/]+/, "/trips/[trip]")
+    .replace(/^\/invite\/[^/]+/, "/invite/[link]")
+    .replace(/^\/trial\/[^/]+/, "/trial/[link]");
+}
+function merge(list: Row[], keyOf: (k: string) => string, limit: number) {
+  const m = new Map<string, Row>();
+  for (const r of list) { const key = keyOf(r.key), cur = m.get(key) ?? { key, views: 0, visits: 0 }; cur.views += r.views; cur.visits += r.visits; m.set(key, cur); }
+  return [...m.values()].sort((a, b) => b.views - a.views).slice(0, limit);
+}
+/** Country codes from Cloudflare (SA, US) as names. */
+function countryName(code: string) {
+  if (!/^[A-Z]{2}$/.test(code)) return code || "Unknown";
+  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code; } catch { return code; }
+}
+const OWN_HOSTS = /(^|\.)tripanize\.app$/i;
 const rows = (groups: Group[] | undefined): Row[] => (groups ?? []).map(g => ({ key: g.dimensions?.key || "", views: g.count ?? 0, visits: g.sum?.visits ?? 0 }));
 
 /** Turns Cloudflare's answer (and the sign-ups per day) into the report the tab shows. */
@@ -75,9 +93,10 @@ export function buildReport(data: unknown, from: string, to: string, signups: Ma
       // Cloudflare counts unique visitors per day; the period figure is the sum of daily uniques.
       uniques: hasTraffic ? days.reduce((s, d) => s + (d.uniques ?? 0), 0) : null,
     },
-    pages: rows(acct.pages).map(r => ({ ...r, key: r.key || "/" })),
-    referrers: rows(acct.referrers).map(r => ({ ...r, key: r.key || "Direct or unknown" })),
-    countries: rows(acct.countries).map(r => ({ ...r, key: r.key || "Unknown" })),
+    pages: merge(rows(acct.pages), pageGroup, 10),
+    // Clicks between Tripanize's own pages aren't a source; the Android app reports its package name.
+    referrers: merge(rows(acct.referrers).filter(r => !OWN_HOSTS.test(r.key)), k => !k ? "Direct or unknown" : k === "app.tripanize.android" ? "Tripanize Android app" : k.replace(/^(www|m|l|lm)\./, ""), 10),
+    countries: rows(acct.countries).map(r => ({ ...r, key: countryName(r.key) })),
     devices: rows(acct.devices).map(r => ({ ...r, key: r.key || "Unknown" })),
     browsers: rows(acct.browsers).map(r => ({ ...r, key: r.key || "Unknown" })),
     fetchedAt: now.toISOString(),

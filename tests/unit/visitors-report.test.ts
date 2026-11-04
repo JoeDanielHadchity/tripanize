@@ -6,9 +6,9 @@ it("turns Cloudflare's analytics into a day-by-day report with sign-ups", () => 
     accounts: [{
       total: [{ count: 120, sum: { visits: 40 } }],
       days: [{ count: 70, sum: { visits: 25 }, dimensions: { key: "2026-11-03" } }, { count: 50, sum: { visits: 15 }, dimensions: { key: "2026-11-04" } }],
-      pages: [{ count: 80, sum: { visits: 30 }, dimensions: { key: "/" } }, { count: 40, sum: { visits: 12 }, dimensions: { key: "" } }],
-      referrers: [{ count: 60, sum: { visits: 20 }, dimensions: { key: "" } }, { count: 30, sum: { visits: 10 }, dimensions: { key: "l.instagram.com" } }],
-      countries: [], devices: [], browsers: [],
+      pages: [{ count: 80, sum: { visits: 30 }, dimensions: { key: "/" } }, { count: 40, sum: { visits: 12 }, dimensions: { key: "/trips/abc123/itinerary" } }, { count: 30, sum: { visits: 2 }, dimensions: { key: "/trips/xyz789/itinerary" } }, { count: 5, sum: { visits: 1 }, dimensions: { key: "/trips/new" } }],
+      referrers: [{ count: 800, sum: { visits: 0 }, dimensions: { key: "www.tripanize.app" } }, { count: 60, sum: { visits: 20 }, dimensions: { key: "" } }, { count: 30, sum: { visits: 10 }, dimensions: { key: "l.instagram.com" } }, { count: 4, sum: { visits: 4 }, dimensions: { key: "instagram.com" } }],
+      countries: [{ count: 90, sum: { visits: 30 }, dimensions: { key: "SA" } }], devices: [], browsers: [],
     }],
     zones: [{ traffic: [{ dimensions: { date: "2026-11-04" }, sum: { requests: 900 }, uniq: { uniques: 70 } }] }],
   } };
@@ -17,8 +17,9 @@ it("turns Cloudflare's analytics into a day-by-day report with sign-ups", () => 
     ["2026-11-02", 0, 0, 0, null], ["2026-11-03", 25, 70, 0, null], ["2026-11-04", 15, 50, 3, 900],
   ]);
   expect(r.totals).toEqual({ views: 120, visits: 40, signups: 3, requests: 900, uniques: 70 });
-  expect(r.pages[1].key).toBe("/");
-  expect(r.referrers.map(x => x.key)).toEqual(["Direct or unknown", "l.instagram.com"]);
+  expect(r.pages.map(p => [p.key, p.views])).toEqual([["/", 80], ["/trips/[trip]/itinerary", 70], ["/trips/new", 5]]);
+  expect(r.referrers.map(x => [x.key, x.views])).toEqual([["Direct or unknown", 60], ["instagram.com", 34]]);
+  expect(r.countries[0].key).toBe("Saudi Arabia");
 });
 
 it("shows no traffic totals when Cloudflare returned none", () => {
