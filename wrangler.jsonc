@@ -49,7 +49,12 @@
     "PADDLE_PRICE_2500": "pri_01m5j5eyyj0w0hearvf1akegjw",
     "PADDLE_PRICE_600": "pri_01m5j5gw7t8dbxj8wfdahgbjsq",
     "PADDLE_PRICE_1000": "pri_01m5j5jn3chjr7ga2xh4btyvd3",
-    "PADDLE_PRICE_1600": "pri_01m5j5kq99jtcr0x19bww29da0"
+    "PADDLE_PRICE_1600": "pri_01m5j5kq99jtcr0x19bww29da0",
+    "PADDLE_SANDBOX_PRICE_1500": "pri_01m5jc1twzekxpn6y12naf7f0v",
+    "PADDLE_SANDBOX_CREDITS_PRICE_500": "pri_01m6jwhr5jk76n8s1ydtyrt149",
+    "PADDLE_SANDBOX_CREDITS_PRICE_1500": "pri_01m6jwjnnvmt8n5febxr6fd5ht",
+    "PADDLE_SANDBOX_CREDITS_PRICE_2500": "pri_01m6jwkdd8rw7mx4v8vpah5kd0",
+    "PADDLE_SANDBOX_CREDITS_PRICE_5000": "pri_01m6jwm04ygsqdmmw9c45cvcrn"
   },
   "triggers": {
     "crons": [
