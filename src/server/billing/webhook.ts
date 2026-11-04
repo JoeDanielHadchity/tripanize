@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AppError } from "@/server/errors";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { reconcilePayment } from "./service";
+import { reconcileCreditPayment } from "./credits";
 import { prisma } from "@/server/db";
 import { billingEnvironment } from "./config";
 
@@ -38,8 +39,12 @@ export async function receivePaddleWebhook(raw: string, signature: string | null
   // Only a known server-created purchase can trigger payment reconciliation.
   // Metadata also recovers a create request whose response was interrupted.
   const checkoutId = transactionEvent && typeof data.custom_data?.checkoutId === "string" ? data.custom_data.checkoutId : null;
-  const purchase = await prisma.premiumCheckout.findFirst({ where: { environment: billingEnvironment(), OR: [{ transactionId }, ...(checkoutId && checkoutId.length <= 64 ? [{ id: checkoutId }] : [])] }, select: { id: true } });
-  if (purchase) await reconcilePayment(transactionId);
+  const match = { environment: billingEnvironment(), OR: [{ transactionId }, ...(checkoutId && checkoutId.length <= 64 ? [{ id: checkoutId }] : [])] };
+  const premium = await prisma.premiumCheckout.findFirst({ where: match, select: { id: true } });
+  const credits = premium ? null : await prisma.creditCheckout.findFirst({ where: match, select: { id: true } });
+  const purchase = premium ?? credits;
+  if (premium) await reconcilePayment(transactionId);
+  if (credits) await reconcileCreditPayment(transactionId);
     await prisma.billingDelivery.update({ where: { id: delivery.id }, data: { transactionId, status: purchase ? "PROCESSED" : "IGNORED", responseStatus: 200 } });
   } catch (error) {
     await prisma.billingDelivery.update({ where: { id: delivery.id }, data: { status: "FAILED", responseStatus: error instanceof AppError && error.code === "VALIDATION" ? 400 : 503 } });

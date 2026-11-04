@@ -3,10 +3,13 @@ import Link from "next/link";
 import { requireUser } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 import { AppHeader } from "@/components/shell";
-import { Badge, Card, Notice, PageHeader } from "@/components/ui";
+import { Card, Notice, PageHeader } from "@/components/ui";
 import { MembersCreditsSwitch } from "@/components/members-credits-switch";
 import { creditHistory, creditsView, tripCreditSpending } from "@/server/credits/service";
 import { CREDIT_BUNDLES, CREDIT_PRICES } from "@/lib/credits";
+import { CreditTopUp } from "@/components/credit-top-up";
+import { unlockableTrips } from "@/server/billing/credits";
+import { creditCheckoutAvailable } from "@/server/billing/config";
 
 // The one place people see their credits: Account › Credits. Not in the menu, not indexed.
 export const metadata: Metadata = { title: "Credits", robots: { index: false, follow: false } };
@@ -15,12 +18,6 @@ export const dynamic = "force-dynamic";
 const SPEND_LABELS: Record<string, string> = {
   plan: "Planned days with AI", regenerate: "Regenerated days with AI", restaurants: "Restaurant ideas", events: "Event search",
   destination: "Destination ideas", assistant: "AI assistant", swap: "Stop alternatives", packing: "Packing suggestions",
-};
-const BUNDLE_COPY: Record<string, string> = {
-  topup: "A little extra to keep planning.",
-  starter: "Plenty for a whole trip. Also unlocks Premium for one trip.",
-  plus: "Room for two trips, or one with lots of changes. Also unlocks Premium for one trip.",
-  pro: "For frequent travellers. Also unlocks Premium for one trip.",
 };
 const COSTS: [string, number | "Free"][] = [
   ["Plan or regenerate one day with AI (restaurants included)", CREDIT_PRICES.planDay],
@@ -34,7 +31,6 @@ const COSTS: [string, number | "Free"][] = [
   ["Automatic event checks before your trip (up to 10)", "Free"],
 ];
 const ORDER = ["topup", "starter", "plus", "pro"];
-const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}`;
 const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 export default async function AccountCreditsPage() {
@@ -79,16 +75,7 @@ export default async function AccountCreditsPage() {
 
           <section aria-labelledby="top-up-h" id="top-up" className="scroll-mt-24">
             <h2 id="top-up-h" className={h2}>Top up</h2>
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {bundles.map(b => (
-                <li key={b.id}><Card className="flex h-full flex-col">
-                  <div className="flex items-baseline justify-between gap-3"><p className="font-display text-2xl font-extrabold tabular-nums">{b.credits}<span className="ml-1.5 text-sm font-bold text-muted">credits</span></p><p className="font-bold">{money(b.priceCents)}</p></div>
-                  {b.id === "pro" && <Badge tone="accent" className="mt-2 self-start">Best value</Badge>}
-                  <p className="mt-2 flex-1 text-sm text-muted">{BUNDLE_COPY[b.id]}</p>
-                  <button type="button" disabled className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-surface-2 px-5 text-sm font-bold text-muted">Coming soon</button>
-                </Card></li>
-              ))}
-            </ul>
+            <CreditTopUp bundles={bundles} trips={await unlockableTrips(user.id)} available={creditCheckoutAvailable()} />
             <p className="mt-2 text-xs text-muted">One payment each, no subscription. Taxes, if any, are shown at checkout.</p>
           </section>
 

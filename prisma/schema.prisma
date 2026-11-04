@@ -288,6 +288,27 @@ model Trip {
 
 // One purchase unlocks one trip. Server-created intents fix the USD amount and
 // Paddle price before checkout; browser callbacks never grant access.
+// A credit bundle bought from Account › Credits. Bundles other than the top-up can also unlock
+// Premium for one trip the buyer organizes (tripId); credits go to the buyer's account.
+model CreditCheckout {
+  id String @id @default(cuid())
+  buyerId String
+  bundle String // topup | starter | plus | pro
+  credits Int
+  tripId String?
+  environment String
+  priceId String
+  amountMinor Int
+  status String @default("CREATING") // CREATING | PENDING | COMPLETED | CANCELED
+  transactionId String? @unique
+  reviewRequired Boolean @default(false)
+  paddleSummary Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([buyerId, environment, status])
+  @@index([tripId, environment, status])
+}
+
 model PremiumCheckout {
   id String @id @default(cuid())
   tripId String

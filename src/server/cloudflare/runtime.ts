@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { AppDatabase } from "@/server/db";
 
-export type PaddleConfig = { environment: "sandbox" | "live"; apiKey: string; clientToken: string; webhookSecret: string; prices: Record<number, string>; checkoutEnabled: boolean };
+export type PaddleConfig = { environment: "sandbox" | "live"; apiKey: string; clientToken: string; webhookSecret: string; prices: Record<number, string>; creditPrices?: Record<number, string>; checkoutEnabled: boolean };
 
 export type AccountModeContext = { userId: string; sessionId?: string; normal: boolean };
 

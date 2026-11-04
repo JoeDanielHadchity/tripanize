@@ -9,6 +9,8 @@ import { currentRuntime } from "@/server/cloudflare/runtime";
 import { rateLimit } from "@/server/ratelimit";
 import { fetchTransaction, paddleRequest, paddleTransaction, type PaddleTransaction } from "./paddle";
 import { pendingTrialInvitations } from "@/server/admin/trials";
+import { settlePurchaseCredits } from "./credits";
+import { PREMIUM_INCLUDED_CREDITS } from "@/lib/credits";
 
 export async function billingSummary(userId: string, tripId: string) {
   const access = await requireTrip(tripId, userId);
@@ -39,6 +41,8 @@ export async function recordVerifiedTransaction(tx: PaddleTransaction) {
     const status = tx.status === "completed" ? "COMPLETED" : tx.status === "canceled" ? "CANCELED" : "PENDING";
     await db.premiumCheckout.update({ where: { id: intent.id }, data: { transactionId: tx.id, status, reviewRequired, ...(tx.details ? { paddleSummary: JSON.parse(JSON.stringify({ currency: tx.currency_code, totals: tx.details.totals, adjusted: tx.details.adjusted_totals, payout: tx.details.payout_totals, adjustedPayout: tx.details.adjusted_payout_totals, adjustments: tx.adjustments, syncedAt: new Date().toISOString() })) as Prisma.InputJsonValue } : {}) } });
     if (status === "COMPLETED" && !reviewRequired) await db.trip.updateMany({ where: { id: intent.tripId, onboardingStage: "PLAN" }, data: { onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" } });
+    // Premium for a trip includes the Starter bundle's AI credits, added to the buyer's account once.
+    await settlePurchaseCredits(db, { userId: intent.buyerId, credits: PREMIUM_INCLUDED_CREDITS, transactionId: tx.id, status, reviewRequired, note: `Premium: ${PREMIUM_INCLUDED_CREDITS} credits`, tripId: intent.tripId });
     return intent.tripId;
   });
 }

@@ -29,5 +29,17 @@ interface CloudflareEnv {
   PADDLE_PRICE_600?: string;
   PADDLE_PRICE_1000?: string;
   PADDLE_PRICE_1600?: string;
+  PADDLE_CREDITS_PRICE_500?: string;
+  PADDLE_CREDITS_PRICE_1500?: string;
+  PADDLE_CREDITS_PRICE_2500?: string;
+  PADDLE_CREDITS_PRICE_5000?: string;
+  PADDLE_SANDBOX_API_KEY?: string;
+  PADDLE_SANDBOX_CLIENT_TOKEN?: string;
+  PADDLE_SANDBOX_WEBHOOK_SECRET?: string;
+  PADDLE_SANDBOX_PRICE_1500?: string;
+  PADDLE_SANDBOX_CREDITS_PRICE_500?: string;
+  PADDLE_SANDBOX_CREDITS_PRICE_1500?: string;
+  PADDLE_SANDBOX_CREDITS_PRICE_2500?: string;
+  PADDLE_SANDBOX_CREDITS_PRICE_5000?: string;
 }
 declare module "*.sql" { const sql: string; export default sql; }

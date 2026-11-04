@@ -6,7 +6,7 @@ const totals = z.object({ subtotal: z.string().optional(), discount: z.string().
 export const paddleTransaction = z.object({
   id: z.string().regex(/^txn_[a-z0-9]{26}$/), status: z.string(), currency_code: z.string(),
   subscription_id: z.string().nullable(), discount_id: z.string().nullable(),
-  custom_data: z.object({ checkoutId: z.string(), tripId: z.string(), environment: z.enum(["live", "sandbox"]) }),
+  custom_data: z.object({ checkoutId: z.string(), tripId: z.string(), environment: z.enum(["live", "sandbox"]), kind: z.enum(["premium", "credits"]).optional() }),
   items: z.array(z.object({ quantity: z.number(), price: z.object({ id: z.string(), billing_cycle: z.unknown().nullable(), unit_price: z.object({ amount: z.string(), currency_code: z.string() }) }) })),
   details: z.object({ totals: totals.extend({ subtotal: z.string(), discount: z.string() }), adjusted_totals: totals.nullable().optional(), payout_totals: totals.nullable().optional(), adjusted_payout_totals: totals.nullable().optional() }).nullable(),
   adjustments: z.array(z.object({ action: z.string(), status: z.string() })).optional(),

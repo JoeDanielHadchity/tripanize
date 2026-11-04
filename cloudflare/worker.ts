@@ -1,4 +1,5 @@
 import { settleOpenHolds } from "../src/server/credits/service";
+import creditCheckout from "../prisma/migrations/202611040025_credit_checkout/migration.sql?raw";
 import creditsTesters from "../prisma/migrations/202611040024_credits_testers/migration.sql?raw";
 import credits from "../prisma/migrations/202611040023_credits/migration.sql?raw";
 import deleteDestinationSearches from "../prisma/migrations/202610310022_delete_destination_searches/migration.sql?raw";
@@ -193,6 +194,12 @@ export class TripanizeApp extends DurableObject<CloudflareEnv> {
           if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("user")').toArray().some(column => column.name === "creditsTester")) ctx.storage.sql.exec(creditsTesters);
         });
         await ctx.storage.put("schemaVersion", 24);
+      }
+      if (version < 25) {
+        ctx.storage.transactionSync(() => {
+          if (!ctx.storage.sql.exec<{ name: string }>('PRAGMA table_info("CreditCheckout")').toArray().length) ctx.storage.sql.exec(creditCheckout);
+        });
+        await ctx.storage.put("schemaVersion", 25);
       }
       this.secret = await ctx.storage.get<string>("authSecret") ?? "";
       if (!this.secret) { this.secret = crypto.randomUUID() + crypto.randomUUID(); await ctx.storage.put("authSecret", this.secret); }

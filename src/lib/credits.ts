@@ -21,6 +21,8 @@ export const CREDIT_PRICES = {
 
 /** Free, once, for every verified account. */
 export const WELCOME_CREDITS = 15;
+/** The AI credits included with a $15 Premium trip (the Starter bundle). */
+export const PREMIUM_INCLUDED_CREDITS = 100;
 /** Once, for every account invited to Premium before credits launched. */
 export const INVITED_PREMIUM_CREDITS = 500;
 
