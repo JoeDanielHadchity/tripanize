@@ -47,6 +47,7 @@ model User {
   tripVotes TripVote[]
   creditEntries CreditEntry[]
   creditHolds CreditHold[]
+  creditsTester Boolean @default(false) // credits apply to this account before launch (set on the Company page)
 
   @@map("user")
 }

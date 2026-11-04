@@ -14,13 +14,22 @@ export type HoldRef = "job" | "discovery" | "destination" | "inline";
 export function creditsEnabled() { return currentRuntime().creditsEnabled === true; }
 
 /**
+ * Whether credits apply to this account: for everyone once launched, and before that only for
+ * testers, switched on per account on the Company page.
+ */
+export async function creditsActiveFor(userId: string, db: Client = prisma) {
+  if (creditsEnabled()) return true;
+  return (await db.user.findUnique({ where: { id: userId }, select: { creditsTester: true } }))?.creditsTester === true;
+}
+
+/**
  * Starting credits, granted lazily the first time an account's credits are looked at, so nothing
  * depends on a sign-up hook: 15 welcome credits for a verified account, and 500 once for every
  * account invited to Premium (trial invitations, accepted or still open). Verified emails only,
  * so throwaway accounts can't collect them. Each grant is recorded once (dedupe key).
  */
 export async function ensureStartingCredits(userId: string, db: Client = prisma) {
-  if (!creditsEnabled()) return;
+  if (!await creditsActiveFor(userId, db)) return;
   const user = await db.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } });
   if (!user?.emailVerified) return;
   await grant(userId, WELCOME_CREDITS, { kind: "welcome", dedupeKey: `welcome:${userId}`, note: "Welcome credits" }, db);
@@ -50,14 +59,14 @@ export async function balance(userId: string, db: Client = prisma) {
  * Who pays for an AI action: the account itself, or for a trip editor the trip's organizer, unless
  * the organizer switched off "Members can use my credits" for that trip.
  */
-export async function payerFor(actorId: string, tripId: string | null, db: Client = prisma) {
+export async function payerFor(actorId: string, tripId: string | null, db: Client = prisma, opts: { enforceSwitch?: boolean } = {}) {
   if (!tripId) return actorId;
   const trip = await db.trip.findUnique({ where: { id: tripId }, select: { ownerId: true, membersUseCredits: true } });
   if (!trip || trip.ownerId === actorId) return actorId;
   // Viewers (read-only members) never spend the organizer's credits; what little AI they can use is on their own.
   const role = (await db.tripMembership.findFirst({ where: { tripId, userId: actorId }, select: { role: true } }))?.role;
   if (role !== "COLLABORATOR") return actorId;
-  if (!trip.membersUseCredits) throw new AppError("FORBIDDEN", "The organizer has turned off AI for members on this trip. Ask them to turn it on in Trip settings.");
+  if (!trip.membersUseCredits && opts.enforceSwitch !== false) throw new AppError("FORBIDDEN", "The organizer has turned off AI for members on this trip. Ask them to turn it on in Trip settings.");
   return trip.ownerId;
 }
 
@@ -67,7 +76,9 @@ export async function payerFor(actorId: string, tripId: string | null, db: Clien
  * the action is free.
  */
 export async function hold(input: { actorId: string; tripId?: string | null; action: CreditAction; credits: number; refKind: HoldRef; refId?: string | null }, db: Client = prisma) {
-  if (!creditsEnabled() || input.credits <= 0) return null;
+  if (input.credits <= 0) return null;
+  // Only once credits apply to the paying account does the organizer's members switch matter.
+  if (!await creditsActiveFor(await payerFor(input.actorId, input.tripId ?? null, db, { enforceSwitch: false }), db)) return null;
   const userId = await payerFor(input.actorId, input.tripId ?? null, db);
   const available = await balance(userId, db);
   if (available < input.credits) {
@@ -149,4 +160,38 @@ export async function settleOpenHolds(now = new Date(), db: Client = prisma) {
 /** An account's credit history, newest first, for the account page and the Company page. */
 export async function creditHistory(userId: string, take = 50, db: Client = prisma) {
   return db.creditEntry.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take });
+}
+
+export type CreditsView = { active: boolean; balance: number; payerIsYou: boolean; membersBlocked: boolean };
+/**
+ * What the screens need: whether credits apply, and the balance that pays for this person's AI
+ * (on a trip: the organizer's, for an editor). Never throws for a blocked member; it reports it.
+ */
+export async function creditsView(userId: string, tripId?: string | null, db: Client = prisma): Promise<CreditsView> {
+  const payer = await payerFor(userId, tripId ?? null, db, { enforceSwitch: false });
+  if (!await creditsActiveFor(payer, db)) return { active: false, balance: 0, payerIsYou: payer === userId, membersBlocked: false };
+  let membersBlocked = false;
+  try { await payerFor(userId, tripId ?? null, db); } catch { membersBlocked = true; }
+  return { active: true, balance: Math.max(0, await balance(payer, db)), payerIsYou: payer === userId, membersBlocked };
+}
+
+/** Spending on one trip, per person, for the organizer's Trip settings. */
+export async function tripCreditSpending(tripId: string, db: Client = prisma) {
+  const spent = await db.creditEntry.groupBy({ by: ["createdById"], where: { tripId, kind: "spend" }, _sum: { amount: true }, _count: true });
+  const users = await db.user.findMany({ where: { id: { in: spent.map(s => s.createdById).filter((v): v is string => Boolean(v)) } }, select: { id: true, name: true } });
+  return spent.map(s => ({ userId: s.createdById, name: users.find(u => u.id === s.createdById)?.name ?? "Someone", actions: s._count, credits: -(s._sum.amount ?? 0) })).sort((a, b) => b.credits - a.credits);
+}
+
+/** Whether a trip's AI is paid with credits: credits apply to its organizer's account. */
+export async function creditsCoverTrip(tripId: string, db: Client = prisma) {
+  const trip = await db.trip.findUnique({ where: { id: tripId }, select: { ownerId: true } });
+  return Boolean(trip && await creditsActiveFor(trip.ownerId, db));
+}
+
+/** The organizer's "Members can use my credits" switch for one trip. */
+export async function setMembersUseCredits(userId: string, tripId: string, on: boolean) {
+  const trip = await prisma.trip.findUnique({ where: { id: tripId }, select: { ownerId: true } });
+  if (!trip) throw new AppError("NOT_FOUND", "Trip not found.");
+  if (trip.ownerId !== userId) throw new AppError("FORBIDDEN", "Only the organizer can change who uses their credits.");
+  await prisma.trip.update({ where: { id: tripId }, data: { membersUseCredits: on } });
 }

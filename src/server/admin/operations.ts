@@ -11,6 +11,7 @@ import { aiConfigured } from "@/server/ai/openai";
 import { emailConfigured } from "@/server/notifications/email";
 import { supportConfigured } from "@/server/support/service";
 import { rateLimit } from "@/server/ratelimit";
+import { balance, grant } from "@/server/credits/service";
 
 const id = z.string().min(1).max(80);
 const limit = z.number().int().min(1).max(100000).nullable();
@@ -19,6 +20,8 @@ const time = z.iso.datetime({ offset: true });
 export const adminCommand = z.discriminatedUnion("op", [
   z.object({ op: z.literal("user.suspend"), id, suspended: z.boolean(), reason: z.string().trim().max(200) }).strict(),
   z.object({ op: z.literal("trial.expiry"), id, endsAt: time.nullable() }).strict(),
+  z.object({ op: z.literal("credits.adjust"), id, amount: z.number().int().min(-100000).max(100000).refine(n => n !== 0), note: z.string().trim().max(120) }).strict(),
+  z.object({ op: z.literal("credits.tester"), id, tester: z.boolean() }).strict(),
   z.object({ op: z.literal("support.update"), id, status: z.enum(["OPEN", "IN_PROGRESS", "RESOLVED"]), note: z.string().trim().max(2000) }).strict(),
   z.object({ op: z.literal("announcement.create"), title: z.string().trim().min(1).max(100), message: z.string().trim().min(1).max(1000), tone: z.enum(["info", "maintenance"]), startsAt: time, endsAt: time.nullable() }).strict(),
   z.object({ op: z.literal("announcement.status"), id, version: z.number().int().positive(), status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]) }).strict(),
@@ -50,6 +53,18 @@ export async function executeAdminCommand(actorId: string, input: unknown) {
   await prisma.$transaction(async tx => {
     await requireCompanyAdmin(actorId, tx);
     switch (c.op) {
+      case "credits.adjust": {
+        if (!await tx.user.findUnique({ where: { id: c.id }, select: { id: true } })) throw new AppError("NOT_FOUND", "Account not found.");
+        await grant(c.id, c.amount, { kind: "adjust", note: c.note || (c.amount > 0 ? "Credits from Tripanize" : "Credits removed by Tripanize"), createdById: actorId }, tx);
+        await adminAudit(actorId, c.op, "user", c.id, { amount: c.amount, note: c.note }, tx);
+        break;
+      }
+      case "credits.tester": {
+        if (!await tx.user.findUnique({ where: { id: c.id }, select: { id: true } })) throw new AppError("NOT_FOUND", "Account not found.");
+        await tx.user.update({ where: { id: c.id }, data: { creditsTester: c.tester } });
+        await adminAudit(actorId, c.op, "user", c.id, { tester: c.tester }, tx);
+        break;
+      }
       case "user.suspend": {
         const user = await tx.user.findUnique({ where: { id: c.id } });
         if (!user) throw new AppError("NOT_FOUND", "Account not found.");
@@ -128,8 +143,12 @@ export async function adminUsers(actorId: string, q: string, page: number) {
     prisma.$queryRaw<{ id: string }[]>`SELECT "id" FROM "user" WHERE instr(lower("name"), lower(${term})) > 0 OR instr(lower("email"), lower(${term})) > 0 ORDER BY "createdAt" DESC, "id" DESC LIMIT 25 OFFSET ${page * 25}`,
   ]);
   const total = Number(counts[0]?.total ?? 0);
-  const rows = await prisma.user.findMany({ where: { id: { in: ids.map(u => u.id) } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, name: true, email: true, emailVerified: true, createdAt: true, lastSeenAt: true, suspendedAt: true, suspensionReason: true, _count: { select: { ownedTrips: true, memberships: true } } } });
-  return { total, rows: rows.map(u => ({ ...u, administrator: isCompanyIdentity(u) })) };
+  const rows = await prisma.user.findMany({ where: { id: { in: ids.map(u => u.id) } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { id: true, name: true, email: true, emailVerified: true, creditsTester: true, createdAt: true, lastSeenAt: true, suspendedAt: true, suspensionReason: true, _count: { select: { ownedTrips: true, memberships: true } } } });
+  // Balances only for accounts credits apply to (testers now, everyone after launch). As anywhere,
+  // the first look at a balance adds that account's starting credits.
+  const credits = new Map<string, number>();
+  for (const u of rows) if (u.creditsTester || currentRuntime().creditsEnabled) credits.set(u.id, await balance(u.id));
+  return { total, rows: rows.map(u => ({ ...u, administrator: isCompanyIdentity(u), credits: credits.get(u.id) ?? null })) };
 }
 export async function adminTrips(actorId: string, q: string, page: number) {
   await requireCompanyAdmin(actorId);

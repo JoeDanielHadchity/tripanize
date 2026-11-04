@@ -1,5 +1,7 @@
 "use client";
 import { PremiumStar } from "@/components/premium-star";
+import { CreditPrice } from "@/components/credits";
+import { CREDIT_PRICES } from "@/lib/credits";
 
 import { useEffect, useState } from "react";
 import { Button, Field, Input, LinkButton, Notice, Spinner, Textarea } from "@/components/ui";
@@ -98,7 +100,7 @@ export function SwapDialog({ open, onClose, tripId, currency, stop, aiReady, pre
                 <p className="text-sm text-muted">ChatGPT looks for comparable nearby options that fit your interests, time slot, budget, accessibility needs, weather and the rest of the day's route.</p>
                 <Field label="Anything specific? (optional)" htmlFor="swap-req"><Input id="swap-req" value={request} onChange={(e) => setRequest(e.target.value)} placeholder="e.g. something indoors, cheaper, kid-friendly" maxLength={200} /></Field>
                 <Button variant="primary" disabled={pending} onClick={async () => { const r = await run(() => startPlanAction(tripId, "swap", { stopId: stop.id, instruction: request || null }), { refresh: false }); if (r) setJobId(r.jobId); }}>
-                  <PremiumStar className="text-current" /> Find alternatives
+                  <PremiumStar className="text-current" /> Find alternatives<CreditPrice credits={CREDIT_PRICES.swap} tripId={tripId} />
                 </Button>
               </div>
             ) : error ? (

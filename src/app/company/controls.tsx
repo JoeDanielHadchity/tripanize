@@ -34,3 +34,17 @@ export function AnnouncementForm() {
     <Field label="Title" htmlFor="announcement-title"><Input id="announcement-title" name="title" required maxLength={100} /></Field><Field label="Message" htmlFor="announcement-message"><Textarea id="announcement-message" name="message" required maxLength={1000} /></Field><div className="grid gap-4 sm:grid-cols-3"><Field label="Type" htmlFor="announcement-tone"><Select id="announcement-tone" name="tone"><option value="info">News / information</option><option value="maintenance">Maintenance</option></Select></Field><Field label="Start · Riyadh time" htmlFor="announcement-start" hint="Leave blank to start when published."><Input id="announcement-start" name="starts" type="datetime-local" /></Field><Field label="End · Riyadh time" htmlFor="announcement-end" hint="Optional automatic end."><Input id="announcement-end" name="ends" type="datetime-local" /></Field></div><Button type="submit" variant="primary" disabled={pending}>Save draft</Button>
   </form></Card>;
 }
+
+/** Users tab: turn credits on for one account before launch, and add or remove credits by hand. */
+export function CreditsControl({ id, tester, credits }: { id: string; tester: boolean; credits: number | null }) {
+  const { run, pending } = useAction(); const [amount, setAmount] = useState(""); const [note, setNote] = useState("");
+  return <div className="mt-4 w-full rounded-xl bg-surface-2 p-3 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">Credits{credits !== null ? `: ${credits}` : ""}</p>
+      <label className="flex min-h-10 items-center gap-2 text-xs font-medium"><input type="checkbox" className="h-4 w-4 accent-accent" checked={tester} disabled={pending} onChange={e => run(() => adminAction({ op: "credits.tester", id, tester: e.target.checked }), { success: e.target.checked ? "Credits switched on for this account" : "Credits switched off for this account" })} />Credits tester (credits apply before launch)</label></div>
+    {(tester || credits !== null) && <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={async e => { e.preventDefault(); const n = Number.parseInt(amount, 10); if (!n) return; const r = await run(() => adminAction({ op: "credits.adjust", id, amount: n, note }), { success: n > 0 ? `Added ${n} credits` : `Removed ${-n} credits` }); if (r !== null) { setAmount(""); setNote(""); } }}>
+      <Field label="Add or remove" htmlFor={`cr-${id}`} hint="Use a minus sign to remove."><Input id={`cr-${id}`} type="number" inputMode="numeric" min={-100000} max={100000} step={1} value={amount} onChange={e => setAmount(e.target.value)} className="w-32" placeholder="e.g. 100" /></Field>
+      <Field label="Note (optional)" htmlFor={`crn-${id}`}><Input id={`crn-${id}`} value={note} maxLength={120} onChange={e => setNote(e.target.value)} placeholder="e.g. Test credits" /></Field>
+      <Button type="submit" disabled={pending || !Number.parseInt(amount, 10)}>Save</Button>
+    </form>}
+  </div>;
+}
