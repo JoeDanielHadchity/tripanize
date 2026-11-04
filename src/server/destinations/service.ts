@@ -13,10 +13,19 @@ import type { Generator } from "@/server/planner/run";
 export function safeSource(url: string) {
   try { const u = new URL(url); return u.protocol === "https:" && !u.username && !u.password ? u.href : null; } catch { return null; }
 }
+/**
+ * Every account gets one destination search for free; later searches cost credits. A search counts
+ * once it is running or has finished with ideas (deleted ones too). Failed searches don't count, so
+ * a search that breaks can be tried again for free.
+ */
+export async function freeDestinationSearchLeft(userId: string, db: Pick<typeof prisma, "destinationSearch"> = prisma) {
+  return (await db.destinationSearch.count({ where: { userId, queuedAt: { not: null }, status: { in: ["QUEUED", "RUNNING", "SUCCEEDED"] } } })) === 0;
+}
 export async function getDestinationSearch(userId: string, id?: string) {
   const row = await prisma.destinationSearch.findFirst({ where: { userId, deletedAt: null, ...(id ? { id } : {}) }, orderBy: { number: "desc" } });
   if (id && !row) throw new AppError("NOT_FOUND", "Destination ideas not found.");
-  return row ? { id: row.id, number: row.number, status: row.status, input: row.input as DiscoveryInput, result: row.result ? normalizeDiscoveryResult(discoveryWireResult.parse(row.result)) : null, error: row.error, selectedTripId: row.selectedTripId } : null;
+  const free = row?.status === "DRAFT" ? await freeDestinationSearchLeft(userId) : false;
+  return row ? { id: row.id, number: row.number, status: row.status, input: row.input as DiscoveryInput, result: row.result ? normalizeDiscoveryResult(discoveryWireResult.parse(row.result)) : null, error: row.error, selectedTripId: row.selectedTripId, free, price: free ? 0 : CREDIT_PRICES.destination } : null;
 }
 export async function getDestinationWorkspace(userId: string) {
   const searches = await prisma.destinationSearch.findMany({ where: { userId, deletedAt: null }, orderBy: { number: "asc" }, select: { id: true, number: true, status: true } });
@@ -71,8 +80,9 @@ export async function startDestinationSearch(userId: string, input: unknown, sea
     if (used >= 5) throw new AppError("RATE_LIMITED", "You've explored five sets of destinations today. Come back tomorrow for more ideas. Your draft is saved.");
     const attempts = await tx.destinationSearch.count({ where: { userId, queuedAt: { gte: since } } });
     if (attempts >= MAX_DAILY_ATTEMPTS) throw new AppError("RATE_LIMITED", "Destination search has had trouble finishing today. Please try again tomorrow. Your draft is saved.");
-    // Four credits per search, held until it finishes: a failed search gives them back.
-    const held = await hold({ actorId: userId, action: "destination", credits: CREDIT_PRICES.destination, refKind: "destination" }, tx);
+    // The first search is free; after that, four credits per search, held until it finishes
+    // (a failed search gives them back).
+    const held = await freeDestinationSearchLeft(userId, tx) ? null : await hold({ actorId: userId, action: "destination", credits: CREDIT_PRICES.destination, refKind: "destination" }, tx);
     if (draft) {
       await tx.destinationSearch.update({ where: { id: draft.id }, data: { status: "QUEUED", input: details, queuedAt: new Date() } });
       await attachHold(held?.id, draft.id, tx);

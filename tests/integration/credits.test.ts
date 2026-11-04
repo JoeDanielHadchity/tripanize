@@ -5,7 +5,7 @@ import { balance, grant, settleOpenHolds, settleRef, withCredits, hold } from "@
 import { enqueueJob, cancelJob } from "@/server/planner/jobs";
 import { sendAssistantMessage, cancelAssistantReply } from "@/server/assistant/service";
 import { requestDiscovery } from "@/server/events/discovery";
-import { startDestinationSearch } from "@/server/destinations/service";
+import { deleteDestinationSearch, freeDestinationSearchLeft, startDestinationSearch } from "@/server/destinations/service";
 import { DISCOVERY_DEFAULTS } from "@/server/destinations/schema";
 import { randomUUID } from "node:crypto";
 import { makeUser, makeTrip, resetDb } from "./helpers";
@@ -97,7 +97,7 @@ it("charges editors' AI to the organizer, unless the organizer switches it off; 
   await expect(enqueueJob(editor.id, tripId, "days", { dates: ["2027-05-02"] })).rejects.toMatchObject({ code: "FORBIDDEN" });
 });
 
-it("refunds a cancelled assistant question, and charges event and destination searches", async () => {
+it("refunds a cancelled assistant question, and charges event searches", async () => {
   on();
   const owner = await verified("Owner"); const tripId = await premiumTrip(owner.id);
   const { id } = await sendAssistantMessage(owner.id, tripId, { clientId: randomUUID(), message: "Plan a rainy afternoon", selectedDate: null });
@@ -108,10 +108,33 @@ it("refunds a cancelled assistant question, and charges event and destination se
   expect(await balance(owner.id)).toBe(12);
   await prisma.discoveryRun.update({ where: { id: run.id }, data: { status: "failed", finishedAt: new Date() } }); await settleRef("discovery", run.id);
   expect(await balance(owner.id)).toBe(15);
-  const search = await startDestinationSearch(owner.id, { ...DISCOVERY_DEFAULTS, departureCity: "London, UK", timing: "flexible", interests: ["Food & markets"] });
-  expect(await balance(owner.id)).toBe(11);
-  await prisma.destinationSearch.update({ where: { id: search.id }, data: { status: "FAILED" } }); await settleRef("destination", search.id);
+});
+
+it("gives every account one free destination search; later searches cost 4 credits", async () => {
+  on();
+  const owner = await verified("Owner");
+  const answers = (interest: string) => ({ ...DISCOVERY_DEFAULTS, departureCity: "London, UK", timing: "flexible", interests: [interest] });
+  expect(await freeDestinationSearchLeft(owner.id)).toBe(true);
+  // A first search that fails doesn't use up the free one.
+  const broken = await startDestinationSearch(owner.id, answers("Food & markets"));
   expect(await balance(owner.id)).toBe(15);
+  await prisma.destinationSearch.update({ where: { id: broken.id }, data: { status: "FAILED" } }); await settleRef("destination", broken.id);
+  expect(await freeDestinationSearchLeft(owner.id)).toBe(true);
+  const first = await startDestinationSearch(owner.id, answers("Food & markets"));
+  expect(await balance(owner.id)).toBe(15);
+  expect(await prisma.creditHold.count()).toBe(0);
+  await prisma.destinationSearch.update({ where: { id: first.id }, data: { status: "SUCCEEDED", finishedAt: new Date() } });
+  expect(await freeDestinationSearchLeft(owner.id)).toBe(false);
+  // Deleting the free search doesn't give it back.
+  await deleteDestinationSearch(owner.id, first.id);
+  expect(await freeDestinationSearchLeft(owner.id)).toBe(false);
+  const second = await startDestinationSearch(owner.id, answers("Nightlife"));
+  expect(await balance(owner.id)).toBe(11);
+  await prisma.destinationSearch.update({ where: { id: second.id }, data: { status: "FAILED" } }); await settleRef("destination", second.id);
+  expect(await balance(owner.id)).toBe(15);
+  // Without enough credits, a second search is refused.
+  await grant(owner.id, -13, { kind: "adjust" });
+  await expect(startDestinationSearch(owner.id, answers("Beaches & islands"))).rejects.toMatchObject({ code: "CREDITS" });
 });
 
 it("refunds inline actions that throw, and the hourly sweep refunds holds left behind", async () => {

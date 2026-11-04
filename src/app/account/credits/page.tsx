@@ -22,7 +22,7 @@ const SPEND_LABELS: Record<string, string> = {
 const COSTS: [string, number | "Free"][] = [
   ["Plan or regenerate one day with AI (restaurants included)", CREDIT_PRICES.planDay],
   ["Find events for your trip", CREDIT_PRICES.events],
-  ["Find a destination (5 ideas)", CREDIT_PRICES.destination],
+  ["Find a destination (5 ideas). Your first search is free", CREDIT_PRICES.destination],
   ["Ask the AI assistant", CREDIT_PRICES.assistant],
   ["Swap a stop for alternatives", CREDIT_PRICES.swap],
   ["Packing suggestions", CREDIT_PRICES.packing],
