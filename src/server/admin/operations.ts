@@ -12,6 +12,7 @@ import { emailConfigured } from "@/server/notifications/email";
 import { supportConfigured } from "@/server/support/service";
 import { rateLimit } from "@/server/ratelimit";
 import { balance, grant } from "@/server/credits/service";
+import { openAiCostCheck } from "./openai-costs";
 
 const id = z.string().min(1).max(80);
 const limit = z.number().int().min(1).max(100000).nullable();
@@ -28,6 +29,7 @@ export const adminCommand = z.discriminatedUnion("op", [
   z.object({ op: z.literal("ai.settings"), aiPaused: z.boolean(), aiDailyLimit: limit, aiUserDailyLimit: limit, pricingModel: z.string().trim().max(100).nullable(), inputUsdPerMillion: rate, outputUsdPerMillion: rate, searchUsdPerThousand: rate }).strict(),
   z.object({ op: z.literal("payment.sync"), id }).strict(),
   z.object({ op: z.literal("health.wake") }).strict(),
+  z.object({ op: z.literal("openai.costs.refresh") }).strict(),
 ]);
 export type AdminCommand = z.input<typeof adminCommand>;
 
@@ -43,6 +45,12 @@ export async function executeAdminCommand(actorId: string, input: unknown) {
     await rateLimit(`admin-payment:${checkout.id}`, 6, 300);
     await reconcilePayment(checkout.transactionId);
     await adminAudit(actorId, c.op, "payment", c.id);
+    return;
+  }
+  if (c.op === "openai.costs.refresh") {
+    await rateLimit(`admin-openai-costs:${actorId}`, 10, 3600);
+    await openAiCostCheck(actorId, { refresh: true });
+    await adminAudit(actorId, c.op, "platform", "openai-costs");
     return;
   }
   if (c.op === "health.wake") {
