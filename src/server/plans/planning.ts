@@ -19,13 +19,14 @@ export async function normalPlanningDates(tripId: string) {
 }
 
 /**
- * Which dates an AI planning request may cover. Premium, or a trip paid with credits: any days
- * (swaps stay Premium-only). Otherwise only initial drafting, for the free plan's first 2 days.
+ * Which dates an AI planning request may cover. Premium: any days (swaps stay Premium-only).
+ * Free trips: a full draft covers the free plan's first 2 days; with credits, chosen days can be added.
  */
 export async function planningScope(tripId: string, kind: string, dates?: string[]) {
   const premium = (await getTripPlan(tripId)).premium;
   if (kind === "swap" && !premium) throw new AppError("FORBIDDEN", "Stop alternatives require Premium for this trip. The trip organizer can upgrade for everyone.", { upgrade: true, feature: "advancedPlanning" });
-  if (premium || await creditsCoverTrip(tripId)) return kind === "days" ? dates ?? [] : null;
+  if (premium) return kind === "days" ? dates ?? [] : null;
+  if (kind === "days" && await creditsCoverTrip(tripId)) return dates ?? [];
   if (kind !== "full") await requirePremiumAccess(tripId, "advancedPlanning");
   const allowed = await normalPlanningDates(tripId);
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { startDate: true, endDate: true } });

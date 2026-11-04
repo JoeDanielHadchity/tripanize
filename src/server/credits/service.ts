@@ -31,8 +31,10 @@ export async function creditsActiveFor(userId: string, db: Client = prisma) {
 export async function ensureStartingCredits(userId: string, db: Client = prisma) {
   if (!await creditsActiveFor(userId, db)) return;
   const user = await db.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } });
-  if (!user?.emailVerified) return;
+  if (!user) return;
   await grant(userId, WELCOME_CREDITS, { kind: "welcome", dedupeKey: `welcome:${userId}`, note: "Welcome credits" }, db);
+  // The Premium thank-you matches invitations by email, so only a verified email can claim it.
+  if (!user.emailVerified) return;
   const invited = await db.trialInvitation.findFirst({ where: { revokedAt: null, OR: [{ acceptedById: userId }, { email: user.email.toLowerCase() }] }, select: { id: true } });
   if (invited) await grant(userId, INVITED_PREMIUM_CREDITS, { kind: "grant", dedupeKey: `invited-premium:${userId}`, note: "Thank-you credits for Premium members" }, db);
 }

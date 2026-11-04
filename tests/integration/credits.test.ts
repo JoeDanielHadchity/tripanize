@@ -34,7 +34,7 @@ it("changes nothing while credits are switched off", async () => {
   expect(await prisma.creditEntry.count()).toBe(0);
 });
 
-it("gives 15 welcome credits to verified accounts, once, and 500 once to accounts invited to Premium", async () => {
+it("gives 15 welcome credits to every account, once, and 500 once to verified accounts invited to Premium", async () => {
   on();
   const fresh = await verified("Fresh"); const unverified = await makeUser("Unverified");
   const admin = await verified("Company", "company-credits@example.test");
@@ -42,7 +42,7 @@ it("gives 15 welcome credits to verified accounts, once, and 500 once to account
   await prisma.trialInvitation.create({ data: { email: invited.email, tokenHash: "fixture-hash", emailText: "Fixture invitation", createdById: admin.id, expiresAt: new Date(Date.now() + 86400_000) } });
   expect(await balance(fresh.id)).toBe(15);
   expect(await balance(fresh.id)).toBe(15);
-  expect(await balance(unverified.id)).toBe(0);
+  expect(await balance(unverified.id)).toBe(15);
   expect(await balance(invited.id)).toBe(515);
   expect(await balance(invited.id)).toBe(515);
   expect(await prisma.creditEntry.count({ where: { userId: invited.id } })).toBe(2);
@@ -138,15 +138,19 @@ it("applies credits before launch only to accounts marked as testers", async () 
   expect(await prisma.creditHold.count({ where: { userId: other.id } })).toBe(0);
 });
 
-it("lets credits pay for planning every day and packing on a free trip, while swaps stay Premium", async () => {
+it("drafts only the free 2 days on a free trip, lets credits add chosen days and packing, while swaps stay Premium", async () => {
   const tester = await verified("Tester");
   await prisma.user.update({ where: { id: tester.id }, data: { creditsTester: true } });
   await grant(tester.id, 85, { kind: "purchase", dedupeKey: "fixture-free-trip" });
   const tripId = await makeTrip(tester.id);
   const job = await enqueueJob(tester.id, tripId, "full", {});
-  expect((await prisma.generationJob.findUniqueOrThrow({ where: { id: job.jobId } })).params).toMatchObject({ dates: null });
-  expect(await balance(tester.id)).toBe(100 - 12);
+  const drafted = ((await prisma.generationJob.findUniqueOrThrow({ where: { id: job.jobId } })).params as { dates: string[] }).dates;
+  expect(drafted).toHaveLength(2);
+  expect(await balance(tester.id)).toBe(100 - 6);
   await finish(job.jobId, "SUCCEEDED"); await settleRef("job", job.jobId);
+  const extra = await enqueueJob(tester.id, tripId, "days", { dates: ["2027-05-04"] });
+  expect(await balance(tester.id)).toBe(100 - 9);
+  await finish(extra.jobId, "SUCCEEDED"); await settleRef("job", extra.jobId);
   const stop = await prisma.stop.create({ data: { tripId, title: "Fixture stop" } });
   await expect(enqueueJob(tester.id, tripId, "swap", { stopId: stop.id })).rejects.toMatchObject({ code: "FORBIDDEN" });
   const { requirePremiumAccess } = await import("@/server/plans/access");
