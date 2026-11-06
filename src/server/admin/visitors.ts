@@ -94,8 +94,8 @@ export function buildReport(data: unknown, from: string, to: string, signups: Ma
       uniques: hasTraffic ? days.reduce((s, d) => s + (d.uniques ?? 0), 0) : null,
     },
     pages: merge(rows(acct.pages), pageGroup, 10),
-    // Clicks between Tripanize's own pages aren't a source; the Android app reports its package name.
-    referrers: merge(rows(acct.referrers).filter(r => !OWN_HOSTS.test(r.key)), k => !k ? "Direct or unknown" : k === "app.tripanize.android" ? "Tripanize Android app" : k.replace(/^(www|m|l|lm)\./, ""), 10),
+    // Clicks between Tripanize's own pages aren't a source.
+    referrers: merge(rows(acct.referrers).filter(r => !OWN_HOSTS.test(r.key)), k => !k ? "Direct or unknown" : k.replace(/^(www|m|l|lm)\./, ""), 10),
     countries: rows(acct.countries).map(r => ({ ...r, key: countryName(r.key) })),
     devices: rows(acct.devices).map(r => ({ ...r, key: r.key || "Unknown" })),
     browsers: rows(acct.browsers).map(r => ({ ...r, key: r.key || "Unknown" })),
