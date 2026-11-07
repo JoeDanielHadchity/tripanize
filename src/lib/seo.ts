@@ -14,6 +14,7 @@ export const PUBLIC_PAGES = {
   "/terms": { title: "Terms of Service", description: "Read the terms for using Tripanize.app, including accounts, shared trips, AI suggestions and Premium access." },
   "/privacy": { title: "Privacy Policy", description: "Learn how Tripanize.app handles accounts, shared trip information, receipts, optional location sharing and AI planning requests." },
   "/refunds": { title: "Refund Policy", description: "Find out how to request help with a Tripanize Premium purchase, a payment issue or a refund." },
+  "/delete-account": { title: "Delete Your Account", description: "How to permanently delete your Tripanize.app account, or ask us to delete it, and what happens to your information." },
 } as const;
 
 export function publicMetadata(path: string, details: { title: string; description: string }): Metadata {
