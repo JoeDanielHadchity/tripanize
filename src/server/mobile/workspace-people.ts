@@ -33,7 +33,8 @@ export async function peopleBlocks(userId: string, tripId: string, screen: strin
   }
   if (screen === "votes") {
     const data = await listPolls(userId, tripId);
-    const blocks: MobileBlock[] = [{ id: "section", actions: [...(data.premium ? [go("Chat", "chat", tripId)] : []), ...(data.premium ? [go("Member locations", "locations", tripId)] : [])] }].filter(b => b.actions.length);
+    // On Premium trips the app shows a Chat / Votes switch above this screen.
+    const blocks: MobileBlock[] = [];
     for (const p of data.polls) {
       blocks.push({ id: p.id, title: p.question, meta: `${p.status} · ${p.totalVotes} votes`, text: p.decisionNote ?? undefined, lines: p.options.map(o => `${o.id === p.chosenOptionId ? "✓ " : ""}${o.label}: ${o.count}${o.id === p.myOptionId ? " · Your vote" : ""}`), actions: p.status === "OPEN" ? [...p.options.map(o => act(o.id === p.myOptionId ? `Undo vote: ${o.label}` : `Vote: ${o.label}`, "poll.vote", { id: p.id, version: p.version, optionId: o.id === p.myOptionId ? null : o.id }))] : [] });
       if (data.canDecide) blocks.push(form(`decide-${p.id}`, "Organizer decision", "poll.decide", [f("command", "Action", "select", { options: options(p.status === "OPEN" ? ["DECIDE", "ARCHIVE"] : ["REOPEN", "ARCHIVE"]), value: p.status === "OPEN" ? "DECIDE" : "REOPEN" }), f("optionId", "Chosen option", "select", { options: [{ value: "", label: "None" }, ...p.options.map(o => ({ value: o.id, label: o.label }))] }), f("note", "Decision note", "long")], { id: p.id, version: p.version, optionId: p.chosenOptionId, note: p.decisionNote }, "Save decision"));

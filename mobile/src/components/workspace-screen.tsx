@@ -194,6 +194,8 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
   // Chat with its map, unless the trip shows the Premium lock instead.
   const chat = current.screen === "chat" && !!display && !display.blocks.some(b => b.id === "locked");
   const eventsTab = ["events", "bookings"].includes(current.screen) && !!current.tripId;
+  // Premium trips: switch between the group chat and its votes. Free trips open votes directly.
+  const chatTab = ["chat", "votes"].includes(current.screen) && !!current.tripId && !!display?.premium;
   const header = display?.trip ? display : current.tripId && tripNames.has(current.tripId) ? { ...display, title: display?.title ?? "", blocks: [], trip: tripNames.get(current.tripId) } as MobileWorkspace : display;
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
     {inTrip && <TripHeader data={header} loading={loading && !!display} onBack={() => router.canGoBack() ? router.back() : router.replace("/trips")} right={<View style={{ flexDirection: "row", gap: 8 }}>{(display?.role ?? header?.role) === "OWNER" && <IconButton name="person-add-outline" label="Invite people" onPress={() => setInviting(true)} />}<IconButton name="notifications-outline" label="Notifications" onPress={() => go({ screen: "notifications" })} /></View>} />}
@@ -209,6 +211,7 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
       {display && <Animated.View pointerEvents={staleShown ? "none" : "auto"} style={{ gap: 16, opacity: fade, transform: [{ translateX: shift }] }}>
         {inTrip && (itinerary ? <TripHero data={display} cover={cover} /> : display.trip ? <TripBanner data={display} title={display.title} subtitle={display.subtitle} /> : <View style={{ gap: 4, paddingHorizontal: 4 }}><Heading small>{display.title}</Heading>{display.subtitle && <Muted>{display.subtitle}</Muted>}</View>)}
         {eventsTab && <Segmented label="Events or bookings" value={current.screen === "bookings" || current.screen === "booking" ? "bookings" : "events"} onChange={v => go({ screen: v, tripId: current.tripId })} options={[{ value: "events", label: "Events" }, { value: "bookings", label: "Bookings" }]} />}
+        {chatTab && <Segmented label="Chat or votes" value={current.screen === "votes" ? "votes" : "chat"} onChange={v => go({ screen: v, tripId: current.tripId })} options={[{ value: "chat", label: "Chat" }, { value: "votes", label: "Votes" }]} />}
         {itinerary ? <NativeItinerary data={display} onAction={onAction} busy={busy || !!staleShown} renderBlock={renderBlock} pendingDay={staleShown ? current.item : undefined} />
           : current.screen === "notifications" ? <Inbox blocks={display.blocks} busy={busy} loading={loading} onAction={onAction} />
           : chat ? <TripChat data={display} tripId={current.tripId!} onAction={onAction} reload={reload} scrollToEnd={scrollToEnd} />
