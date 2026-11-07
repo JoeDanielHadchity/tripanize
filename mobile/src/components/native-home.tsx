@@ -82,8 +82,27 @@ function TripTicket({ trip, more }: { trip: MobileTripCard; more: boolean }) {
   </View>;
 }
 
+const FEATURE_ICONS: Record<string, IconName> = { "/ai-trip-planner": "map-outline", "/group-trip-planner": "people-outline", "/travel-expense-splitter": "receipt-outline" };
+const FEATURE_SHORT: Record<string, string> = { "/ai-trip-planner": "Trip planner", "/group-trip-planner": "Group travel", "/travel-expense-splitter": "Expense splitter" };
+
+/** What Tripanize does: the three feature pages as icon tiles, and a slim pricing banner. */
+function Explore() {
+  const c = useTheme();
+  return <View style={{ gap: 10 }}>
+    <View style={{ paddingHorizontal: 4, gap: 2 }}><T style={{ fontFamily: "NunitoBold", fontSize: 17 }}>Explore Tripanize</T><Muted>Everything your trip needs</Muted></View>
+    <View style={{ flexDirection: "row", gap: 8 }}>
+      {FEATURE_PAGES.map(f => <QuickAction key={f.href} icon={FEATURE_ICONS[f.href] ?? "sparkles-outline"} label={FEATURE_SHORT[f.href] ?? f.label} onPress={() => router.push({ pathname: "/feature/[slug]", params: { slug: f.href.slice(1) } })} />)}
+    </View>
+    <Pressable accessibilityRole="link" accessibilityLabel="Plans and pricing. Start free, Premium is $15 a trip" onPress={() => router.push("/plans")} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52, paddingHorizontal: 16, borderRadius: 18, backgroundColor: c.paper, borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.7 : 1 })}>
+      <Icon name="sparkles" size={20} color={c.accent} />
+      <T style={{ flex: 1, fontSize: 14, lineHeight: 19 }}>Start free · Premium is $15 a trip</T>
+      <T style={{ fontSize: 14, fontFamily: "NunitoBold", color: c.accent }}>Plans</T>
+    </Pressable>
+  </View>;
+}
+
 function Ideas() {
-  const c = useTheme(); const { data, error, retry } = usePublicData<MobilePublicHome>();
+  const { data, error, retry } = usePublicData<MobilePublicHome>();
   return <View style={{ gap: 10 }}>
     <View style={{ paddingHorizontal: 4, gap: 2 }}><T style={{ fontFamily: "NunitoBold", fontSize: 17 }}>Trip ideas</T><Muted>4-day itineraries to make your own</Muted></View>
     {error ? <ErrorNotice message={error} retry={retry} /> : !data ? <Loading /> : <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={232} decelerationRate="fast" style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 12, paddingVertical: 4 }}>
@@ -91,7 +110,6 @@ function Ideas() {
         <OnPhoto size="small">{guide.country}</OnPhoto><OnPhoto size="title" style={{ fontSize: 23, lineHeight: 28 }}>{guide.city}</OnPhoto>
       </PhotoCard>)}
     </ScrollView>}
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{[...FEATURE_PAGES.map(f => ({ label: f.label, go: () => router.push({ pathname: "/feature/[slug]", params: { slug: f.href.slice(1) } }) })), { label: "Plans & pricing", go: () => router.push("/plans") }].map(link => <Pressable key={link.label} accessibilityRole="link" onPress={link.go} style={({ pressed }) => ({ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: c.paper, borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.7 : 1 })}><T style={{ fontSize: 13, fontFamily: "NunitoBold", color: c.accent }}>{link.label}</T></Pressable>)}</View>
   </View>;
 }
 
@@ -129,6 +147,7 @@ export function NativeHome() {
       <QuickAction icon="mail-open-outline" label="Invitations" onPress={() => router.push(workspaceHref({ screen: "trips" }))} />
       <QuickAction icon="cloud-offline-outline" label="Offline" onPress={() => router.push("/offline")} />
     </View>
+    <Explore />
     <Ideas />
     <PremiumPromo />
     <HowItWorks />
@@ -143,6 +162,7 @@ export function NativeHome() {
       <View style={{ marginTop: 12, gap: 10 }}><CreateTripButton label="Plan a trip — it's free" /><Button secondary onPress={() => router.push({ pathname: "/guide/[slug]", params: { slug: "lisbon-porto" } })} trailingIcon="arrow-forward">See an example trip</Button></View>
     </PhotoCard>
     <HowItWorks />
+    <Explore />
     <Ideas />
     <PremiumPromo />
     <View style={{ alignItems: "center", gap: 6, paddingTop: 8 }}><Brand /><Muted>Plan less. Travel more.</Muted></View>
