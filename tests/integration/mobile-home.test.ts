@@ -16,17 +16,17 @@ afterEach(() => setTestRuntime(runtime));
 const read = (query = "", cookie?: string) => publicPage(new Request(`https://www.tripanize.app/api/mobile/public${query}`, { headers: cookie ? { Cookie: cookie } : {} }));
 
 it("publishes only the editorial catalog without authentication or personalization", async () => {
-  const before = read(); expect(before.status).toBe(200);
+  const before = await read(); expect(before.status).toBe(200);
   expect(before.headers.get("Cache-Control")).toBe("public, max-age=300");
   const baseline = await before.json();
   const owner = await makeUser("Private traveler"), id = await makeTrip(owner.id);
   await prisma.trip.update({ where: { id }, data: { name: "Private unreleased destination" } });
-  const after = await read("", "better-auth.session_token=forged").json() as MobilePublicHome;
+  const after = await (await read("", "better-auth.session_token=forged")).json() as MobilePublicHome;
   expect(after).toEqual(baseline);
   expect(after.guides.map((g: { slug: string }) => g.slug)).toEqual(CITY_GUIDES.map(g => g.slug));
   expect(JSON.stringify(after)).not.toMatch(/Private traveler|Private unreleased|membership|userId|tripId|email/);
   for (const slug of PUBLIC_GUIDE_SLUGS) {
-    const result = read(`?guide=${slug}`); expect(result.status).toBe(200);
+    const result = await read(`?guide=${slug}`); expect(result.status).toBe(200);
     const guide = await result.json() as MobilePublicGuide;
     expect(guide.days).toHaveLength(EXAMPLES.find(e => e.slug === slug)!.days.length);
     expect(guide.days[0].stops[0].title).toBe(EXAMPLES.find(e => e.slug === slug)!.days[0].stops[0].title);
@@ -36,9 +36,9 @@ it("publishes only the editorial catalog without authentication or personalizati
 
 it("cannot use the public feed as a private screen or arbitrary file dispatcher", async () => {
   for (const query of ["?screen=admin", "?tripId=private", "?guide=paris&userId=private", "?guide=paris&guide=london"]) {
-    const response = read(query); expect(response.status).toBe(400); expect(response.headers.get("Cache-Control")).toBe("no-store");
+    const response = await read(query); expect(response.status).toBe(400); expect(response.headers.get("Cache-Control")).toBe("no-store");
   }
-  for (const slug of ["", "admin", "../../account", "__proto__", "constructor"]) expect(read(`?guide=${encodeURIComponent(slug)}`).status).toBe(404);
+  for (const slug of ["", "admin", "../../account", "__proto__", "constructor"]) expect((await read(`?guide=${encodeURIComponent(slug)}`)).status).toBe(404);
 });
 
 it("allows only known local login destinations and safe public provider links", () => {

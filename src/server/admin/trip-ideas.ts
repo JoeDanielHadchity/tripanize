@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/server/db";
+import { Prisma } from "@/generated/prisma/client";
 import { AppError } from "@/server/errors";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { sniffAttachment } from "@/server/storage";
@@ -81,7 +82,7 @@ export async function executeTripIdeaCommand(actorId: string, input: unknown) {
     case "idea.reset": {
       const row = await prisma.tripIdea.findUnique({ where: { slug: c.slug } });
       if (!row || !row.builtin) throw new AppError("VALIDATION", "Only the original guides can be restored.");
-      await prisma.tripIdea.update({ where: { id: row.id }, data: { content: null, heroImageKey: null, cardImageKey: null, photoCredit: null, error: null } });
+      await prisma.tripIdea.update({ where: { id: row.id }, data: { content: Prisma.DbNull, heroImageKey: null, cardImageKey: null, photoCredit: null, error: null } });
       await deletePhotos([row.heroImageKey, row.cardImageKey]);
       await adminAudit(actorId, "trip_idea.reset", "trip_idea", row.slug);
       return;
