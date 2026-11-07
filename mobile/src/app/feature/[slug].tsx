@@ -1,6 +1,6 @@
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
-import { Card, Eyebrow, Heading, Muted, Screen, T } from "../../components/ui";
+import { Card, Eyebrow, Heading, IconButton, Muted, Screen, T } from "../../components/ui";
 import { CreateTripButton } from "../../components/public-header";
 
 const FEATURES = {
@@ -12,7 +12,7 @@ const FEATURES = {
 export default function FeatureScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const feature = Object.hasOwn(FEATURES, slug) ? FEATURES[slug as keyof typeof FEATURES] : null;
-  return <Screen>{!feature ? <Heading>Page not found.</Heading> : <><Eyebrow>{feature.title}</Eyebrow><Heading>{feature.emphasis}</Heading><T>{feature.intro}</T><Muted>{feature.note}</Muted><CreateTripButton />
+  return <Screen><IconButton name="chevron-back" label="Back" onPress={() => router.canGoBack() ? router.back() : router.replace("/")} />{!feature ? <Heading>Page not found.</Heading> : <><Eyebrow>{feature.title}</Eyebrow><Heading>{feature.emphasis}</Heading><T>{feature.intro}</T><Muted>{feature.note}</Muted><CreateTripButton />
     <View style={{ gap: 16 }}>{feature.steps.map(([title, text], i) => <Card key={title}><Eyebrow>0{i + 1}</Eyebrow><Heading small>{title}</Heading><Muted>{text}</Muted></Card>)}</View>
   </>}</Screen>;
 }

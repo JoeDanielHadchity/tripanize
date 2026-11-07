@@ -15,8 +15,10 @@ export type MobilePublicGuide = {
 /** Only known local destinations can survive sign-in. */
 export function publicLoginDestination(next: unknown): string {
   if (next === "start") return "/start";
+  if (next === "new") return "/workspace?view=new";
   if (next === "trips") return "/trips";
   if (next === "account") return "/account";
+  if (next === "inbox") return "/inbox";
   if (typeof next === "string" && next.startsWith("guide:")) {
     const slug = next.slice(6);
     if (PUBLIC_GUIDE_SLUGS.some(allowed => allowed === slug)) return `/guide/${slug}`;
@@ -31,8 +33,9 @@ export function isMobileTripRoute(pathname: string, tripId?: unknown): boolean {
 }
 
 /** Navigation state only; it never grants access to a private screen. */
-export function mobileNavigationSection(pathname: string, screen?: string): "home" | "trips" | "account" {
-  if (pathname === "/account" || (pathname === "/workspace" && (screen === "account" || screen === "notifications" || screen === "admin" || screen?.startsWith("admin-")))) return "account";
+export function mobileNavigationSection(pathname: string, screen?: string): "home" | "trips" | "inbox" | "account" {
+  if (pathname === "/inbox" || (pathname === "/workspace" && screen === "notifications")) return "inbox";
+  if (pathname === "/account" || (pathname === "/workspace" && (screen === "account" || screen === "admin" || screen?.startsWith("admin-")))) return "account";
   if (pathname === "/trips" || pathname.startsWith("/trip/") || pathname === "/workspace") return "trips";
   return "home";
 }

@@ -7,7 +7,7 @@ export type MobileField = {
   key: string; label: string; kind?: "text" | "long" | "list" | "number" | "money" | "date" | "time" | "select" | "multi" | "check" | "repeat" | "files";
   value?: MobileValue; required?: boolean; hint?: string; options?: { value: string; label: string }[]; fields?: MobileField[]; max?: number;
 };
-export type MobileAction = { label: string; action?: string; values?: MobileValues; to?: MobileTarget; url?: string; confirm?: string; danger?: boolean; device?: "location" | "file" | "offline"; fileName?: string };
+export type MobileAction = { label: string; action?: string; values?: MobileValues; to?: MobileTarget; url?: string; confirm?: string; danger?: boolean; device?: "location" | "file" | "offline" | "purchase"; fileName?: string };
 export type MobileBlock = {
   id: string; title?: string; text?: string; meta?: string; tone?: "accent" | "warning";
   image?: { url: string; credit?: string };

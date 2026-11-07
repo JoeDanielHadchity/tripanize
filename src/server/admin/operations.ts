@@ -14,6 +14,7 @@ import { rateLimit } from "@/server/ratelimit";
 import { balance, grant } from "@/server/credits/service";
 import { openAiCostCheck } from "./openai-costs";
 import { visitorReport } from "./visitors";
+import { isStoreTransaction, resyncStorePurchase } from "@/server/billing/store";
 
 const id = z.string().min(1).max(80);
 const limit = z.number().int().min(1).max(100000).nullable();
@@ -45,7 +46,8 @@ export async function executeAdminCommand(actorId: string, input: unknown) {
     const checkout = await prisma.premiumCheckout.findFirst({ where: { id: c.id, environment: billingEnvironment() } });
     if (!checkout?.transactionId) throw new AppError("NOT_FOUND", "This purchase has no provider transaction to refresh.");
     await rateLimit(`admin-payment:${checkout.id}`, 6, 300);
-    await reconcilePayment(checkout.transactionId);
+    if (isStoreTransaction(checkout.transactionId)) await resyncStorePurchase(checkout.id);
+    else await reconcilePayment(checkout.transactionId);
     await adminAudit(actorId, c.op, "payment", c.id);
     return;
   }
