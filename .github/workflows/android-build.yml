@@ -1,0 +1,74 @@
+name: Android build
+
+# Builds the Android app on GitHub's servers with EAS local builds, so it does
+# not use the Expo plan's monthly build quota. Signing keys and version numbers
+# still come from Expo, through the EXPO_TOKEN repository secret.
+# Run it from Actions → Android build → Run workflow. The file is attached to
+# the run as an artifact (an .aab for Google Play, or an .apk for testing).
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "production = .aab for Google Play, preview = .apk to install directly"
+        type: choice
+        options: [production, preview]
+        default: production
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXT: ${{ inputs.profile == 'preview' && 'apk' || 'aab' }}
+    steps:
+      - name: Check the Expo token
+        working-directory: .
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Add an Expo access token as the EXPO_TOKEN repository secret (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npx --yes eas-cli@latest build --platform android --profile "${{ inputs.profile }}" --local --non-interactive --output "$GITHUB_WORKSPACE/tripanize.$EXT"
+
+      - name: Check the build
+        working-directory: .
+        run: |
+          ls -la "tripanize.$EXT"
+          if [ "$EXT" = "aab" ] && unzip -l tripanize.aab | grep -q "base/res/values"; then echo "Bundle looks complete."; fi
+          if unzip -p "tripanize.$EXT" '*resources*' 2>/dev/null | grep -aq google_app_id; then echo "Push notification setup (google-services) is included."; else echo "::warning::google-services values were not found, so push notifications may not work in this build."; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tripanize-android-${{ inputs.profile }}-${{ github.run_number }}
+          path: tripanize.${{ env.EXT }}
+          retention-days: 30
+          if-no-files-found: error
