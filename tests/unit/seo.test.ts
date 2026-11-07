@@ -32,8 +32,8 @@ describe("public SEO routing", () => {
     }
   });
 
-  it("publishes only canonical public pages and the curated example", () => {
-    const urls = sitemap().map(entry => entry.url);
+  it("publishes only canonical public pages and the curated example", async () => {
+    const urls = (await sitemap()).map(entry => entry.url);
     expect(urls).toContain(`${SITE_ORIGIN}/`);
     expect(urls).toContain(`${SITE_ORIGIN}/plans`);
     expect(urls).toContain(`${SITE_ORIGIN}/examples/lisbon-porto`);
