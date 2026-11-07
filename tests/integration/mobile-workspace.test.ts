@@ -73,6 +73,32 @@ it("exposes the full trip navigation, one selected day, and native forms without
   await expect(cmd(stranger.id, tripId, "stop.save", { dayId: days[0].id, plan: "A", title: "Unauthorized" })).rejects.toMatchObject({ code: "NOT_FOUND" });
 });
 
+it("gives each stop the website's More choices, and saves ideas without a day", async () => {
+  const owner = await makeUser("Owner"), tripId = await makeTrip(owner.id);
+  const day = (await prisma.itineraryDay.findFirstOrThrow({ where: { tripId }, orderBy: { date: "asc" } }));
+  for (const title of ["Museum", "Lunch"]) await cmd(owner.id, tripId, "stop.save", { dayId: day.id, plan: "A", title });
+  const doc = await page(owner.id, "itinerary", tripId, day.id);
+  const museum = doc.blocks.find(b => b.title === "Museum")!;
+  expect(museum.actions?.map(a => a.label)).toEqual(["Directions", "Edit", "Skip", "Move to another day", "Move later ↓", "Remove"]);
+  expect(museum.actions?.find(a => a.label === "Remove")).toMatchObject({ danger: true, confirm: "Remove “Museum” from the plan?" });
+  // Swap only appears on Premium trips.
+  await premium(tripId, owner.id);
+  expect((await page(owner.id, "itinerary", tripId, day.id)).blocks.find(b => b.title === "Museum")!.actions?.map(a => a.label)).toContain("Swap");
+  const skip = museum.actions!.find(a => a.label === "Skip")!;
+  await cmd(owner.id, tripId, skip.action!, skip.values);
+  const skipped = (await page(owner.id, "itinerary", tripId, day.id)).blocks.find(b => b.title === "Museum")!;
+  expect(skipped.actions?.map(a => a.label)).toEqual(["Edit / schedule", "Unskip"]);
+  // "Add an idea for later" opens the stop form with no day; the empty day choice saves as an idea.
+  const idea = (await page(owner.id, "itinerary", tripId, day.id)).blocks.find(b => b.id === "tools")!.actions!.find(a => a.label === "Add an idea for later")!;
+  const form = await workspace(owner.id, new URLSearchParams({ screen: "stop", tripId, day: idea.to!.day! }));
+  expect(form.blocks[0].form?.values?.dayId).toBeNull();
+  await cmd(owner.id, tripId, "stop.save", { dayId: "", plan: "A", title: "Port tasting someday" });
+  expect(await prisma.stop.findFirstOrThrow({ where: { tripId, title: "Port tasting someday" } })).toMatchObject({ dayId: null });
+  const remove = museum.actions!.find(a => a.label === "Remove")!;
+  await cmd(owner.id, tripId, remove.action!, remove.values);
+  expect(await prisma.stop.count({ where: { tripId, title: "Museum" } })).toBe(0);
+});
+
 it("enforces viewer restrictions and optimistic concurrency through the mobile commands", async () => {
   const owner = await makeUser("Owner"), viewer = await makeUser("Viewer"), tripId = await makeTrip(owner.id);
   await prisma.tripMembership.create({ data: { tripId, userId: viewer.id, role: "VIEWER" } });
@@ -164,6 +190,9 @@ it("requires a dedicated admin unlock while permanent Premium remains active in 
   setTestRuntime({ ...currentRuntime(), companyAdminEmail: owner.email });
   const session = await adminAuthenticationFixture(owner.id), tripId = await makeTrip(owner.id);
   expect((await page(owner.id, "admin")).blocks.some(b => b.id === "summary")).toBe(true);
+  const visitors = await page(owner.id, "admin-visitors");
+  expect(visitors.tabs?.map(t => t.label).slice(0, 2)).toEqual(["Overview", "Visitors"]);
+  expect(visitors.blocks.some(b => b.id === "setup")).toBe(true); // No Cloudflare token in tests.
   await cmd(owner.id, undefined, "admin.mode", { mode: "NORMAL" });
   setTestRuntime({ ...currentRuntime(), accountMode: { userId: owner.id, sessionId: session.id, normal: true } });
   expect((await page(owner.id, "itinerary", tripId)).premium).toBe(true);

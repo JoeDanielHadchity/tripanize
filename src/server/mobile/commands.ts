@@ -53,7 +53,8 @@ const done: MobileCommandResult = { refresh: true };
  * entity ownership, concurrency and audit checks. UI metadata confers no rights. */
 export async function mobileCommand(userId: string, raw: unknown, sessionId?: string): Promise<MobileCommandResult> {
   await getMobileUser(userId);
-  const c = rawCommand.parse(raw), v = c.values;
+  // "Unscheduled idea" is the empty choice in day pickers; services expect no day (null).
+  const c = rawCommand.parse(raw), v = c.values.dayId === "" ? { ...c.values, dayId: null } : c.values;
   const parse = <S extends z.ZodType>(schema: S) => schema.parse(v);
   const tripId = c.tripId ?? "";
   if (c.tripId) await requireTrip(tripId, userId);

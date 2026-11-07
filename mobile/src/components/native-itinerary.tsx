@@ -69,7 +69,8 @@ export function NativeItinerary({ data, onAction, busy, renderBlock }: { data: M
   const index = itinerary.days.findIndex(value => value.id === day.id);
   const tools = data.blocks.find(block => block.id === "tools")?.actions ?? [];
   const plan = tools.find(action => action.to?.screen === "plan"), pdf = tools.find(action => action.device === "file");
-  const otherTools = tools.filter(action => action !== plan && action !== pdf && action.to?.screen !== "assistant");
+  // Like the website's itinerary "More" menu: secondary tools, the trip PDF included, sit in one sheet.
+  const otherTools = [...tools.filter(action => action !== plan && action !== pdf && action.to?.screen !== "assistant"), ...(pdf ? [{ ...pdf, label: "Trip PDF" }] : [])];
   const dayBlock = data.blocks.find(block => block.id === "day");
   const planB = data.blocks.find(block => block.id === "plan-b-note");
   const needle = search.toLowerCase().trim();
@@ -82,10 +83,10 @@ export function NativeItinerary({ data, onAction, busy, renderBlock }: { data: M
   const move = (delta: number) => onAction({ label: "Choose day", to: { screen: "itinerary", tripId, item: itinerary.days[index + delta].id } });
   return <View style={{ gap: 19 }}>
     <Muted>{itinerary.days.length} days · local times · estimated costs and travel times</Muted>
-    <ActionRow actions={[...(plan ? [plan] : []), ...(pdf ? [{ ...pdf, label: "Trip PDF" }] : [])]} onAction={onAction} busy={busy} primary={!!plan} />
+    {plan && <ActionRow actions={[plan]} onAction={onAction} busy={busy} primary />}
     <Checklist itinerary={itinerary} onAction={onAction} />
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: c.line, borderRadius: 11, backgroundColor: c.paper, paddingHorizontal: 13 }}><Icon name="search-outline" size={18} /><TextInput accessibilityLabel="Search this day's stops and restaurants" placeholder="Search stops, places, restaurants…" placeholderTextColor={c.muted} value={search} onChangeText={setSearch} style={{ flex: 1, minHeight: 48, color: c.ink, fontFamily: "Inter", fontSize: 14 }} /></View>
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{addStop && <Button compact secondary leadingIcon="add" disabled={busy} onPress={() => onAction(addStop)}>Add stop</Button>}<ActionSheet label="Trip tools" actions={otherTools} onAction={onAction} busy={busy} /></View>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{addStop && <Button compact secondary leadingIcon="add" disabled={busy} onPress={() => onAction(addStop)}>Add stop</Button>}<ActionSheet label="More" actions={otherTools} onAction={onAction} busy={busy} /></View>
     <DayChoices itinerary={itinerary} tripId={tripId} onAction={onAction} />
     <DayPager index={index} total={itinerary.days.length} busy={busy} move={move} />
     <Card style={{ backgroundColor: c.bg, gap: 13 }}><T style={{ color: c.accent, fontSize: 13 }}>{dayLabel(day.date, { weekday: "long", day: "numeric", month: "long" })}</T><T accessibilityRole="header" style={{ fontFamily: "Fraunces", fontSize: 25, lineHeight: 32 }}>{day.title}</T>

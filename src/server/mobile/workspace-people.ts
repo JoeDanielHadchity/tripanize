@@ -1,3 +1,4 @@
+import { visitorReport, visitorsConfigured, type VisitorRange } from "@/server/admin/visitors";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { getChatPage } from "@/server/chat/service";
@@ -76,13 +77,28 @@ export async function adminBlocks(userId: string, screen: string, query: URLSear
   }
   if (normalUserMode(userId)) { doc.blocks = [{ id: "mode", text: "You are testing in Normal mode. Premium remains included.", actions: [act("Switch to Admin mode", "admin.mode", { mode: "ADMIN" })] }]; return doc; }
   await requireCompanyAdmin(userId);
-  doc.tabs = [["Overview", "admin"], ["Trials", "admin-trials"], ["Users", "admin-users"], ["Trips", "admin-trips"], ["Payments", "admin-payments"], ["AI", "admin-ai"], ["Support", "admin-support"], ["Health", "admin-health"], ["Announcements", "admin-announcements"], ["Activity", "admin-activity"]].map(([label, screen]) => ({ label, to: { screen } }));
+  doc.tabs = [["Overview", "admin"], ["Visitors", "admin-visitors"], ["Trials", "admin-trials"], ["Users", "admin-users"], ["Trips", "admin-trips"], ["Payments", "admin-payments"], ["AI", "admin-ai"], ["Support", "admin-support"], ["Health", "admin-health"], ["Announcements", "admin-announcements"], ["Activity", "admin-activity"]].map(([label, screen]) => ({ label, to: { screen } }));
   doc.blocks.push({ id: "session", meta: `Admin until ${security.verifiedUntil}`, actions: [act("Switch to Normal mode", "admin.mode", { mode: "NORMAL" }), act("Lock Admin", "admin.security", { op: "lock" })] });
   const page = Math.max(0, Math.min(10000, Number(query.get("before")) || 0)), term = query.get("item")?.slice(0, 100) ?? "";
   const pagination = (total: number, size: number) => doc.blocks.push({ id: "pages", meta: `Page ${page + 1} · ${total} records`, actions: [...(page > 0 ? [{ label: "Previous", to: { screen, item: term, before: String(page - 1) } }] : []), ...(total > (page + 1) * size ? [{ label: "Next", to: { screen, item: term, before: String(page + 1) } }] : [])] });
   if (screen === "admin") {
     const summary = await admin.adminOverview(userId);
     doc.blocks.push({ id: "summary", title: `${summary.users} users · ${summary.trips} trips`, lines: [`${summary.activeUsers} active users in 30 days`, `${summary.verifiedPurchases} verified purchases`, `Sales: ${formatMoney(summary.salesMinor, "USD")}`, `${summary.pendingPayments} pending payments`, `${summary.trials} accepted trials`, `${summary.openSupport} open support requests`, `${summary.aiRequests} AI requests · ${summary.failedAi} failed`] });
+  } else if (screen === "admin-visitors") {
+    const range: VisitorRange = query.get("item") === "30" ? 30 : 7;
+    doc.blocks.push({ id: "range", actions: [{ label: range === 7 ? "✓ Last 7 days" : "Last 7 days", to: { screen, item: "7" } }, { label: range === 30 ? "✓ Last 30 days" : "Last 30 days", to: { screen, item: "30" } }, act("Refresh from Cloudflare", "admin.command", { op: "visitors.refresh", range })] });
+    if (!visitorsConfigured()) doc.blocks.push({ id: "setup", title: "Connect Cloudflare analytics", text: "Add the CLOUDFLARE_ANALYTICS_TOKEN secret in Cloudflare to see visitors here. The website's Company → Visitors tab has the steps." });
+    else {
+      try {
+        const r = await visitorReport(userId, range), t = r.totals, n = (v: number | null) => v === null ? "—" : v.toLocaleString("en-US");
+        const top = (id: string, title: string, rows: { key: string; views: number; visits: number }[]) => { if (rows.length) doc.blocks.push({ id, title, lines: rows.map(x => `${x.key} · ${n(x.views)} views · ${n(x.visits)} visits`) }); };
+        if (r.warning) doc.blocks.push({ id: "warning", text: r.warning, tone: "warning" });
+        doc.blocks.push({ id: "totals", title: `${n(t.visits)} visits · ${n(t.views)} page views`, lines: [`${t.signups} new sign-ups${t.visits ? ` (${((t.signups / t.visits) * 100).toFixed(1)}% of visits)` : ""}`, `All requests, bots and files included: ${n(t.requests)}`] });
+        doc.blocks.push({ id: "days", title: "Day by day (UTC)", lines: [...r.days].reverse().map(d => `${d.date} · ${n(d.visits)} visits · ${n(d.views)} views · ${d.signups} sign-ups`) });
+        top("referrers", "Where visitors came from", r.referrers); top("pages", "Top pages", r.pages); top("countries", "Countries", r.countries); top("devices", "Devices", r.devices); top("browsers", "Browsers", r.browsers);
+        doc.blocks.push({ id: "note", meta: `Cloudflare Web Analytics: cookie-free, never identifies a visitor. Figures from ${r.fetchedAt}; refreshed every 10 minutes.` });
+      } catch (e) { doc.blocks.push({ id: "error", text: e instanceof Error ? e.message : "Cloudflare's analytics aren't available right now.", tone: "warning" }); }
+    }
   } else if (screen === "admin-trials") {
     doc.blocks.push(form("trial", "Invite someone to try Premium", "trial.create", [f("email", "Recipient email", "text", { required: true }), f("durationDays", "Days of Premium", "number", { value: 14 })], {}, "Create trial invitation"));
     for (const t of await listCompanyTrials(userId)) {
