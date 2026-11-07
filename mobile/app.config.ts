@@ -6,7 +6,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: "tripanize-mobile",
   owner: "tripanizeapp",
   extra: { eas: { projectId: "dac6638c-94ea-4d44-9edb-3bebf71da3df" } },
-  version: "0.4.2",
+  version: "0.4.3",
   scheme: "tripanize",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
