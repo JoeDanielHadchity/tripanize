@@ -148,7 +148,20 @@ export async function adminOverview(actorId: string) {
     prisma.aiUsage.count({ where: { createdAt: { gte: since }, status: "FAILED" } }),
     prisma.aiUsage.count({ where: { createdAt: { gte: since }, inputTokens: { not: null }, estimatedCostMicros: null } }),
   ]);
-  return { users, activeUsers, suspended, trips, verifiedPurchases, pendingPayments, salesMinor: sales._sum.amountMinor ?? 0, trials, trialPurchases, openSupport, aiRequests, failedAi, unpricedAi, environment: env };
+  // Last-30-day figures and the "needs your attention" list on the dashboard home.
+  const soon = new Date(Date.now() + 3 * 86400_000), now = new Date();
+  const [newUsers, newTrips, recentSales, aiCost, trialsEnding, failedJobs, failedEmails] = await Promise.all([
+    prisma.user.count({ where: { createdAt: { gte: since } } }),
+    prisma.trip.count({ where: { createdAt: { gte: since } } }),
+    prisma.premiumCheckout.aggregate({ where: { environment: env, status: "COMPLETED", reviewRequired: false, createdAt: { gte: since } }, _sum: { amountMinor: true }, _count: true }),
+    prisma.aiUsage.aggregate({ where: { createdAt: { gte: since } }, _sum: { estimatedCostMicros: true } }),
+    prisma.trialInvitation.count({ where: { acceptedAt: { not: null }, revokedAt: null, trialEndsAt: { gt: now, lte: soon } } }),
+    prisma.generationJob.count({ where: { status: "FAILED", createdAt: { gte: new Date(Date.now() - 7 * 86400_000) } } }),
+    prisma.tripNotification.count({ where: { emailStatus: "failed" } }),
+  ]);
+  return { users, activeUsers, suspended, trips, verifiedPurchases, pendingPayments, salesMinor: sales._sum.amountMinor ?? 0, trials, trialPurchases, openSupport, aiRequests, failedAi, unpricedAi, environment: env,
+    newUsers, newTrips, recentSalesMinor: recentSales._sum.amountMinor ?? 0, recentSales: recentSales._count, aiCostMicros: Number(aiCost._sum.estimatedCostMicros ?? 0), trialsEnding, failedJobs, failedEmails,
+    aiConfigured: aiConfigured(), emailConfigured: emailConfigured(), paddleConfigured: Boolean(currentRuntime().paddle?.apiKey && currentRuntime().paddle?.webhookSecret) };
 }
 const search = (q: string) => q.trim().slice(0, 100);
 export async function adminUsers(actorId: string, q: string, page: number) {
