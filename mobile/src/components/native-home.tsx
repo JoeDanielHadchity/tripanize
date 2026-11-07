@@ -88,19 +88,13 @@ function TripTicket({ trip, more }: { trip: MobileTripCard; more: boolean }) {
 const FEATURE_ICONS: Record<string, IconName> = { "/ai-trip-planner": "map-outline", "/group-trip-planner": "people-outline", "/travel-expense-splitter": "receipt-outline" };
 const FEATURE_SHORT: Record<string, string> = { "/ai-trip-planner": "Trip planner", "/group-trip-planner": "Group travel", "/travel-expense-splitter": "Expense splitter" };
 
-/** What Tripanize does: the three feature pages as icon tiles, and a slim pricing banner. */
+/** What Tripanize does: the three feature pages as icon tiles. Pricing lives in the Premium card below. */
 function Explore({ t }: { t: Texts }) {
-  const c = useTheme();
   return <View style={{ gap: 10 }}>
     <View style={{ paddingHorizontal: 4, gap: 2 }}><T style={{ fontFamily: "NunitoBold", fontSize: 17 }}>{t("app.home.explore.title")}</T><Muted>{t("app.home.explore.subtitle")}</Muted></View>
     <View style={{ flexDirection: "row", gap: 8 }}>
       {FEATURE_PAGES.map(f => <QuickAction key={f.href} icon={FEATURE_ICONS[f.href] ?? "sparkles-outline"} label={FEATURE_SHORT[f.href] ?? f.label} onPress={() => router.push({ pathname: "/feature/[slug]", params: { slug: f.href.slice(1) } })} />)}
     </View>
-    <Pressable accessibilityRole="link" accessibilityLabel="Plans and pricing. Start free, Premium is $15 a trip" onPress={() => router.push("/plans")} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52, paddingHorizontal: 16, borderRadius: 18, backgroundColor: c.paper, borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.7 : 1 })}>
-      <Icon name="sparkles" size={20} color={c.accent} />
-      <T style={{ flex: 1, fontSize: 14, lineHeight: 19 }}>Start free · Premium is $15 a trip</T>
-      <T style={{ fontSize: 14, fontFamily: "NunitoBold", color: c.accent }}>Plans</T>
-    </Pressable>
   </View>;
 }
 
@@ -136,18 +130,18 @@ function PremiumPromo({ t }: { t: Texts }) {
     <View style={styles.row}><Eyebrow color={c.dark ? c.accentText : "#f6e3da"}>{t("app.home.premium.eyebrow")}</Eyebrow><Icon name="sparkles" color={c.accentText} size={20} /></View>
     <T style={{ fontFamily: "NunitoHeading", fontSize: 24, lineHeight: 30, color: c.accentText }}>{t("app.home.premium.title")}</T>
     <T style={{ color: c.accentText, opacity: 0.85, fontSize: 14 }}>{t("app.home.premium.text")}</T>
+    <View style={[styles.row, { justifyContent: "flex-start", gap: 6, marginTop: 4 }]}><T style={{ color: c.accentText, fontFamily: "NunitoBold", fontSize: 15 }}>See plans</T><Icon name="arrow-forward" size={16} color={c.accentText} /></View>
   </Card>;
 }
 
 export function NativeHome() {
-  const c = useTheme(); const { data: session } = authClient.useSession();
+  const { data: session } = authClient.useSession();
   const home = usePublicData<MobilePublicHome>();
   const t: Texts = key => home.data?.texts?.[key] || SITE_TEXTS[key].text;
   if (session) return <Screen>
     <View style={[styles.row, { paddingTop: 4 }]}><View style={{ flex: 1, gap: 2 }}><Muted>{greeting()}, {session.user.name?.split(" ")[0] || "traveler"}</Muted></View><Button compact leadingIcon="add" onPress={() => router.push(workspaceHref({ screen: "new" }))}>New trip</Button></View>
     <NextTrip />
     <View style={{ flexDirection: "row", gap: 8 }}>
-      <QuickAction icon="add" label="New trip" tint={c.accent} onPress={() => router.push(workspaceHref({ screen: "new" }))} />
       <QuickAction icon="compass-outline" label="Find a place" onPress={() => router.push("/destinations")} />
       <QuickAction icon="mail-open-outline" label="Invitations" onPress={() => router.push(workspaceHref({ screen: "trips" }))} />
       <QuickAction icon="cloud-offline-outline" label="Offline" onPress={() => router.push("/offline")} />
@@ -170,7 +164,6 @@ export function NativeHome() {
     <Explore t={t} />
     <Ideas home={home} t={t} />
     <PremiumPromo t={t} />
-    <View style={{ alignItems: "center", gap: 6, paddingTop: 8 }}><Brand /><Muted>Plan less. Travel more.</Muted></View>
     <NativeLegalLinks />
   </Screen>;
 }

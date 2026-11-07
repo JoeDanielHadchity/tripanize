@@ -15,6 +15,7 @@ import { Intro } from "../components/intro";
 import { onPushOpen, syncPush } from "../lib/push";
 import { recoverPurchases } from "../lib/purchases";
 import { workspaceHref } from "../lib/workspace";
+import { useAndroidKeyboardHeight } from "../lib/keyboard";
 export { ErrorBoundary } from "expo-router";
 
 // Keep the launch screen up until the intro has drawn its first frame over it.
@@ -40,15 +41,18 @@ function Navigation() {
   const c = useTheme();
   const pathname = usePathname(), params = useGlobalSearchParams<{ tripId?: string | string[] }>();
   const inTrip = isMobileTripRoute(pathname, params.tripId);
+  // Android draws edge to edge, so lift the whole screen above the keyboard ourselves and
+  // tuck the tab bar away while typing (it would otherwise sit on top of the keyboard).
+  const keyboard = useAndroidKeyboardHeight();
   useSignedInDevice(session?.user.id);
   if ((!loaded && !error) || isPending) return <Screen><Loading /></Screen>;
-  return <SafeAreaView edges={inTrip ? ["top", "bottom"] : ["top"]} style={{ flex: 1, backgroundColor: c.bg }}><StatusBar style={c.dark ? "light" : "dark"} /><View style={{ flex: 1 }}><Stack screenOptions={{ headerShown: false, animation: "slide_from_right", contentStyle: { backgroundColor: c.bg } }}>
+  return <SafeAreaView edges={inTrip || keyboard ? ["top", "bottom"] : ["top"]} style={{ flex: 1, backgroundColor: c.bg }}><StatusBar style={c.dark ? "light" : "dark"} /><View style={{ flex: 1, paddingBottom: keyboard }}><Stack screenOptions={{ headerShown: false, animation: "slide_from_right", contentStyle: { backgroundColor: c.bg } }}>
     <Stack.Screen name="(tabs)" options={{ animation: "none" }} /><Stack.Screen name="sign-in" options={{ animation: "slide_from_bottom" }} /><Stack.Screen name="plans" /><Stack.Screen name="feature/[slug]" /><Stack.Screen name="guide/[slug]" />
     <Stack.Protected guard={!!session}>
       <Stack.Screen name="start" options={{ animation: "slide_from_bottom" }} /><Stack.Screen name="trip/[id]" /><Stack.Screen name="destinations" /><Stack.Screen name="workspace" />
     </Stack.Protected>
     <Stack.Screen name="offline" />
-  </Stack></View><NativeBottomNavigation /></SafeAreaView>;
+  </Stack></View>{!keyboard && <NativeBottomNavigation />}</SafeAreaView>;
 }
 export default function RootLayout() {
   const [intro, setIntro] = useState(true);

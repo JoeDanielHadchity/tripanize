@@ -23,7 +23,8 @@ function readPins(blocks: MobileBlock[] = [], myName?: string): (MapPin & { upda
   });
 }
 
-function LocationPanel({ tripId }: { tripId: string }) {
+/** The group map: everyone sharing their location, and your own sharing switch. */
+export function LocationPanel({ tripId, mapHeight }: { tripId: string; mapHeight?: number }) {
   const c = useTheme(); const { data: session } = authClient.useSession();
   const { data, reload } = useApi<MobileWorkspace>(workspacePath({ screen: "locations", tripId }));
   const share = useLocationShare(tripId, reload);
@@ -32,7 +33,7 @@ function LocationPanel({ tripId }: { tripId: string }) {
   const pins: MapPin[] = [...others, ...(share.me ? [{ id: "me", name: "You", me: true, ...share.me }] : [])];
   const members = data?.blocks.filter(b => b.id !== "self" && b.title) ?? [];
   return <View style={{ gap: 10 }}>
-    <TripMap pins={pins} />
+    <TripMap pins={pins} height={mapHeight} />
     <Card style={{ paddingVertical: 12, gap: 8 }}>
       <View style={styles.row}>
         <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: share.sharing ? c.accent : c.soft, alignItems: "center", justifyContent: "center" }}><Icon name={share.sharing ? "navigate" : "navigate-outline"} size={19} color={share.sharing ? c.accentText : c.accent} /></View>
@@ -47,7 +48,7 @@ function LocationPanel({ tripId }: { tripId: string }) {
   </View>;
 }
 
-/** Chat & locations: the group's map on top, the conversation below. */
+/** The group conversation; the map and votes have their own tabs above it. */
 export function TripChat({ data, tripId, onAction, reload, scrollToEnd }: { data: MobileWorkspace; tripId: string; onAction: (a: MobileAction) => void; reload: () => void; scrollToEnd: () => void }) {
   const c = useTheme(); const { data: session } = authClient.useSession();
   const messages = data.blocks.filter(b => b.title && !["tools", "earlier", "chat"].includes(b.id));
@@ -56,12 +57,11 @@ export function TripChat({ data, tripId, onAction, reload, scrollToEnd }: { data
   const readKey = JSON.stringify(markRead?.values ?? null);
   // Opening the chat marks it read, quietly.
   useEffect(() => { if (markRead?.action) void post("/api/mobile/workspace", { action: markRead.action, tripId, values: markRead.values ?? {} }).catch(() => undefined); }, [readKey, tripId]); // eslint-disable-line react-hooks/exhaustive-deps
-  // New messages after the first load bring the conversation into view; opening keeps the map on top.
+  // Opening the chat and every new message bring the latest messages into view.
   const seen = useRef<number | null>(null);
-  useEffect(() => { if (seen.current !== null && messages.length > seen.current) scrollToEnd(); seen.current = messages.length; }, [messages.length, scrollToEnd]);
+  useEffect(() => { if (seen.current === null || messages.length > seen.current) scrollToEnd(); seen.current = messages.length; }, [messages.length, scrollToEnd]);
   const days = messages.map(m => dayOf(m.meta));
   return <View style={{ gap: 14 }}>
-    <LocationPanel tripId={tripId} />
     <View style={[styles.row, { paddingHorizontal: 4 }]}><T accessibilityRole="header" style={{ fontFamily: "NunitoBold", fontSize: 17 }}>Group chat</T>{earlier && <Pressable accessibilityRole="button" onPress={() => onAction(earlier)}><T style={{ color: c.accent, fontFamily: "NunitoBold", fontSize: 13 }}>Earlier messages</T></Pressable>}</View>
     {!messages.length && <Card style={{ alignItems: "center", paddingVertical: 22 }}><Icon name="chatbubbles-outline" size={28} /><Muted>No messages yet. Say hello to your group!</Muted></Card>}
     <View style={{ gap: 6 }}>{messages.map((m, i) => {

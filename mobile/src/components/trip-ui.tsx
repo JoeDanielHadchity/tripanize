@@ -138,7 +138,6 @@ export function TripNavigation({ tripId, screen, premium, onAction }: { tripId: 
   const go = (to: MobileTarget) => { setOpen(false); onAction({ label: "Open trip section", to }); };
   const more: { label: string; icon: IconName; to: MobileTarget }[] = [
     { label: "Packing & prep", icon: "bag-handle-outline", to: { screen: "packing", tripId } },
-    { label: "Bookings", icon: "ticket-outline", to: { screen: "bookings", tripId } },
     { label: "Travelers & sharing", icon: "people-outline", to: { screen: "sharing", tripId } },
     { label: "Trip settings", icon: "settings-outline", to: { screen: "settings", tripId } },
     { label: "Premium pass", icon: "sparkles-outline", to: { screen: "premium", tripId } },

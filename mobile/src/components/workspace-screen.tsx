@@ -12,13 +12,14 @@ import { pickFiles, uploadFiles, shareDownload, type PickedFile } from "../lib/f
 import { saveOfflineItinerary, clearOfflineItineraries } from "../lib/offline";
 import { buyCredits, buyTripPremium } from "../lib/purchases";
 import { unregisterPush } from "../lib/push";
+import { useAndroidKeyboardHeight } from "../lib/keyboard";
 import { useTheme, useAppearance } from "./theme";
 import { Fields } from "./form-fields";
 import { NativeItinerary } from "./native-itinerary";
 import { ActionRow, Sheet, Ticket, TripBanner, TripHeader, TripHero, TripNavigation, TripSkeleton } from "./trip-ui";
 import { NativeLocation } from "./native-location";
 import { PushSettingsCard } from "./push-settings";
-import { ChatComposer, TripChat } from "./trip-chat";
+import { ChatComposer, LocationPanel, TripChat } from "./trip-chat";
 import { PollCard, isPoll } from "./poll-card";
 import { Button, Card, EmptyState, ErrorNotice, Heading, Icon, IconButton, ListRow, Loading, Muted, Screen, ScreenHeader, Section, Segmented, T, styles, type IconName } from "./ui";
 
@@ -65,6 +66,9 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
   const [review, setReview] = useState<MobileCommandResult["review"] | null>(null);
   // Small detail screens (a stop, a payment) open as a sheet over the trip.
   const [sheet, setSheet] = useState<MobileTarget | null>(null), [inviting, setInviting] = useState(false);
+  // Premium trip chat has three views: the conversation, the group map and votes (its own screen).
+  const [chatView, setChatView] = useState<"chat" | "map">("chat");
+  const keyboard = useAndroidKeyboardHeight();
   const c = useTheme(), appearance = useAppearance();
   const { data: session } = authClient.useSession();
   const pollMs = data?.pollMs;
@@ -95,6 +99,7 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
   }, [ready, path, fade, shift]);
 
   const scrollToEnd = useCallback(() => { setTimeout(() => content.current?.scrollToEnd({ animated: true }), 120); }, []);
+  useEffect(() => { if (keyboard && current.screen === "chat" && chatView === "chat") scrollToEnd(); }, [keyboard, current.screen, chatView, scrollToEnd]);
   function direction(from: MobileTarget, to: MobileTarget) {
     if (from.screen === "itinerary" && to.screen === "itinerary" && display?.itinerary) {
       const ids = display.itinerary.days.map(d => d.id);
@@ -109,6 +114,8 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
   function go(to: MobileTarget, finished = false) {
     setActionError(null);
     if (!finished) { setNotice(null); setSharedUrl(null); }
+    // Any move other than to votes (including the Chat tab itself) shows the conversation.
+    if (to.screen !== "votes") setChatView("chat");
     if (to.screen === "trips") { router.navigate("/trips"); return; }
     if (!finished && current.tripId && to.tripId === current.tripId && SHEET_SCREENS.has(to.screen)) { setSheet(to); return; }
     if (isBase && to.tripId === current.tripId && TRIP_SECTIONS.has(to.screen)) {
@@ -193,12 +200,13 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
   const itinerary = display?.itinerary?.selectedDay && current.screen === "itinerary";
   // Chat with its map, unless the trip shows the Premium lock instead.
   const chat = current.screen === "chat" && !!display && !display.blocks.some(b => b.id === "locked");
+  const mapShown = chat && chatView === "map";
   const eventsTab = ["events", "bookings"].includes(current.screen) && !!current.tripId;
   // Premium trips: switch between the group chat and its votes. Free trips open votes directly.
   const chatTab = ["chat", "votes"].includes(current.screen) && !!current.tripId && !!display?.premium;
   const header = display?.trip ? display : current.tripId && tripNames.has(current.tripId) ? { ...display, title: display?.title ?? "", blocks: [], trip: tripNames.get(current.tripId) } as MobileWorkspace : display;
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-    {inTrip && <TripHeader data={header} loading={loading && !!display} onBack={() => router.canGoBack() ? router.back() : router.replace("/trips")} right={<View style={{ flexDirection: "row", gap: 8 }}>{(display?.role ?? header?.role) === "OWNER" && <IconButton name="person-add-outline" label="Invite people" onPress={() => setInviting(true)} />}<IconButton name="notifications-outline" label="Notifications" onPress={() => go({ screen: "notifications" })} /></View>} />}
+    {inTrip && <TripHeader data={header} loading={loading && !!display} onBack={() => router.canGoBack() ? router.back() : router.replace("/trips")} right={<View style={{ flexDirection: "row", gap: 8 }}>{(display?.role ?? header?.role) === "OWNER" && <IconButton name="person-add-outline" label="Invite people" onPress={() => setInviting(true)} />}<IconButton name="notifications-outline" label="Inbox" onPress={() => go({ screen: "notifications" })} /></View>} />}
     <View style={{ flex: 1 }}><Screen scrollRef={content} refreshControl={<RefreshControl refreshing={false} onRefresh={reload} tintColor={c.accent} />} style={{ gap: 16, paddingTop: inTrip ? 4 : 8, paddingBottom: showAssistant ? 100 : 32 }}>
       {!inTrip && (isAccount && session ? <View style={{ alignItems: "center", gap: 6, paddingVertical: 22, paddingHorizontal: 18, marginTop: 6, borderRadius: 26, backgroundColor: c.night }}><View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: c.nightActive, alignItems: "center", justifyContent: "center", marginBottom: 6 }}><T style={{ color: "#fff", fontFamily: "NunitoHeading", fontSize: 32, lineHeight: 40 }}>{(session.user.name || session.user.email || "T").trim()[0]!.toUpperCase()}</T></View><Heading small color={c.nightInk}>{session.user.name || "Your account"}</Heading><T style={{ color: c.nightMuted, fontSize: 13 }}>{session.user.email}</T></View>
         : <ScreenHeader back={!tab} title={display?.title ?? (current.screen === "notifications" ? "Inbox" : " ")} subtitle={display?.subtitle} />)}
@@ -211,9 +219,10 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
       {display && <Animated.View pointerEvents={staleShown ? "none" : "auto"} style={{ gap: 16, opacity: fade, transform: [{ translateX: shift }] }}>
         {inTrip && (itinerary ? <TripHero data={display} cover={cover} /> : display.trip ? <TripBanner data={display} title={display.title} subtitle={display.subtitle} /> : <View style={{ gap: 4, paddingHorizontal: 4 }}><Heading small>{display.title}</Heading>{display.subtitle && <Muted>{display.subtitle}</Muted>}</View>)}
         {eventsTab && <Segmented label="Events or bookings" value={current.screen === "bookings" || current.screen === "booking" ? "bookings" : "events"} onChange={v => go({ screen: v, tripId: current.tripId })} options={[{ value: "events", label: "Events" }, { value: "bookings", label: "Bookings" }]} />}
-        {chatTab && <Segmented label="Chat or votes" value={current.screen === "votes" ? "votes" : "chat"} onChange={v => go({ screen: v, tripId: current.tripId })} options={[{ value: "chat", label: "Chat" }, { value: "votes", label: "Votes" }]} />}
+        {chatTab && <Segmented label="Chat, map or votes" value={current.screen === "votes" ? "votes" : chatView} onChange={v => { if (v === "votes") { go({ screen: "votes", tripId: current.tripId }); return; } if (current.screen !== "chat") go({ screen: "chat", tripId: current.tripId }); setChatView(v); }} options={[{ value: "chat", label: "Chat" }, { value: "map", label: "Map" }, { value: "votes", label: "Votes" }]} />}
         {itinerary ? <NativeItinerary data={display} onAction={onAction} busy={busy || !!staleShown} renderBlock={renderBlock} pendingDay={staleShown ? current.item : undefined} />
           : current.screen === "notifications" ? <Inbox blocks={display.blocks} busy={busy} loading={loading} onAction={onAction} />
+          : mapShown ? <LocationPanel tripId={current.tripId!} mapHeight={380} />
           : chat ? <TripChat data={display} tripId={current.tripId!} onAction={onAction} reload={reload} scrollToEnd={scrollToEnd} />
           : current.screen === "packing" && !display.blocks.some(b => b.id === "locked") ? <Packing blocks={display.blocks} busy={busy} onAction={onAction} onAdd={quickAdd} renderBlock={renderBlock} />
           : display.blocks.filter(b => b.id !== "cover").map(renderBlock)}
@@ -229,10 +238,10 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
         </Section>
       </>}
     </Screen>{showAssistant && <View pointerEvents="box-none" style={{ position: "absolute", bottom: 14, right: 16 }}><Button leadingIcon="sparkles" tone="coral" disabled={busy} style={{ borderRadius: 28, boxShadow: "0 6px 18px rgba(180,80,45,0.35)" }} onPress={() => go({ screen: "assistant", tripId: display.tripId, day: display.itinerary?.selectedDay?.date })}>Ask AI</Button></View>}</View>
-    {chat && display && <ChatComposer data={display} tripId={current.tripId!} onSent={() => { reload(); scrollToEnd(); }} />}
+    {chat && !mapShown && display && <ChatComposer data={display} tripId={current.tripId!} onSent={() => { reload(); scrollToEnd(); }} />}
     {sheet && <DetailSheet target={sheet} onClose={() => setSheet(null)} onAction={a => { setSheet(null); onAction(a); }} onDone={r => { setSheet(null); void result(r); }} />}
     {inviting && current.tripId && <InviteSheet tripId={current.tripId} tripName={header?.trip?.name ?? "our trip"} close={() => setInviting(false)} />}
-    {current.tripId && <TripNavigation tripId={current.tripId} screen={current.screen} premium={display?.premium ?? tripPremium.get(current.tripId)} onAction={action => { if (action.to) go(action.to); }} />}
+    {current.tripId && !keyboard && <TripNavigation tripId={current.tripId} screen={current.screen} premium={display?.premium ?? tripPremium.get(current.tripId)} onAction={action => { if (action.to) go(action.to); }} />}
   </KeyboardAvoidingView>;
 }
 
