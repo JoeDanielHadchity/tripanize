@@ -177,7 +177,8 @@ it("lets viewers chat and vote while protecting administrator tools", async () =
   expect((await page(owner.id, "chat", tripId)).blocks.some(b => b.text === "Meet at the hotel")).toBe(true);
   await cmd(owner.id, tripId, "poll.create", { question: "Which museum?", kind: "ACTIVITY", options: ["Art", "History"] });
   const polls = await page(viewer.id, "votes", tripId), action = polls.blocks.find(b => b.title === "Which museum?")!.actions![0];
-  expect(polls.blocks[0].actions?.map(a => a.label)).toEqual(["Chat", "Member locations"]);
+  // The app shows its own Chat / Votes switch above this screen, so the server sends no section links.
+  expect(polls.blocks.some(b => b.id === "section")).toBe(false);
   await cmd(viewer.id, tripId, action.action!, action.values!);
   expect(await prisma.tripVote.count()).toBe(1);
   await expect(page(viewer.id, "admin")).rejects.toMatchObject({ code: "FORBIDDEN" });

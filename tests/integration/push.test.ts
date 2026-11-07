@@ -31,7 +31,7 @@ it("registers Expo tokens only, moves a phone to the latest account and stores c
   expect((await getPushSettings(owner.id)).devices).toBe(0);
   expect((await getPushSettings(friend.id)).devices).toBe(1);
   const changed = await changePush(friend.id, { op: "settings", settings: { chat: false } });
-  expect(changed.settings).toEqual({ chat: false, events: true, group: true, reminders: true });
+  expect(changed.settings).toEqual({ chat: false, events: true, group: true, reminders: true, news: true });
   await changePush(friend.id, { op: "unregister", token: token("phone1") });
   expect((await getPushSettings(friend.id)).devices).toBe(0);
 });
