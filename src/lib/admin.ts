@@ -3,7 +3,7 @@ export const ADMIN_GROUPS = [
   { label: null, tabs: [["overview", "Home"]] },
   { label: "People", tabs: [["users", "Users"], ["trials", "Trials"]] },
   { label: "Business", tabs: [["trips", "Trips"], ["payments", "Payments"], ["ai", "AI costs"]] },
-  { label: "Content", tabs: [["announcements", "Banners"]] },
+  { label: "Content", tabs: [["ideas", "Trip ideas"], ["announcements", "Banners"]] },
   { label: "Talk to users", tabs: [["support", "Support"]] },
   { label: "System", tabs: [["health", "Health"], ["visitors", "Visitors"], ["activity", "Activity log"]] },
 ] as const;

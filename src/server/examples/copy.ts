@@ -3,11 +3,11 @@ import { AppError } from "@/server/errors";
 import { addDays, isDateStr } from "@/lib/dates";
 import { createTrip } from "@/server/trips/service";
 import { createBooking, type BookingInput } from "@/server/bookings/service";
-import { EXAMPLES } from "./data";
+import { findExample } from "./data";
 
 /** Creates a real, editable trip from an example, shifted to the chosen start date. */
 export async function copyExample(userId: string, slug: string, startDate: string) {
-  const ex = EXAMPLES.find((e) => e.slug === slug);
+  const ex = await findExample(slug);
   if (!ex) throw new AppError("NOT_FOUND", "Example not found.");
   if (!isDateStr(startDate) || new Date(`${startDate}T00:00:00Z`).toISOString().slice(0, 10) !== startDate) throw new AppError("VALIDATION", "Choose a valid start date.");
   const tripId = await createTrip(userId, {

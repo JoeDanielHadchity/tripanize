@@ -5,7 +5,7 @@ import { listTrips, type TripCard } from "@/server/trips/service";
 import { AppHeader } from "@/components/shell";
 import { Badge, EmptyState, LinkButton, Notice, PageHeader, cx } from "@/components/ui";
 import { formatDateRange, tripCountdown, tripLength } from "@/lib/dates";
-import { EXAMPLES } from "@/server/examples/data";
+import { listExamples } from "@/server/examples/data";
 import { listPendingInvitations } from "@/server/invitations/service";
 import { PendingInvites } from "@/components/pending-invites";
 import { userTrialAccess } from "@/server/admin/trials";
@@ -30,6 +30,7 @@ const PHASE: Record<TripCard["phase"], { label: string; tone: "accent" | "sage" 
 
 export default async function TripsPage({ searchParams }: { searchParams: Promise<{ q?: string; phase?: string; selected?: string }> }) {
   const user = await requireUser();
+  const examples = await listExamples();
   const { q = "", phase = "all", selected } = await searchParams;
   const all = await listTrips(user.id);
   const trips = await listTrips(user.id, { q, phase });
@@ -82,7 +83,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
           <h2 id="examples" className="font-display text-xl font-semibold">Example trips</h2>
           <p className="mt-1 text-sm text-muted">Copy an example to start planning.</p>
           <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {EXAMPLES.map((e) => (
+            {examples.map((e) => (
               <li key={e.slug}>
                 <Link href={`/examples/${e.slug}`} className="group block overflow-hidden rounded-2xl border border-line bg-surface">
                   <div className="relative h-36 overflow-hidden bg-night">

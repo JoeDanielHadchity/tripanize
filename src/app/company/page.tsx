@@ -10,6 +10,8 @@ import { ADMIN_TABS, type AdminTab } from "@/lib/admin";
 import { prisma } from "@/server/db";
 import { AdminNav } from "./nav";
 import { AdminHome } from "./home";
+import { TripIdeaEditor, TripIdeaList } from "./trip-ideas";
+import { adminTripIdeas } from "@/server/admin/trip-ideas";
 import { AppHeader } from "@/components/shell";
 import { Badge, Card, Input, LinkButton, Notice } from "@/components/ui";
 import { formatMoney } from "@/lib/money";
@@ -35,7 +37,13 @@ function Financials({ value }: { value: unknown }) {
   const amount = (minor: string | null | undefined, currency?: string | null) => minor != null && /^-?\d+$/.test(minor) && currency ? formatMoney(Number(minor), currency) : "Not reported";
   return <div className="mt-4 rounded-xl bg-surface-2 p-3 text-xs"><dl className="grid gap-3 sm:grid-cols-3"><div><dt className="text-muted">Checkout total</dt><dd className="mt-1 font-medium">{amount(data.totals?.total,data.currency)}</dd></div><div><dt className="text-muted">Paddle fees · payout currency</dt><dd className="mt-1 font-medium">{amount(payout?.fee,payout?.currency_code)}</dd></div><div><dt className="text-muted">Earnings · payout currency</dt><dd className="mt-1 font-medium">{amount(payout?.earnings,payout?.currency_code)}</dd></div></dl><p className="mt-3 text-muted">Last verified {date(data.syncedAt ?? null)} · Actual payouts and settlement timing are managed in Paddle.</p></div>;
 }
-async function Content({ tab, userId, name, q, page, range }: { tab: AdminTab; userId: string; name: string; q: string; page: number; range: VisitorRange }) {
+async function Content({ tab, userId, name, q, page, range, item }: { tab: AdminTab; userId: string; name: string; q: string; page: number; range: VisitorRange; item: string }) {
+  if (tab === "ideas") {
+    const ideas = await adminTripIdeas(userId);
+    const idea = item ? ideas.find(i => i.slug === item) : undefined;
+    if (idea) return <Section title={`Edit ${idea.city}`} description="Change the wording, days and stops, or the photos. Saving a live guide updates the website and app right away."><TripIdeaEditor key={idea.slug} idea={idea} /></Section>;
+    return <Section title="Trip ideas" description="The city guides on the website and the app's home screen. Reorder, hide, edit, or let the AI draft a new one."><TripIdeaList ideas={ideas} /></Section>;
+  }
   if (tab === "visitors") return <Section title="Visitors" description="Who comes to tripanize.app: visits, pages and where people come from, from Cloudflare. Anonymous and cookie-free; sign-ups come from Tripanize's own records."><Visitors userId={userId} range={range} /></Section>;
   if (tab === "overview") return <AdminHome d={await adminOverview(userId)} name={name} />;
   if (tab === "users") {
@@ -71,7 +79,7 @@ async function Content({ tab, userId, name, q, page, range }: { tab: AdminTab; u
   const d = await adminActivity(userId,page);
   return <Section title="Administrator activity" description="Recorded administrative changes from this dashboard and trial management.">{d.rows.map(a => <Card key={a.id}><div className="flex flex-wrap justify-between gap-3"><h3 className="text-sm font-semibold">{a.action.replaceAll("."," · ")}</h3><p className="text-xs text-muted">{date(a.createdAt)}</p></div><p className="mt-2 break-all font-mono text-xs text-muted">{a.targetType} / {a.targetId}</p>{a.details && Object.keys(a.details).length > 0 && <pre className="mt-3 whitespace-pre-wrap break-words text-xs leading-5 text-muted">{JSON.stringify(a.details,null,2)}</pre>}</Card>)}{!d.rows.length && <Empty>Administrative changes will appear here.</Empty>}<Pages tab={tab} q="" page={page} total={d.total} size={30} /></Section>;
 }
-export default async function CompanyPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string; range?: string }> }) {
+export default async function CompanyPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; page?: string; range?: string; item?: string }> }) {
   const user = await requireUser();
   if (!user.companyAdminEligible) notFound();
   if (!user.companyAdmin) redirect("/account/security");
@@ -80,5 +88,5 @@ export default async function CompanyPage({ searchParams }: { searchParams: Prom
   const q = String(params.q ?? "").slice(0,100);
   const page = Math.min(10000,Math.max(0,Number.parseInt(params.page ?? "0",10) || 0));
   const openSupport = await prisma.supportRequest.count({ where: { status: { not: "RESOLVED" } } });
-  return <><AppHeader user={user} current="admin" /><main id="main" className="mx-auto max-w-7xl px-4 pb-16 pt-6"><div className="grid min-w-0 gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]"><aside className="min-w-0"><AdminNav tab={tab} badges={{ support: openSupport }} /></aside><Content tab={tab} userId={user.id} name={user.name ?? ""} q={q} page={page} range={params.range === "30" ? 30 : 7} /></div></main></>;
+  return <><AppHeader user={user} current="admin" /><main id="main" className="mx-auto max-w-7xl px-4 pb-16 pt-6"><div className="grid min-w-0 gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]"><aside className="min-w-0"><AdminNav tab={tab} badges={{ support: openSupport }} /></aside><Content tab={tab} userId={user.id} name={user.name ?? ""} q={q} page={page} range={params.range === "30" ? 30 : 7} item={String(params.item ?? "").slice(0, 60)} /></div></main></>;
 }

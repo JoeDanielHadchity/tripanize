@@ -12,6 +12,7 @@ import { nextChangeEmailAt, sendNextChangeEmail } from "@/server/notifications/c
 import { expireMemberLocations } from "@/server/locations/service";
 import { sendNextTrialEmail } from "@/server/admin/trials";
 import { nextPushAt, sendDuePush } from "@/server/push/service";
+import { nextTripIdeaDraft, runTripIdeaDraft } from "@/server/admin/trip-ideas";
 
 /** Native durable alarms keep work alive after the user's request disconnects.
  * One planning section runs per alarm, below the 15-minute invocation limit.
@@ -35,7 +36,8 @@ export class AiTasks {
     const db = this.context().database;
     return await db.destinationSearch.count({ where: { deletedAt: null, status: { in: ["QUEUED", "RUNNING"] } } }) > 0 ||
       await db.generationJob.count({ where: { status: { in: ["QUEUED", "RUNNING"] } } }) > 0 ||
-      await db.discoveryRun.count({ where: { status: { in: ["queued", "running"] } } }) > 0;
+      await db.discoveryRun.count({ where: { status: { in: ["queued", "running"] } } }) > 0 ||
+      await db.tripIdea.count({ where: { status: "DRAFTING" } }) > 0;
   }
 
   async pending() {
@@ -105,7 +107,10 @@ export class AiTasks {
         // running forever or automatically repeating external notifications.
         await db.discoveryRun.updateMany({ where: { status: "running" }, data: { status: "failed", finishedAt: new Date(), error: "The event search was interrupted. Please run a new check." } });
         const discovery = await db.discoveryRun.findFirst({ where: { status: "queued" }, orderBy: { createdAt: "asc" } });
-        if (discovery) { await runDiscovery(discovery.id, this.generate); await settleRef("discovery", discovery.id); }
+        if (discovery) { await runDiscovery(discovery.id, this.generate); await settleRef("discovery", discovery.id); return; }
+        // Trip ideas requested on the Company page (one draft per alarm).
+        const draft = await nextTripIdeaDraft();
+        if (draft) await runTripIdeaDraft(draft.id, this.generate);
       });
     } finally {
       try {

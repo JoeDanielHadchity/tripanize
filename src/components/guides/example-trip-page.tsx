@@ -3,7 +3,7 @@ import type { SessionUser } from "@/server/auth/session";
 import { PublicHeader } from "@/components/public-header";
 import { LinkButton } from "@/components/ui";
 import { CopyExample } from "@/app/examples/[slug]/copy";
-import { CITY_GUIDES, GUIDE_PHOTOS, guideImage, type GuideDay } from "@/server/examples/city-guides";
+import { GUIDE_PHOTOS, guideImage, type CityGuide, type GuideDay } from "@/server/examples/city-guides";
 import type { Example } from "@/server/examples/data";
 import { formatDuration } from "@/lib/dates";
 import { GuideDays } from "./guide-days";
@@ -11,7 +11,8 @@ import { GuideDays } from "./guide-days";
 const KIND: Record<string, string> = { sight: "Sight", cafe: "Café", food: "Food", rest: "Free time", museum: "Museum", event: "Evening", transport: "Train", activity: "Activity" };
 
 /** A multi-city example (Lisbon & Porto) in the same layout as the city guides. */
-export function ExampleTripPage({ example, user }: { example: Example; user: SessionUser | null }) {
+export function ExampleTripPage({ example, guides, user }: { example: Example; guides: CityGuide[]; user: SessionUser | null }) {
+  const CITY_GUIDES = guides;
   const authenticated = Boolean(user);
   const signIn = `/sign-in?next=${encodeURIComponent(`/examples/${example.slug}#use-itinerary`)}`;
   const use = authenticated ? "#use-itinerary" : signIn;
@@ -64,7 +65,7 @@ export function ExampleTripPage({ example, user }: { example: Example; user: Ses
         <details><summary>Can I change it?</summary><p>Yes. Save a copy and edit every day, add stops or swap cities. <Link href="/plans">Compare plans</Link>.</p></details>
         <details><summary>Photo credit</summary><p>Photograph: <a href={photo.pageUrl} target="_blank" rel="noopener noreferrer">Mehmet Bozgedik on Unsplash</a> ({photo.license}).</p></details>
       </section>
-      <nav className="guide-related" aria-label="More city itineraries">{CITY_GUIDES.map(city => <Link key={city.slug} href={`/examples/${city.slug}`}>{city.city} in 4 days <span aria-hidden="true">↗</span></Link>)}</nav>
+      <nav className="guide-related" aria-label="More city itineraries">{CITY_GUIDES.map(city => <Link key={city.slug} href={`/examples/${city.slug}`}>{city.city} in {city.days.length} days <span aria-hidden="true">↗</span></Link>)}</nav>
     </main>
   </div>;
 }

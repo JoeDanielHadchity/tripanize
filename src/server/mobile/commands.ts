@@ -36,7 +36,6 @@ import { ensureDestinationCoords } from "@/server/weather/trip";
 import { SwapSchema } from "@/server/planner/schema";
 import { submitSupport } from "@/server/support/service";
 import { copyExample } from "@/server/examples/copy";
-import { PUBLIC_GUIDE_SLUGS } from "@/lib/mobile-public";
 import { deleteMobileAccount } from "./delete-account";
 import type { MobileCommandResult } from "@/lib/mobile-workspace";
 import type { Impact } from "@/server/itinerary/schedule";
@@ -63,7 +62,7 @@ export async function mobileCommand(userId: string, raw: unknown, sessionId?: st
   const impactLines = (i: Impact | null) => i ? [...i.conflicts.map(c => c.message), ...i.moved.map(m => `${m.title}: ${m.from ?? "Unscheduled"} → ${m.to ?? "Unscheduled"}`), ...i.bookingsAffected.map(b => `Booking affected: ${b.title}`)] : [];
   switch (c.action) {
     case "example.copy": {
-      const d = parse(z.object({ slug: z.enum(PUBLIC_GUIDE_SLUGS), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }));
+      const d = parse(z.object({ slug: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).max(60), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }));
       const copiedId = await copyExample(userId, d.slug, d.startDate);
       return { to: { screen: "itinerary", tripId: copiedId } };
     }

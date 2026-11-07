@@ -21,7 +21,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
       - run: npm ci
+      # Some integration tests import app code, which needs the app's packages and tsconfig.
+      - run: npm ci --prefix mobile
       - run: npx prisma generate
       - name: Type check
         run: npx tsc --noEmit

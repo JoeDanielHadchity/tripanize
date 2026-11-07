@@ -1,23 +1,28 @@
-import { CITY_GUIDES, GUIDE_BUDGET_BASIS, GUIDE_PHOTOS, guideCardImage, guideImage } from "@/server/examples/city-guides";
+import { GUIDE_BUDGET_BASIS, GUIDE_PHOTOS, guideImage } from "@/server/examples/city-guides";
 import { EXAMPLES } from "@/server/examples/data";
-import { PUBLIC_GUIDE_SLUGS, type MobilePublicGuide, type MobilePublicHome } from "@/lib/mobile-public";
+import { findPublishedIdea, publishedTripIdeas } from "@/server/examples/trip-ideas";
+import type { MobilePublicGuide, MobilePublicHome } from "@/lib/mobile-public";
 
-/** Reads static, already-published editorial content. No database or session. */
-export function publicMobileHome(): MobilePublicHome {
-  return { guides: CITY_GUIDES.map(g => ({ slug: g.slug, city: g.city, country: g.country, image: guideCardImage(g.slug), alt: GUIDE_PHOTOS[`${g.slug}-card`].description, dayCount: g.days.length })) };
+/** Published editorial content only (trip ideas as managed on the Company page). No session. */
+export async function publicMobileHome(): Promise<MobilePublicHome> {
+  const ideas = await publishedTripIdeas();
+  return { guides: ideas.map(i => ({ slug: i.slug, city: i.guide.city, country: i.guide.country, image: i.photo.card, alt: i.photo.description, dayCount: i.guide.days.length })) };
 }
 
-export function publicMobileGuide(slug: string): MobilePublicGuide | null {
-  if (!PUBLIC_GUIDE_SLUGS.some(s => s === slug)) return null;
-  const guide = CITY_GUIDES.find(g => g.slug === slug);
-  if (guide) return {
-    slug: guide.slug, title: guide.title, intro: guide.intro, image: guideImage(slug), alt: GUIDE_PHOTOS[slug].description,
-    days: guide.days.map(day => ({ title: day.title, area: day.area, note: day.note, food: day.food, planB: day.planB, stops: day.stops.map(s => ({ time: s.time, title: s.title, detail: s.detail, duration: s.duration, ...(s.url ? { url: s.url } : {}) })) })),
-    budget: { currency: guide.currency, range: guide.budgetRange, note: [GUIDE_BUDGET_BASIS, guide.currencyNote].filter(Boolean).join(" "), rows: guide.budget },
-    tips: [{ title: "Where to stay", text: guide.base }, { title: "Getting around", text: guide.transport }, { title: "Packing", text: guide.packing }],
-    bookings: guide.bookings.map(b => ({ label: b.label, note: b.note, url: b.url })), sources: guide.sources.map(s => ({ label: s.label, url: s.url })),
-  };
-  const ex = EXAMPLES.find(g => g.slug === slug);
+export async function publicMobileGuide(slug: string): Promise<MobilePublicGuide | null> {
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || slug.length > 60) return null;
+  const idea = await findPublishedIdea(slug);
+  if (idea) {
+    const guide = idea.guide;
+    return {
+      slug: guide.slug, title: guide.title, intro: guide.intro, image: idea.photo.hero, alt: idea.photo.description,
+      days: guide.days.map(day => ({ title: day.title, area: day.area, note: day.note, food: day.food, planB: day.planB, stops: day.stops.map(s => ({ time: s.time, title: s.title, detail: s.detail, duration: s.duration, ...(s.url ? { url: s.url } : {}) })) })),
+      budget: { currency: guide.currency, range: guide.budgetRange, note: [GUIDE_BUDGET_BASIS, guide.currencyNote].filter(Boolean).join(" "), rows: guide.budget },
+      tips: [{ title: "Where to stay", text: guide.base }, { title: "Getting around", text: guide.transport }, { title: "Packing", text: guide.packing }],
+      bookings: guide.bookings.map(b => ({ label: b.label, note: b.note, url: b.url })), sources: guide.sources.map(s => ({ label: s.label, url: s.url })),
+    };
+  }
+  const ex = slug === "lisbon-porto" ? EXAMPLES.find(g => g.slug === slug) : undefined;
   if (!ex) return null;
   return {
     slug: ex.slug, title: ex.name, intro: ex.summary, image: guideImage("lisbon-porto"), alt: GUIDE_PHOTOS["lisbon-porto"].description,

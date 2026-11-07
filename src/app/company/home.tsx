@@ -37,6 +37,7 @@ export function AdminHome({ d, name }: { d: Overview; name: string }) {
   if (!attention.length) attention.push(<Row key="ok" icon="check" tone="ok">Nothing needs you right now. All systems working.</Row>);
 
   const actions: [string, string, string][] = [
+    ["Add a trip idea", "/company?tab=ideas", "ideas"],
     ["Invite a trial user", "/company?tab=trials", "trials"],
     ["Post a banner", "/company?tab=announcements", "announcements"],
     ["Answer support", "/company?tab=support", "support"],

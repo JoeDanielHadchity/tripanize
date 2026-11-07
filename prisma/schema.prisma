@@ -51,6 +51,9 @@ model User {
   pushDevices PushDevice[]
   pushMessages PushMessage[]
   pushSetting PushSetting?
+  newsEmails Boolean @default(false) // opted in to "Tripanize news" emails (off until the person ticks it)
+  newsEmailsAt DateTime? // when that choice was last changed
+  broadcastDeliveries BroadcastDelivery[]
 
   @@map("user")
 }
@@ -1071,6 +1074,7 @@ model PushSetting {
   events Boolean @default(true)
   group Boolean @default(true) // votes, invitations, joins and expenses
   reminders Boolean @default(true)
+  news Boolean @default(true) // announcements sent from the Company page
   updatedAt DateTime @updatedAt
 }
 
@@ -1215,4 +1219,74 @@ model BillingDelivery {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([environment, createdAt])
+}
+
+/** Trip ideas (city guides). The built-in guides ship in code; a row here
+ * overrides one (status, order, wording, photo) or adds a new, AI-drafted guide. */
+model TripIdea {
+  id String @id @default(cuid())
+  slug String @unique
+  city String
+  country String
+  builtin Boolean @default(false)
+  status String @default("DRAFT") // DRAFTING | DRAFT | PUBLISHED | HIDDEN | FAILED
+  position Int @default(100)
+  content Json? // full guide (CityGuide shape); null keeps the built-in wording
+  heroImageKey String? // uploaded photo in file storage (public/trip-ideas/...)
+  cardImageKey String?
+  photoCredit String?
+  error String?
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, position])
+}
+
+/** Editable wording for the website and app. Missing keys use the text in code. */
+model SiteText {
+  key String @id
+  value String
+  updatedById String?
+  updatedAt DateTime @updatedAt
+}
+
+/** A message from the Company page to many users, by push and/or email. */
+model Broadcast {
+  id String @id @default(cuid())
+  title String
+  body String
+  href String @default("/")
+  channels String // push | email | both
+  audience String // all | premium | inactive | recent | testers
+  status String @default("DRAFT") // DRAFT | SENDING | SENT | CANCELLED
+  pushQueued Int @default(0)
+  emailQueued Int @default(0)
+  emailSent Int @default(0)
+  emailFailed Int @default(0)
+  createdById String
+  sentAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deliveries BroadcastDelivery[]
+
+  @@index([status, createdAt])
+}
+
+/** One queued news email; sent a few at a time by the background task. */
+model BroadcastDelivery {
+  id String @id @default(cuid())
+  broadcastId String
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status String @default("queued") // queued | sent | failed | skipped
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  error String?
+  sentAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@unique([broadcastId, userId])
+  @@index([status, nextAttemptAt])
 }

@@ -21,7 +21,8 @@ export function publicLoginDestination(next: unknown): string {
   if (next === "inbox") return "/inbox";
   if (typeof next === "string" && next.startsWith("guide:")) {
     const slug = next.slice(6);
-    if (PUBLIC_GUIDE_SLUGS.some(allowed => allowed === slug)) return `/guide/${slug}`;
+    // Built-in and Company-managed trip ideas: any well-formed guide slug.
+    if (/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) && slug.length <= 60) return `/guide/${slug}`;
   }
   return "/";
 }

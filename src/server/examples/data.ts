@@ -1,6 +1,7 @@
 // Curated example trip written by the Tripanize team (not AI output, not live data). Shown read-only and labeled
 // "Example"; travelers can save a copy as their own editable trip with their chosen start date.
-import { CITY_GUIDES, guideCardPreview, guideDuration } from "./city-guides";
+import { CITY_GUIDES, guideCardPreview, guideDuration, type CityGuide } from "./city-guides";
+import { publishedTripIdeas } from "./trip-ideas";
 
 export type ExampleStop = { title: string; category: string; startTime: string; durationMin?: number; travelToNextMin?: number; address?: string; reason: string; notes?: string; estCost?: number; isMeal?: boolean; isFreeTime?: boolean; officialUrl?: string; plan?: "B" };
 export type ExampleDay = { offset: number; title: string; area: string; destination: number; isTravelDay?: boolean; notes?: string; stops: ExampleStop[] };
@@ -66,11 +67,16 @@ export const EXAMPLES: Example[] = [
       { title: "Fado house dinner", category: "RESTAURANT", offset: null, status: "IDEA", whenToBook: "A few days ahead", estCost: 90 },
     ],
   },
-  ...CITY_GUIDES.map((guide): Example => ({
+  ...CITY_GUIDES.map(guide => guideExample(guide, guideCardPreview(guide.slug))),
+];
+
+/** A city guide as an example trip travelers can view and copy. */
+export function guideExample(guide: CityGuide, image: string): Example {
+  return {
     slug: guide.slug, name: guide.title, summary: guide.intro, nights: guide.days.length - 1, timezone: guide.timezone,
     currency: guide.currency,
     // The public allowance is per person; never silently make it the group's budget.
-    budget: null, image: guideCardPreview(guide.slug),
+    budget: null, image,
     destinations: [{ name: guide.city, country: guide.slug === "hong-kong" ? "China" : guide.country, fromOffset: 0, toOffset: guide.days.length - 1, neighborhood: "" }],
     interests: ["Culture", "Food & markets", "Architecture"], transport: ["Walking", "Public transit"], mustSee: [],
     days: guide.days.map((day, offset) => ({
@@ -85,5 +91,15 @@ export const EXAMPLES: Example[] = [
     })),
     // Undated ideas avoid duplicating the curated stops as booking projections.
     bookings: guide.bookings.map(booking => ({ title: booking.label, category: /ferr/i.test(booking.label) ? "TRANSPORT" : "ATTRACTION", offset: null, status: "IDEA", whenToBook: booking.note, url: booking.url })),
-  })),
-];
+  };
+}
+
+/** Example trips as currently published: the Lisbon & Porto example plus the
+ * trip ideas managed on the Company page (edits, order and new guides included). */
+export async function listExamples(): Promise<Example[]> {
+  const ideas = await publishedTripIdeas();
+  return [EXAMPLES[0], ...ideas.map(i => guideExample(i.guide, i.photo.preview))];
+}
+export async function findExample(slug: string): Promise<Example | null> {
+  return (await listExamples()).find(e => e.slug === slug) ?? null;
+}
