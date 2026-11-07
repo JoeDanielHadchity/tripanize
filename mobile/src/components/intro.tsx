@@ -27,8 +27,8 @@ const timing = (value: Animated.Value, duration: number, easing: (t: number) => 
 
 /** Opening animation (2.5 s, the steps overlap): a folded map opens its two side panels, the
  * handle drops on top and it becomes the suitcase, then the trip route draws
- * itself dot by dot and the wordmark slides in. Quicker after the first open
- * each day, none with reduced motion. Tap to skip. */
+ * itself dot by dot and the wordmark slides in. The same story at about 60% of the
+ * time after the first open each day, none with reduced motion. Tap to skip. */
 export function Intro({ onDone }: { onDone: () => void }) {
   const [v] = useState(() => ({ left: new Animated.Value(0), right: new Animated.Value(0), handle: new Animated.Value(0), word: new Animated.Value(0), shift: new Animated.Value(0), fade: new Animated.Value(1), pieces: ROUTE.pieces.map(() => new Animated.Value(0)) }));
   // Wait until the folded map has actually been drawn before dropping the launch screen and starting.
@@ -48,23 +48,23 @@ export function Intro({ onDone }: { onDone: () => void }) {
       const quick = seen === today;
       void SecureStore.setItemAsync(KEY, today).catch(() => undefined);
       if (reduced) {
-        [v.left, v.right, v.handle, ...v.pieces].forEach(p => p.setValue(1));
-        current = Animated.timing(v.fade, { toValue: 0, duration: 250, delay: 250, useNativeDriver: true }); current.start(finish); return;
+        [v.left, v.right, v.handle, v.shift, v.word, ...v.pieces].forEach(p => p.setValue(1));
+        current = Animated.timing(v.fade, { toValue: 0, duration: 250, delay: 600, useNativeDriver: true }); current.start(finish); return;
       }
-      const s = quick ? 0.35 : 1; // the quick version runs the same story at about a third of the time
-      const unfold = Animated.parallel([timing(v.left, 590 * s, Easing.out(Easing.back(1.2))), timing(v.right, 590 * s, Easing.out(Easing.back(1.2)), 100 * s)]);
-      const handle = timing(v.handle, 430 * s, Easing.out(Easing.back(2.2)));
-      const draw = Animated.stagger(62 * s, v.pieces.map((p, i) => timing(p, 330 * s, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))));
+      // The quick version (later opens the same day) tells the same whole story, name
+      // included, at about 60% of the time, so it never looks cut off.
+      const s = quick ? 0.6 : 1;
       const out = (delay: number, duration: number) => Animated.timing(v.fade, { toValue: 0, duration, delay, useNativeDriver: true });
       // Full version, 2.5 s: each move overlaps the next instead of waiting for it.
       //   panels 0-0.69 · handle 0.33-0.76 · route 0.42-1.68 · name 0.95-1.6 · name holds · fade 2.25-2.5
-      const full = Animated.parallel([
-        timing(v.left, 590, Easing.out(Easing.back(1.2))), timing(v.right, 590, Easing.out(Easing.back(1.2)), 100),
-        timing(v.handle, 430, Easing.out(Easing.back(2.2)), 330),
-        Animated.sequence([Animated.delay(420), Animated.stagger(62, v.pieces.map((p, i) => timing(p, 330, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))))]),
-        timing(v.shift, 650, Easing.inOut(Easing.cubic), 950), timing(v.word, 500, Easing.out(Easing.cubic), 1090),
+      const story = Animated.parallel([
+        timing(v.left, 590 * s, Easing.out(Easing.back(1.2))), timing(v.right, 590 * s, Easing.out(Easing.back(1.2)), 100 * s),
+        timing(v.handle, 430 * s, Easing.out(Easing.back(2.2)), 330 * s),
+        Animated.sequence([Animated.delay(420 * s), Animated.stagger(62 * s, v.pieces.map((p, i) => timing(p, 330 * s, Easing.out(Easing.back(ROUTE.pieces[i].dot ? 3 : 1.6)))))]),
+        timing(v.shift, 650 * s, Easing.inOut(Easing.cubic), 950 * s), timing(v.word, 500 * s, Easing.out(Easing.cubic), 1090 * s),
       ]);
-      current = quick ? Animated.sequence([unfold, handle, draw, out(150, 250)]) : Animated.sequence([full, out(570, 250)]);
+      // Hold the finished logo and name for a moment before fading out.
+      current = Animated.sequence([story, out(quick ? 400 : 570, 250)]);
       current.start(finish);
     })();
     return () => { finished = true; current?.stop(); };
