@@ -13,6 +13,7 @@ import { expireMemberLocations } from "@/server/locations/service";
 import { sendNextTrialEmail } from "@/server/admin/trials";
 import { nextPushAt, sendDuePush } from "@/server/push/service";
 import { nextTripIdeaDraft, runTripIdeaDraft } from "@/server/admin/trip-ideas";
+import { nextBroadcastEmailAt, sendDueBroadcastEmails } from "@/server/admin/broadcasts";
 
 /** Native durable alarms keep work alive after the user's request disconnects.
  * One planning section runs per alarm, below the 15-minute invocation limit.
@@ -41,7 +42,7 @@ export class AiTasks {
   }
 
   async pending() {
-    return Boolean(await appRuntime.run(this.context(), () => nextBookingReminderAt())) || await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: { in: ["queued", "digest"] } } }) > 0 || await this.context().database.trialInvitation.count({ where: { emailStatus: "queued" } }) > 0 || await this.context().database.memberLocation.count({ where: { expiresAt: { not: null } } }) > 0 || await this.context().database.pushMessage.count({ where: { status: "queued" } }) > 0;
+    return Boolean(await appRuntime.run(this.context(), () => nextBookingReminderAt())) || await this.pendingAi() || await this.context().database.tripNotification.count({ where: { emailStatus: { in: ["queued", "digest"] } } }) > 0 || await this.context().database.trialInvitation.count({ where: { emailStatus: "queued" } }) > 0 || await this.context().database.memberLocation.count({ where: { expiresAt: { not: null } } }) > 0 || await this.context().database.pushMessage.count({ where: { status: "queued" } }) > 0 || await this.context().database.broadcastDelivery.count({ where: { status: "queued" } }) > 0;
   }
 
   private async retrySetup(job: GenerationJob, error: AIError) {
@@ -81,6 +82,8 @@ export class AiTasks {
         // Phone alerts are small and time-sensitive; one batch per alarm.
         if (await this.sendPush()) return;
         if (await this.sendTrial()) return;
+        // News emails from the Company page, a few per alarm.
+        if (await sendDueBroadcastEmails()) return;
         await this.sendChanges();
         const nextEmail = await nextChangeEmailAt();
         if (nextEmail && nextEmail.getTime() <= Date.now()) return;
@@ -127,8 +130,9 @@ export class AiTasks {
           const trialEmail = await this.context().database.trialInvitation.findFirst({ where: { emailStatus: "queued" }, orderBy: { nextEmailAttemptAt: "asc" }, select: { nextEmailAttemptAt: true } });
           const bookingReminder = await appRuntime.run(this.context(), () => nextBookingReminderAt());
           const push = await appRuntime.run(this.context(), () => nextPushAt());
+          const news = await appRuntime.run(this.context(), () => nextBroadcastEmailAt());
           const notBefore = await this.storage.get<number>("ai-not-before") ?? 0;
-          const candidates = [bookingReminder?.getTime(), await this.pendingAi() ? Math.max(Date.now() + 1000, notBefore) : undefined, nextEmail?.nextAttemptAt?.getTime(), trialEmail?.nextEmailAttemptAt?.getTime(), location?.expiresAt?.getTime(), push?.getTime()].filter((n): n is number => n !== undefined);
+          const candidates = [bookingReminder?.getTime(), await this.pendingAi() ? Math.max(Date.now() + 1000, notBefore) : undefined, nextEmail?.nextAttemptAt?.getTime(), trialEmail?.nextEmailAttemptAt?.getTime(), location?.expiresAt?.getTime(), push?.getTime(), news?.getTime()].filter((n): n is number => n !== undefined);
           const next = candidates.length ? Math.min(...candidates) : undefined;
           if (next !== undefined) await this.storage.setAlarm(Math.max(Date.now() + 1000, next));
           else await this.storage.deleteAlarm();

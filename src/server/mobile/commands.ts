@@ -29,6 +29,7 @@ import { setBookingReminderPreference } from "@/server/bookings/reminders";
 import { deleteAttachment } from "@/server/storage";
 import { adminSecurityCommand, executeAdminSecurity } from "@/server/admin/security";
 import { adminCommand, executeAdminCommand } from "@/server/admin/operations";
+import { setNewsEmails } from "@/server/admin/broadcasts";
 import { createTrialInvitation, revokeTrialInvitation, acceptTrialInvitation } from "@/server/admin/trials";
 import { setAccountMode } from "@/server/admin/mode";
 import { getTripPlan } from "@/server/plans/access";
@@ -181,6 +182,7 @@ export async function mobileCommand(userId: string, raw: unknown, sessionId?: st
     case "profile.save": await updateProfile(userId, profileInput.parse(v)); return done;
     case "account.delete": { const d = parse(z.object({ email: z.string().email(), confirmation: z.literal("DELETE") })); await deleteMobileAccount(userId, sessionId, d.email, d.confirmation); return { signedOut: true }; }
     case "notifications.read": { const d = parse(z.union([z.object({ id }), z.object({ before: z.string().max(40) })])); await markChangeNotificationsRead(userId, d); return done; }
+    case "news.email": await setNewsEmails(userId, parse(z.object({ enabled: z.boolean() })).enabled); return done;
     case "notifications.changes": await setChangeEmailPreference(userId, tripId, parse(z.object({ enabled: z.boolean() })).enabled); return done;
     case "notifications.bookings": await setBookingReminderPreference(userId, tripId, parse(z.object({ enabled: z.boolean() })).enabled); return done;
     case "admin.security": await executeAdminSecurity(userId, adminSecurityCommand.parse(v)); return done;

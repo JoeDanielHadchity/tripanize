@@ -4,7 +4,7 @@ import { enablePush, loadPushSettings, pushPermission, pushSupported, savePushSe
 import { Button, ListRow, Muted, Section } from "./ui";
 import { useTheme } from "./theme";
 
-const ICONS = { chat: "chatbubbles-outline", events: "musical-notes-outline", group: "people-outline", reminders: "alarm-outline" } as const;
+const ICONS = { chat: "chatbubbles-outline", events: "musical-notes-outline", group: "people-outline", reminders: "alarm-outline", news: "megaphone-outline" } as const;
 
 /** Phone alerts: one system permission, then a switch per kind of alert. */
 export function PushSettingsCard() {

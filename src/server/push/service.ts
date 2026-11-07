@@ -6,12 +6,12 @@ import { rateLimit } from "@/server/ratelimit";
 
 /** Categories a person can turn off in the app. "group" covers votes,
  * invitations, people joining and shared expenses. */
-export const PUSH_CATEGORIES = ["chat", "events", "group", "reminders"] as const;
+export const PUSH_CATEGORIES = ["chat", "events", "group", "reminders", "news"] as const;
 export type PushCategory = typeof PUSH_CATEGORIES[number];
 export type PushSettings = Record<PushCategory, boolean>;
 
 type Db = Pick<Tx, "pushDevice" | "pushSetting" | "pushMessage">;
-const DEFAULTS: PushSettings = { chat: true, events: true, group: true, reminders: true };
+const DEFAULTS: PushSettings = { chat: true, events: true, group: true, reminders: true, news: true };
 const MAX_DEVICES = 10;
 const oneLine = (value: string, max: number) => value.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, max);
 

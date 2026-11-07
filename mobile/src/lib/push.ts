@@ -6,7 +6,7 @@ import type * as Notifications from "expo-notifications";
 import { api, post } from "./auth";
 import type { MobileTarget } from "./workspace";
 
-export type PushCategory = "chat" | "events" | "group" | "reminders";
+export type PushCategory = "chat" | "events" | "group" | "reminders" | "news";
 export type PushSettings = Record<PushCategory, boolean>;
 export type PushState = { settings: PushSettings; devices: number };
 export type PushPermission = "granted" | "denied" | "undetermined" | "unsupported";
@@ -16,6 +16,7 @@ export const PUSH_LABELS: Record<PushCategory, { title: string; text: string }> 
   events: { title: "Events nearby", text: "Concerts, shows and festivals found for your trip" },
   group: { title: "Votes, invites & expenses", text: "New votes, decisions, people joining and shared costs" },
   reminders: { title: "Trip reminders", text: "The evening before you leave, and each morning's plan" },
+  news: { title: "Tripanize news", text: "New features and trip ideas, now and then" },
 };
 
 const TOKEN_KEY = "tripanize-push-token";

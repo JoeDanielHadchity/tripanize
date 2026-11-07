@@ -4,6 +4,7 @@ import { requireUser } from "@/server/auth/session";
 import { AppError, runAction } from "@/server/errors";
 import { executeTripIdeaCommand, uploadTripIdeaPhoto, type TripIdeaCommand } from "@/server/admin/trip-ideas";
 import { saveSiteTexts } from "@/server/admin/texts";
+import { sendBroadcast, type BroadcastInput } from "@/server/admin/broadcasts";
 
 /** Trip ideas change public pages, so refresh the site as well as the dashboard. */
 function refresh() { revalidatePath("/company"); revalidatePath("/", "layout"); }
@@ -31,5 +32,14 @@ export async function siteTextsAction(changes: Record<string, string | null>) {
     const user = await requireUser();
     await saveSiteTexts(user.id, { changes });
     refresh();
+  });
+}
+
+export async function broadcastAction(input: BroadcastInput) {
+  return runAction(async () => {
+    const user = await requireUser();
+    const result = await sendBroadcast(user.id, input);
+    revalidatePath("/company");
+    return result;
   });
 }

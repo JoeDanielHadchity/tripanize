@@ -9,12 +9,15 @@ import { AccountModeSwitch } from "@/components/account-mode";
 import { AccountForm } from "./form";
 import { AppearanceSetting } from "@/app/settings/appearance";
 import Link from "next/link";
+import { prisma } from "@/server/db";
+import { NewsEmailSetting } from "./news";
 
 export const metadata: Metadata = { title: "Account & settings" };
 
 export default async function AccountPage() {
   const user = await requireUser();
   const { profile } = await getProfile(user.id);
+  const news = Boolean((await prisma.user.findUnique({ where: { id: user.id }, select: { newsEmails: true } }))?.newsEmails);
   return (
     <>
       <AppHeader user={user} current="account" />
@@ -25,6 +28,10 @@ export default async function AccountPage() {
           <h2 className="font-display text-lg font-semibold">Appearance</h2>
           <p className="mb-4 mt-1 text-sm text-muted">Light or dark, or follow your device.</p>
           <AppearanceSetting />
+        </Card>
+        <Card id="news" className="mb-6 scroll-mt-24">
+          <h2 className="mb-3 font-display text-lg font-semibold">Tripanize news</h2>
+          <NewsEmailSetting initial={news} />
         </Card>
         <Card className="mb-6 p-0">
           <ul className="divide-y divide-line">
