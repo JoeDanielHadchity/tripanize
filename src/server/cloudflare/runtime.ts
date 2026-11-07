@@ -6,6 +6,8 @@ export type PaddleConfig = { environment: "sandbox" | "live"; apiKey: string; cl
 /** Native app store billing. Every field is a server secret except the ids. */
 export type StoreConfig = {
   productId: string;
+  /** In-app product id per credit bundle; defaults to tripanize_credits_<bundle>. */
+  creditProducts?: Partial<Record<"topup" | "starter" | "plus" | "pro", string>>;
   google?: { packageName: string; clientEmail: string; privateKey: string; tokenUri: string };
   apple?: { bundleId: string; keyId: string; issuerId: string; privateKey: string; appAppleId?: number };
   acceptSandbox: boolean;

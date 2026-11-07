@@ -2,10 +2,11 @@ import { generateKeyPairSync, createVerify, randomUUID } from "node:crypto";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import { currentRuntime, setTestRuntime, type StoreConfig } from "@/server/cloudflare/runtime";
-import { beginStorePurchase, completeStorePurchase, handleAppStoreNotification, signJwt, syncStoreRefunds } from "@/server/billing/store";
+import { beginStoreCreditPurchase, beginStorePurchase, completeStorePurchase, handleAppStoreNotification, signJwt, syncStoreRefunds } from "@/server/billing/store";
 import { refreshTripPayment } from "@/server/billing/service";
 import { getTripPlan } from "@/server/plans/access";
 import { makeTrip, makeUser, resetDb } from "./helpers";
+import { balance } from "@/server/credits/service";
 
 const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const ec = generateKeyPairSync("ec", { namedCurve: "P-256" });
@@ -116,4 +117,45 @@ it("verifies App Store transactions by appAccountToken and handles refund notifi
   expect((await getTripPlan(tripId)).premium).toBe(true);
   await handleAppStoreNotification(notification, fakeStores({ apple: { ...transaction, revocationDate: Date.now() } }).send);
   expect((await getTripPlan(tripId)).premium).toBe(false);
+});
+
+it("sells AI credit bundles in the app: credits once, Premium for a chosen trip, refunds take them back", async () => {
+  const { owner, friend, tripId } = await fixture();
+  setTestRuntime({ ...currentRuntime(), creditsEnabled: true });
+  const before = await balance(owner.id);
+  await expect(beginStoreCreditPurchase(owner.id, "topup", tripId, "google_play")).rejects.toMatchObject({ code: "VALIDATION" });
+  await expect(beginStoreCreditPurchase(friend.id, "plus", tripId, "google_play")).rejects.toMatchObject({ code: "NOT_FOUND" });
+  const topup = await beginStoreCreditPurchase(owner.id, "topup", null, "google_play");
+  expect(topup.productId).toBe("tripanize_credits_topup");
+  expect((await beginStoreCreditPurchase(owner.id, "topup", null, "google_play")).intentId).toBe(topup.intentId);
+  const token = "token-".padEnd(40, "c");
+  const paid = fakeStores({ google: { purchaseState: 0, obfuscatedExternalProfileId: topup.intentId, orderId: "GPA.30" } });
+  // Another product's id cannot complete this bundle.
+  await expect(completeStorePurchase(owner.id, { store: "google_play", intentId: topup.intentId, productId: "tripanize_credits_pro", purchaseToken: token }, paid.send)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  for (let i = 0; i < 2; i++) expect(await completeStorePurchase(owner.id, { store: "google_play", intentId: topup.intentId, productId: topup.productId, purchaseToken: token }, paid.send)).toMatchObject({ status: "completed", credits: 30 });
+  expect(await balance(owner.id)).toBe(before + 30);
+  expect((await getTripPlan(tripId)).premium).toBe(false);
+
+  const plus = await beginStoreCreditPurchase(owner.id, "plus", tripId, "google_play");
+  const plusPaid = fakeStores({ google: { purchaseState: 0, obfuscatedExternalProfileId: plus.intentId, orderId: "GPA.200" } });
+  await completeStorePurchase(owner.id, { store: "google_play", intentId: plus.intentId, productId: plus.productId, purchaseToken: "token-".padEnd(40, "d") }, plusPaid.send);
+  expect(await balance(owner.id)).toBe(before + 230);
+  expect((await getTripPlan(tripId)).premium).toBe(true);
+  await expect(beginStoreCreditPurchase(owner.id, "pro", tripId, "google_play")).rejects.toMatchObject({ code: "CONFLICT" });
+
+  expect(await syncStoreRefunds(fakeStores({ voided: ["GPA.200"] }).send)).toBe(1);
+  expect(await balance(owner.id)).toBe(before + 30);
+  expect((await getTripPlan(tripId)).premium).toBe(false);
+  expect(await syncStoreRefunds(fakeStores({ voided: ["GPA.200"] }).send)).toBe(0);
+});
+
+it("Premium bought in the app includes 100 AI credits, removed again on refund", async () => {
+  const { owner, tripId } = await fixture();
+  setTestRuntime({ ...currentRuntime(), creditsEnabled: true });
+  const before = await balance(owner.id);
+  const { intentId, productId } = await beginStorePurchase(owner.id, tripId, "google_play");
+  await completeStorePurchase(owner.id, { store: "google_play", intentId, productId, purchaseToken: "token-".padEnd(40, "e") }, fakeStores({ google: { purchaseState: 0, obfuscatedExternalProfileId: intentId, orderId: "GPA.P" } }).send);
+  expect(await balance(owner.id)).toBe(before + 100);
+  await syncStoreRefunds(fakeStores({ voided: ["GPA.P"] }).send);
+  expect(await balance(owner.id)).toBe(before);
 });

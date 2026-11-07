@@ -9,11 +9,15 @@ import { rateLimit } from "@/server/ratelimit";
 import { currentRuntime, type StoreConfig } from "@/server/cloudflare/runtime";
 import { pendingTrialInvitations } from "@/server/admin/trials";
 import { billingEnvironment } from "./config";
+import { settlePurchaseCredits } from "./credits";
+import { CREDIT_BUNDLES, PREMIUM_INCLUDED_CREDITS, type CreditBundle } from "@/lib/credits";
 
-/** Google Play and the App Store sell one consumable product: Premium for one
- * trip. A purchase is a PremiumCheckout row like a Paddle one, so plan access,
- * admin totals and onboarding all keep working unchanged. Nothing the phone
- * says is trusted: every purchase is re-read from the store's server API. */
+/** Google Play and the App Store sell consumable products: Premium for one trip
+ * (a PremiumCheckout row like a Paddle one, with its 100 included AI credits)
+ * and AI credit bundles (a CreditCheckout row like a Paddle one, optionally
+ * unlocking Premium for a trip). Plan access, credits, admin totals and
+ * onboarding all keep working unchanged. Nothing the phone says is trusted:
+ * every purchase is re-read from the store's server API. */
 export type Store = "google_play" | "app_store";
 export const STORE_STATUS = "STORE_PENDING";
 const PRICE_MINOR = 1500;
@@ -26,6 +30,8 @@ export function storeAvailable(store: Store) {
 }
 export const isStoreTransaction = (transactionId: string | null | undefined) => Boolean(transactionId && /^(gp|as):/.test(transactionId));
 const priceId = (store: Store, productId: string) => `${store}:${productId}`;
+/** Store product id for a credit bundle (Play Console / App Store Connect in-app product). */
+export const creditProductId = (c: StoreConfig, bundle: CreditBundle["id"]) => c.creditProducts?.[bundle] ?? `tripanize_credits_${bundle}`;
 /** Opaque per-user id for Google's fraud checks; never the raw account id. */
 export const storeAccountId = (userId: string) => createHash("sha256").update(`tripanize-store:${userId}`).digest("hex").slice(0, 64);
 
@@ -53,6 +59,24 @@ export async function beginStorePurchase(userId: string, tripId: string, store: 
   return { intentId: intent.id, productId: config.productId, accountId: storeAccountId(userId) };
 }
 
+/** Starts a store purchase of a credit bundle. With a trip, a bundle that unlocks Premium unlocks that trip too. */
+export async function beginStoreCreditPurchase(userId: string, bundleId: CreditBundle["id"], tripId: string | null, store: Store) {
+  const config = storeConfig();
+  if (!config || !storeAvailable(store)) throw new AppError("NOT_CONFIGURED", "In-app purchases are being set up. Please try again soon.");
+  const bundle = CREDIT_BUNDLES.find(b => b.id === bundleId);
+  if (!bundle) throw new AppError("VALIDATION", "Choose a credit bundle.");
+  if (tripId && !bundle.unlocksPremium) throw new AppError("VALIDATION", "The top-up adds credits only. Choose a bundle to unlock Premium for a trip.");
+  if (tripId) {
+    if (!await prisma.trip.findFirst({ where: { id: tripId, ownerId: userId }, select: { id: true } })) throw new AppError("NOT_FOUND", "Choose a trip you organize.");
+    if ((await getTripPlan(tripId)).premium) throw new AppError("CONFLICT", "This trip already has Premium. Buy credits only from your account.");
+  }
+  await rateLimit(`store-credit-intent:${userId}`, 20, 3600);
+  const environment = billingEnvironment(), productId = creditProductId(config, bundle.id), id = priceId(store, productId);
+  const open = await prisma.creditCheckout.findFirst({ where: { buyerId: userId, environment, bundle: bundle.id, tripId, priceId: id, status: STORE_STATUS, transactionId: null }, orderBy: { createdAt: "desc" } });
+  const intent = open ?? await prisma.creditCheckout.create({ data: { id: crypto.randomUUID(), buyerId: userId, bundle: bundle.id, credits: bundle.credits, tripId, environment, priceId: id, amountMinor: bundle.priceCents, status: STORE_STATUS } });
+  return { intentId: intent.id, productId, accountId: storeAccountId(userId) };
+}
+
 export const completeInput = z.discriminatedUnion("store", [
   z.object({ store: z.literal("google_play"), intentId: z.uuid(), productId: z.string().min(1).max(150), purchaseToken: z.string().min(10).max(2000) }),
   z.object({ store: z.literal("app_store"), intentId: z.uuid(), productId: z.string().min(1).max(150), transactionId: z.string().regex(/^\d{1,30}$/) }),
@@ -66,24 +90,53 @@ export async function completeStorePurchase(userId: string, input: CompleteStore
   if (!config || !storeAvailable(input.store)) throw new AppError("NOT_CONFIGURED", "In-app purchases are being set up.");
   await rateLimit(`store-verify:${userId}`, 60, 3600);
   const intent = await prisma.premiumCheckout.findUnique({ where: { id: input.intentId } });
-  if (!intent || intent.buyerId !== userId || intent.environment !== billingEnvironment() || intent.priceId !== priceId(input.store, config.productId) || input.productId !== config.productId) throw new AppError("NOT_FOUND", "This purchase does not match a Tripanize checkout.");
-  const verified = input.store === "google_play" ? await verifyGoogle(config, input.purchaseToken, intent.id, send) : await verifyApple(config, input.transactionId, intent.id, send);
+  if (!intent) return completeStoreCreditPurchase(userId, config, input, send);
+  if (intent.buyerId !== userId || intent.environment !== billingEnvironment() || intent.priceId !== priceId(input.store, config.productId) || input.productId !== config.productId) throw new AppError("NOT_FOUND", "This purchase does not match a Tripanize checkout.");
+  const verified = await verifyStore(config, input, config.productId, intent.id, send);
   if (verified.state === "pending") return { status: "pending" as const, tripId: intent.tripId };
   if (verified.state !== "purchased") throw new AppError("VALIDATION", verified.state === "refunded" ? "This purchase was refunded." : "The store did not confirm this purchase.");
   if (verified.sandbox && !config.acceptSandbox) throw new AppError("VALIDATION", "Test purchases are not accepted.");
   await prisma.$transaction(async db => {
     const other = await db.premiumCheckout.findUnique({ where: { transactionId: verified.transactionId } });
-    if (other && other.id !== intent.id) throw new AppError("CONFLICT", "This purchase was already used for another trip.");
+    if ((other && other.id !== intent.id) || await db.creditCheckout.findUnique({ where: { transactionId: verified.transactionId } })) throw new AppError("CONFLICT", "This purchase was already used for another trip.");
     const current = await db.premiumCheckout.findUniqueOrThrow({ where: { id: intent.id } });
     if (current.status === "COMPLETED") return;
     if (current.status !== STORE_STATUS) throw new AppError("CONFLICT", "This purchase can no longer be applied. Please contact support.");
     await db.premiumCheckout.update({ where: { id: intent.id }, data: { status: "COMPLETED", transactionId: verified.transactionId, reviewRequired: false, paddleSummary: summary(input.store, verified) } });
     await db.trip.updateMany({ where: { id: intent.tripId, onboardingStage: "PLAN" }, data: { onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" } });
+    // Premium for a trip includes the Starter bundle's AI credits, like on the website.
+    await settlePurchaseCredits(db, { userId: intent.buyerId, credits: PREMIUM_INCLUDED_CREDITS, transactionId: verified.transactionId, status: "COMPLETED", reviewRequired: false, note: `Premium: ${PREMIUM_INCLUDED_CREDITS} credits`, tripId: intent.tripId });
   });
   // Google refunds purchases that are not acknowledged within three days. The
   // app also finishes the purchase; consuming twice is harmless.
-  if (input.store === "google_play") await consumeGoogle(config, input.purchaseToken, send).catch(() => undefined);
+  if (input.store === "google_play") await consumeGoogle(config, config.productId, input.purchaseToken, send).catch(() => undefined);
   return { status: "completed" as const, tripId: intent.tripId };
+}
+
+const verifyStore = (config: StoreConfig, input: CompleteStorePurchase, productId: string, intentId: string, send: Fetch) =>
+  input.store === "google_play" ? verifyGoogle(config, productId, input.purchaseToken, intentId, send) : verifyApple(config, productId, input.transactionId, intentId, send);
+
+async function completeStoreCreditPurchase(userId: string, config: StoreConfig, input: CompleteStorePurchase, send: Fetch) {
+  const intent = await prisma.creditCheckout.findUnique({ where: { id: input.intentId } });
+  const bundle = CREDIT_BUNDLES.find(b => b.id === intent?.bundle);
+  const productId = bundle ? creditProductId(config, bundle.id) : "";
+  if (!intent || !bundle || intent.buyerId !== userId || intent.environment !== billingEnvironment() || intent.priceId !== priceId(input.store, productId) || input.productId !== productId) throw new AppError("NOT_FOUND", "This purchase does not match a Tripanize checkout.");
+  const verified = await verifyStore(config, input, productId, intent.id, send);
+  if (verified.state === "pending") return { status: "pending" as const, tripId: intent.tripId, credits: intent.credits };
+  if (verified.state !== "purchased") throw new AppError("VALIDATION", verified.state === "refunded" ? "This purchase was refunded." : "The store did not confirm this purchase.");
+  if (verified.sandbox && !config.acceptSandbox) throw new AppError("VALIDATION", "Test purchases are not accepted.");
+  await prisma.$transaction(async db => {
+    const other = await db.creditCheckout.findUnique({ where: { transactionId: verified.transactionId } });
+    if ((other && other.id !== intent.id) || await db.premiumCheckout.findUnique({ where: { transactionId: verified.transactionId } })) throw new AppError("CONFLICT", "This purchase was already used.");
+    const current = await db.creditCheckout.findUniqueOrThrow({ where: { id: intent.id } });
+    if (current.status === "COMPLETED") return;
+    if (current.status !== STORE_STATUS) throw new AppError("CONFLICT", "This purchase can no longer be applied. Please contact support.");
+    await db.creditCheckout.update({ where: { id: intent.id }, data: { status: "COMPLETED", transactionId: verified.transactionId, reviewRequired: false, paddleSummary: summary(input.store, verified) } });
+    await settlePurchaseCredits(db, { userId: intent.buyerId, credits: intent.credits, transactionId: verified.transactionId, status: "COMPLETED", reviewRequired: false, note: `${bundle.name}: ${intent.credits} credits`, tripId: intent.tripId });
+    if (intent.tripId && bundle.unlocksPremium) await db.trip.updateMany({ where: { id: intent.tripId, onboardingStage: "PLAN" }, data: { onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" } });
+  });
+  if (input.store === "google_play") await consumeGoogle(config, productId, input.purchaseToken, send).catch(() => undefined);
+  return { status: "completed" as const, tripId: intent.tripId, credits: intent.credits };
 }
 
 const summary = (store: Store, v: Verified) => JSON.parse(JSON.stringify({ store, productId: v.productId, orderId: v.transactionId, sandbox: v.sandbox, purchasedAt: v.purchasedAt, price: v.price, verifiedAt: new Date().toISOString() })) as Prisma.InputJsonValue;
@@ -94,17 +147,31 @@ export async function resyncStorePurchase(checkoutId: string, send: Fetch = fetc
   const row = await prisma.premiumCheckout.findUnique({ where: { id: checkoutId } });
   if (!config || !row?.transactionId || !isStoreTransaction(row.transactionId)) throw new AppError("NOT_FOUND", "This purchase has no store transaction to refresh.");
   if (row.transactionId.startsWith("as:") && config.apple) {
-    const v = await verifyApple(config, row.transactionId.slice(3), row.id, send);
+    const v = await verifyApple(config, config.productId, row.transactionId.slice(3), row.id, send);
     if (v.state === "refunded") await markRefunded(row.transactionId);
   }
   // Google refunds are read from the voided purchases list, see syncStoreRefunds.
   if (row.transactionId.startsWith("gp:") && config.google) await syncGoogleVoided(config, send);
 }
 
+/** A refunded store purchase loses its Premium and takes back the credits it added (once). */
 async function markRefunded(transactionId: string) {
+  const stamp = (j: Prisma.JsonValue | null) => ({ ...(j as Record<string, unknown> | null ?? {}), refundedAt: new Date().toISOString() }) as Prisma.InputJsonValue;
   const row = await prisma.premiumCheckout.findUnique({ where: { transactionId } });
-  if (!row || row.status === "REFUNDED") return false;
-  await prisma.premiumCheckout.update({ where: { id: row.id }, data: { status: "REFUNDED", paddleSummary: { ...(row.paddleSummary as Record<string, unknown> | null ?? {}), refundedAt: new Date().toISOString() } as Prisma.InputJsonValue } });
+  if (row) {
+    if (row.status === "REFUNDED") return false;
+    await prisma.$transaction(async db => {
+      await db.premiumCheckout.update({ where: { id: row.id }, data: { status: "REFUNDED", paddleSummary: stamp(row.paddleSummary) } });
+      await settlePurchaseCredits(db, { userId: row.buyerId, credits: PREMIUM_INCLUDED_CREDITS, transactionId, status: "REFUNDED", reviewRequired: true, note: "", tripId: row.tripId });
+    });
+    return true;
+  }
+  const credit = await prisma.creditCheckout.findUnique({ where: { transactionId } });
+  if (!credit || credit.reviewRequired) return false;
+  await prisma.$transaction(async db => {
+    await db.creditCheckout.update({ where: { id: credit.id }, data: { reviewRequired: true, paddleSummary: stamp(credit.paddleSummary) } });
+    await settlePurchaseCredits(db, { userId: credit.buyerId, credits: credit.credits, transactionId, status: "COMPLETED", reviewRequired: true, note: "", tripId: credit.tripId });
+  });
   return true;
 }
 
@@ -136,9 +203,9 @@ const googlePurchase = z.object({
   productId: z.string().optional(), regionCode: z.string().optional(),
 });
 
-async function verifyGoogle(c: StoreConfig, purchaseToken: string, intentId: string, send: Fetch): Promise<Verified> {
+async function verifyGoogle(c: StoreConfig, productId: string, purchaseToken: string, intentId: string, send: Fetch): Promise<Verified> {
   const g = c.google!;
-  const response = await googleApi(g, `/purchases/products/${encodeURIComponent(c.productId)}/tokens/${encodeURIComponent(purchaseToken)}`, send);
+  const response = await googleApi(g, `/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}`, send);
   if (response.status === 404 || response.status === 400 || response.status === 410) throw new AppError("VALIDATION", "Google Play did not recognize this purchase.");
   if (!response.ok) throw new AppError("UPSTREAM", "Could not reach Google Play. Your purchase is safe; please try again.");
   const p = googlePurchase.parse(await response.json());
@@ -146,11 +213,11 @@ async function verifyGoogle(c: StoreConfig, purchaseToken: string, intentId: str
   if (p.obfuscatedExternalProfileId !== intentId) throw new AppError("VALIDATION", "This purchase belongs to another checkout.");
   const transactionId = `gp:${p.orderId || createHash("sha256").update(purchaseToken).digest("hex").slice(0, 40)}`;
   const state = p.purchaseState === 0 ? "purchased" : p.purchaseState === 2 ? "pending" : "cancelled";
-  return { state, transactionId, productId: c.productId, sandbox: p.purchaseType === 0, purchasedAt: p.purchaseTimeMillis ? new Date(Number(p.purchaseTimeMillis)).toISOString() : undefined };
+  return { state, transactionId, productId, sandbox: p.purchaseType === 0, purchasedAt: p.purchaseTimeMillis ? new Date(Number(p.purchaseTimeMillis)).toISOString() : undefined };
 }
 
-async function consumeGoogle(c: StoreConfig, purchaseToken: string, send: Fetch) {
-  await googleApi(c.google!, `/purchases/products/${encodeURIComponent(c.productId)}/tokens/${encodeURIComponent(purchaseToken)}:consume`, send, { method: "POST" });
+async function consumeGoogle(c: StoreConfig, productId: string, purchaseToken: string, send: Fetch) {
+  await googleApi(c.google!, `/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}:consume`, send, { method: "POST" });
 }
 
 const voided = z.object({ voidedPurchases: z.array(z.object({ orderId: z.string().optional(), purchaseToken: z.string().optional() })).optional(), tokenPagination: z.object({ nextPageToken: z.string().optional() }).optional() });
@@ -205,9 +272,9 @@ async function appleTransactionInfo(c: StoreConfig, transactionId: string, send:
   return appleTransaction.parse(jwsPayload(body.signedTransactionInfo));
 }
 
-async function verifyApple(c: StoreConfig, transactionId: string, intentId: string, send: Fetch): Promise<Verified> {
+async function verifyApple(c: StoreConfig, productId: string, transactionId: string, intentId: string, send: Fetch): Promise<Verified> {
   const t = await appleTransactionInfo(c, transactionId, send);
-  if (t.bundleId !== c.apple!.bundleId || t.productId !== c.productId) throw new AppError("VALIDATION", "This purchase is for another product.");
+  if (t.bundleId !== c.apple!.bundleId || t.productId !== productId) throw new AppError("VALIDATION", "This purchase is for another product.");
   if (t.appAccountToken?.toLowerCase() !== intentId.toLowerCase()) throw new AppError("VALIDATION", "This purchase belongs to another checkout.");
   return { state: t.revocationDate ? "refunded" : "purchased", transactionId: `as:${t.transactionId}`, productId: t.productId, sandbox: t.environment === "Sandbox", purchasedAt: t.purchaseDate ? new Date(t.purchaseDate).toISOString() : undefined, price: t.price !== undefined && t.currency ? `${t.price / 1000} ${t.currency}` : undefined };
 }
@@ -230,10 +297,12 @@ export async function handleAppStoreNotification(body: unknown, send: Fetch = fe
   } catch { throw new AppError("VALIDATION", "Invalid notification."); }
   if (!transactionId || !/^\d{1,30}$/.test(transactionId)) return { ok: true };
   const row = await prisma.premiumCheckout.findUnique({ where: { transactionId: `as:${transactionId}` } });
-  if (!row) return { ok: true };
+  const credit = row ? null : await prisma.creditCheckout.findUnique({ where: { transactionId: `as:${transactionId}` } });
+  if (!row && !credit) return { ok: true };
   const t = await appleTransactionInfo(c, transactionId, send);
-  if (t.revocationDate) await markRefunded(row.transactionId!);
-  else if (row.status === "REFUNDED") await prisma.premiumCheckout.update({ where: { id: row.id }, data: { status: "COMPLETED" } });
+  if (t.revocationDate) await markRefunded(`as:${transactionId}`);
+  // A reversed refund restores Premium; credits taken back stay with support to re-add.
+  else if (row?.status === "REFUNDED") await prisma.premiumCheckout.update({ where: { id: row.id }, data: { status: "COMPLETED" } });
   return { ok: true };
 }
 
@@ -241,7 +310,7 @@ export async function handleAppStoreNotification(body: unknown, send: Fetch = fe
 export async function syncStoreRefunds(send: Fetch = fetch) {
   const c = storeConfig();
   if (!c?.google) return 0;
-  const anySold = await prisma.premiumCheckout.count({ where: { transactionId: { startsWith: "gp:" }, status: "COMPLETED" } });
+  const anySold = await prisma.premiumCheckout.count({ where: { transactionId: { startsWith: "gp:" }, status: "COMPLETED" } }) + await prisma.creditCheckout.count({ where: { transactionId: { startsWith: "gp:" }, status: "COMPLETED" } });
   return anySold ? syncGoogleVoided(c, send) : 0;
 }
 

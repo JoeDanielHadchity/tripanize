@@ -37,18 +37,28 @@ async function verify(purchase: IAP.Purchase, intentId: string): Promise<Complet
 export async function buyTripPremium(tripId: string): Promise<PurchaseOutcome> {
   const kind = store();
   if (!kind) throw new Error("Purchases are available in the Tripanize app for Android and iPhone.");
-  const intent = await post<Intent>("/api/mobile/purchases", { op: "begin", tripId, store: kind });
+  return buy(await post<Intent>("/api/mobile/purchases", { op: "begin", tripId, store: kind }), "Premium");
+}
+
+/** AI credits bundle; with a trip, bundles that include Premium unlock that trip too. */
+export async function buyCredits(bundle: string, tripId?: string | null): Promise<PurchaseOutcome> {
+  const kind = store();
+  if (!kind) throw new Error("Purchases are available in the Tripanize app for Android and iPhone.");
+  return buy(await post<Intent>("/api/mobile/purchases", { op: "begin-credits", bundle, tripId: tripId ?? null, store: kind }), "This bundle");
+}
+
+async function buy(intent: Intent, what: string): Promise<PurchaseOutcome> {
   await connect();
   const { fetchProducts, requestPurchase, purchaseUpdatedListener, purchaseErrorListener, ErrorCode } = iap();
   const products = await fetchProducts({ skus: [intent.productId], type: "in-app" }) as IAP.Product[] | null;
   const product = products?.find(p => p.id === intent.productId);
-  if (!product) throw new Error("Premium is not available in your store yet. Please try again later.");
+  if (!product) throw new Error(`${what} is not available in your store yet. Please try again later.`);
   const purchase = await new Promise<IAP.Purchase | null>((resolve, reject) => {
     let settled = false;
     const done = (fn: () => void) => { if (settled) return; settled = true; updated.remove(); failed.remove(); clearTimeout(timer); fn(); };
     const updated = purchaseUpdatedListener(p => { if (p.productId === intent.productId && intentOf(p) === intent.intentId) done(() => resolve(p)); });
     const failed = purchaseErrorListener(e => done(() => e.code === ErrorCode.UserCancelled ? resolve(null) : reject(new Error(e.message || "The purchase did not complete."))));
-    const timer = setTimeout(() => done(() => reject(new Error("The store did not respond. If you were charged, Premium will appear shortly."))), 10 * 60_000);
+    const timer = setTimeout(() => done(() => reject(new Error("The store did not respond. If you were charged, your purchase will appear shortly."))), 10 * 60_000);
     requestPurchase({ type: "in-app", request: {
       google: { skus: [intent.productId], obfuscatedAccountId: intent.accountId, obfuscatedProfileId: intent.intentId },
       apple: { sku: intent.productId, appAccountToken: intent.intentId },

@@ -45,6 +45,7 @@ interface CloudflareEnv {
   // Native app store billing (server secrets; never EXPO_PUBLIC_).
   STORE_BILLING_ENABLED?: string;
   STORE_PRODUCT_ID?: string;
+  STORE_CREDIT_PRODUCTS?: string;
   STORE_ACCEPT_SANDBOX?: string;
   GOOGLE_PLAY_PACKAGE?: string;
   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON?: string;

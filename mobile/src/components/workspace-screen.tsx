@@ -10,7 +10,7 @@ import { forgetPlaces, rememberPlace } from "../lib/last-place";
 import { workspaceHref, workspacePath, formDefaults, cleanValues, type MobileWorkspace, type MobileAction, type MobileBlock, type MobileTarget, type MobileValues, type MobileCommandResult } from "../lib/workspace";
 import { pickFiles, uploadFiles, shareDownload, type PickedFile } from "../lib/files";
 import { saveOfflineItinerary, clearOfflineItineraries } from "../lib/offline";
-import { buyTripPremium } from "../lib/purchases";
+import { buyCredits, buyTripPremium } from "../lib/purchases";
 import { unregisterPush } from "../lib/push";
 import { useTheme, useAppearance } from "./theme";
 import { Fields } from "./form-fields";
@@ -137,6 +137,13 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
         else if (outcome.status === "pending") setNotice("Your payment is pending with the store. Premium turns on automatically once it's approved.");
         reload();
       }
+      else if (action.device === "purchase-credits" && typeof action.values?.bundle === "string") {
+        const tripId = typeof action.values.tripId === "string" ? action.values.tripId : null;
+        const outcome = await buyCredits(action.values.bundle, tripId);
+        if (outcome.status === "completed") setNotice(tripId ? "Premium is active for everyone in this trip, and your credits were added." : "Your credits were added.");
+        else if (outcome.status === "pending") setNotice("Your payment is pending with the store. Your credits are added automatically once it's approved.");
+        reload();
+      }
       else if (action.device === "offline" && display?.tripId && session?.user.id) { await saveOfflineItinerary(session.user.id, display.tripId); setNotice("Read-only itinerary saved for offline use. It is removed when you sign out."); }
       else if (action.device === "file" && action.url) await shareDownload(action.url, action.fileName ?? "Tripanize-document.pdf");
       else if (action.url) { const u = new URL(action.url); if (!["https:", "http:"].includes(u.protocol) || u.username || u.password) throw new Error("Invalid link."); await Linking.openURL(u.href); }
@@ -167,7 +174,7 @@ export function WorkspaceScreen({ target, account = false, tab = false }: { targ
       </> : undefined}</Ticket>;
     }
     const accent = block.tone === "accent", warning = block.tone === "warning";
-    const purchase = block.actions?.some(a => a.device === "purchase");
+    const purchase = block.actions?.some(a => a.device === "purchase" || a.device === "purchase-credits");
     return <Card key={block.id} style={{ gap: 12, ...(accent ? { backgroundColor: c.soft } : warning ? { backgroundColor: c.coralSoft } : {}) }}>
       {block.image && <View style={{ marginHorizontal: -6, marginTop: -6 }}><Image source={block.image.url} style={{ height: 170, borderRadius: 16, width: "100%" }} contentFit="cover" transition={150} />{block.image.credit && <Muted style={{ fontSize: 10, marginTop: 4 }}>{block.image.credit}</Muted>}</View>}
       {warning && !block.title && <Icon name="information-circle" color={c.coral} />}

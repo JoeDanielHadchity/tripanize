@@ -1,4 +1,4 @@
-import { CREDIT_PRICES, CREDIT_COSTS, creditEntryLabel, creditsText } from "@/lib/credits";
+import { CREDIT_BUNDLES, CREDIT_PRICES, CREDIT_COSTS, PREMIUM_INCLUDED_CREDITS, creditEntryLabel, creditsText } from "@/lib/credits";
 import { creditHistory, creditsView } from "@/server/credits/service";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
@@ -55,6 +55,8 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
     const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
     return { title: "AI credits", subtitle: `${creditsText(view.balance)} left`, blocks: [
       { id: "balance", title: `${creditsText(view.balance)} left`, text: "Credits pay for AI on trips you organize. Editors on your trips use yours too, unless you turn that off in a trip's settings.", tone: "accent" },
+      // Store billing only: digital goods in the app are sold through Google Play or the App Store.
+      ...(storeConfig() ? [{ id: "buy", title: "Add credits", text: "Pay once through Google Play or the App Store. Credits never expire.", actions: CREDIT_BUNDLES.map(b => ({ label: `${b.name}: ${creditsText(b.credits)} · $${b.priceCents / 100}`, device: "purchase-credits" as const, values: { bundle: b.id } })) }] : []),
       { id: "costs", title: "What things cost", lines: CREDIT_COSTS.map(([what, n]) => `${what}: ${typeof n === "number" ? creditsText(n) : n}`) },
       { id: "history", title: "History", lines: history.length ? history.map(h => `${h.amount > 0 ? `+${h.amount}` : h.amount} · ${creditEntryLabel(h)} · ${when(h.createdAt)}${names.find(t => t.id === h.tripId) ? ` · ${names.find(t => t.id === h.tripId)!.name}` : ""}`) : ["Nothing yet."] },
     ] };
@@ -93,11 +95,13 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { name: true, startDate: true, endDate: true, destinations: { orderBy: { position: "asc" }, select: { name: true } } } });
   const doc: MobileWorkspace = { title: titles[screen], tripId, premium: plan.premium, role: access.role, trip: { ...trip, destinations: trip.destinations.map(d => d.name) }, blocks: [], tabs: mobileTripTabs(tripId) };
   if (screen === "premium" || (screen === "setup" && (await onboardingState(userId, tripId)).onboardingStage === "PLAN")) {
+    const credits = await creditsView(userId);
     doc.blocks = [{ id: "premium", title: "Premium pass · $15 per trip", text: plan.premium ? `Premium is active${plan.validUntil ? ` until ${plan.validUntil}` : ""}. Everyone in this trip is included.` : "One payment covers your whole group. No subscription.", tone: "accent", lines: PLAN_COMPARISON.map(row => `${row.feature}: ${row.premium}`) },
       { id: "standard", title: "Free · $0", text: "AI planning for the first 2 days. Edit all days and add bookings and packing manually. Group roles and voting included." },
       ...(access.role === "OWNER" ? [{ id: "continue", actions: [act(plan.premium ? "Continue with Premium" : "Continue with Free", "trip.standard")] }] : []),
       ...(!plan.premium ? [access.role !== "OWNER" ? { id: "store-owner", text: "Only the trip organizer can upgrade. Premium then covers everyone in this trip." }
-        : storeConfig() ? { id: "store-purchase", title: "Upgrade this trip", text: "Pay once through Google Play or the App Store. No subscription, and everyone in this trip is included.", tone: "accent" as const, actions: [{ label: "★ Upgrade for $15", device: "purchase" as const }] }
+        : storeConfig() ? { id: "store-purchase", title: "Upgrade this trip", text: `Pay once through Google Play or the App Store. No subscription, and everyone in this trip is included.${credits.active ? ` Includes ${creditsText(PREMIUM_INCLUDED_CREDITS)} for AI. Bigger bundles unlock Premium with more credits.` : ""}`, tone: "accent" as const, actions: [{ label: "★ Upgrade for $15", device: "purchase" as const },
+          ...(credits.active ? CREDIT_BUNDLES.filter(b => b.unlocksPremium && b.priceCents > 1500).map(b => ({ label: `${b.name}: Premium + ${creditsText(b.credits)} · $${b.priceCents / 100}`, device: "purchase-credits" as const, values: { bundle: b.id, tripId } })) : [])] }
         : { id: "store-setup", text: "In-app purchases are being set up. Existing purchased access and accepted trials work automatically.", tone: "warning" as const }] : []),
     ]; return doc;
   }

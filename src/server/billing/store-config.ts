@@ -13,5 +13,8 @@ export function storeConfigFromEnv(env: CloudflareEnv): StoreConfig | undefined 
     ? { bundleId: env.APPLE_BUNDLE_ID || "app.tripanize.mobile", keyId: env.APPLE_IAP_KEY_ID, issuerId: env.APPLE_IAP_ISSUER_ID, privateKey: env.APPLE_IAP_PRIVATE_KEY.replace(/\\n/g, "\n"), ...(Number(env.APPLE_APP_ID) ? { appAppleId: Number(env.APPLE_APP_ID) } : {}) }
     : undefined;
   if (!google && !apple) return undefined;
-  return { productId: env.STORE_PRODUCT_ID || "tripanize_premium_trip", google, apple, acceptSandbox: env.STORE_ACCEPT_SANDBOX !== "false" };
+  // Optional overrides, e.g. STORE_CREDIT_PRODUCTS = {"topup":"credits_30"}.
+  let creditProducts: StoreConfig["creditProducts"];
+  try { creditProducts = env.STORE_CREDIT_PRODUCTS ? JSON.parse(env.STORE_CREDIT_PRODUCTS) as StoreConfig["creditProducts"] : undefined; } catch { console.error("[store-config] STORE_CREDIT_PRODUCTS is not valid JSON."); }
+  return { productId: env.STORE_PRODUCT_ID || "tripanize_premium_trip", creditProducts, google, apple, acceptSandbox: env.STORE_ACCEPT_SANDBOX !== "false" };
 }

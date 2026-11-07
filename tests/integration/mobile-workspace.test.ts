@@ -348,3 +348,15 @@ it("shows AI credit balance, costs and history in the app only while credits app
   await premium(tripId, owner.id);
   expect(JSON.stringify(await page(owner.id, "events", tripId))).toContain("Find events now · 3 credits");
 });
+
+it("offers credit bundles and Premium bundles through the store only when store billing is set up", async () => {
+  const owner = await makeUser("Owner"), tripId = await makeTrip(owner.id);
+  setTestRuntime({ ...currentRuntime(), creditsEnabled: true });
+  expect((await page(owner.id, "credits")).blocks.some(b => b.id === "buy")).toBe(false);
+  setTestRuntime({ ...currentRuntime(), stores: { productId: "tripanize_premium_trip", acceptSandbox: true, google: { packageName: "app.tripanize.mobile", clientEmail: "x@example.com", privateKey: "x", tokenUri: "https://oauth2.googleapis.com/token" } } });
+  const buy = (await page(owner.id, "credits")).blocks.find(b => b.id === "buy")!;
+  expect(buy.actions?.map(a => [a.device, a.values?.bundle])).toEqual([["purchase-credits", "starter"], ["purchase-credits", "plus"], ["purchase-credits", "pro"], ["purchase-credits", "topup"]]);
+  const premium = (await page(owner.id, "premium", tripId)).blocks.find(b => b.id === "store-purchase")!;
+  expect(premium.actions?.map(a => a.label)).toEqual(["★ Upgrade for $15", "Plus: Premium + 200 credits · $25", "Pro: Premium + 500 credits · $50"]);
+  expect(premium.actions?.[1].values).toEqual({ bundle: "plus", tripId });
+});
