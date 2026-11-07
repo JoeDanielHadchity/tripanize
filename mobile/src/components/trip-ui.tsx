@@ -127,7 +127,7 @@ const TABS: { id: string; label: string; icon: IconName; active: IconName }[] = 
 function activeTab(screen: string) {
   if (["itinerary", "day", "stop", "plan", "job", "versions", "assistant"].includes(screen)) return "itinerary";
   if (["expenses", "expense", "settlement"].includes(screen)) return "expenses";
-  if (["chat", "locations"].includes(screen)) return "chat";
+  if (["chat", "locations", "votes"].includes(screen)) return "chat";
   if (["bookings", "booking", "events", "event"].includes(screen)) return "events";
   return "more";
 }
@@ -139,7 +139,6 @@ export function TripNavigation({ tripId, screen, premium, onAction }: { tripId: 
   const more: { label: string; icon: IconName; to: MobileTarget }[] = [
     { label: "Packing & prep", icon: "bag-handle-outline", to: { screen: "packing", tripId } },
     { label: "Bookings", icon: "ticket-outline", to: { screen: "bookings", tripId } },
-    { label: "Group voting", icon: "hand-left-outline", to: { screen: "votes", tripId } },
     { label: "Travelers & sharing", icon: "people-outline", to: { screen: "sharing", tripId } },
     { label: "Trip settings", icon: "settings-outline", to: { screen: "settings", tripId } },
     { label: "Premium pass", icon: "sparkles-outline", to: { screen: "premium", tripId } },
@@ -155,7 +154,12 @@ export function TripNavigation({ tripId, screen, premium, onAction }: { tripId: 
   };
   // Design 004: the same floating dark pill as the main tab bar.
   return <><View style={{ flexShrink: 0, backgroundColor: c.bg, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 6 }}><View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={{ flexDirection: "row", gap: 2, padding: 6, borderRadius: 34, backgroundColor: c.night, boxShadow: `0 10px 26px ${c.dark ? "rgba(0,0,0,0.5)" : "rgba(23,46,51,0.28)"}` }}>
-    {TABS.map(t => tab(t.id, t.label, t.icon, t.active, () => { if (screen !== t.id) go({ screen: t.id, tripId }); }, !premium && ["expenses", "chat", "events"].includes(t.id)))}
+    {TABS.map(t => {
+      // Like the website: on free trips Chat opens group votes and Events opens bookings, both free.
+      const free = !premium && t.id === "chat" ? { label: "Votes", icon: "hand-left-outline" as IconName, active: "hand-left" as IconName, screen: "votes" } : !premium && t.id === "events" ? { label: "Bookings", icon: "ticket-outline" as IconName, active: "ticket" as IconName, screen: "bookings" } : null;
+      const target = free?.screen ?? t.id;
+      return tab(t.id, free?.label ?? t.label, free?.icon ?? t.icon, free?.active ?? t.active, () => { if (screen !== target) go({ screen: target, tripId }); }, !premium && t.id === "expenses");
+    })}
     {tab("more", "More", "grid-outline", "grid", () => setOpen(true))}
   </View></View><Sheet open={open} title="Your trip" close={() => setOpen(false)}>
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{more.map(item => <Pressable key={item.to.screen} accessibilityRole="button" onPress={() => go(item.to)} style={({ pressed }) => ({ width: "31%", flexGrow: 1, minHeight: 92, borderRadius: 18, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", gap: 8, padding: 10, opacity: pressed ? 0.7 : 1 })}><Ionicons name={item.icon} size={24} color={c.accent} /><T style={{ fontSize: 12, lineHeight: 16, textAlign: "center", fontFamily: "NunitoBold" }}>{item.label}</T></Pressable>)}</View>

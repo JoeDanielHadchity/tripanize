@@ -99,6 +99,7 @@ export function NativeItinerary({ data, onAction, busy, renderBlock, pendingDay 
   const index = itinerary.days.findIndex(value => value.id === day.id);
   const tools = data.blocks.find(block => block.id === "tools")?.actions ?? [];
   const plan = tools.find(action => action.to?.screen === "plan"), pdf = tools.find(action => action.device === "file");
+  // Like the website's itinerary "More" menu (the trip PDF keeps its own download button here).
   const otherTools = tools.filter(action => action !== plan && action !== pdf && action.to?.screen !== "assistant");
   const dayBlock = data.blocks.find(block => block.id === "day");
   const planB = data.blocks.find(block => block.id === "plan-b-note");
@@ -119,7 +120,7 @@ export function NativeItinerary({ data, onAction, busy, renderBlock, pendingDay 
       {addStop && <IconButton name="add" label="Add stop" size={40} disabled={busy} onPress={() => onAction(addStop)} />}
       <IconButton name={searching ? "close" : "search"} label={searching ? "Close search" : "Search this day"} size={40} onPress={() => { setSearching(!searching); if (searching) setSearch(""); }} />
       {pdf && <IconButton name="download-outline" label="Download trip PDF" size={40} disabled={busy} onPress={() => onAction(pdf)} />}
-      <ActionSheet iconOnly icon="ellipsis-horizontal" label="Trip tools" actions={otherTools} onAction={onAction} busy={busy} />
+      <ActionSheet iconOnly icon="ellipsis-horizontal" label="More" actions={otherTools} onAction={onAction} busy={busy} />
     </View>
     {searching && <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 16, backgroundColor: c.paper, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line }}><Icon name="search" size={18} color={c.muted} /><TextInput autoFocus accessibilityLabel="Search this day's stops and restaurants" placeholder="Search stops, places, restaurants…" placeholderTextColor={c.muted} value={search} onChangeText={setSearch} style={{ flex: 1, minHeight: 48, color: c.ink, fontFamily: "Nunito", fontSize: 15 }} /></View>}
     <Checklist itinerary={itinerary} onAction={onAction} />
