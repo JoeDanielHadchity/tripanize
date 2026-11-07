@@ -1,4 +1,5 @@
-import { CREDIT_PRICES } from "@/lib/credits";
+import { CREDIT_PRICES, CREDIT_COSTS, creditEntryLabel, creditsText } from "@/lib/credits";
+import { creditHistory, creditsView } from "@/server/credits/service";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { getMobileUser, getMobileTrips } from "./service";
@@ -45,9 +46,23 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
       ...(inbox.nextCursor ? [{ id: "older", actions: [go("Older notifications", "notifications", undefined, inbox.nextCursor)] }] : []),
     ] };
   }
+  if (screen === "credits") {
+    const view = await creditsView(userId);
+    if (!view.active) return { title: "AI credits", blocks: [{ id: "off", text: "Your account isn't using credits: AI on your trips is included." }] };
+    const history = await creditHistory(userId, 50);
+    const names = await prisma.trip.findMany({ where: { id: { in: history.map(h => h.tripId).filter((v): v is string => Boolean(v)) } }, select: { id: true, name: true } });
+    const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    return { title: "AI credits", subtitle: `${creditsText(view.balance)} left`, blocks: [
+      { id: "balance", title: `${creditsText(view.balance)} left`, text: "Credits pay for AI on trips you organize. Editors on your trips use yours too, unless you turn that off in a trip's settings.", tone: "accent" },
+      { id: "costs", title: "What things cost", lines: CREDIT_COSTS.map(([what, n]) => `${what}: ${typeof n === "number" ? creditsText(n) : n}`) },
+      { id: "history", title: "History", lines: history.length ? history.map(h => `${h.amount > 0 ? `+${h.amount}` : h.amount} · ${creditEntryLabel(h)} · ${when(h.createdAt)}${names.find(t => t.id === h.tripId) ? ` · ${names.find(t => t.id === h.tripId)!.name}` : ""}`) : ["Nothing yet."] },
+    ] };
+  }
   if (screen === "account") {
     const { user, profile } = await getProfile(userId); const company = isCompanyAccount(user);
+    const credits = await creditsView(userId);
     return { title: "My account.", subtitle: user.email, blocks: [
+      ...(credits.active ? [{ id: "credits", title: `AI credits: ${credits.balance}`, text: "What AI costs, and where your credits went.", actions: [go("Credits & history", "credits")] }] : []),
       { id: "navigation", actions: [go("Notifications", "notifications"), go("Invitations", "trips"), ...(company ? [go("Admin access", "admin")] : [])] },
       ...(company ? [{ id: "included", title: "Premium always included", text: "Every Premium feature is available on trips you organize or join, in both account modes.", tone: "accent" as const }] : []),
       form("profile", "Travel preferences", "profile.save", [f("name", "Display name"), f("homeCity", "Home city"), f("defaultCurrency", "Default currency"), f("pace", "Pace", "select", { options: options(["RELAXED", "BALANCED", "AMBITIOUS"]) }), f("interests", "Interests", "list"), f("dietary", "Dietary needs", "long"), f("accessibility", "Accessibility", "long"), f("mapsApp", "Maps app", "select", { options: [{ value: "GOOGLE", label: "Google Maps" }, { value: "APPLE", label: "Apple Maps" }, { value: "OSM", label: "OpenStreetMap" }] }), f("timezone", "Time zone")], { ...wire(profile) as Record<string, import("@/lib/mobile-workspace").MobileValue>, name: user.name }),

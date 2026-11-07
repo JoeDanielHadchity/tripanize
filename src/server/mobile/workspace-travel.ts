@@ -7,16 +7,20 @@ import { formatMoney, minorToDecimalString } from "@/lib/money";
 import { BOOKING_CATEGORIES, BOOKING_STATUSES, NOTIFY_CHANGE_TYPES, PACKING_CATEGORIES } from "@/lib/constants";
 import { f, act, go, form, options, link, wire } from "./presentation";
 import type { MobileBlock, MobileValue } from "@/lib/mobile-workspace";
+import { creditsView } from "@/server/credits/service";
+import { CREDIT_PRICES, creditsText } from "@/lib/credits";
 
 export async function travelBlocks(userId: string, tripId: string, screen: string, query: URLSearchParams, canEdit: boolean, premium: boolean): Promise<MobileBlock[]> {
   const item = query.get("item");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
+  const credits = screen === "packing" || screen === "events" ? await creditsView(userId, tripId) : null;
+  const cost = (n: number) => credits?.active ? ` · ${creditsText(n)}` : "";
   if (screen === "packing") {
     const { personal, shared } = await getPacking(userId, tripId);
     const tasks = await prisma.tripTask.findMany({ where: { tripId }, orderBy: [{ done: "asc" }, { position: "asc" }] });
     const travelers = await prisma.traveler.findMany({ where: { tripId, leftAt: null }, select: { id: true, name: true } });
     const blocks: MobileBlock[] = [{ id: "privacy", text: "Your personal list is private. Shared items and preparation tasks are visible to the group." }];
-    if (premium) blocks.push(form("suggest", "★ Personalized packing", "packing.generate", [f("laundry", "Laundry available during the trip", "check", { value: false })], {}, "Refresh suggestions"));
+    if (premium) blocks.push(form("suggest", "★ Personalized packing", "packing.generate", [f("laundry", "Laundry available during the trip", "check", { value: false })], {}, `Refresh suggestions${cost(CREDIT_PRICES.packing)}`));
     blocks.push(form("add", "Add a packing item", "packing.add", [f("label", "Item", "text", { required: true }), f("category", "Category", "select", { options: options(PACKING_CATEGORIES), value: "Misc" }), f("quantity", "Quantity", "number", { value: 1 }), ...(canEdit ? [f("shared", "Shared with the group", "check", { value: false })] : [])], { shared: false }, "Add item"));
     for (const [label, items] of [["Personal", personal], ["Shared", shared]] as const) {
       blocks.push({ id: `heading-${label}`, title: `${label} · ${items.filter(i => i.packed).length}/${items.length} packed` });
@@ -63,7 +67,7 @@ export async function travelBlocks(userId: string, tripId: string, screen: strin
   const data = await listEvents(userId, tripId);
   const days = await prisma.itineraryDay.findMany({ where: { tripId }, orderBy: { date: "asc" }, select: { id: true, date: true } });
   const pref = await prisma.notificationPreference.findUnique({ where: { userId_tripId: { userId, tripId } } });
-  const blocks: MobileBlock[] = [header, { id: "cadence", title: data.settings.cadence, text: data.settings.nextDiscoveryAt ? `Next search: ${data.settings.nextDiscoveryAt.toISOString()}` : data.settings.autoDiscovery ? "No automatic checks left before this trip." : "Automatic search is off.", actions: canEdit ? [act("Find events now", "events.discover"), go("Add your own event", "event", tripId)] : [] }];
+  const blocks: MobileBlock[] = [header, { id: "cadence", title: data.settings.cadence, text: data.settings.nextDiscoveryAt ? `Next search: ${data.settings.nextDiscoveryAt.toISOString()}` : data.settings.autoDiscovery ? "No automatic checks left before this trip." : "Automatic search is off.", actions: canEdit ? [act(`Find events now${cost(CREDIT_PRICES.events)}`, "events.discover"), go("Add your own event", "event", tripId)] : [] }];
   for (const e of data.events) {
     if (e.status === "HIDDEN" && item !== "hidden") continue;
     blocks.push({ id: e.id, title: e.title, meta: [e.date, e.startTime, e.venue, e.status, e.cancelled ? "Cancelled" : "", e.soldOut ? "Sold out" : ""].filter(Boolean).join(" · "), text: e.whyFits ?? undefined, lines: [e.priceText, e.uncertainty, e.availability].filter((s): s is string => Boolean(s)), actions: [

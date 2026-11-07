@@ -11,6 +11,8 @@ import { todayIn } from "@/lib/dates";
 import { formatMoney, minorToDecimalString } from "@/lib/money";
 import { STOP_CATEGORIES } from "@/lib/constants";
 import { ProposalSchema, SwapSchema } from "@/server/planner/schema";
+import { creditsView } from "@/server/credits/service";
+import { CREDIT_PRICES, creditsText } from "@/lib/credits";
 import { f, act, go, form, options, link, wire } from "./presentation";
 import type { MobileBlock, MobileItinerary } from "@/lib/mobile-workspace";
 
@@ -18,6 +20,10 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   const item = query.get("item");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   const premium = (await getTripPlan(tripId)).premium;
+  // What AI costs here, shown only when credits apply to whoever pays (the organizer, for an editor).
+  const credits = await creditsView(userId, tripId);
+  const cost = (n: number) => credits.active ? ` · ${creditsText(n)}` : "";
+  const creditLine = credits.active ? `${credits.payerIsYou ? "You have" : "The organizer has"} ${creditsText(credits.balance)}.${credits.membersBlocked ? " The organizer has turned off AI on their credits for members." : ""}` : "";
   if (screen === "versions") {
     const versions = await listVersions(userId, tripId);
     return { blocks: versions.length ? versions.map(v => ({ id: v.id, title: v.reason, meta: v.createdAt.toISOString(), actions: canEdit ? [act("Restore this version", "version.restore", { id: v.id }, "Restore this itinerary? A backup of the current itinerary will be kept.")] : [] })) : [{ id: "empty", text: "Itinerary backups will appear here after planning changes." }] };
@@ -25,7 +31,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   if (screen === "assistant") {
     const chat = await getAssistantConversation(userId, tripId);
     return { pollMs: chat.turns.some(t => ["QUEUED", "RUNNING"].includes(t.status)) ? 3000 : undefined, blocks: [
-      { id: "intro", text: "Ask about your trip or propose a change. Review changes before applying them." },
+      { id: "intro", text: `Ask about your trip or propose a change. Review changes before applying them.${credits.active ? ` Each question uses ${creditsText(CREDIT_PRICES.assistant)}. ${creditLine}` : ""}` },
       ...chat.turns.map(t => ({ id: t.id, title: t.question, text: t.reply ?? t.error ?? "Thinking…", meta: t.appliedAt ? "Applied" : t.status, lines: t.preview ? [...t.preview.changes, ...t.preview.warnings, ...t.preview.conflicts, ...t.preview.days.flatMap(d => [`${d.date}: ${d.beforeTitle ?? ""} → ${d.afterTitle ?? ""}`, `Before: ${d.before.map(s => `${s.time ?? "Anytime"} ${s.title}`).join(" · ")}`, `After: ${d.after.map(s => `${s.time ?? "Anytime"} ${s.title}`).join(" · ")}`])] : [], actions: [
         ...t.sources.flatMap(url => link("Source", url)),
         ...(chat.canEdit && t.preview && !t.appliedAt && !t.dismissed && t.status === "SUCCEEDED" ? [act("Apply reviewed changes", "assistant", { op: "apply", id: t.id }, "Apply these changes to the shared itinerary? You can restore the previous version from itinerary history."), act("Dismiss", "assistant", { op: "dismiss", id: t.id })] : []),
@@ -61,6 +67,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
     const questions = await getPlanQuestions(userId, tripId, { cachedOnly: true });
     const saved = trip.planPrefs && typeof trip.planPrefs === "object" && !Array.isArray(trip.planPrefs) ? trip.planPrefs : {};
     const blocks: MobileBlock[] = [{ id: "scope", title: premium ? "★ Plan every day" : "First 2 AI days included", text: "AI changes are saved as a draft for review. Your manual itinerary stays editable on every day." },
+      ...(credits.active ? [{ id: "credits", text: `Each day planned or regenerated with AI uses ${creditsText(CREDIT_PRICES.planDay)}, restaurants included. ${creditLine}`, actions: credits.payerIsYou ? [go("Credits & history", "credits")] : [] }] : []),
       ...(canEdit ? [form("prefs", "Planning & food preferences", "plan.preferences", [...questions.questions.map((q, i) => f(`answers.${i}.a`, q.q, "multi", { options: options(q.options), max: q.multi ? undefined : 1 })), f("note", "Travel preferences", "long"), f("foodNotes", "Food preferences & allergies", "long")], { answers: questions.questions.map(q => { const old = Array.isArray(saved.answers) ? saved.answers.find(a => a && typeof a === "object" && !Array.isArray(a) && a.q === q.q) : null; return { q: q.q, a: old && typeof old === "object" && !Array.isArray(old) && Array.isArray(old.a) ? wire(old.a) : [] }; }), note: typeof saved.note === "string" ? saved.note : "", foodNotes: typeof saved.foodNotes === "string" ? saved.foodNotes : "" }),
       form("generate", "Create an itinerary draft", "plan.start", [f("instruction", "Anything to focus on?", "long")], { kind: "full" }, "Generate itinerary"),
       ...(premium ? [form("regenerate", "Regenerate selected days", "plan.start", [f("dates", "Choose days", "multi", { options: days.map(d => ({ value: d.date, label: d.date })) }), f("instruction", "Instructions", "long")], { kind: "days" }, "Prepare alternatives")] : []),
@@ -99,7 +106,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
       // Same choices as the website's stop menu: Edit up front, the rest under More.
       ...(canEdit ? [go("Edit", "stop", tripId, stop.id),
         ...(!stop.booking && !stop.isFixed ? [act("Skip", "stop.status", { id: stop.id, version: stop.version, status: "SKIPPED" })] : []),
-        ...(premium && !stop.booking && !stop.isFixed ? [act("Swap", "plan.start", { kind: "swap", stopId: stop.id, instruction: null }, `Find alternatives for “${s.title}”? Nothing changes until you choose one.`)] : []),
+        ...(premium && !stop.booking && !stop.isFixed ? [act(`Swap${cost(CREDIT_PRICES.swap)}`, "plan.start", { kind: "swap", stopId: stop.id, instruction: null }, `Find alternatives for “${s.title}”? Nothing changes until you choose one.${credits.active ? ` Uses ${creditsText(CREDIT_PRICES.swap)}.` : ""}`)] : []),
         go("Move to another day", "stop", tripId, stop.id),
         ...(i > 0 ? [act("Move earlier ↑", "stop.reorder", { dayId: day.id, plan: day.activePlan, ids: reordered(-1) })] : []),
         ...(i < active.length - 1 ? [act("Move later ↓", "stop.reorder", { dayId: day.id, plan: day.activePlan, ids: reordered(1) })] : []),

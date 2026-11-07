@@ -6,7 +6,7 @@ import { AppHeader } from "@/components/shell";
 import { Card, Notice, PageHeader } from "@/components/ui";
 import { MembersCreditsSwitch } from "@/components/members-credits-switch";
 import { creditHistory, creditsView, tripCreditSpending } from "@/server/credits/service";
-import { CREDIT_BUNDLES, CREDIT_PRICES } from "@/lib/credits";
+import { CREDIT_BUNDLES, CREDIT_COSTS, creditEntryLabel } from "@/lib/credits";
 import { CreditTopUp } from "@/components/credit-top-up";
 import { refreshCreditPayments, unlockableTrips } from "@/server/billing/credits";
 import { creditCheckoutAvailable } from "@/server/billing/config";
@@ -15,21 +15,7 @@ import { creditCheckoutAvailable } from "@/server/billing/config";
 export const metadata: Metadata = { title: "Credits", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
-const SPEND_LABELS: Record<string, string> = {
-  plan: "Planned days with AI", regenerate: "Regenerated days with AI", restaurants: "Restaurant ideas", events: "Event search",
-  destination: "Destination ideas", assistant: "AI assistant", swap: "Stop alternatives", packing: "Packing suggestions",
-};
-const COSTS: [string, number | "Free"][] = [
-  ["Plan or regenerate one day with AI (restaurants included)", CREDIT_PRICES.planDay],
-  ["Find events for your trip", CREDIT_PRICES.events],
-  ["Find a destination (5 ideas). Your first search is free", CREDIT_PRICES.destination],
-  ["Ask the AI assistant", CREDIT_PRICES.assistant],
-  ["Swap a stop for alternatives", CREDIT_PRICES.swap],
-  ["Packing suggestions", CREDIT_PRICES.packing],
-  ["Refresh restaurant ideas, per day", CREDIT_PRICES.restaurantsDay],
-  ["Scan a receipt", "Free"],
-  ["Automatic event checks before your trip (up to 10)", "Free"],
-];
+const COSTS = CREDIT_COSTS;
 const ORDER = ["topup", "starter", "plus", "pro"];
 const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
@@ -44,7 +30,7 @@ export default async function AccountCreditsPage() {
   for (const t of owned) spending.set(t.id, (await tripCreditSpending(t.id)).reduce((sum, s) => sum + s.credits, 0));
   const names = await prisma.trip.findMany({ where: { id: { in: history.map(h => h.tripId).filter((v): v is string => Boolean(v)) } }, select: { id: true, name: true } });
   const tripName = (id: string | null) => names.find(t => t.id === id)?.name;
-  const label = (h: (typeof history)[number]) => h.kind === "spend" ? SPEND_LABELS[h.note ?? ""] ?? "AI" : h.kind === "welcome" ? "Welcome credits" : h.kind === "purchase" ? h.note ?? "Top up" : h.note ?? (h.kind === "grant" ? "Credits from Tripanize" : "Adjusted by Tripanize");
+  const label = creditEntryLabel;
   const bundles = [...CREDIT_BUNDLES].sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
   const h2 = "mb-3 font-display text-xl font-semibold";
   return (
