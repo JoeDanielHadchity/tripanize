@@ -38,6 +38,7 @@ export function AdminHome({ d, name }: { d: Overview; name: string }) {
 
   const actions: [string, string, string][] = [
     ["Add a trip idea", "/company?tab=ideas", "ideas"],
+    ["Edit texts", "/company?tab=texts", "texts"],
     ["Invite a trial user", "/company?tab=trials", "trials"],
     ["Post a banner", "/company?tab=announcements", "announcements"],
     ["Answer support", "/company?tab=support", "support"],

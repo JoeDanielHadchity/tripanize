@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { FeaturePage, FeatureSteps } from "@/components/feature-page";
 import { publicMetadata, PUBLIC_PAGES } from "@/lib/seo";
+import { getSiteTexts } from "@/server/admin/texts";
 
 export const metadata = publicMetadata("/ai-trip-planner", PUBLIC_PAGES["/ai-trip-planner"]);
+export const dynamic = "force-dynamic";
 
-export default function AiTripPlannerPage() {
-  return <FeaturePage path="/ai-trip-planner" eyebrow="A little direction. A lot of possibility." title="Trip Planner." emphasis="Your kind of trip."
-    intro="Turn your dates, interests and travel pace into an editable day-by-day itinerary. Keep the ideas you like. Make the rest your own."
+export default async function AiTripPlannerPage() {
+  const t = await getSiteTexts();
+  return <FeaturePage path="/ai-trip-planner" eyebrow={t["web.planner.eyebrow"]} title={t["web.planner.title"]} emphasis={t["web.planner.emphasis"]}
+    intro={t["web.planner.intro"]}
     planNote="Free: your first 2 AI-planned days. Premium: AI planning for all trip days."
     preview={<figure className="feature-preview itinerary-preview"><figcaption><span className="feature-eyebrow">Illustrative itinerary</span><strong>Lisbon & Porto</strong><span>6 days · 3 travelers</span></figcaption><div className="preview-day-strip" aria-label="Example day selection"><span>Day 1</span><strong>Day 2 · Lisbon</strong><span>Day 3</span></div><p className="preview-handwritten">A morning in Belém</p><ol className="preview-stops"><li><time>09:30</time><div><strong>Jerónimos Monastery</strong><span>Architecture & a slow start</span></div></li><li><time>11:05</time><div><strong>Pastéis de Belém</strong><span>Coffee and a custard tart</span></div></li><li><time>11:50</time><div><strong>A riverside walk</strong><span>Leave a little room to wander</span></div></li></ol><p className="preview-footnote">A sample from our <Link href="/examples/lisbon-porto">Lisbon & Porto example</Link>. Times are illustrative.</p></figure>}
     questions={[

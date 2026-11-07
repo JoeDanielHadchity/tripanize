@@ -2,11 +2,12 @@ import { GUIDE_BUDGET_BASIS, GUIDE_PHOTOS, guideImage } from "@/server/examples/
 import { EXAMPLES } from "@/server/examples/data";
 import { findPublishedIdea, publishedTripIdeas } from "@/server/examples/trip-ideas";
 import type { MobilePublicGuide, MobilePublicHome } from "@/lib/mobile-public";
+import { getAppTexts } from "@/server/admin/texts";
 
 /** Published editorial content only (trip ideas as managed on the Company page). No session. */
 export async function publicMobileHome(): Promise<MobilePublicHome> {
-  const ideas = await publishedTripIdeas();
-  return { guides: ideas.map(i => ({ slug: i.slug, city: i.guide.city, country: i.guide.country, image: i.photo.card, alt: i.photo.description, dayCount: i.guide.days.length })) };
+  const [ideas, texts] = await Promise.all([publishedTripIdeas(), getAppTexts()]);
+  return { texts, guides: ideas.map(i => ({ slug: i.slug, city: i.guide.city, country: i.guide.country, image: i.photo.card, alt: i.photo.description, dayCount: i.guide.days.length })) };
 }
 
 export async function publicMobileGuide(slug: string): Promise<MobilePublicGuide | null> {

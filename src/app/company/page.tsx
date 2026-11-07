@@ -12,6 +12,8 @@ import { AdminNav } from "./nav";
 import { AdminHome } from "./home";
 import { TripIdeaEditor, TripIdeaList } from "./trip-ideas";
 import { adminTripIdeas } from "@/server/admin/trip-ideas";
+import { adminSiteTexts } from "@/server/admin/texts";
+import { SiteTextsEditor } from "./texts";
 import { AppHeader } from "@/components/shell";
 import { Badge, Card, Input, LinkButton, Notice } from "@/components/ui";
 import { formatMoney } from "@/lib/money";
@@ -38,6 +40,10 @@ function Financials({ value }: { value: unknown }) {
   return <div className="mt-4 rounded-xl bg-surface-2 p-3 text-xs"><dl className="grid gap-3 sm:grid-cols-3"><div><dt className="text-muted">Checkout total</dt><dd className="mt-1 font-medium">{amount(data.totals?.total,data.currency)}</dd></div><div><dt className="text-muted">Paddle fees · payout currency</dt><dd className="mt-1 font-medium">{amount(payout?.fee,payout?.currency_code)}</dd></div><div><dt className="text-muted">Earnings · payout currency</dt><dd className="mt-1 font-medium">{amount(payout?.earnings,payout?.currency_code)}</dd></div></dl><p className="mt-3 text-muted">Last verified {date(data.syncedAt ?? null)} · Actual payouts and settlement timing are managed in Paddle.</p></div>;
 }
 async function Content({ tab, userId, name, q, page, range, item }: { tab: AdminTab; userId: string; name: string; q: string; page: number; range: VisitorRange; item: string }) {
+  if (tab === "texts") {
+    const d = await adminSiteTexts(userId);
+    return <Section title="Texts" description="Wording on the website and in the app. Website changes show right away; the app picks them up the next time it opens (after version 0.4.7)."><SiteTextsEditor texts={d.texts} changed={d.changed} /></Section>;
+  }
   if (tab === "ideas") {
     const ideas = await adminTripIdeas(userId);
     const idea = item ? ideas.find(i => i.slug === item) : undefined;

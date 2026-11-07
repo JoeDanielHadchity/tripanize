@@ -2,7 +2,8 @@
 export const PUBLIC_GUIDE_SLUGS = ["bangkok", "hong-kong", "london", "paris", "istanbul", "lisbon-porto"] as const;
 export type PublicGuideSlug = typeof PUBLIC_GUIDE_SLUGS[number];
 export type MobileGuideCard = { slug: string; city: string; country: string; image: string; alt: string; dayCount: number };
-export type MobilePublicHome = { guides: MobileGuideCard[] };
+/** texts: the app's editable wording (Company page → Texts); missing keys use the defaults in site-texts. */
+export type MobilePublicHome = { guides: MobileGuideCard[]; texts?: Partial<Record<string, string>> };
 export type MobilePublicGuide = {
   slug: string; title: string; intro: string; image: string; alt: string;
   days: { title: string; area: string; note: string; food?: string; planB?: string; stops: { time: string; title: string; detail: string; duration: string; url?: string }[] }[];
