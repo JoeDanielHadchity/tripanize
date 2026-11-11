@@ -3,7 +3,8 @@ import { AppError } from "@/server/errors";
 import { requireTrip } from "@/server/auth/permissions";
 import { prisma } from "@/server/db";
 import { getMobileUser } from "./service";
-import { tripInput } from "@/server/trips/schemas";
+import { tripInput, type TripInput } from "@/server/trips/schemas";
+import { detectTimezone } from "@/server/trips/timezone";
 import * as trips from "@/server/trips/service";
 import * as onboarding from "@/server/trips/onboarding";
 import * as itinerary from "@/server/itinerary/service";
@@ -70,6 +71,13 @@ export async function mobileCommand(userId: string, raw: unknown, sessionId?: st
     case "trip.create": {
       const d = parse(z.object({ name: z.string().trim().min(1).max(120) }));
       const result = await onboarding.createTripDraft(userId, d.name);
+      return { to: { screen: "setup", tripId: result.id } };
+    }
+    case "trip.start": {
+      // Same one-step start as the website: where and when first, then the travel questions.
+      // Premium is offered after the first plan, not before.
+      const result = await onboarding.startTrip(userId, v as TripInput);
+      await detectTimezone(result.id).catch(() => undefined);
       return { to: { screen: "setup", tripId: result.id } };
     }
     case "trip.standard": await onboarding.chooseNormal(userId, tripId); return to("setup");
