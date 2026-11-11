@@ -94,7 +94,7 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
         </div>
       </div>
 
-      <h1 ref={heading} tabIndex={-1} className="font-display text-3xl font-extrabold tracking-tight outline-none sm:text-4xl">{current.title}</h1>
+      <h1 ref={heading} tabIndex={-1} className="font-display text-3xl font-extrabold tracking-tight outline-none focus-visible:outline-none sm:text-4xl">{current.title}</h1>
       <p className="mb-6 mt-2 text-muted">{current.hint}</p>
 
       <fieldset disabled={pending} className="min-w-0 space-y-5">
@@ -241,10 +241,10 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
-          {step > 0 ? <Button variant="ghost" onClick={() => go(step - 1)} disabled={pending}>← Back</Button> : <Link href="/trips" className="px-3 text-sm text-muted hover:text-ink">Cancel</Link>}
+          {step > 0 ? <Button variant="ghost" onClick={() => go(step - 1)} disabled={pending} className="whitespace-nowrap px-3">← Back</Button> : <Link href="/trips" className="px-3 text-sm text-muted hover:text-ink">Cancel</Link>}
           <span className="flex-1" />
-          {current.optional && !filled[current.id] && <Button variant="ghost" onClick={() => go(step + 1)} disabled={pending}>Skip</Button>}
-          <Button type="submit" variant="primary" disabled={pending} className="min-w-36">
+          {current.optional && !filled[current.id] && <Button variant="ghost" onClick={() => go(step + 1)} disabled={pending} className="whitespace-nowrap px-3">Skip</Button>}
+          <Button type="submit" variant="primary" disabled={pending} className="min-w-32 whitespace-nowrap">
             {isLast ? (pending ? "Creating…" : trial ? "Create trial trip" : "Create trip") : "Next →"}
           </Button>
         </div>
