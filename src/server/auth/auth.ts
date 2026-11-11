@@ -26,6 +26,10 @@ function createAuth(frameworkCookies = true) { return betterAuth({
     }
   })(),
   database: prismaAdapter(prisma, { provider: "sqlite" }),
+  // "Continue with Google", only once the Google keys are configured. Google confirms the email, so a
+  // Google sign-in joins an existing account with the same address instead of making a second one.
+  socialProviders: currentRuntime().google ? { google: { ...currentRuntime().google!, prompt: "select_account" as const } } : {},
+  account: { accountLinking: { enabled: true, trustedProviders: ["google"] } },
   databaseHooks: { session: { create: { before: async session => {
     const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { suspendedAt: true } });
     if (!user || user.suspendedAt) return false;
@@ -76,6 +80,16 @@ function createAuth(frameworkCookies = true) { return betterAuth({
       rateLimit: { window: 60, max: 5 },
       storeOTP: "hashed",
       sendVerificationOTP: async ({ email, otp, type }) => {
+        if (type === "email-verification") {
+          // Password accounts confirm their email with a code, which also unlocks credit gifts.
+          const sent = await sendEmail({
+            to: email,
+            subject: `${otp} is your Tripanize confirmation code`,
+            text: `Your Tripanize confirmation code is ${otp}\n\nEnter it in Tripanize within 10 minutes to confirm your email. If you didn't create a Tripanize account, you can ignore this email.`,
+          });
+          if (sent.status !== "sent") throw new Error(sent.status === "not_configured" ? "EMAIL_NOT_CONFIGURED" : "EMAIL_FAILED");
+          return;
+        }
         if (type !== "sign-in") throw new Error("UNSUPPORTED_OTP_TYPE");
         const res = await sendEmail({
           to: email,

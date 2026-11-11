@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Button, Field, Input, Notice } from "@/components/ui";
+import { GoogleSignIn } from "@/components/google-sign-in";
 
-export function SignUpForm({ next }: { next: string }) {
+export function SignUpForm({ next, google = false }: { next: string; google?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -28,6 +29,7 @@ export function SignUpForm({ next }: { next: string }) {
     <>
       <h1 className="font-display text-3xl font-semibold">Create your account</h1>
       <p className="mt-1 text-muted"></p>
+      {google && <GoogleSignIn next={next} />}
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         {error && <Notice tone="danger">{error}</Notice>}
         <Field label="Your name" htmlFor="name" hint="Shown to people you travel with.">

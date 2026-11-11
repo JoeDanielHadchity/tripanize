@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Button, Field, Input, Notice } from "@/components/ui";
+import { GoogleSignIn } from "@/components/google-sign-in";
 
 type Step = { kind: "email" } | { kind: "code"; email: string } | { kind: "password" };
 
@@ -14,7 +15,7 @@ function sendError(err: { status?: number; message?: string }) {
   return "Couldn't send a code. Check the address and try again.";
 }
 
-export function SignInForm({ next, emailReady }: { next: string; emailReady: boolean }) {
+export function SignInForm({ next, emailReady, google = false }: { next: string; emailReady: boolean; google?: boolean }) {
   const [step, setStep] = useState<Step>(emailReady ? { kind: "email" } : { kind: "password" });
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -74,6 +75,7 @@ export function SignInForm({ next, emailReady }: { next: string; emailReady: boo
     <>
       <h1 className="font-display text-3xl font-semibold">Sign in</h1>
       <p className="mt-1 text-muted">{step.kind === "password" ? "Sign in with your password." : "Get a sign-in code by email."}</p>
+      {google && step.kind === "email" && <GoogleSignIn next={next} />}
 
       {step.kind === "email" && (
         <form onSubmit={onEmail} className="mt-8 space-y-4">

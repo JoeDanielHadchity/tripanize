@@ -54,6 +54,10 @@ interface CloudflareEnv {
   APPLE_IAP_KEY_ID?: string;
   APPLE_IAP_ISSUER_ID?: string;
   APPLE_IAP_PRIVATE_KEY?: string;
+  // Optional: "Continue with Google". Both from one Google Cloud OAuth client (Web application) whose
+  // redirect URI is https://www.tripanize.app/api/auth/callback/google. The secret is a Cloudflare secret.
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
   // Optional: required only if "Enhanced push security" is turned on in Expo.
   EXPO_ACCESS_TOKEN?: string;
 }
