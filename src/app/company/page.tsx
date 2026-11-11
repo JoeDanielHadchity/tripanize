@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { requireUser } from "@/server/auth/session";
 import { listCompanyTrials } from "@/server/admin/trials";
-import { adminOverview, adminUsers, adminTrips, adminPayments, adminAi, adminSupport, adminHealth, adminAnnouncements, adminActivity } from "@/server/admin/operations";
+import { adminCreditGifts, adminOverview, adminUsers, adminTrips, adminPayments, adminAi, adminSupport, adminHealth, adminAnnouncements, adminActivity } from "@/server/admin/operations";
 import { OPERATOR_NAME } from "@/lib/legal";
 import { ADMIN_TABS, type AdminTab } from "@/lib/admin";
 import { prisma } from "@/server/db";
@@ -24,7 +24,7 @@ import { OpenAiCostCheck } from "./openai-costs";
 import { Visitors } from "./visitors";
 import type { VisitorRange } from "@/server/admin/visitors";
 import { openAiCostCheck } from "@/server/admin/openai-costs";
-import { AdminButton, SuspensionControl, SupportEditor, AiSettings, AnnouncementForm, CreditsControl } from "./controls";
+import { AdminButton, SuspensionControl, SupportEditor, AiSettings, AnnouncementForm, CreditsControl, CreditGifts } from "./controls";
 
 export const metadata: Metadata = { title: `${OPERATOR_NAME} administration`, robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -60,7 +60,7 @@ async function Content({ tab, userId, name, q, page, range, item }: { tab: Admin
   if (tab === "overview") return <AdminHome d={await adminOverview(userId)} name={name} />;
   if (tab === "users") {
     const d = await adminUsers(userId,q,page);
-    return <Section title="Users" description="Manage account access and see registration, activity and trip counts."><Search tab={tab} q={q} placeholder="Search name or email" />{d.rows.map(u => <Card key={u.id}><div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><h3 className="break-words font-semibold">{u.name}</h3><p className="mt-1 break-all text-sm text-muted">{u.email}</p><div className="mt-3 flex flex-wrap gap-2"><Badge tone={u.suspendedAt ? "danger" : "accent"}>{u.suspendedAt ? "Suspended" : "Active account"}</Badge><Badge>{u.emailVerified ? "Email verified" : "Email unverified"}</Badge>{u.administrator && <Badge>Administrator</Badge>}</div><p className="mt-3 text-xs leading-6 text-muted">Joined {date(u.createdAt)} · Last seen {date(u.lastSeenAt)}<br />{u._count.ownedTrips} organized trips · {u._count.memberships} memberships</p>{u.suspensionReason && <p className="mt-2 text-xs text-muted">Reason: {u.suspensionReason}</p>}</div>{!u.administrator && <SuspensionControl id={u.id} suspended={Boolean(u.suspendedAt)} />}</div><CreditsControl id={u.id} tester={u.creditsTester} credits={u.credits} /></Card>)}{!d.rows.length && <Empty>No matching accounts.</Empty>}<Pages tab={tab} q={q} page={page} total={d.total} /></Section>;
+    return <Section title="Users" description="Manage account access and see registration, activity and trip counts."><CreditGifts gifts={await adminCreditGifts(userId)} /><Search tab={tab} q={q} placeholder="Search name or email" />{d.rows.map(u => <Card key={u.id}><div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><h3 className="break-words font-semibold">{u.name}</h3><p className="mt-1 break-all text-sm text-muted">{u.email}</p><div className="mt-3 flex flex-wrap gap-2"><Badge tone={u.suspendedAt ? "danger" : "accent"}>{u.suspendedAt ? "Suspended" : "Active account"}</Badge><Badge>{u.emailVerified ? "Email verified" : "Email unverified"}</Badge>{u.administrator && <Badge>Administrator</Badge>}</div><p className="mt-3 text-xs leading-6 text-muted">Joined {date(u.createdAt)} · Last seen {date(u.lastSeenAt)}<br />{u._count.ownedTrips} organized trips · {u._count.memberships} memberships</p>{u.suspensionReason && <p className="mt-2 text-xs text-muted">Reason: {u.suspensionReason}</p>}</div>{!u.administrator && <SuspensionControl id={u.id} suspended={Boolean(u.suspendedAt)} />}</div><CreditsControl id={u.id} tester={u.creditsTester} credits={u.credits} /></Card>)}{!d.rows.length && <Empty>No matching accounts.</Empty>}<Pages tab={tab} q={q} page={page} total={d.total} /></Section>;
   }
   if (tab === "trips") {
     const d = await adminTrips(userId,q,page);

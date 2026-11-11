@@ -48,3 +48,23 @@ export function CreditsControl({ id, tester, credits }: { id: string; tester: bo
     </form>}
   </div>;
 }
+
+/** Gift credits to email addresses: existing verified accounts get them now, others when they sign up. */
+export function CreditGifts({ gifts }: { gifts: { id: string; email: string; amount: number; note: string | null; createdAt: Date | string; claimedAt: Date | string | null }[] }) {
+  const { run, pending } = useAction(); const [emails, setEmails] = useState(""); const [amount, setAmount] = useState("100"); const [note, setNote] = useState("Thank you for testing Tripanize");
+  const list = [...new Set(emails.split(/[\s,;]+/).map(e => e.trim().toLowerCase()).filter(Boolean))];
+  const day = (v: Date | string) => new Date(v).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return <Card>
+    <h3 className="font-display text-xl font-semibold">Gift credits</h3>
+    <p className="mt-2 text-sm text-muted">Paste emails (one per line or separated by commas). Accounts that already exist get the credits now; anyone else gets them the first time they sign in with that email, once it's verified. Your administrator account is skipped, as its credits are unlimited.</p>
+    <form className="mt-4 space-y-3" onSubmit={async e => { e.preventDefault(); const n = Number.parseInt(amount, 10); if (!n || !list.length) return; const r = await run(() => adminAction({ op: "credits.gift", emails: list, amount: n, note }), { success: `${n} credits gifted to ${list.length} ${list.length === 1 ? "email" : "emails"}` }); if (r !== null) setEmails(""); }}>
+      <Field label={`Emails${list.length ? ` (${list.length})` : ""}`} htmlFor="gift-emails"><Textarea id="gift-emails" rows={5} value={emails} onChange={e => setEmails(e.target.value)} placeholder={"sam@gmail.com\nalex@gmail.com"} /></Field>
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label="Credits each" htmlFor="gift-amount"><Input id="gift-amount" type="number" inputMode="numeric" min={1} max={10000} step={1} value={amount} onChange={e => setAmount(e.target.value)} className="w-32" /></Field>
+        <Field label="Note shown in their history" htmlFor="gift-note" className="min-w-0 flex-1"><Input id="gift-note" value={note} maxLength={120} onChange={e => setNote(e.target.value)} /></Field>
+        <Button type="submit" variant="primary" disabled={pending || !list.length || !Number.parseInt(amount, 10)}>Gift credits</Button>
+      </div>
+    </form>
+    {gifts.length > 0 && <ul className="mt-5 divide-y divide-line text-sm">{gifts.map(g => <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 py-2"><span className="min-w-0 break-all">{g.email}</span><span className="text-muted">{g.amount} credits · {day(g.createdAt)} · {g.claimedAt ? `received ${day(g.claimedAt)}` : "waiting for sign-up"}</span></li>)}</ul>}
+  </Card>;
+}

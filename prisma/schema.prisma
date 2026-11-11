@@ -921,6 +921,21 @@ model CreditEntry {
   @@index([userId, createdAt])
 }
 
+// Credits given by the company to an email address, e.g. closed-test testers. Claimed once, the first
+// time a verified account with that email looks at its credits (straight away if it already exists).
+model CreditGift {
+  id          String    @id @default(cuid())
+  email       String // lowercased
+  amount      Int
+  note        String?
+  createdById String
+  createdAt   DateTime  @default(now())
+  claimedById String?
+  claimedAt   DateTime?
+
+  @@index([email, claimedAt])
+}
+
 // Credits reserved while an AI action runs: spent when it succeeds, released when it fails.
 model CreditHold {
   id        String    @id @default(cuid())

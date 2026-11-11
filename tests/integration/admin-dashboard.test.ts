@@ -6,6 +6,7 @@ import { executeAdminCommand, adminOverview, adminUsers, adminTrips, adminPaymen
 import { reserveAiUsage, captureAiUsage, finishAiUsage } from "@/server/admin/ai-usage";
 import { createTrialInvitation, acceptTrialInvitation, listCompanyTrials } from "@/server/admin/trials";
 import { getTripPlan } from "@/server/plans/access";
+import { balance } from "@/server/credits/service";
 import { requireTrip } from "@/server/auth/permissions";
 import { receivePaddleWebhook } from "@/server/billing/webhook";
 import { submitSupport } from "@/server/support/service";
@@ -125,4 +126,27 @@ it("validates commands before writes and keeps the audit log free of support mes
   const {admin}=await fixture();
   for(const command of [{...settings,aiDailyLimit:-1},{op:"announcement.create",title:"",message:"text",tone:"info",startsAt:"invalid",endsAt:null},{op:"user.suspend",id:"missing",suspended:true,reason:"x",makeAdmin:true}]) await expect(executeAdminCommand(admin.id,command)).rejects.toMatchObject({code:"VALIDATION"});
   expect(await prisma.adminAudit.count()).toBe(0);
+});
+
+it("gifts credits by email: existing accounts now, new accounts on sign-up, once, never the administrator", async () => {
+  const {admin,user}=await fixture();
+  setTestRuntime({...currentRuntime(),creditsEnabled:true});
+  const before=await balance(user.id);
+  await executeAdminCommand(admin.id,{op:"credits.gift",emails:["Traveler@Example.test","later@example.test","admin@example.test","later@example.test"],amount:100,note:"Thank you for testing"});
+  // The administrator is skipped; the duplicate email is gifted once.
+  expect(await prisma.creditGift.count()).toBe(2);
+  // Existing verified account: credited straight away, once.
+  expect(await balance(user.id)).toBe(before+100);
+  expect(await balance(user.id)).toBe(before+100);
+  expect((await prisma.creditEntry.findFirstOrThrow({where:{userId:user.id,kind:"grant"}})).note).toBe("Thank you for testing");
+  expect(await prisma.creditEntry.count({where:{userId:admin.id}})).toBe(0);
+  // New account: nothing while unverified, then 100 on top of the welcome credits once verified.
+  const later=await makeUser("Later","later@example.test");
+  expect(await balance(later.id)).toBe(15);
+  await prisma.user.update({where:{id:later.id},data:{emailVerified:true}});
+  expect(await balance(later.id)).toBe(115);
+  expect(await balance(later.id)).toBe(115);
+  expect(await prisma.creditGift.count({where:{claimedAt:null}})).toBe(0);
+  await expect(executeAdminCommand(user.id,{op:"credits.gift",emails:["x@example.test"],amount:100,note:""})).rejects.toMatchObject({code:"FORBIDDEN"});
+  await expect(executeAdminCommand(admin.id,{op:"credits.gift",emails:["admin@example.test"],amount:100,note:""})).rejects.toMatchObject({code:"VALIDATION"});
 });

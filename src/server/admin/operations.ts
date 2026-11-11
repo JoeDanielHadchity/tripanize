@@ -11,7 +11,7 @@ import { aiConfigured } from "@/server/ai/openai";
 import { emailConfigured } from "@/server/notifications/email";
 import { supportConfigured } from "@/server/support/service";
 import { rateLimit } from "@/server/ratelimit";
-import { balance, grant } from "@/server/credits/service";
+import { balance, claimCreditGifts, creditsActiveFor, grant } from "@/server/credits/service";
 import { openAiCostCheck } from "./openai-costs";
 import { visitorReport } from "./visitors";
 import { isStoreTransaction, resyncStorePurchase } from "@/server/billing/store";
@@ -25,6 +25,7 @@ export const adminCommand = z.discriminatedUnion("op", [
   z.object({ op: z.literal("trial.expiry"), id, endsAt: time.nullable() }).strict(),
   z.object({ op: z.literal("credits.adjust"), id, amount: z.number().int().min(-100000).max(100000).refine(n => n !== 0), note: z.string().trim().max(120) }).strict(),
   z.object({ op: z.literal("credits.tester"), id, tester: z.boolean() }).strict(),
+  z.object({ op: z.literal("credits.gift"), emails: z.array(z.string().trim().toLowerCase().email()).min(1).max(100), amount: z.number().int().min(1).max(10000), note: z.string().trim().max(120) }).strict(),
   z.object({ op: z.literal("support.update"), id, status: z.enum(["OPEN", "IN_PROGRESS", "RESOLVED"]), note: z.string().trim().max(2000) }).strict(),
   z.object({ op: z.literal("announcement.create"), title: z.string().trim().min(1).max(100), message: z.string().trim().min(1).max(1000), tone: z.enum(["info", "maintenance"]), startsAt: time, endsAt: time.nullable() }).strict(),
   z.object({ op: z.literal("announcement.status"), id, version: z.number().int().positive(), status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]) }).strict(),
@@ -74,6 +75,17 @@ export async function executeAdminCommand(actorId: string, input: unknown) {
         if (!await tx.user.findUnique({ where: { id: c.id }, select: { id: true } })) throw new AppError("NOT_FOUND", "Account not found.");
         await grant(c.id, c.amount, { kind: "adjust", note: c.note || (c.amount > 0 ? "Credits from Tripanize" : "Credits removed by Tripanize"), createdById: actorId }, tx);
         await adminAudit(actorId, c.op, "user", c.id, { amount: c.amount, note: c.note }, tx);
+        break;
+      }
+      case "credits.gift": {
+        // Never the administrator account (its credits are unlimited); each email once per request.
+        const emails = [...new Set(c.emails)].filter(email => !isCompanyIdentity({ email }));
+        if (!emails.length) throw new AppError("VALIDATION", "Add at least one email other than the administrator account.");
+        for (const email of emails) await tx.creditGift.create({ data: { email, amount: c.amount, note: c.note || "Credits from Tripanize", createdById: actorId } });
+        // Accounts that already exist (verified email, credits apply) get them now; others when they sign up.
+        const users = await tx.user.findMany({ where: { email: { in: emails }, emailVerified: true, suspendedAt: null }, select: { id: true, email: true } });
+        for (const u of users) if (await creditsActiveFor(u.id, tx)) await claimCreditGifts(u.id, u.email, tx);
+        await adminAudit(actorId, c.op, "platform", "credit-gifts", { count: emails.length, amount: c.amount, note: c.note }, tx);
         break;
       }
       case "credits.tester": {
@@ -164,6 +176,13 @@ export async function adminOverview(actorId: string) {
     aiConfigured: aiConfigured(), emailConfigured: emailConfigured(), paddleConfigured: Boolean(currentRuntime().paddle?.apiKey && currentRuntime().paddle?.webhookSecret) };
 }
 const search = (q: string) => q.trim().slice(0, 100);
+/** Credit gifts, newest first, with who claimed them, for the Users tab. */
+export async function adminCreditGifts(actorId: string) {
+  await requireCompanyAdmin(actorId);
+  const gifts = await prisma.creditGift.findMany({ orderBy: { createdAt: "desc" }, take: 200 });
+  return gifts.map(g => ({ id: g.id, email: g.email, amount: g.amount, note: g.note, createdAt: g.createdAt, claimedAt: g.claimedAt }));
+}
+
 export async function adminUsers(actorId: string, q: string, page: number) {
   await requireCompanyAdmin(actorId);
   const term = search(q);

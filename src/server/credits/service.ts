@@ -42,10 +42,20 @@ export async function ensureStartingCredits(userId: string, db: Client = prisma)
   const user = await db.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } });
   if (!user) return;
   await grant(userId, WELCOME_CREDITS, { kind: "welcome", dedupeKey: `welcome:${userId}`, note: "Welcome credits" }, db);
-  // The Premium thank-you matches invitations by email, so only a verified email can claim it.
+  // The Premium thank-you and credit gifts match by email, so only a verified email can claim them.
   if (!user.emailVerified) return;
+  await claimCreditGifts(userId, user.email, db);
   const invited = await db.trialInvitation.findFirst({ where: { revokedAt: null, OR: [{ acceptedById: userId }, { email: user.email.toLowerCase() }] }, select: { id: true } });
   if (invited) await grant(userId, INVITED_PREMIUM_CREDITS, { kind: "grant", dedupeKey: `invited-premium:${userId}`, note: "Thank-you credits for Premium members" }, db);
+}
+
+/** Credit gifts for this email that nobody has claimed yet: each is added once (dedupe key) and marked claimed. */
+export async function claimCreditGifts(userId: string, email: string, db: Client = prisma) {
+  const gifts = await db.creditGift.findMany({ where: { email: email.trim().toLowerCase(), claimedAt: null }, orderBy: { createdAt: "asc" } });
+  for (const g of gifts) {
+    const claimed = await db.creditGift.updateMany({ where: { id: g.id, claimedAt: null }, data: { claimedById: userId, claimedAt: new Date() } });
+    if (claimed.count) await grant(userId, g.amount, { kind: "grant", dedupeKey: `gift:${g.id}`, note: g.note || "Credits from Tripanize", createdById: g.createdById }, db);
+  }
 }
 
 /** Adds credits once per dedupe key (purchases, grants, welcome credits). Returns false if already recorded. */
