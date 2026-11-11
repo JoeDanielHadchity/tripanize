@@ -33,7 +33,7 @@ function Section({ title, hint, children, open }: { title: string; hint?: string
   );
 }
 
-function Chips({ options, value, onChange, label }: { options: readonly string[]; value: string[]; onChange: (v: string[]) => void; label: string }) {
+export function Chips({ options, value, onChange, label }: { options: readonly string[]; value: string[]; onChange: (v: string[]) => void; label: string }) {
   return (
     <fieldset>
       <legend className="mb-2 text-sm font-medium">{label}</legend>
@@ -53,7 +53,7 @@ function Chips({ options, value, onChange, label }: { options: readonly string[]
   );
 }
 
-function ListEditor({ label, items, onChange, placeholder }: { label: string; items: string[]; onChange: (v: string[]) => void; placeholder: string }) {
+export function ListEditor({ label, items, onChange, placeholder }: { label: string; items: string[]; onChange: (v: string[]) => void; placeholder: string }) {
   const [draft, setDraft] = useState("");
   const add = () => {
     const v = draft.trim();

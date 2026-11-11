@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createTrip } from "./create-trip";
 
 // Exercises the real job pipeline (UI → persisted job → worker → OpenAI client) when OpenAI can't be reached.
 // Run with the server and worker started with an OPENAI_API_KEY but no network route to api.openai.com.
@@ -13,11 +14,7 @@ test("Plan with AI failure keeps the itinerary and reports the real reason", asy
   await page.getByRole("button", { name: "Create account" }).click();
   await page.waitForURL("**/start");
   await page.goto("/trips/new");
-  await page.getByLabel("Trip name").fill("AI failure trip");
-  await page.getByLabel("Start date").fill("2027-05-01");
-  await page.getByLabel("End date").fill("2027-05-02");
-  await page.getByLabel("City or region").fill("Lisbon");
-  await page.getByRole("button", { name: "Next: travel questions" }).click();
+  await createTrip(page, { name: "AI failure trip", city: "Lisbon", start: "2027-05-01", end: "2027-05-02" });
   await page.waitForURL("**/onboarding");
   const tripUrl = page.url().split("/onboarding")[0];
 

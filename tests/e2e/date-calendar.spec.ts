@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { finishTrip, nextStep } from "./create-trip";
 
 // Trip dates picked on the calendar: first tap = start, second tap = end; the typed date fields stay in sync.
 test("pick trip dates on the calendar", async ({ browser }, info) => {
@@ -12,8 +13,8 @@ test("pick trip dates on the calendar", async ({ browser }, info) => {
   await page.getByRole("button", { name: "Create account" }).click();
   await page.waitForURL("**/start");
   await page.goto("/trips/new");
-
-  await page.getByLabel("Trip name").fill("Calendar trip");
+  await page.getByLabel("City or region").fill("Lisbon");
+  await nextStep(page);
 
   // Two months ahead, the 10th to the 13th.
   await page.getByRole("button", { name: "Next month" }).click();
@@ -39,9 +40,8 @@ test("pick trip dates on the calendar", async ({ browser }, info) => {
   await page.getByRole("button", { name: name(8) }).first().click();
   await expect(page.getByLabel("End date")).toHaveValue(`${ym}-08`);
 
-  await page.getByLabel("Trip name").fill("Calendar trip");
-  await page.getByLabel("City or region").fill("Lisbon");
-  await page.getByRole("button", { name: "Next: travel questions" }).click();
+  await nextStep(page);
+  await finishTrip(page, { name: "Calendar trip" });
   await page.waitForURL("**/onboarding");
   const tripUrl = page.url().split("/onboarding")[0];
   await page.goto(`${tripUrl}/itinerary`);

@@ -1,4 +1,5 @@
 import { expect, test, type Browser } from "@playwright/test";
+import { createTrip } from "./create-trip";
 
 // Pre-planning questions (standard set, as OPENAI_API_KEY is absent here), the itinerary day strip, and
 // accepting an email invitation from the trips page without a link.
@@ -24,11 +25,7 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
   const ana = await signUp(browser, "Ana", `ana-p-${run}@example.test`, mobile, vp);
 
   await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
-  await ana.getByLabel("Trip name").fill(`Porto ${run}`);
-  await ana.getByLabel("Start date").fill("2027-06-10");
-  await ana.getByLabel("End date").fill("2027-06-13");
-  await ana.getByLabel("City or region").fill("Porto");
-  await ana.getByRole("button", { name: "Next: travel questions" }).click();
+  await createTrip(ana, { name: `Porto ${run}`, city: "Porto", start: "2027-06-10", end: "2027-06-13" });
   await ana.waitForURL("**/onboarding");
   const tripUrl = ana.url().split("/onboarding")[0];
 

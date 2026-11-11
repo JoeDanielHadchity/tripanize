@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createTrip } from "./create-trip";
 
 // Review/accept/version/swap UI using the TEST-ONLY OpenAI stub (scripts/openai-stub.mjs). This verifies Tripanize's
 // handling of a structured AI response — it does NOT verify a real ChatGPT request.
@@ -13,11 +14,7 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   await page.getByRole("button", { name: "Create account" }).click();
   await page.waitForURL("**/start");
   await page.goto("/trips/new");
-  await page.getByLabel("Trip name").fill("Stub trip");
-  await page.getByLabel("Start date").fill("2027-05-01");
-  await page.getByLabel("End date").fill("2027-05-03");
-  await page.getByLabel("City or region").fill("Lisbon");
-  await page.getByRole("button", { name: "Next: travel questions" }).click();
+  await createTrip(page, { name: "Stub trip", city: "Lisbon", start: "2027-05-01", end: "2027-05-03" });
   await page.waitForURL("**/onboarding");
   const tripUrl = page.url().split("/onboarding")[0];
 

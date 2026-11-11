@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { createTrip } from "./create-trip";
 
 // End-to-end core flow with two separate accounts. Runs against a live server + worker + Postgres.
 // The AI step verifies the honest "not configured" state when OPENAI_API_KEY is absent (as in CI/sandbox).
@@ -46,16 +47,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
 
   // 2. Trip setup
   await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
-  await ana.getByLabel("Trip name").fill(`Lisbon ${run}`);
-  await ana.getByLabel("Start date").fill(isoDate(-1));
-  await ana.getByLabel("End date").fill(isoDate(2));
-  await ana.getByLabel("City or region").fill("Lisbon");
-  await ana.getByText("Getting there & around").click();
-  await ana.getByLabel("Time zone").fill("Europe/Lisbon");
-  await ana.getByText("Places & commitments").click();
-  await ana.getByLabel("Must-see places").fill("Belém Tower");
-  await ana.getByLabel("Must-see places").press("Enter");
-  await ana.getByRole("button", { name: "Next: travel questions" }).click();
+  await createTrip(ana, { name: `Lisbon ${run}`, city: "Lisbon", start: isoDate(-1), end: isoDate(2), timezone: "Europe/Lisbon", mustSee: "Belém Tower" });
   await ana.waitForURL("**/onboarding");
   const tripUrl = ana.url().split("/onboarding")[0];
 
