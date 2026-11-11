@@ -92,6 +92,10 @@ function DateTime({ label, value, onChange }: { label: string; value: string; on
   </View>;
 }
 
+// Multi-city: each city's days start as an even split of the trip, redone when the dates or cities change.
+const resplit = (ds: WizardDest[], start: string, end: string) =>
+  ds.filter(d => d.name.trim()).length > 1 && start && end && end >= start ? splitStays(ds.map(d => ({ ...d, arriveDate: "", departDate: "" })), start, end) : ds;
+
 function Box({ children }: { children: ReactNode }) {
   const c = useTheme();
   return <View style={{ gap: 14, borderWidth: 1, borderColor: c.line, borderRadius: 18, backgroundColor: c.paper, padding: 14 }}>{children}</View>;
@@ -134,8 +138,8 @@ export function NewTripScreen() {
   const [travelers, setTravelers] = useState<string[]>([]), [mustSee, setMustSee] = useState<string[]>([]), [optional, setOptional] = useState<string[]>([]);
   const [name, setName] = useState(""), [nameTouched, setNameTouched] = useState(false);
   const [staying, setStaying] = useState<number[]>([]);
-  const set = <K extends keyof typeof t>(k: K, v: (typeof t)[K]) => setT(x => ({ ...x, [k]: v }));
-  const setDest = (i: number, patch: Partial<WizardDest>) => setDests(ds => ds.map((d, j) => j === i ? { ...d, ...patch } : d));
+  const set = <K extends keyof typeof t>(k: K, v: (typeof t)[K]) => { setError(null); setT(x => ({ ...x, [k]: v })); };
+  const setDest = (i: number, patch: Partial<WizardDest>) => { setError(null); setDests(ds => ds.map((d, j) => j === i ? { ...d, ...patch } : d)); };
   const current = WIZARD_STEPS[step];
   const named = dests.filter(d => d.name.trim());
   const multi = named.length > 1;
@@ -156,7 +160,7 @@ export function NewTripScreen() {
   function next() {
     const problem = wizardStepError(current.id, check);
     if (problem) { setError(problem); return; }
-    if (current.id === "when" && multi) setDests(ds => splitStays(ds, t.startDate, t.endDate));
+    if (current.id === "where") setDests(ds => resplit(ds, t.startDate, t.endDate));
     if (current.id === "ready") { void create(); return; }
     go(step + 1);
   }
@@ -216,7 +220,7 @@ export function NewTripScreen() {
 
       {current.id === "when" && <>
         <Box>
-          <Fields fields={[dateField("startDate", "First day"), dateField("endDate", "Last day")]} values={{ startDate: t.startDate || null, endDate: t.endDate || null }} onChange={(v: MobileValues) => setT(x => ({ ...x, startDate: str(v.startDate), endDate: str(v.endDate) }))} />
+          <Fields fields={[dateField("startDate", "First day"), dateField("endDate", "Last day")]} values={{ startDate: t.startDate || null, endDate: t.endDate || null }} onChange={(v: MobileValues) => { const a = str(v.startDate), b = str(v.endDate); setError(null); setT(x => ({ ...x, startDate: a, endDate: b })); setDests(ds => resplit(ds, a, b)); }} />
         </Box>
         {t.startDate !== "" && <T accessibilityLiveRegion="polite" style={{ textAlign: "center", fontFamily: "NunitoHeading", fontSize: 18 }}>{dateRangeLabel(t.startDate, t.endDate)}</T>}
         {multi && t.startDate !== "" && t.endDate !== "" && <View style={{ gap: 10 }}>
@@ -225,7 +229,7 @@ export function NewTripScreen() {
             <T style={{ fontFamily: "NunitoBold", fontSize: 16 }}>{d.name}</T>
             <Fields fields={[dateField("arriveDate", "Arrive"), dateField("departDate", "Leave")]} values={{ arriveDate: d.arriveDate || null, departDate: d.departDate || null }} onChange={v => setDest(i, { arriveDate: str(v.arriveDate), departDate: str(v.departDate) })} />
           </Box> : null)}
-          <Button secondary onPress={() => setDests(ds => splitStays(ds.map(d => ({ ...d, arriveDate: "", departDate: "" })), t.startDate, t.endDate))}>Split the days evenly</Button>
+          <Button secondary onPress={() => setDests(ds => resplit(ds, t.startDate, t.endDate))}>Split the days evenly</Button>
           <Muted>On a moving day, use the same date to leave one city and arrive in the next.</Muted>
         </View>}
       </>}

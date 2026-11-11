@@ -14,6 +14,10 @@ import { GROUPS, PACES, WIZARD_STEPS, dateRangeLabel, emptyWizardDest, firstWiza
 
 type Pace = (typeof PACES)[number]["id"];
 
+// Multi-city: each city's days start as an even split of the trip, redone when the dates or cities change.
+const resplit = (ds: WizardDest[], start: string, end: string) =>
+  ds.filter(d => d.name.trim()).length > 1 && start && end && end >= start ? splitStays(ds.map(d => ({ ...d, arriveDate: "", departDate: "" })), start, end) : ds;
+
 /** Create a trip, one question per screen: Back / Next, Skip on optional steps, Create trip at the end. */
 export function TripWizard({ trial }: { trial?: { invitationId: string; durationDays: number | null } }) {
   const router = useRouter();
@@ -31,8 +35,8 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
   const [travelers, setTravelers] = useState<string[]>([]), [mustSee, setMustSee] = useState<string[]>([]), [optional, setOptional] = useState<string[]>([]);
   const [name, setName] = useState(""), [nameTouched, setNameTouched] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
-  const set = <K extends keyof typeof t>(k: K, v: (typeof t)[K]) => setT(x => ({ ...x, [k]: v }));
-  const setDest = (i: number, patch: Partial<WizardDest>) => setDests(ds => ds.map((d, j) => j === i ? { ...d, ...patch } : d));
+  const set = <K extends keyof typeof t>(k: K, v: (typeof t)[K]) => { setError(null); setT(x => ({ ...x, [k]: v })); };
+  const setDest = (i: number, patch: Partial<WizardDest>) => { setError(null); setDests(ds => ds.map((d, j) => j === i ? { ...d, ...patch } : d)); };
   const current = WIZARD_STEPS[step];
   const named = dests.filter(d => d.name.trim());
   const multi = named.length > 1;
@@ -51,8 +55,7 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
     e?.preventDefault();
     const problem = wizardStepError(current.id, check);
     if (problem) { setError(problem); return; }
-    // Moving on from the dates of a multi-city trip: start each city's days from an even split.
-    if (current.id === "when" && multi) setDests(ds => splitStays(ds, t.startDate, t.endDate));
+    if (current.id === "where") setDests(ds => resplit(ds, t.startDate, t.endDate));
     if (current.id === "ready") { void create(); return; }
     go(step + 1);
   }
@@ -94,7 +97,7 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
       <h1 ref={heading} tabIndex={-1} className="font-display text-3xl font-extrabold tracking-tight outline-none sm:text-4xl">{current.title}</h1>
       <p className="mb-6 mt-2 text-muted">{current.hint}</p>
 
-      <fieldset disabled={pending} className="space-y-5">
+      <fieldset disabled={pending} className="min-w-0 space-y-5">
         {current.id === "where" && <>
           {dests.map((d, i) => (
             <div key={i} className="space-y-3 rounded-2xl border border-line bg-surface p-4">
@@ -115,21 +118,21 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
         </>}
 
         {current.id === "when" && <>
-          <div className="rounded-2xl border border-line bg-surface p-4">
-            <DateRangeCalendar start={t.startDate} end={t.endDate} onChange={(a, b) => setT(x => ({ ...x, startDate: a, endDate: b }))} />
-          </div>
+          <DateRangeCalendar start={t.startDate} end={t.endDate} onChange={(a, b) => { setError(null); setT(x => ({ ...x, startDate: a, endDate: b })); setDests(ds => resplit(ds, a, b)); }} />
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start date" htmlFor="startDate"><Input id="startDate" type="date" value={t.startDate} onChange={e => set("startDate", e.target.value)} /></Field>
-            <Field label="End date" htmlFor="endDate"><Input id="endDate" type="date" value={t.endDate} min={t.startDate || undefined} onChange={e => set("endDate", e.target.value)} /></Field>
+            <Field label="Start date" htmlFor="startDate" className="min-w-0"><Input id="startDate" type="date" className="min-w-0" value={t.startDate} onChange={e => { set("startDate", e.target.value); setDests(ds => resplit(ds, e.target.value, t.endDate)); }} /></Field>
+            <Field label="End date" htmlFor="endDate" className="min-w-0"><Input id="endDate" type="date" className="min-w-0" value={t.endDate} min={t.startDate || undefined} onChange={e => { set("endDate", e.target.value); setDests(ds => resplit(ds, t.startDate, e.target.value)); }} /></Field>
           </div>
           {multi && t.startDate && t.endDate && <div className="space-y-3">
             <p className="text-sm font-medium">Days in each city</p>
-            {dests.map((d, i) => d.name.trim() && <div key={i} className="grid grid-cols-[1fr_auto_auto] items-end gap-2 rounded-2xl border border-line bg-surface p-3">
-              <p className="pb-3 font-semibold">{d.name}</p>
-              <Field label="Arrive" htmlFor={`arr-${i}`}><Input id={`arr-${i}`} type="date" min={t.startDate} max={t.endDate} value={d.arriveDate} onChange={e => setDest(i, { arriveDate: e.target.value })} /></Field>
-              <Field label="Leave" htmlFor={`dep-${i}`}><Input id={`dep-${i}`} type="date" min={t.startDate} max={t.endDate} value={d.departDate} onChange={e => setDest(i, { departDate: e.target.value })} /></Field>
+            {dests.map((d, i) => d.name.trim() && <div key={i} className="space-y-2 rounded-2xl border border-line bg-surface p-3">
+              <p className="font-semibold">{d.name}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Arrive" htmlFor={`arr-${i}`} className="min-w-0"><Input id={`arr-${i}`} type="date" className="min-w-0" min={t.startDate} max={t.endDate} value={d.arriveDate} onChange={e => setDest(i, { arriveDate: e.target.value })} /></Field>
+                <Field label="Leave" htmlFor={`dep-${i}`} className="min-w-0"><Input id={`dep-${i}`} type="date" className="min-w-0" min={t.startDate} max={t.endDate} value={d.departDate} onChange={e => setDest(i, { departDate: e.target.value })} /></Field>
+              </div>
             </div>)}
-            <Button onClick={() => setDests(ds => splitStays(ds.map(d => ({ ...d, arriveDate: "", departDate: "" })), t.startDate, t.endDate))}>Split the days evenly</Button>
+            <Button onClick={() => setDests(ds => resplit(ds, t.startDate, t.endDate))}>Split the days evenly</Button>
             <p className="text-xs text-muted">On a moving day, use the same date to leave one city and arrive in the next.</p>
           </div>}
         </>}
