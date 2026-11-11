@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
-import { balance, grant, settleOpenHolds, settleRef, withCredits, hold } from "@/server/credits/service";
+import { balance, creditsView, grant, settleOpenHolds, settleRef, withCredits, hold } from "@/server/credits/service";
 import { enqueueJob, cancelJob } from "@/server/planner/jobs";
 import { sendAssistantMessage, cancelAssistantReply } from "@/server/assistant/service";
 import { requestDiscovery } from "@/server/events/discovery";
@@ -179,4 +179,25 @@ it("drafts only the free 2 days on a free trip, lets credits add chosen days and
   const { requirePremiumAccess } = await import("@/server/plans/access");
   await expect(requirePremiumAccess(tripId, "packing")).resolves.toBeUndefined();
   await expect(requirePremiumAccess(tripId, "expenses")).rejects.toMatchObject({ code: "FORBIDDEN" });
+});
+
+it("gives unlimited credits to the company administrator account only", async () => {
+  setTestRuntime({ ...currentRuntime(), creditsEnabled: true, companyAdminEmail: "unlimited-owner@example.test" });
+  const admin = await verified("Company", "unlimited-owner@example.test");
+  const other = await verified("Other");
+  const editor = await verified("Editor");
+  const tripId = await premiumTrip(admin.id);
+  await prisma.tripMembership.create({ data: { tripId, userId: editor.id, role: "COLLABORATOR" } });
+  // The administrator is never held or charged, with no balance at all, and nor are editors on its trips.
+  expect(await hold({ actorId: admin.id, tripId, action: "plan", credits: 999, refKind: "inline" })).toBeNull();
+  expect(await hold({ actorId: editor.id, tripId, action: "assistant", credits: 999, refKind: "inline" })).toBeNull();
+  expect(await prisma.creditEntry.count({ where: { userId: admin.id } })).toBe(0);
+  const view = await creditsView(admin.id);
+  expect(view.unlimited).toBe(true);
+  // Everyone else still pays: 15 welcome credits can't cover 999.
+  await expect(hold({ actorId: other.id, action: "plan", credits: 999, refKind: "inline" })).rejects.toThrow(/Not enough credits/);
+  expect((await creditsView(other.id)).unlimited).toBeFalsy();
+  // An unverified account with the same email gets nothing special.
+  await prisma.user.update({ where: { id: admin.id }, data: { emailVerified: false } });
+  await expect(hold({ actorId: admin.id, action: "plan", credits: 999, refKind: "inline" })).rejects.toThrow(/Not enough credits/);
 });

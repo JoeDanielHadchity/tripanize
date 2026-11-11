@@ -39,7 +39,7 @@ export default async function AccountCreditsPage() {
       <main id="main" className="mx-auto max-w-2xl px-4 pb-24 pt-6">
         <Link href="/account" className="text-sm text-muted hover:text-ink">← Account</Link>
         <PageHeader title="Credits" subtitle="Planning with AI, event searches and the AI assistant use credits. Everything else in Tripanize works without them." />
-        {!view.active ? <Notice>Your AI planning works as usual. Nothing to top up.</Notice> : <div className="space-y-10">
+        {view.unlimited ? <Notice tone="sage" title="Unlimited AI credits">Your account never runs out. AI on trips you organize is never charged, including when your editors use it.</Notice> : !view.active ? <Notice>Your AI planning works as usual. Nothing to top up.</Notice> : <div className="space-y-10">
 
           <section aria-labelledby="balance-h">
             <Card className="flex flex-wrap items-center justify-between gap-4">

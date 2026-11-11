@@ -2,6 +2,7 @@ import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { currentRuntime } from "@/server/cloudflare/runtime";
 import { INVITED_PREMIUM_CREDITS, WELCOME_CREDITS } from "@/lib/credits";
+import { companyAccount } from "@/server/admin/identity";
 
 type Db = typeof prisma;
 type Tx = Parameters<Parameters<Db["$transaction"]>[0]>[0];
@@ -14,10 +15,18 @@ export type HoldRef = "job" | "discovery" | "destination" | "inline";
 export function creditsEnabled() { return currentRuntime().creditsEnabled === true; }
 
 /**
+ * Unlimited AI credits: only the company administrator account (verified email set in the private
+ * server configuration). No profile field, purchase or admin action can give this to anyone else.
+ */
+export async function unlimitedCredits(userId: string, db: Client = prisma) { return companyAccount(userId, db); }
+
+/**
  * Whether credits apply to this account: for everyone once launched, and before that only for
- * testers, switched on per account on the Company page.
+ * testers, switched on per account on the Company page. Never for the unlimited account: its AI
+ * (and its editors' AI on its trips) is never held or charged.
  */
 export async function creditsActiveFor(userId: string, db: Client = prisma) {
+  if (await unlimitedCredits(userId, db)) return false;
   if (creditsEnabled()) return true;
   return (await db.user.findUnique({ where: { id: userId }, select: { creditsTester: true } }))?.creditsTester === true;
 }
@@ -164,14 +173,14 @@ export async function creditHistory(userId: string, take = 50, db: Client = pris
   return db.creditEntry.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take });
 }
 
-export type CreditsView = { active: boolean; balance: number; payerIsYou: boolean; membersBlocked: boolean };
+export type CreditsView = { active: boolean; balance: number; payerIsYou: boolean; membersBlocked: boolean; unlimited?: boolean };
 /**
  * What the screens need: whether credits apply, and the balance that pays for this person's AI
  * (on a trip: the organizer's, for an editor). Never throws for a blocked member; it reports it.
  */
 export async function creditsView(userId: string, tripId?: string | null, db: Client = prisma): Promise<CreditsView> {
   const payer = await payerFor(userId, tripId ?? null, db, { enforceSwitch: false });
-  if (!await creditsActiveFor(payer, db)) return { active: false, balance: 0, payerIsYou: payer === userId, membersBlocked: false };
+  if (!await creditsActiveFor(payer, db)) return { active: false, balance: 0, payerIsYou: payer === userId, membersBlocked: false, unlimited: await unlimitedCredits(payer, db) };
   let membersBlocked = false;
   try { await payerFor(userId, tripId ?? null, db); } catch { membersBlocked = true; }
   return { active: true, balance: Math.max(0, await balance(payer, db)), payerIsYou: payer === userId, membersBlocked };

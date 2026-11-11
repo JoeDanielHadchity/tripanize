@@ -29,9 +29,9 @@ export function useCredits(tripId?: string | null) {
 /** Account page: a card with the balance that opens Account › Credits. Nothing while credits don't apply. */
 export function AccountCreditsCard() {
   const view = useCredits();
-  if (!view?.active) return null;
+  if (!view?.active && !view?.unlimited) return null;
   return <Link href="/account/credits" className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface px-5 py-4 hover:bg-surface-2">
     <span><span className="block font-display text-lg font-semibold">Credits</span><span className="block text-sm text-muted">Balance, prices, top up and history</span></span>
-    <span className="shrink-0 text-right"><span className="block font-display text-2xl font-extrabold tabular-nums">{view.balance}</span><span className="block text-xs text-muted">AI credits</span></span>
+    <span className="shrink-0 text-right"><span className="block font-display text-2xl font-extrabold tabular-nums">{view.unlimited ? "Unlimited" : view.balance}</span><span className="block text-xs text-muted">AI credits</span></span>
   </Link>;
 }

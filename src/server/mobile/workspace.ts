@@ -49,6 +49,7 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
   }
   if (screen === "credits") {
     const view = await creditsView(userId);
+    if (view.unlimited) return { title: "AI credits", subtitle: "Unlimited", blocks: [{ id: "unlimited", title: "Unlimited AI credits", text: "Your account never runs out. AI on trips you organize is never charged, including when your editors use it.", tone: "accent" }] };
     if (!view.active) return { title: "AI credits", blocks: [{ id: "off", text: "Your account isn't using credits: AI on your trips is included." }] };
     const history = await creditHistory(userId, 50);
     const names = await prisma.trip.findMany({ where: { id: { in: history.map(h => h.tripId).filter((v): v is string => Boolean(v)) } }, select: { id: true, name: true } });
@@ -65,6 +66,7 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
     const { user, profile } = await getProfile(userId); const company = isCompanyAccount(user);
     const credits = await creditsView(userId);
     return { title: "My account.", subtitle: user.email, blocks: [
+      ...(credits.unlimited ? [{ id: "credits", title: "AI credits: Unlimited", text: "Your account never runs out of AI credits.", actions: [go("Credits", "credits")] }] : []),
       ...(credits.active ? [{ id: "credits", title: `AI credits: ${credits.balance}`, text: "What AI costs, and where your credits went.", actions: [go("Credits & history", "credits")] }] : []),
       { id: "navigation", actions: [go("Notifications", "notifications"), go("Invitations", "trips"), ...(company ? [go("Admin access", "admin")] : [])] },
       ...(company ? [{ id: "included", title: "Premium always included", text: "Every Premium feature is available on trips you organize or join, in both account modes.", tone: "accent" as const }] : []),
