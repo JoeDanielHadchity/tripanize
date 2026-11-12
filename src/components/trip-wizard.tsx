@@ -10,7 +10,8 @@ import { Chips, ListEditor } from "./trip-form";
 import { startTripAction } from "@/app/actions/onboarding";
 import { CURRENCIES } from "@/lib/money";
 import { INTERESTS, TRANSPORT } from "@/lib/constants";
-import { GROUPS, PACES, WIZARD_STEPS, dateRangeLabel, emptyWizardDest, firstWizardProblem, peopleLabel, splitStays, suggestTripName, wizardStepError, type WizardDest } from "@/lib/trip-wizard";
+import { AirportInput } from "./airport-input";
+import { GROUPS, PACES, WIZARD_STEPS, dateRangeLabel, dayTime, shortDay, emptyWizardDest, firstWizardProblem, peopleLabel, splitStays, suggestTripName, wizardStepError, type WizardDest } from "@/lib/trip-wizard";
 
 type Pace = (typeof PACES)[number]["id"];
 
@@ -27,8 +28,9 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
   const [dests, setDests] = useState<WizardDest[]>([emptyWizardDest()]);
   const [t, setT] = useState({
     startDate: "", endDate: "", timezone: "", adults: 1, children: 0, pace: "BALANCED" as Pace, currency: "EUR", budget: "",
-    departureCity: "", arrivalLocation: "", arrivalAt: "", departureLocation: "", departureAt: "",
-    isRoadTrip: false, carPickupLocation: "", carPickupAt: "", carReturnLocation: "", carReturnAt: "",
+    // Arrival and car pickup default to the trip's first day, departure and car return to its last day.
+    departureCity: "", arrivalLocation: "", arrivalDay: "", arrivalTime: "", departureLocation: "", departureDay: "", departureTime: "",
+    isRoadTrip: false, carPickupLocation: "", carPickupDay: "", carPickupTime: "", carReturnLocation: "", carReturnDay: "", carReturnTime: "",
     accessibility: "", dietary: "", restaurantPrefs: "", preferences: "", notes: "",
   });
   const [interests, setInterests] = useState<string[]>([]), [transport, setTransport] = useState<string[]>([]);
@@ -64,8 +66,11 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
     const problem = firstWizardProblem(check);
     if (problem) { setStep(problem.index); setError(problem.error); return; }
     setError(null);
+    const { arrivalDay, arrivalTime, departureDay, departureTime, carPickupDay, carPickupTime, carReturnDay, carReturnTime, ...rest } = t;
     const data = {
-      ...t, name: shownName.trim(), timezone: t.timezone.trim() || null, interests, transport,
+      ...rest, name: shownName.trim(),
+      arrivalAt: dayTime(arrivalDay, arrivalTime, t.startDate), departureAt: dayTime(departureDay, departureTime, t.endDate),
+      carPickupAt: dayTime(carPickupDay, carPickupTime, t.startDate), carReturnAt: dayTime(carReturnDay, carReturnTime, t.endDate), timezone: t.timezone.trim() || null, interests, transport,
       destinations: named.map(d => ({ ...d, arriveDate: multi ? d.arriveDate : null, departDate: multi ? d.departDate : null })),
       travelers: travelers.map(n => ({ name: n, isChild: false })), mustSee, optional, commitments: [],
     };
@@ -76,7 +81,7 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
   const filled: Record<string, boolean> = {
     style: interests.length > 0 || transport.length > 0 || t.pace !== "BALANCED",
     budget: Boolean(t.budget.trim()),
-    getting: Boolean(t.departureCity || t.arrivalLocation || t.arrivalAt || t.departureLocation || t.departureAt || t.isRoadTrip || t.timezone || dests.some(d => d.accommodationName || d.accommodationAddress || d.neighborhood)),
+    getting: Boolean(t.departureCity || t.arrivalLocation || t.arrivalTime || t.departureLocation || t.departureTime || t.isRoadTrip || t.timezone || dests.some(d => d.accommodationName || d.accommodationAddress || d.neighborhood)),
     places: mustSee.length + optional.length > 0,
     food: Boolean(t.accessibility || t.dietary || t.restaurantPrefs || t.preferences || t.notes),
   };
@@ -175,22 +180,26 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
         </div>}
 
         {current.id === "getting" && <>
-          <Field label="Departing from" htmlFor="departureCity"><Input id="departureCity" value={t.departureCity} onChange={e => set("departureCity", e.target.value)} placeholder="e.g. London" /></Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Arriving at" htmlFor="arrivalLocation"><Input id="arrivalLocation" value={t.arrivalLocation} onChange={e => set("arrivalLocation", e.target.value)} placeholder="e.g. LIS airport" /></Field>
-            <Field label="Arrival (local time)" htmlFor="arrivalAt"><Input id="arrivalAt" type="datetime-local" value={t.arrivalAt} onChange={e => set("arrivalAt", e.target.value)} /></Field>
-            <Field label="Leaving from" htmlFor="departureLocation"><Input id="departureLocation" value={t.departureLocation} onChange={e => set("departureLocation", e.target.value)} placeholder="e.g. OPO airport" /></Field>
-            <Field label="Departure (local time)" htmlFor="departureAt"><Input id="departureAt" type="datetime-local" value={t.departureAt} onChange={e => set("departureAt", e.target.value)} /></Field>
+          <Field label="Flying from" htmlFor="departureCity" hint="Your home airport or city."><AirportInput id="departureCity" value={t.departureCity} onChange={v => set("departureCity", v)} placeholder="City, airport or code, e.g. London or LHR" /></Field>
+          <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+            <p className="font-semibold">Arriving</p>
+            <Field label="Airport or place" htmlFor="arrivalLocation"><AirportInput id="arrivalLocation" value={t.arrivalLocation} onChange={v => set("arrivalLocation", v)} placeholder={`e.g. ${named[0]?.name.trim() || "Lisbon"} or LIS`} /></Field>
+            <DayTime id="arrival" day={t.arrivalDay} time={t.arrivalTime} tripDay={t.startDate} which="first" onDay={v => set("arrivalDay", v)} onTime={v => set("arrivalTime", v)} />
+          </div>
+          <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+            <p className="font-semibold">Leaving</p>
+            <Field label="Airport or place" htmlFor="departureLocation"><AirportInput id="departureLocation" value={t.departureLocation} onChange={v => set("departureLocation", v)} placeholder={`e.g. ${named[named.length - 1]?.name.trim() || "Porto"} or OPO`} /></Field>
+            <DayTime id="departure" day={t.departureDay} time={t.departureTime} tripDay={t.endDate} which="last" onDay={v => set("departureDay", v)} onTime={v => set("departureTime", v)} />
           </div>
           <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
             <input type="checkbox" className="h-5 w-5 accent-[var(--accent)]" checked={t.isRoadTrip} onChange={e => set("isRoadTrip", e.target.checked)} />
             This is a road trip (rental or own car)
           </label>
           {t.isRoadTrip && <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Car pickup place" htmlFor="cpl"><Input id="cpl" value={t.carPickupLocation} onChange={e => set("carPickupLocation", e.target.value)} /></Field>
-            <Field label="Pickup time" htmlFor="cpa"><Input id="cpa" type="datetime-local" value={t.carPickupAt} onChange={e => set("carPickupAt", e.target.value)} /></Field>
-            <Field label="Car return place" htmlFor="crl"><Input id="crl" value={t.carReturnLocation} onChange={e => set("carReturnLocation", e.target.value)} /></Field>
-            <Field label="Return time" htmlFor="cra"><Input id="cra" type="datetime-local" value={t.carReturnAt} onChange={e => set("carReturnAt", e.target.value)} /></Field>
+            <Field label="Car pickup place" htmlFor="cpl"><AirportInput id="cpl" value={t.carPickupLocation} onChange={v => set("carPickupLocation", v)} placeholder="Airport or address" /></Field>
+            <DayTime id="pickup" day={t.carPickupDay} time={t.carPickupTime} tripDay={t.startDate} which="first" onDay={v => set("carPickupDay", v)} onTime={v => set("carPickupTime", v)} />
+            <Field label="Car return place" htmlFor="crl"><AirportInput id="crl" value={t.carReturnLocation} onChange={v => set("carReturnLocation", v)} placeholder="Airport or address" /></Field>
+            <DayTime id="return" day={t.carReturnDay} time={t.carReturnTime} tripDay={t.endDate} which="last" onDay={v => set("carReturnDay", v)} onTime={v => set("carReturnTime", v)} />
           </div>}
           <Field label="Time zone (optional)" htmlFor="tz" hint="Leave blank and it's detected from your first city."><Input id="tz" value={t.timezone} onChange={e => set("timezone", e.target.value)} placeholder="e.g. Europe/Lisbon" autoCapitalize="none" /></Field>
           {named.map(d => { const i = dests.indexOf(d); return (
@@ -251,6 +260,18 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
       </div>
     </form>
   );
+}
+
+/** The day comes from the trip dates (step 2) and can be changed; people normally only add the time. */
+function DayTime({ id, day, time, tripDay, which, onDay, onTime }: { id: string; day: string; time: string; tripDay: string; which: "first" | "last"; onDay: (v: string) => void; onTime: (v: string) => void }) {
+  const shown = day || tripDay;
+  return <div className="space-y-1">
+    <div className="grid grid-cols-2 gap-3">
+      <Field label="Day" htmlFor={`${id}-day`} className="min-w-0"><Input id={`${id}-day`} type="date" className="min-w-0" value={shown} onChange={e => onDay(e.target.value === tripDay ? "" : e.target.value)} /></Field>
+      <Field label="Time (local)" htmlFor={`${id}-time`} className="min-w-0"><Input id={`${id}-time`} type="time" className="min-w-0" value={time} onChange={e => onTime(e.target.value)} /></Field>
+    </div>
+    {!day && tripDay && <p className="text-xs text-muted">{`The ${which} day of your trip (${shortDay(tripDay)}), from step 2. Just add the time.`}</p>}
+  </div>;
 }
 
 function Stepper({ label, value, min, onChange }: { label: string; value: number; min: number; onChange: (v: number) => void }) {

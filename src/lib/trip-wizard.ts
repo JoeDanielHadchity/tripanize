@@ -120,3 +120,18 @@ export function peopleLabel(adults: number, children: number) {
   const a = `${adults} ${adults === 1 ? "adult" : "adults"}`;
   return children ? `${a}, ${children} ${children === 1 ? "child" : "children"}` : a;
 }
+
+/** A date and time from step 6: the day defaults to the trip's first or last day (from step 2), so
+ * people only add the time. No time means not set. "2027-04-10T14:30". */
+export function dayTime(day: string, time: string, tripDay: string) {
+  const d = day || tripDay;
+  return time && /^\d{2}:\d{2}$/.test(time) && /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T${time}` : "";
+}
+
+/** "10 Apr" for hints next to the time boxes. */
+export function shortDay(day: string) {
+  const p = isoParts(day);
+  return p ? `${p.d} ${SHORT[p.m]}` : "";
+}
+
+export type AirportHit = { code: string; name: string; city: string; country: string; label: string };

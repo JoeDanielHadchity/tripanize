@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, Switch, TextInput, View, type KeyboardTypeOptions } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { post } from "../lib/auth";
+import { API_URL, post } from "../lib/auth";
 import { workspaceHref, type MobileCommandResult, type MobileField, type MobileValues } from "../lib/workspace";
 import { useTheme } from "./theme";
 import { Fields } from "./form-fields";
 import { Button, ErrorNotice, IconButton, Muted, T, styles } from "./ui";
 import { INTERESTS, TRANSPORT } from "../../../src/lib/constants";
 import { CURRENCIES } from "../../../src/lib/money";
-import { GROUPS, PACES, WIZARD_STEPS, dateRangeLabel, emptyWizardDest, firstWizardProblem, peopleLabel, splitStays, suggestTripName, wizardStepError, type WizardDest } from "../../../src/lib/trip-wizard";
+import { GROUPS, PACES, WIZARD_STEPS, dateRangeLabel, dayTime, shortDay, type AirportHit, emptyWizardDest, firstWizardProblem, peopleLabel, splitStays, suggestTripName, wizardStepError, type WizardDest } from "../../../src/lib/trip-wizard";
 
 /** Create a trip, one question per screen: the same steps, wording and checks as the website
  * (src/components/trip-wizard.tsx), shared through src/lib/trip-wizard.ts. */
@@ -79,16 +79,44 @@ function Stepper({ label, value, min, onChange }: { label: string; value: number
   </View>;
 }
 
-/** The website uses a date-and-time input; here a calendar date plus an HH:MM time. */
-function DateTime({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  const [parts, setParts] = useState(() => ({ date: value.slice(0, 10), time: value.slice(11, 16) }));
-  const update = (next: { date: string; time: string }) => {
-    setParts(next);
-    onChange(next.date && /^\d{2}:\d{2}$/.test(next.time) ? `${next.date}T${next.time}` : next.date ? `${next.date}T12:00` : "");
-  };
+/** The day comes from the trip dates (step 2) and can be changed; people normally only add the time. */
+function DayTime({ day, time, tripDay, which, onDay, onTime }: { day: string; time: string; tripDay: string; which: "first" | "last"; onDay: (v: string) => void; onTime: (v: string) => void }) {
+  return <View style={{ gap: 6 }}>
+    <Fields fields={[dateField("day", "Day"), timeField("time", "Time (local)")]} values={{ day: (day || tripDay) || null, time }}
+      onChange={v => { const d = str(v.day); if (d !== (day || tripDay)) onDay(d === tripDay ? "" : d); if (str(v.time) !== time) onTime(str(v.time)); }} />
+    {!day && tripDay !== "" && <Muted style={{ fontSize: 12 }}>{`The ${which} day of your trip (${shortDay(tripDay)}), from step 2. Just add the time.`}</Muted>}
+  </View>;
+}
+
+/** Type a city, airport or code (like flight search sites) and tap a match. Free text still works. */
+function AirportInput({ label, hint, value, onChange, placeholder }: { label: string; hint?: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const c = useTheme();
+  const [hits, setHits] = useState<AirportHit[]>([]);
+  const [focused, setFocused] = useState(false);
+  const seq = useRef(0);
+  function search(text: string) {
+    onChange(text);
+    const q = text.trim(), n = ++seq.current;
+    if (q.length < 2) { setHits([]); return; }
+    setTimeout(() => {
+      if (n !== seq.current) return;
+      fetch(`${API_URL}/api/mobile/airports?q=${encodeURIComponent(q)}`).then(r => r.ok ? r.json() as Promise<{ airports: AirportHit[] }> : { airports: [] })
+        .then(d => { if (n === seq.current) setHits(d.airports.slice(0, 6)); }).catch(() => undefined);
+    }, 200);
+  }
   return <View style={{ gap: 8 }}>
-    <Fields fields={[dateField("date", label)]} values={{ date: parts.date || null }} onChange={v => update({ ...parts, date: str(v.date) })} />
-    <Input label="Time (local)" value={parts.time} onChange={time => update({ ...parts, time })} placeholder="HH:MM, e.g. 14:30" keyboardType="numbers-and-punctuation" />
+    <Label>{label}</Label>
+    <TextInput accessibilityLabel={label} value={value} onChangeText={search} placeholder={placeholder} placeholderTextColor={c.muted} autoCorrect={false}
+      onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 200)}
+      style={{ backgroundColor: c.bg, color: c.ink, fontFamily: "Nunito", borderWidth: 1, borderColor: focused ? c.accent : c.line, borderRadius: 14, fontSize: 16, paddingHorizontal: 15, paddingVertical: 13, minHeight: 48 }} />
+    {focused && hits.length > 0 && <View accessibilityRole="list" style={{ borderWidth: 1, borderColor: c.line, borderRadius: 14, backgroundColor: c.paper, overflow: "hidden" }}>
+      {hits.map((a, i) => <Pressable key={a.code} accessibilityRole="button" accessibilityLabel={`${a.name}, ${a.code}, ${a.city}, ${a.country}`} onPress={() => { seq.current++; onChange(a.label); setHits([]); }}
+        style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 52, paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, backgroundColor: pressed ? c.soft : "transparent" })}>
+        <View style={{ width: 46, borderRadius: 8, backgroundColor: c.soft, paddingVertical: 4 }}><T style={{ textAlign: "center", fontFamily: "NunitoBold", fontSize: 13, letterSpacing: 1 }}>{a.code}</T></View>
+        <View style={{ flex: 1 }}><T numberOfLines={1} style={{ fontSize: 15 }}>{a.name}</T><T numberOfLines={1} style={{ fontSize: 12, color: c.muted }}>{[a.city, a.country].filter(Boolean).join(", ")}</T></View>
+      </Pressable>)}
+    </View>}
+    {hint && <Muted>{hint}</Muted>}
   </View>;
 }
 
@@ -130,8 +158,9 @@ export function NewTripScreen() {
   const [t, setT] = useState({
     startDate: "", endDate: "", timezone: "", currency: "EUR", budget: "", pace: "BALANCED" as Pace, adults: 1, children: 0,
     accessibility: "", preferences: "", dietary: "", restaurantPrefs: "", notes: "",
-    departureCity: "", arrivalLocation: "", arrivalAt: "", departureLocation: "", departureAt: "",
-    isRoadTrip: false, carPickupLocation: "", carPickupAt: "", carReturnLocation: "", carReturnAt: "",
+    // Arrival and car pickup default to the trip's first day, departure and car return to its last day.
+    departureCity: "", arrivalLocation: "", arrivalDay: "", arrivalTime: "", departureLocation: "", departureDay: "", departureTime: "",
+    isRoadTrip: false, carPickupLocation: "", carPickupDay: "", carPickupTime: "", carReturnLocation: "", carReturnDay: "", carReturnTime: "",
   });
   const [interests, setInterests] = useState<string[]>([]), [transport, setTransport] = useState<string[]>([]);
   const [dests, setDests] = useState<WizardDest[]>([emptyWizardDest()]);
@@ -148,7 +177,7 @@ export function NewTripScreen() {
   const filled: Record<string, boolean> = {
     style: interests.length > 0 || transport.length > 0 || t.pace !== "BALANCED",
     budget: Boolean(t.budget.trim()),
-    getting: Boolean(t.departureCity || t.arrivalLocation || t.arrivalAt || t.departureLocation || t.departureAt || t.isRoadTrip || t.timezone || dests.some(d => d.accommodationName || d.accommodationAddress || d.neighborhood)),
+    getting: Boolean(t.departureCity || t.arrivalLocation || t.arrivalTime || t.departureLocation || t.departureTime || t.isRoadTrip || t.timezone || dests.some(d => d.accommodationName || d.accommodationAddress || d.neighborhood)),
     places: mustSee.length + optional.length > 0,
     food: Boolean(t.accessibility || t.dietary || t.restaurantPrefs || t.preferences || t.notes),
   };
@@ -170,8 +199,11 @@ export function NewTripScreen() {
     if (problem) { setStep(problem.index); setError(problem.error); return; }
     setBusy(true); setError(null);
     try {
+      const { arrivalDay, arrivalTime, departureDay, departureTime, carPickupDay, carPickupTime, carReturnDay, carReturnTime, ...rest } = t;
       const values = {
-        ...t, name: shownName.trim(), timezone: t.timezone.trim() || null, interests, transport,
+        ...rest, name: shownName.trim(), timezone: t.timezone.trim() || null, interests, transport,
+        arrivalAt: dayTime(arrivalDay, arrivalTime, t.startDate), departureAt: dayTime(departureDay, departureTime, t.endDate),
+        carPickupAt: dayTime(carPickupDay, carPickupTime, t.startDate), carReturnAt: dayTime(carReturnDay, carReturnTime, t.endDate),
         destinations: named.map(d => ({ ...d, arriveDate: multi ? d.arriveDate : null, departDate: multi ? d.departDate : null })),
         travelers: travelers.map(n => ({ name: n, isChild: false })), mustSee, optional, commitments: [],
       };
@@ -261,20 +293,26 @@ export function NewTripScreen() {
       </>}
 
       {current.id === "getting" && <>
-        <Input label="Departing from" value={t.departureCity} onChange={v => set("departureCity", v)} placeholder="e.g. London" autoCapitalize="words" />
-        <Input label="Arriving at" value={t.arrivalLocation} onChange={v => set("arrivalLocation", v)} placeholder="e.g. LIS airport" />
-        <DateTime label="Arrival date" value={t.arrivalAt} onChange={v => set("arrivalAt", v)} />
-        <Input label="Leaving from" value={t.departureLocation} onChange={v => set("departureLocation", v)} placeholder="e.g. OPO airport" />
-        <DateTime label="Departure date" value={t.departureAt} onChange={v => set("departureAt", v)} />
+        <AirportInput label="Flying from" hint="Your home airport or city." value={t.departureCity} onChange={v => set("departureCity", v)} placeholder="City, airport or code, e.g. London or LHR" />
+        <Box>
+          <T style={{ fontFamily: "NunitoBold", fontSize: 16 }}>Arriving</T>
+          <AirportInput label="Airport or place" value={t.arrivalLocation} onChange={v => set("arrivalLocation", v)} placeholder={`e.g. ${named[0]?.name.trim() || "Lisbon"} or LIS`} />
+          <DayTime day={t.arrivalDay} time={t.arrivalTime} tripDay={t.startDate} which="first" onDay={v => set("arrivalDay", v)} onTime={v => set("arrivalTime", v)} />
+        </Box>
+        <Box>
+          <T style={{ fontFamily: "NunitoBold", fontSize: 16 }}>Leaving</T>
+          <AirportInput label="Airport or place" value={t.departureLocation} onChange={v => set("departureLocation", v)} placeholder={`e.g. ${named[named.length - 1]?.name.trim() || "Porto"} or OPO`} />
+          <DayTime day={t.departureDay} time={t.departureTime} tripDay={t.endDate} which="last" onDay={v => set("departureDay", v)} onTime={v => set("departureTime", v)} />
+        </Box>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 44 }}>
           <T style={{ flex: 1, fontFamily: "NunitoBold", fontSize: 14 }}>This is a road trip (rental or own car)</T>
           <Switch accessibilityLabel="This is a road trip" value={t.isRoadTrip} onValueChange={v => set("isRoadTrip", v)} trackColor={{ true: c.accent, false: c.line }} thumbColor="#ffffff" />
         </View>
         {t.isRoadTrip && <Box>
-          <Input label="Car pickup place" value={t.carPickupLocation} onChange={v => set("carPickupLocation", v)} />
-          <DateTime label="Pickup date" value={t.carPickupAt} onChange={v => set("carPickupAt", v)} />
-          <Input label="Car return place" value={t.carReturnLocation} onChange={v => set("carReturnLocation", v)} />
-          <DateTime label="Return date" value={t.carReturnAt} onChange={v => set("carReturnAt", v)} />
+          <AirportInput label="Car pickup place" value={t.carPickupLocation} onChange={v => set("carPickupLocation", v)} placeholder="Airport or address" />
+          <DayTime day={t.carPickupDay} time={t.carPickupTime} tripDay={t.startDate} which="first" onDay={v => set("carPickupDay", v)} onTime={v => set("carPickupTime", v)} />
+          <AirportInput label="Car return place" value={t.carReturnLocation} onChange={v => set("carReturnLocation", v)} placeholder="Airport or address" />
+          <DayTime day={t.carReturnDay} time={t.carReturnTime} tripDay={t.endDate} which="last" onDay={v => set("carReturnDay", v)} onTime={v => set("carReturnTime", v)} />
         </Box>}
         <Input label="Time zone (optional)" hint="Leave blank and it's detected from your first city." value={t.timezone} onChange={v => set("timezone", v)} placeholder="e.g. Europe/Lisbon" autoCapitalize="none" />
         {named.map(d => { const i = dests.indexOf(d); const open = staying.includes(i); return <Box key={i}>

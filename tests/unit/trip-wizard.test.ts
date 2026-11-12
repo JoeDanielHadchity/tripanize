@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { WIZARD_STEPS, dateRangeLabel, emptyWizardDest, firstWizardProblem, splitStays, suggestTripName, tripDays, wizardStepError } from "@/lib/trip-wizard";
+import { WIZARD_STEPS, dateRangeLabel, dayTime, shortDay, emptyWizardDest, firstWizardProblem, splitStays, suggestTripName, tripDays, wizardStepError } from "@/lib/trip-wizard";
 
 const dest = (name: string, arriveDate = "", departDate = "") => ({ ...emptyWizardDest(), name, arriveDate, departDate });
 const base = { dests: [dest("Lisbon")], startDate: "2027-12-12", endDate: "2027-12-18", adults: 2, name: "Lisbon in December" };
@@ -44,4 +44,12 @@ it("splits a multi-city trip evenly, sharing moving days, and checks each city's
   // Days already set are kept.
   const kept = splitStays([dest("Lisbon", "2027-12-12", "2027-12-13"), dest("Porto")], "2027-12-12", "2027-12-18");
   expect(kept[0].departDate).toBe("2027-12-13");
+});
+
+it("takes arrival and departure days from the trip dates unless changed", () => {
+  expect(dayTime("", "14:30", "2027-04-10")).toBe("2027-04-10T14:30");
+  expect(dayTime("2027-04-09", "23:15", "2027-04-10")).toBe("2027-04-09T23:15");
+  expect(dayTime("", "", "2027-04-10")).toBe("");
+  expect(dayTime("", "14:30", "")).toBe("");
+  expect(shortDay("2027-04-10")).toBe("10 Apr");
 });
