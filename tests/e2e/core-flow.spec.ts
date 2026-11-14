@@ -29,7 +29,7 @@ async function signUp(browser: Browser, name: string, email: string, viewport: {
   await page.getByRole("button", { name: "Create account" }).click();
   await confirmSignUp(page);
   await page.waitForURL(next ? `**${next}` : "**/start");
-  if (!next) { await page.getByRole("link", { name: "I have a destination", exact: true }).click(); await page.waitForURL("**/trips/new"); }
+  if (!next) { await page.getByRole("link", { name: "I have a destination", exact: true }).click(); await page.waitForURL("**/trips/new"); await page.goto("/trips"); }
   return page;
 }
 
@@ -48,7 +48,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   await shot(ana, "01-dashboard-empty", project);
 
   // 2. Trip setup
-  await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
+  await ana.getByRole("link", { name: "+ Create a trip" }).click();
   await createTrip(ana, { name: `Lisbon ${run}`, city: "Lisbon", start: isoDate(-1), end: isoDate(2), timezone: "Europe/Lisbon", mustSee: "Belém Tower" });
   await ana.waitForURL("**/onboarding");
   const tripUrl = ana.url().split("/onboarding")[0];

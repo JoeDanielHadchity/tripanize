@@ -26,7 +26,7 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
   const vp = info.project.use.viewport ?? null;
   const ana = await signUp(browser, "Ana", `ana-p-${run}@example.test`, mobile, vp);
 
-  await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
+  await ana.goto("/trips/new");
   await createTrip(ana, { name: `Porto ${run}`, city: "Porto", start: "2027-06-10", end: "2027-06-13" });
   await ana.waitForURL("**/onboarding");
   const tripUrl = ana.url().split("/onboarding")[0];
