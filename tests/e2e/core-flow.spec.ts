@@ -76,7 +76,8 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
     await expect(dayCard.getByRole("heading", { name: title })).toBeVisible();
   }
   // Keyboard-accessible reorder: move lunch earlier
-  await dayCard.getByRole("button", { name: "Move Lunch at Time Out Market earlier" }).click();
+  await dayCard.getByRole("group", { name: "Actions for Lunch at Time Out Market" }).getByRole("button", { name: "More" }).click();
+  await ana.getByRole("button", { name: "Move Lunch at Time Out Market earlier" }).click();
   const reviewOrder = ana.getByRole("dialog", { name: "Review the new order" });
   await expect(reviewOrder.or(ana.getByText("Order updated"))).toBeVisible();
   if (await reviewOrder.isVisible()) {
@@ -108,7 +109,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   await shot(ana, "04-itinerary", project);
 
   // 7. Invite Ben (link connected to the planned traveler "Ben")
-  await ana.goto(`${tripUrl}/settings`);
+  await ana.goto(`${tripUrl}/settings#people`);
   await expect(ana.getByText("Others can't reach this server yet")).toBeVisible();
   await ana.getByLabel("Connect to traveler (optional)").selectOption({ label: "Ben" });
   await ana.getByRole("button", { name: "Create invitation link" }).click();

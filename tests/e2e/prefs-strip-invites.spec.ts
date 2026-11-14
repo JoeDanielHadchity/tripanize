@@ -54,7 +54,7 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
 
   // Email invitation → accept from the trips page
   const ritaEmail = `rita-${run}@example.test`;
-  await ana.goto(`${tripUrl}/settings`);
+  await ana.goto(`${tripUrl}/settings#people`);
   await ana.getByLabel("Email (optional)").fill(ritaEmail);
   await ana.getByRole("button", { name: "Create invitation link" }).click();
   await expect(ana.getByLabel("Invitation link")).toBeVisible();
