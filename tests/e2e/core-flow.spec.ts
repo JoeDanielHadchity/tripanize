@@ -113,7 +113,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   // 7. Invite Ben (link connected to the planned traveler "Ben")
   await ana.goto(`${tripUrl}/settings#people`);
   await expect(ana.getByText("Others can't reach this server yet")).toBeVisible();
-  await ana.getByLabel("Connect to traveler (optional)").selectOption({ label: "Ben" });
+  await ana.getByLabel("They are").selectOption({ label: "Ben" });
   await ana.getByRole("button", { name: "Create invitation link" }).click();
   const inviteUrl = await ana.getByLabel("Invitation link").inputValue();
   expect(inviteUrl).toMatch(/\/invite\/[A-Za-z0-9_-]{43}$/);
