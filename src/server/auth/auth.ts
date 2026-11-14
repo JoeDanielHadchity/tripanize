@@ -44,7 +44,18 @@ function createAuth(frameworkCookies = true) { return betterAuth({
       }
     } },
   } },
-  advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
+  advanced: {
+    ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
+    // The site answers on both tripanize.app and www.tripanize.app (the app talks to www), but Google
+    // returns people to the address in BETTER_AUTH_URL. Cookies scoped to the whole domain let a sign-in
+    // that starts on one address finish on the other instead of failing with "state_mismatch".
+    ...(() => {
+      try {
+        const host = new URL(currentRuntime().appUrl ?? "").hostname.replace(/^www\./, "");
+        return host.includes(".") && host !== "localhost" ? { crossSubDomainCookies: { enabled: true, domain: host } } : {};
+      } catch { return {}; }
+    })(),
+  },
   // Password accounts must confirm their email with a 6-digit code before they can sign in. The code
   // is sent on sign-up and again when an unconfirmed account signs in with its password; entering it
   // signs the person in.
