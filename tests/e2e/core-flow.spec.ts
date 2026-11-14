@@ -92,7 +92,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   await dayCard.getByRole("group", { name: "Actions for Café A Brasileira" }).getByRole("button", { name: "More" }).click();
   await dayCard.getByRole("group", { name: "Actions for Café A Brasileira" }).getByRole("button", { name: "Swap" }).click();
   const swap = ana.getByRole("dialog");
-  await expect(swap.getByText(/isn't configured on this server/)).toBeVisible();
+  await expect(swap.getByText(/You can enter a replacement manually below/)).toBeVisible();
   await swap.getByLabel("Title").fill("Pastéis de Belém");
   await swap.getByRole("button", { name: "Review impact" }).click();
   await swap.getByRole("button", { name: "Swap stop" }).click();
