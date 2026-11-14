@@ -135,3 +135,4 @@ export function shortDay(day: string) {
 }
 
 export type AirportHit = { code: string; name: string; city: string; country: string; label: string };
+export type CityHit = { name: string; country: string; label: string };

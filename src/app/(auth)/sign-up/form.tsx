@@ -5,10 +5,13 @@ import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Button, Field, Input, Notice } from "@/components/ui";
 import { GoogleSignIn } from "@/components/google-sign-in";
+import { ConfirmEmail } from "@/components/confirm-email";
 
 export function SignUpForm({ next, google = false }: { next: string; google?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // After sign-up the account must confirm its email: the code is already on its way.
+  const [confirming, setConfirming] = useState<string | null>(null);
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pending) return;
@@ -17,18 +20,27 @@ export function SignUpForm({ next, google = false }: { next: string; google?: bo
     if (password.length < 10) return setError("Use at least 10 characters for your password.");
     setPending(true);
     setError(null);
-    const { error } = await authClient.signUp.email({ name: String(f.get("name")).trim(), email: String(f.get("email")).trim(), password });
+    const email = String(f.get("email")).trim();
+    const { error } = await authClient.signUp.email({ name: String(f.get("name")).trim(), email, password });
     if (error) {
       setPending(false);
       setError(error.code === "USER_ALREADY_EXISTS" || error.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL" ? "An account with this email already exists. Try signing in." : error.message ?? "Couldn't create the account.");
       return;
     }
-    window.location.assign(next);
+    setPending(false);
+    setConfirming(email);
   }
+  if (confirming) return (
+    <>
+      <h1 className="font-display text-3xl font-semibold">Confirm your email</h1>
+      <p className="mt-1 text-muted">Enter the code we emailed you to finish creating your account.</p>
+      <ConfirmEmail email={confirming} next={next} onBack={() => setConfirming(null)} />
+    </>
+  );
   return (
     <>
       <h1 className="font-display text-3xl font-semibold">Create your account</h1>
-      <p className="mt-1 text-muted"></p>
+      <p className="mt-1 text-muted">Choose a password. We&apos;ll email you a code to confirm your address.</p>
       {google && <GoogleSignIn next={next} />}
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         {error && <Notice tone="danger">{error}</Notice>}

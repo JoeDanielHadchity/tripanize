@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { DestinationImage } from "@/server/images";
 import { cityPhoto } from "@/lib/city-photos";
+import { photoAtWidth, photoSrcSet } from "@/lib/photo-size";
 
 /** Fetch separately so an unavailable image service never delays the trips page. */
 export function TripCoverPhoto({ tripId, destination, initialImage = null }: { tripId: string; destination: string; initialImage?: DestinationImage | null }) {
@@ -35,7 +36,7 @@ export function TripCoverPhoto({ tripId, destination, initialImage = null }: { t
   }
   return <>
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={image.url} alt={destination} width={1920} height={1080} decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 h-full w-full object-cover" loading="lazy" onError={() => setFailedUrl(image.url)} />
+    <img src={photoAtWidth(image.url, 960)} srcSet={photoSrcSet(image.url)} sizes="(max-width: 640px) 100vw, 640px" alt={destination} width={1920} height={1080} decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 h-full w-full object-cover" loading="lazy" onError={() => setFailedUrl(image.url)} />
     {image.pageUrl && <a href={image.pageUrl} target="_blank" rel="noreferrer" aria-label={`Photo credits for ${destination}: ${image.credit}`} className="absolute bottom-1 right-1 max-w-[90%] truncate rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white hover:underline">{image.credit}</a>}
   </>;
 }

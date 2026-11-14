@@ -10,7 +10,7 @@ import { Chips, ListEditor } from "./trip-form";
 import { startTripAction } from "@/app/actions/onboarding";
 import { CURRENCIES } from "@/lib/money";
 import { INTERESTS, TRANSPORT } from "@/lib/constants";
-import { AirportInput } from "./airport-input";
+import { AirportInput, CityInput } from "./airport-input";
 import { GROUPS, PACES, WIZARD_STEPS, dateRangeLabel, dayTime, shortDay, emptyWizardDest, firstWizardProblem, peopleLabel, splitStays, suggestTripName, wizardStepError, type WizardDest } from "@/lib/trip-wizard";
 
 type Pace = (typeof PACES)[number]["id"];
@@ -108,7 +108,7 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
             <div key={i} className="space-y-3 rounded-2xl border border-line bg-surface p-4">
               <div className="flex items-end gap-2">
                 <Field label={dests.length > 1 ? `City ${i + 1}` : "City or region"} htmlFor={`dest-${i}`} className="flex-1">
-                  <Input id={`dest-${i}`} autoFocus={i === dests.length - 1} value={d.name} onChange={e => setDest(i, { name: e.target.value })} placeholder="e.g. Lisbon" maxLength={160} />
+                  <CityInput id={`dest-${i}`} autoFocus={i === dests.length - 1} value={d.name} onChange={v => setDest(i, { name: v })} onPick={c => setDest(i, { name: c.name, country: c.country })} placeholder="e.g. Lisbon" />
                 </Field>
                 {dests.length > 1 && <div className="flex gap-1">
                   <Button aria-label={`Move ${d.name || "city"} up`} disabled={i === 0} onClick={() => setDests(ds => ds.map((x, j) => j === i - 1 ? ds[i] : j === i ? ds[i - 1] : x))}>↑</Button>
@@ -183,12 +183,12 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
           <Field label="Flying from" htmlFor="departureCity" hint="Your home airport or city."><AirportInput id="departureCity" value={t.departureCity} onChange={v => set("departureCity", v)} placeholder="City, airport or code, e.g. London or LHR" /></Field>
           <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
             <p className="font-semibold">Arriving</p>
-            <Field label="Airport or place" htmlFor="arrivalLocation"><AirportInput id="arrivalLocation" value={t.arrivalLocation} onChange={v => set("arrivalLocation", v)} placeholder={`e.g. ${named[0]?.name.trim() || "Lisbon"} or LIS`} /></Field>
+            <Field label="Airport or place" htmlFor="arrivalLocation"><AirportInput id="arrivalLocation" value={t.arrivalLocation} onChange={v => set("arrivalLocation", v)} placeholder={named[0]?.name.trim() ? `Airport, city or code, e.g. ${named[0].name.trim()}` : "Airport, city or code, e.g. Lisbon or LIS"} /></Field>
             <DayTime id="arrival" day={t.arrivalDay} time={t.arrivalTime} tripDay={t.startDate} which="first" onDay={v => set("arrivalDay", v)} onTime={v => set("arrivalTime", v)} />
           </div>
           <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
             <p className="font-semibold">Leaving</p>
-            <Field label="Airport or place" htmlFor="departureLocation"><AirportInput id="departureLocation" value={t.departureLocation} onChange={v => set("departureLocation", v)} placeholder={`e.g. ${named[named.length - 1]?.name.trim() || "Porto"} or OPO`} /></Field>
+            <Field label="Airport or place" htmlFor="departureLocation"><AirportInput id="departureLocation" value={t.departureLocation} onChange={v => set("departureLocation", v)} placeholder={named[named.length - 1]?.name.trim() ? `Airport, city or code, e.g. ${named[named.length - 1].name.trim()}` : "Airport, city or code, e.g. Porto or OPO"} /></Field>
             <DayTime id="departure" day={t.departureDay} time={t.departureTime} tripDay={t.endDate} which="last" onDay={v => set("departureDay", v)} onTime={v => set("departureTime", v)} />
           </div>
           <label className="flex min-h-11 items-center gap-3 text-sm font-medium">

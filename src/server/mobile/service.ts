@@ -1,3 +1,4 @@
+import { photoAtWidth } from "@/lib/photo-size";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { accountDisplayName } from "@/server/admin/identity";
@@ -24,7 +25,7 @@ export async function getMobileTrips(userId: string): Promise<{ trips: MobileTri
   return { trips: await Promise.all(trips.map(async trip => ({
     id: trip.id, name: trip.name, role: trip.role, startDate: trip.startDate, endDate: trip.endDate,
     destinations: trip.destinations, travelers: trip.travelers, phase: trip.phase,
-    onboardingStage: trip.onboardingStage, premium: (await getTripPlan(trip.id)).premium, image: trip.coverImage,
+    onboardingStage: trip.onboardingStage, premium: (await getTripPlan(trip.id)).premium, image: trip.coverImage ? { ...trip.coverImage, url: photoAtWidth(trip.coverImage.url, 960) } : null,
   }))) };
 }
 

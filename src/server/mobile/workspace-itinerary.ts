@@ -12,6 +12,7 @@ import { formatMoney, minorToDecimalString } from "@/lib/money";
 import { STOP_CATEGORIES } from "@/lib/constants";
 import { ProposalSchema, SwapSchema } from "@/server/planner/schema";
 import { creditsView } from "@/server/credits/service";
+import { photoAtWidth } from "@/lib/photo-size";
 import { CREDIT_PRICES, creditsText } from "@/lib/credits";
 import { f, act, go, form, options, link, wire } from "./presentation";
 import type { MobileBlock, MobileItinerary } from "@/lib/mobile-workspace";
@@ -92,7 +93,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   const destination = await prisma.destination.findFirst({ where: { tripId }, orderBy: { position: "asc" } });
   const cover = savedTripImage(trip, destination ?? undefined);
   if (!cover && destination) scheduleTripCover(tripId);
-  const blocks: MobileBlock[] = [...(cover ? [{ id: "cover", image: { url: cover.url, credit: cover.credit } }] : []), { id: "tools", title: trip.name, meta: premium ? "★ Premium" : "Free", actions: [...(canEdit ? [go("Plan with AI", "plan", tripId)] : []), ...(premium ? [go("Trip assistant", "assistant", tripId)] : []), ...(canEdit ? [{ label: "Add an idea for later", to: { screen: "stop", tripId, day: "idea" } }] : []), go("Group voting", "votes", tripId), go("History & undo", "versions", tripId), { label: "Save itinerary offline", device: "offline" }, { label: "Download trip PDF", device: "file", url: `/api/mobile/files?tripId=${encodeURIComponent(tripId)}&kind=pdf`, fileName: "Tripanize-trip.pdf" }] },
+  const blocks: MobileBlock[] = [...(cover ? [{ id: "cover", image: { url: photoAtWidth(cover.url, 960), credit: cover.credit } }] : []), { id: "tools", title: trip.name, meta: premium ? "★ Premium" : "Free", actions: [...(canEdit ? [go("Plan with AI", "plan", tripId)] : []), ...(premium ? [go("Trip assistant", "assistant", tripId)] : []), ...(canEdit ? [{ label: "Add an idea for later", to: { screen: "stop", tripId, day: "idea" } }] : []), go("Group voting", "votes", tripId), go("History & undo", "versions", tripId), { label: "Save itinerary offline", device: "offline" }, { label: "Download trip PDF", device: "file", url: `/api/mobile/files?tripId=${encodeURIComponent(tripId)}&kind=pdf`, fileName: "Tripanize-trip.pdf" }] },
     { id: "days", actions: days.map((d, i) => go(`Day ${i + 1} · ${d.date.slice(5)}`, "itinerary", tripId, d.id)) },
   ];
   if (!day) { blocks.push({ id: "dates", text: "Add your trip dates to start planning each day.", actions: [go("Trip settings", "settings", tripId)] }); return { blocks }; }

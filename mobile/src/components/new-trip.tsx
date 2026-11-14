@@ -9,7 +9,7 @@ import { Fields } from "./form-fields";
 import { Button, ErrorNotice, IconButton, Muted, T, styles } from "./ui";
 import { INTERESTS, TRANSPORT } from "../../../src/lib/constants";
 import { CURRENCIES } from "../../../src/lib/money";
-import { GROUPS, PACES, WIZARD_STEPS, dateRangeLabel, dayTime, shortDay, type AirportHit, emptyWizardDest, firstWizardProblem, peopleLabel, splitStays, suggestTripName, wizardStepError, type WizardDest } from "../../../src/lib/trip-wizard";
+import { GROUPS, PACES, WIZARD_STEPS, dateRangeLabel, dayTime, shortDay, type AirportHit, type CityHit, emptyWizardDest, firstWizardProblem, peopleLabel, splitStays, suggestTripName, wizardStepError, type WizardDest } from "../../../src/lib/trip-wizard";
 
 /** Create a trip, one question per screen: the same steps, wording and checks as the website
  * (src/components/trip-wizard.tsx), shared through src/lib/trip-wizard.ts. */
@@ -88,10 +88,14 @@ function DayTime({ day, time, tripDay, which, onDay, onTime }: { day: string; ti
   </View>;
 }
 
-/** Type a city, airport or code (like flight search sites) and tap a match. Free text still works. */
-function AirportInput({ label, hint, value, onChange, placeholder }: { label: string; hint?: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+/** A text box with search suggestions from one of our APIs. Free text always works; tapping a
+ * suggestion fills the box. */
+function SuggestInput<H>({ label, hint, value, onChange, onPick, placeholder, endpoint, field, itemKey, itemLabel, renderItem, autoCapitalize }: {
+  label: string; hint?: string; value: string; onChange: (v: string) => void; onPick: (hit: H) => void; placeholder?: string;
+  endpoint: string; field: string; itemKey: (hit: H) => string; itemLabel: (hit: H) => string; renderItem: (hit: H) => ReactNode; autoCapitalize?: "none" | "words";
+}) {
   const c = useTheme();
-  const [hits, setHits] = useState<AirportHit[]>([]);
+  const [hits, setHits] = useState<H[]>([]);
   const [focused, setFocused] = useState(false);
   const seq = useRef(0);
   function search(text: string) {
@@ -100,24 +104,43 @@ function AirportInput({ label, hint, value, onChange, placeholder }: { label: st
     if (q.length < 2) { setHits([]); return; }
     setTimeout(() => {
       if (n !== seq.current) return;
-      fetch(`${API_URL}/api/mobile/airports?q=${encodeURIComponent(q)}`).then(r => r.ok ? r.json() as Promise<{ airports: AirportHit[] }> : { airports: [] })
-        .then(d => { if (n === seq.current) setHits(d.airports.slice(0, 6)); }).catch(() => undefined);
+      fetch(`${API_URL}${endpoint}?q=${encodeURIComponent(q)}`).then(r => r.ok ? r.json() as Promise<Record<string, H[]>> : {})
+        .then(d => { if (n === seq.current) setHits(((d as Record<string, H[]>)[field] ?? []).slice(0, 6)); }).catch(() => undefined);
     }, 200);
   }
   return <View style={{ gap: 8 }}>
     <Label>{label}</Label>
-    <TextInput accessibilityLabel={label} value={value} onChangeText={search} placeholder={placeholder} placeholderTextColor={c.muted} autoCorrect={false}
+    <TextInput accessibilityLabel={label} value={value} onChangeText={search} placeholder={placeholder} placeholderTextColor={c.muted} autoCorrect={false} autoCapitalize={autoCapitalize ?? "none"}
       onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 200)}
       style={{ backgroundColor: c.bg, color: c.ink, fontFamily: "Nunito", borderWidth: 1, borderColor: focused ? c.accent : c.line, borderRadius: 14, fontSize: 16, paddingHorizontal: 15, paddingVertical: 13, minHeight: 48 }} />
     {focused && hits.length > 0 && <View accessibilityRole="list" style={{ borderWidth: 1, borderColor: c.line, borderRadius: 14, backgroundColor: c.paper, overflow: "hidden" }}>
-      {hits.map((a, i) => <Pressable key={a.code} accessibilityRole="button" accessibilityLabel={`${a.name}, ${a.code}, ${a.city}, ${a.country}`} onPress={() => { seq.current++; onChange(a.label); setHits([]); }}
+      {hits.map((h, i) => <Pressable key={itemKey(h)} accessibilityRole="button" accessibilityLabel={itemLabel(h)} onPress={() => { seq.current++; onPick(h); setHits([]); }}
         style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 52, paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, backgroundColor: pressed ? c.soft : "transparent" })}>
-        <View style={{ width: 46, borderRadius: 8, backgroundColor: c.soft, paddingVertical: 4 }}><T style={{ textAlign: "center", fontFamily: "NunitoBold", fontSize: 13, letterSpacing: 1 }}>{a.code}</T></View>
-        <View style={{ flex: 1 }}><T numberOfLines={1} style={{ fontSize: 15 }}>{a.name}</T><T numberOfLines={1} style={{ fontSize: 12, color: c.muted }}>{[a.city, a.country].filter(Boolean).join(", ")}</T></View>
+        {renderItem(h)}
       </Pressable>)}
     </View>}
     {hint && <Muted>{hint}</Muted>}
   </View>;
+}
+
+/** Type a city, airport or code (like flight search sites) and tap a match. Free text still works. */
+function AirportInput({ label, hint, value, onChange, placeholder }: { label: string; hint?: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const c = useTheme();
+  return <SuggestInput<AirportHit> label={label} hint={hint} value={value} onChange={onChange} onPick={a => onChange(a.label)} placeholder={placeholder}
+    endpoint="/api/mobile/airports" field="airports" itemKey={a => a.code} itemLabel={a => `${a.name}, ${a.code}, ${a.city}, ${a.country}`} renderItem={a => <>
+      <View style={{ width: 46, borderRadius: 8, backgroundColor: c.soft, paddingVertical: 4 }}><T style={{ textAlign: "center", fontFamily: "NunitoBold", fontSize: 13, letterSpacing: 1 }}>{a.code}</T></View>
+      <View style={{ flex: 1 }}><T numberOfLines={1} style={{ fontSize: 15 }}>{a.name}</T><T numberOfLines={1} style={{ fontSize: 12, color: c.muted }}>{[a.city, a.country].filter(Boolean).join(", ")}</T></View>
+    </>} />;
+}
+
+/** Type a city or town and tap it: fills the city and its country. Anything else can still be typed. */
+function CityInput({ label, value, onChange, onPick, placeholder }: { label: string; value: string; onChange: (v: string) => void; onPick: (c: CityHit) => void; placeholder?: string }) {
+  const c = useTheme();
+  return <SuggestInput<CityHit> label={label} value={value} onChange={onChange} onPick={onPick} placeholder={placeholder} autoCapitalize="words"
+    endpoint="/api/mobile/cities" field="cities" itemKey={x => x.label} itemLabel={x => x.label} renderItem={x => <>
+      <Ionicons name="location-outline" size={18} color={c.muted} />
+      <View style={{ flex: 1 }}><T numberOfLines={1} style={{ fontSize: 15 }}>{x.name}</T><T numberOfLines={1} style={{ fontSize: 12, color: c.muted }}>{x.country}</T></View>
+    </>} />;
 }
 
 // Multi-city: each city's days start as an even split of the trip, redone when the dates or cities change.
@@ -236,7 +259,7 @@ export function NewTripScreen() {
       {current.id === "where" && <>
         {dests.map((d, i) => <Box key={i}>
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
-            <View style={{ flex: 1 }}><Input label={dests.length > 1 ? `City ${i + 1}` : "City or region"} value={d.name} onChange={v => setDest(i, { name: v })} placeholder="e.g. Lisbon" autoCapitalize="words" /></View>
+            <View style={{ flex: 1 }}><CityInput label={dests.length > 1 ? `City ${i + 1}` : "City or region"} value={d.name} onChange={v => setDest(i, { name: v })} onPick={x => setDest(i, { name: x.name, country: x.country })} placeholder="e.g. Lisbon" /></View>
             {dests.length > 1 && <View style={{ flexDirection: "row", gap: 6, paddingBottom: 2 }}>
               <IconButton name="arrow-up" label={`Move ${d.name || "city"} up`} disabled={i === 0} onPress={() => setDests(ds => ds.map((x, j) => j === i - 1 ? ds[i] : j === i ? ds[i - 1] : x))} />
               <IconButton name="close" label={`Remove ${d.name || "city"}`} onPress={() => setDests(ds => ds.filter((_, j) => j !== i))} />
@@ -296,12 +319,12 @@ export function NewTripScreen() {
         <AirportInput label="Flying from" hint="Your home airport or city." value={t.departureCity} onChange={v => set("departureCity", v)} placeholder="City, airport or code, e.g. London or LHR" />
         <Box>
           <T style={{ fontFamily: "NunitoBold", fontSize: 16 }}>Arriving</T>
-          <AirportInput label="Airport or place" value={t.arrivalLocation} onChange={v => set("arrivalLocation", v)} placeholder={`e.g. ${named[0]?.name.trim() || "Lisbon"} or LIS`} />
+          <AirportInput label="Airport or place" value={t.arrivalLocation} onChange={v => set("arrivalLocation", v)} placeholder={named[0]?.name.trim() ? `Airport, city or code, e.g. ${named[0].name.trim()}` : "Airport, city or code, e.g. Lisbon or LIS"} />
           <DayTime day={t.arrivalDay} time={t.arrivalTime} tripDay={t.startDate} which="first" onDay={v => set("arrivalDay", v)} onTime={v => set("arrivalTime", v)} />
         </Box>
         <Box>
           <T style={{ fontFamily: "NunitoBold", fontSize: 16 }}>Leaving</T>
-          <AirportInput label="Airport or place" value={t.departureLocation} onChange={v => set("departureLocation", v)} placeholder={`e.g. ${named[named.length - 1]?.name.trim() || "Porto"} or OPO`} />
+          <AirportInput label="Airport or place" value={t.departureLocation} onChange={v => set("departureLocation", v)} placeholder={named[named.length - 1]?.name.trim() ? `Airport, city or code, e.g. ${named[named.length - 1].name.trim()}` : "Airport, city or code, e.g. Porto or OPO"} />
           <DayTime day={t.departureDay} time={t.departureTime} tripDay={t.endDate} which="last" onDay={v => set("departureDay", v)} onTime={v => set("departureTime", v)} />
         </Box>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 44 }}>

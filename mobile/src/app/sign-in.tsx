@@ -15,7 +15,7 @@ export default function SignInScreen() {
   const c = useTheme();
   const { next } = useLocalSearchParams<{ next?: string }>();
   const { data: session } = authClient.useSession();
-  const [mode, setMode] = useState<Mode>("code");
+  const [mode, setMode] = useState<Mode>("password");
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [code, setCode] = useState(""); const [password, setPassword] = useState("");
   // "sent": waiting for a sign-in code. "confirm": a new password account confirming its email.
   const [sent, setSent] = useState(false); const [confirm, setConfirm] = useState(false);
@@ -59,16 +59,17 @@ export default function SignInScreen() {
     try {
       if (mode === "password") {
         const r = await authClient.signIn.email({ email: address(), password });
-        if (r.error) throw new Error(r.error.message || "Could not sign in.");
+        // Not confirmed yet: the server just emailed a confirmation code.
+        if (r.error?.code === "EMAIL_NOT_VERIFIED") { await awaitConfirmCode(); return; }
+        if (r.error) throw new Error(r.error.status === 401 ? "That email and password don't match an account." : r.error.message || "Could not sign in.");
         await finish();
       } else if (mode === "signup") {
         if (!name.trim()) throw new Error("Enter your name.");
         if (password.length < 10) throw new Error("Use at least 10 characters for your password.");
         const r = await authClient.signUp.email({ name: name.trim(), email: address(), password });
         if (r.error) throw new Error(r.error.code === "USER_ALREADY_EXISTS" || r.error.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL" ? "An account with this email already exists. Sign in instead." : r.error.message || "Couldn't create the account.");
-        // Signed in. Confirm the email with a code (needed for gifted credits); people can skip it.
-        setConfirm(true);
-        await sendConfirmCode();
+        // The server emailed a confirmation code; entering it confirms the email and signs in.
+        await awaitConfirmCode();
       } else if (!sent) {
         const r = await authClient.emailOtp.sendVerificationOtp({ email: address(), type: "sign-in" });
         if (r.error) throw new Error(r.error.message || "Could not send your code.");
@@ -83,6 +84,11 @@ export default function SignInScreen() {
     } catch (e) { fail(e); }
     finally { setBusy(false); }
   }
+  /** A confirmation code is already on its way (sign-up, or a password sign-in before confirming). */
+  async function awaitConfirmCode() {
+    await savePendingSignIn({ email: address(), purpose: "verify" });
+    setConfirm(true); setCooldown(60); setCode("");
+  }
   async function sendConfirmCode() {
     const r = await authClient.emailOtp.sendVerificationOtp({ email: address(), type: "email-verification" });
     if (r.error) throw new Error(r.error.message || "Could not send your code.");
@@ -95,7 +101,7 @@ export default function SignInScreen() {
     try {
       const r = await authClient.emailOtp.verifyEmail({ email: address(), otp: code });
       if (r.error) throw new Error(r.error.message || "Check your code and try again.");
-      await clearPendingSignIn(); setConfirm(false);
+      await finish(); setConfirm(false);
     } catch (e) { fail(e); }
     finally { setBusy(false); }
   }
@@ -129,19 +135,19 @@ export default function SignInScreen() {
 
   // A new password account confirming its email.
   if (confirm) return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen>
-    <View style={{ gap: 9 }}><Eyebrow>Almost there</Eyebrow><Heading>Confirm your email.</Heading><Muted>{`We sent a 6-digit code to ${address()}. You can leave the app to get it; this screen will be waiting.`}</Muted></View>
+    <View style={{ gap: 9 }}><Eyebrow>One last step</Eyebrow><Heading>Confirm your email.</Heading><Muted>{`We sent a 6-digit code to ${address()}. You can leave the app to get it; this screen will be waiting.`}</Muted></View>
     {error && <ErrorNotice message={error} />}
     {notice && <Muted>{notice}</Muted>}
     <View style={{ gap: 12 }}>
       {codeInput}
-      <Button busy={busy} onPress={() => void verify()}>Confirm email</Button>
+      <Button busy={busy} onPress={() => void verify()}>Confirm email and continue</Button>
       {resendLink}
-      <Pressable accessibilityRole="button" onPress={() => { void clearPendingSignIn(); setConfirm(false); }} style={{ minHeight: 44, justifyContent: "center" }}><Muted style={{ textAlign: "center" }}>Skip for now</Muted></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => { void clearPendingSignIn(); setConfirm(false); setCode(""); setError(null); setNotice(null); }} style={{ minHeight: 44, justifyContent: "center" }}><Muted style={{ textAlign: "center" }}>Use another email</Muted></Pressable>
     </View>
   </Screen></KeyboardAvoidingView>;
 
   const title = mode === "signup" ? "Create your\naccount." : sent ? "Check your inbox." : "Good trips\nstart here.";
-  const subtitle = mode === "signup" ? "Choose a password. You'll confirm your email with a code." : sent ? `We sent a code to ${address()}. You can leave the app to get it; this screen will be waiting.` : "Sign in or create your Tripanize account.";
+  const subtitle = mode === "signup" ? "Choose a password. We'll email you a code to confirm your address." : sent ? `We sent a code to ${address()}. You can leave the app to get it; this screen will be waiting.` : "Use your password or get a code by email.";
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><Screen>
     <PhotoCard source={photo("/editorial/auth.webp")} height={sent ? 140 : 190} radius={28} label="A new journey awaits" top={<IconButton name="close" label="Close" onImage onPress={() => { void clearPendingSignIn(); if (router.canGoBack()) router.back(); else router.replace("/"); }} />} />
     <View style={{ gap: 9 }}><Eyebrow>A little more going</Eyebrow><Heading>{title}</Heading><Muted>{subtitle}</Muted></View>
@@ -156,6 +162,13 @@ export default function SignInScreen() {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}><View style={{ flex: 1, height: 1, backgroundColor: c.line }} /><Muted>or</Muted><View style={{ flex: 1, height: 1, backgroundColor: c.line }} /></View>
     </View>}
 
+    {mode !== "signup" && !sent && <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 4, padding: 4, borderRadius: 28, borderWidth: 1, borderColor: c.line, backgroundColor: c.soft }}>
+      {([["password", "Password"], ["code", "Email code"]] as const).map(([m, label]) => <Pressable key={m} accessibilityRole="tab" accessibilityState={{ selected: mode === m }} onPress={() => switchMode(m)}
+        style={{ flex: 1, minHeight: 44, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: mode === m ? c.paper : "transparent" }}>
+        <T style={{ fontFamily: "NunitoBold", fontSize: 15, color: mode === m ? c.ink : c.muted }}>{label}</T>
+      </Pressable>)}
+    </View>}
+
     <View style={{ gap: 12 }}>
       {mode === "signup" && <><T style={{ fontFamily: "NunitoBold", fontSize: 13 }}>Your name</T><TextInput accessibilityLabel="Your name" placeholder="Shown to people you travel with" placeholderTextColor={c.muted} style={inputStyle} value={name} onChangeText={setName} autoComplete="name" textContentType="name" maxLength={80} returnKeyType="next" /></>}
       <T style={{ fontFamily: "NunitoBold", fontSize: 13 }}>Email address</T>
@@ -166,12 +179,11 @@ export default function SignInScreen() {
       {mode === "code" && sent && <>{resendLink}<Pressable accessibilityRole="button" onPress={() => switchMode("code")} style={{ minHeight: 44, justifyContent: "center" }}><Muted style={{ textAlign: "center" }}>Use another email</Muted></Pressable></>}
       {mode === "password" && link("Forgot your password?", () => void Linking.openURL(`${API_URL}/forgot-password`))}
       {mode === "signup" && <Muted style={{ fontSize: 12, lineHeight: 17 }}>By creating an account, you agree to our Terms of service and Privacy policy at tripanize.app.</Muted>}
+      {mode === "code" && !sent && <Muted style={{ fontSize: 12, lineHeight: 17 }}>{"No password needed. If you're new, this also creates your account."}</Muted>}
     </View>
 
     {!sent && <View style={{ gap: 2, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 10 }}>
-      {mode !== "code" && link("Sign in with an email code instead", () => switchMode("code"))}
-      {mode !== "password" && link("Sign in with a password", () => switchMode("password"))}
-      {mode !== "signup" && link("New here? Create an account with a password", () => switchMode("signup"))}
+      {mode === "signup" ? link("Already have an account? Sign in", () => switchMode("password")) : link("New here? Create an account with a password", () => switchMode("signup"))}
     </View>}
   </Screen></KeyboardAvoidingView>;
 }

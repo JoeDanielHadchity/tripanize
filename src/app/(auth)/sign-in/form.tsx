@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { Button, Field, Input, Notice } from "@/components/ui";
+import { Button, Field, Input, Notice, cx } from "@/components/ui";
 import { GoogleSignIn } from "@/components/google-sign-in";
+import { ConfirmEmail } from "@/components/confirm-email";
 
-type Step = { kind: "email" } | { kind: "code"; email: string } | { kind: "password" };
+// Two equal ways in: email + password, or email + a 6-digit code. "confirm" is a password account
+// that still has to confirm its email (a code was just sent).
+type Method = "password" | "code";
+type Step = { kind: "start" } | { kind: "code"; email: string } | { kind: "confirm"; email: string };
 
 function sendError(err: { status?: number; message?: string }) {
   if (err.status === 429) return "Too many attempts. Please wait a minute.";
@@ -16,26 +20,41 @@ function sendError(err: { status?: number; message?: string }) {
 }
 
 export function SignInForm({ next, emailReady, google = false }: { next: string; emailReady: boolean; google?: boolean }) {
-  const [step, setStep] = useState<Step>(emailReady ? { kind: "email" } : { kind: "password" });
+  const [method, setMethod] = useState<Method>("password");
+  const [step, setStep] = useState<Step>({ kind: "start" });
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function sendCode(email: string) {
+  async function sendCode(address: string) {
     setPending(true);
     setError(null);
-    const { error } = await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
+    const { error } = await authClient.emailOtp.sendVerificationOtp({ email: address, type: "sign-in" });
     setPending(false);
     if (error) return setError(sendError(error)), false;
-    setStep({ kind: "code", email });
-    setInfo(`We sent a 6-digit code to ${email}. It expires in 10 minutes.`);
+    setStep({ kind: "code", email: address });
+    setInfo(`We sent a 6-digit code to ${address}. It expires in 10 minutes.`);
     return true;
   }
 
-  async function onEmail(e: React.FormEvent<HTMLFormElement>) {
+  async function onStart(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pending) return;
-    await sendCode(String(new FormData(e.currentTarget).get("email")).trim());
+    const f = new FormData(e.currentTarget);
+    const address = String(f.get("email")).trim();
+    if (method === "code") { await sendCode(address); return; }
+    setPending(true);
+    setError(null);
+    const { error } = await authClient.signIn.email({ email: address, password: String(f.get("password")) });
+    if (error) {
+      setPending(false);
+      // Not confirmed yet: the server just emailed a confirmation code.
+      if (error.code === "EMAIL_NOT_VERIFIED") { setStep({ kind: "confirm", email: address }); return; }
+      setError(error.status === 429 ? "Too many attempts. Please wait a minute." : "That email and password don't match an account.");
+      return;
+    }
+    window.location.assign(next);
   }
 
   async function onCode(e: React.FormEvent<HTMLFormElement>) {
@@ -54,40 +73,44 @@ export function SignInForm({ next, emailReady, google = false }: { next: string;
     window.location.assign(next);
   }
 
-  async function onPassword(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (pending) return;
-    const f = new FormData(e.currentTarget);
-    setPending(true);
-    setError(null);
-    const { error } = await authClient.signIn.email({ email: String(f.get("email")), password: String(f.get("password")) });
-    if (error) {
-      setPending(false);
-      setError(error.status === 429 ? "Too many attempts. Please wait a minute." : "That email and password don't match an account.");
-      return;
-    }
-    window.location.assign(next);
-  }
+  const restart = () => { setStep({ kind: "start" }); setError(null); setInfo(null); };
+  const choose = (m: Method) => { setMethod(m); setError(null); };
 
-  const switchTo = (s: Step) => { setStep(s); setError(null); setInfo(null); };
+  if (step.kind === "confirm") return (
+    <>
+      <h1 className="font-display text-3xl font-semibold">Confirm your email</h1>
+      <p className="mt-1 text-muted">One last step before you sign in with your password.</p>
+      <ConfirmEmail email={step.email} next={next} onBack={restart} />
+    </>
+  );
 
   return (
     <>
       <h1 className="font-display text-3xl font-semibold">Sign in</h1>
-      <p className="mt-1 text-muted">{step.kind === "password" ? "Sign in with your password." : "Get a sign-in code by email."}</p>
-      {google && step.kind === "email" && <GoogleSignIn next={next} />}
+      <p className="mt-1 text-muted">{step.kind === "code" ? "Enter the code from your email." : "Use your password or get a code by email."}</p>
+      {google && step.kind === "start" && <GoogleSignIn next={next} />}
 
-      {step.kind === "email" && (
-        <form onSubmit={onEmail} className="mt-8 space-y-4">
+      {step.kind === "start" && <>
+        {emailReady && <div role="tablist" aria-label="How to sign in" className="mt-8 grid grid-cols-2 gap-1 rounded-full border border-line bg-surface-2 p-1">
+          {([["password", "Password"], ["code", "Email code"]] as const).map(([m, label]) =>
+            <button key={m} type="button" role="tab" aria-selected={method === m} onClick={() => choose(m)}
+              className={cx("min-h-11 rounded-full px-4 text-sm font-semibold transition", method === m ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink")}>{label}</button>)}
+        </div>}
+        <form onSubmit={onStart} className="mt-6 space-y-4">
+          {!emailReady && <Notice tone="warn">Email sign-in codes aren't available on this Tripanize server yet (it has no RESEND_API_KEY or SMTP_URL). Sign in with a password.</Notice>}
           {error && <Notice tone="danger">{error}</Notice>}
           <Field label="Email" htmlFor="email">
-            <Input id="email" name="email" type="email" autoComplete="email" required autoFocus />
+            <Input id="email" name="email" type="email" autoComplete="email" required autoFocus value={email} onChange={e => setEmail(e.target.value)} />
           </Field>
+          {method === "password" && <Field label="Password" htmlFor="password">
+            <Input id="password" name="password" type="password" autoComplete="current-password" required />
+          </Field>}
           <Button type="submit" variant="primary" className="w-full" disabled={pending}>
-            {pending ? "Sending…" : "Email me a sign-in code"}
+            {method === "password" ? (pending ? "Signing in…" : "Sign in") : (pending ? "Sending…" : "Email me a sign-in code")}
           </Button>
+          {method === "code" && <p className="text-xs text-muted">No password needed. If you're new, this also creates your account.</p>}
         </form>
-      )}
+      </>}
 
       {step.kind === "code" && (
         <form onSubmit={onCode} className="mt-8 space-y-4">
@@ -104,40 +127,17 @@ export function SignInForm({ next, emailReady, google = false }: { next: string;
           </Button>
           <div className="flex flex-wrap gap-4 text-sm">
             <button type="button" className="text-accent-ink underline underline-offset-2" disabled={pending} onClick={() => sendCode(step.email)}>Send a new code</button>
-            <button type="button" className="text-accent-ink underline underline-offset-2" onClick={() => switchTo({ kind: "email" })}>Use a different email</button>
+            <button type="button" className="text-accent-ink underline underline-offset-2" onClick={restart}>Use a different email</button>
           </div>
         </form>
       )}
 
-      {step.kind === "password" && (
-        <form onSubmit={onPassword} className="mt-8 space-y-4">
-          {!emailReady && <Notice tone="warn">Email sign-in codes aren't available on this Tripanize server yet (it has no RESEND_API_KEY or SMTP_URL). Sign in with a password.</Notice>}
-          {error && <Notice tone="danger">{error}</Notice>}
-          <Field label="Email" htmlFor="email">
-            <Input id="email" name="email" type="email" autoComplete="email" required />
-          </Field>
-          <Field label="Password" htmlFor="password">
-            <Input id="password" name="password" type="password" autoComplete="current-password" required />
-          </Field>
-          <Button type="submit" variant="primary" className="w-full" disabled={pending}>
-            {pending ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
-      )}
-
-      <div className="mt-6 flex flex-col gap-2 text-sm">
-        {step.kind === "password" ? (
-          <>
-            {emailReady && <button type="button" className="self-start text-accent-ink underline underline-offset-2" onClick={() => switchTo({ kind: "email" })}>Email me a code instead</button>}
-            <Link href="/forgot-password" className="text-accent-ink underline underline-offset-2">Forgot your password?</Link>
-          </>
-        ) : (
-          <button type="button" className="self-start text-accent-ink underline underline-offset-2" onClick={() => switchTo({ kind: "password" })}>Sign in with a password instead</button>
-        )}
+      {step.kind === "start" && <div className="mt-6 flex flex-col gap-2 text-sm">
+        {method === "password" && <Link href="/forgot-password" className="text-accent-ink underline underline-offset-2">Forgot your password?</Link>}
         <p className="text-muted">
-          Prefer a password account? <Link href={`/sign-up${next !== "/start" ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-accent-ink underline underline-offset-2">Create one</Link>
+          New here? <Link href={`/sign-up${next !== "/start" ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-accent-ink underline underline-offset-2">Create an account with a password</Link>
         </p>
-      </div>
+      </div>}
     </>
   );
 }

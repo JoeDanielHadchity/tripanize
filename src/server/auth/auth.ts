@@ -45,9 +45,22 @@ function createAuth(frameworkCookies = true) { return betterAuth({
     } },
   } },
   advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
+  // Password accounts must confirm their email with a 6-digit code before they can sign in. The code
+  // is sent on sign-up and again when an unconfirmed account signs in with its password; entering it
+  // signs the person in.
+  emailVerification: { sendOnSignUp: true, sendOnSignIn: true, autoSignInAfterVerification: true },
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
     minPasswordLength: 10,
+    // Sign-up never reveals whether an email already has an account; the owner gets an email instead.
+    onExistingUserSignUp: async ({ user }) => {
+      await sendEmail({
+        to: user.email,
+        subject: "You already have a Tripanize account",
+        text: `Someone tried to create a new Tripanize account with this email address, but you already have one.\n\nTo get in, open Tripanize and sign in with your password, or choose "Email code" to get a sign-in code. If you forgot your password, use "Forgot your password?".\n\nIf this wasn't you, you can ignore this email.`,
+      });
+    },
     revokeSessionsOnPasswordReset: true,
     resetPasswordTokenExpiresIn: 60 * 30,
     sendResetPassword: async ({ user, url }) => {
@@ -74,6 +87,8 @@ function createAuth(frameworkCookies = true) { return betterAuth({
     // Passwordless sign-in: a 6-digit code by email (delivered through Resend or SMTP). The first successful
     // code sign-in creates the account, already email-verified.
     emailOTP({
+      // Email confirmation for password accounts uses the same 6-digit code instead of a link.
+      overrideDefaultEmailVerification: true,
       otpLength: 6,
       expiresIn: 60 * 10,
       allowedAttempts: 5,
