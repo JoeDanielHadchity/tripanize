@@ -86,7 +86,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
     await reviewOrder.getByRole("button", { name: "Apply new order" }).click();
   }
   await expect(ana.getByText("Order updated")).toBeVisible();
-  await expect(dayCard.locator("h3")).toHaveText(["Café A Brasileira", "Lunch at Time Out Market", "Jerónimos Monastery"]);
+  await expect(dayCard.locator("h3").filter({ hasNotText: "Restaurant options" })).toHaveText(["Café A Brasileira", "Lunch at Time Out Market", "Jerónimos Monastery"]);
 
   // Swap a stop (manual replacement because AI isn't configured) with impact review
   await dayCard.getByRole("group", { name: "Actions for Café A Brasileira" }).getByRole("button", { name: "Swap" }).click();
