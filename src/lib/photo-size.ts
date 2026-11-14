@@ -30,6 +30,7 @@ export function photoAtWidth(url: string, width: PhotoWidth): string {
 
 /** srcset for a responsive <img>: the browser picks the smallest width that looks sharp. */
 export function photoSrcSet(url: string, widths: readonly PhotoWidth[] = [500, 960, 1920]) {
-  const sized = widths.map(w => `${photoAtWidth(url, w)} ${w}w`);
-  return new Set(sized).size === widths.length ? sized.join(", ") : undefined;
+  const urls = widths.map(w => photoAtWidth(url, w));
+  // Not a resizable photo (every width gives the same URL): no srcset.
+  return new Set(urls).size === widths.length ? urls.map((u, i) => `${u} ${widths[i]}w`).join(", ") : undefined;
 }
