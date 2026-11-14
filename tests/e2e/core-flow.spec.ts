@@ -29,7 +29,7 @@ async function signUp(browser: Browser, name: string, email: string, viewport: {
   await page.getByRole("button", { name: "Create account" }).click();
   await confirmSignUp(page);
   await page.waitForURL(next ? `**${next}` : "**/start");
-  if (!next) { await page.getByRole("link", { name: "I have a destination", exact: true }).click(); await page.waitForURL("**/trips"); }
+  if (!next) { await page.getByRole("link", { name: "I have a destination", exact: true }).click(); await page.waitForURL("**/trips/new"); }
   return page;
 }
 

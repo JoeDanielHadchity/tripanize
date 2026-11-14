@@ -36,7 +36,7 @@ test("new and returning users sign in with an emailed code", async ({ page, brow
   await expect(page.getByRole("link", { name: "Rita" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Help me choose", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "I have a destination", exact: true }).click();
-  await page.waitForURL("**/trips");
+  await page.waitForURL("**/trips/new");
 
   // Returning user, fresh browser: same email, new code, same account.
   const ctx = await browser.newContext();
