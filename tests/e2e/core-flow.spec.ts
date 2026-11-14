@@ -44,7 +44,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   const ana = await signUp(browser, "Ana", `ana-${run}@example.test`, vp, mobile);
   await expect(ana.getByRole("heading", { name: "My trips" })).toBeVisible();
   await expect(ana.getByText("Where to next?")).toBeVisible();
-  await expect(ana.getByText("Example", { exact: true })).toBeVisible();
+  await expect(ana.getByText("Example", { exact: true }).first()).toBeVisible();
   await shot(ana, "01-dashboard-empty", project);
 
   // 2. Trip setup

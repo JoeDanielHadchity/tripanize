@@ -37,7 +37,7 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
   await ana.getByRole("button", { name: "Answer questions" }).click();
   await expect(ana.getByText("How full should your days be?")).toBeVisible();
   await ana.getByRole("button", { name: "Slow and relaxed" }).click();
-  await ana.getByRole("button", { name: "Food and markets" }).click();
+  await ana.getByRole("button", { name: "Food and markets", exact: true }).click();
   await ana.getByRole("button", { name: "Nature and hiking" }).click();
   await ana.getByRole("button", { name: "Save answers" }).click();
   await expect(ana.getByText("Food and markets, Nature and hiking")).toBeVisible();
