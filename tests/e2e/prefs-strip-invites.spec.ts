@@ -1,3 +1,4 @@
+import { confirmSignUp } from "./confirm-email";
 import { expect, test, type Browser } from "@playwright/test";
 import { createTrip } from "./create-trip";
 
@@ -12,6 +13,7 @@ async function signUp(browser: Browser, name: string, email: string, isMobile: b
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
+  await confirmSignUp(page);
   await page.waitForURL("**/start");
   await page.getByRole("link", { name: "I have a destination", exact: true }).click();
   await page.waitForURL("**/trips");

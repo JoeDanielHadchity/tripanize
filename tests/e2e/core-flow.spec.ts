@@ -1,3 +1,4 @@
+import { confirmSignUp } from "./confirm-email";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { createTrip } from "./create-trip";
 
@@ -26,6 +27,7 @@ async function signUp(browser: Browser, name: string, email: string, viewport: {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
+  await confirmSignUp(page);
   await page.waitForURL(next ? `**${next}` : "**/start");
   if (!next) { await page.getByRole("link", { name: "I have a destination", exact: true }).click(); await page.waitForURL("**/trips"); }
   return page;
@@ -202,9 +204,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   const ctx3 = await browser.newContext({ viewport: vp ?? undefined, isMobile: mobile, hasTouch: mobile });
   const again = await ctx3.newPage();
   await again.goto("/sign-in");
-  // With email delivery configured the page opens on code sign-in; switch to the password form.
-  const pw = again.getByRole("button", { name: "Sign in with a password instead" });
-  if (await pw.isVisible()) await pw.click();
+  // Sign-in opens on the password tab.
   await again.getByLabel("Email").fill(`ana-${run}@example.test`);
   await again.getByLabel("Password").fill("a-long-test-password");
   await again.getByRole("button", { name: "Sign in" }).click();

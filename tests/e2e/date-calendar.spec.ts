@@ -1,3 +1,4 @@
+import { confirmSignUp } from "./confirm-email";
 import { expect, test } from "@playwright/test";
 import { finishTrip, nextStep } from "./create-trip";
 
@@ -11,6 +12,7 @@ test("pick trip dates on the calendar", async ({ browser }, info) => {
   await page.getByLabel("Email").fill(`cal-${info.project.name}-${Date.now()}@example.test`);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
+  await confirmSignUp(page);
   await page.waitForURL("**/start");
   await page.goto("/trips/new");
   await page.getByLabel("City or region").fill("Lisbon");

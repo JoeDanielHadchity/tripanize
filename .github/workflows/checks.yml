@@ -51,3 +51,58 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint
         run: npx expo lint
+
+  # The browser tests (Playwright) against a real local copy of the site: sign-up with the emailed
+  # code, sign-in, creating a trip, the core trip flow, settings, on a phone-size and a desktop
+  # browser. Email goes to scripts/resend-stub.mjs, so no real email is sent.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix mobile
+      - name: Install the test browser
+        run: npx playwright install --with-deps chromium
+      - name: Build the site
+        run: npm run build
+      - name: Local settings
+        run: |
+          printf '%s\n' \
+            'APP_URL=http://localhost:8787' \
+            'BETTER_AUTH_URL=http://localhost:8787' \
+            'EMAIL_FROM=Tripanize <hello@tripanize.app>' \
+            'RESEND_API_KEY=ci-stub' \
+            'RESEND_API_URL=http://localhost:4011/emails' \
+            | tee .dev.vars > dist/server/.dev.vars
+      - name: Start the fake email server and the site
+        run: |
+          node scripts/resend-stub.mjs > resend-stub.log 2>&1 &
+          npx wrangler dev --local --config dist/server/wrangler.json --port 8787 > site.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sf -o /dev/null http://localhost:8787/privacy; then echo "site is up"; exit 0; fi
+            sleep 2
+          done
+          echo "site did not start"; tail -50 site.log; exit 1
+      - name: Browser tests
+        env:
+          E2E_BASE_URL: http://localhost:8787
+          E2E_RESEND_STUB: http://localhost:4011
+        run: npx playwright test tests/e2e/email-code.spec.ts tests/e2e/date-calendar.spec.ts tests/e2e/settings-theme.spec.ts tests/e2e/prefs-strip-invites.spec.ts tests/e2e/core-flow.spec.ts
+      - name: Keep logs and failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            site.log
+            resend-stub.log
+            test-results/
+          retention-days: 7

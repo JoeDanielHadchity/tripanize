@@ -1,3 +1,4 @@
+import { confirmSignUp } from "./confirm-email";
 import { expect, test } from "@playwright/test";
 import { createTrip } from "./create-trip";
 
@@ -12,6 +13,7 @@ test("Plan with AI failure keeps the itinerary and reports the real reason", asy
   await page.getByLabel("Email").fill(`ai-${run}@example.test`);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
+  await confirmSignUp(page);
   await page.waitForURL("**/start");
   await page.goto("/trips/new");
   await createTrip(page, { name: "AI failure trip", city: "Lisbon", start: "2027-05-01", end: "2027-05-02" });

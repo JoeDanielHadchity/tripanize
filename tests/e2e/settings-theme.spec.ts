@@ -1,3 +1,4 @@
+import { confirmSignUp } from "./confirm-email";
 import { expect, test } from "@playwright/test";
 
 // Every new document starts light. Explicit choices last during client-side browsing.
@@ -15,6 +16,7 @@ test("appearance starts light and allows dark or system until the next reload", 
   await page.getByLabel("Email").fill(`theme-${info.project.name}-${Date.now()}@example.test`);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
+  await confirmSignUp(page);
   await page.waitForURL("**/start");
   expect(await bg(page)).toBe(LIGHT); // Light even on a dark device with an old saved preference.
 
