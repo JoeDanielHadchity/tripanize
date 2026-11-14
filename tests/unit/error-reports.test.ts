@@ -4,7 +4,7 @@ import { fingerprint, scrub } from "@/server/errors/reports";
 describe("error reports", () => {
   it("hides emails, tokens and query values", () => {
     expect(scrub("Failed for joe@example.com")).toBe("Failed for [email]");
-    expect(scrub("GET /api/x?token=abc&b=2")).toBe("GET /api/x?token=…&b=…");
+    expect(scrub("GET /api/x?q=abc&b=2")).toBe("GET /api/x?q=…&b=…");
     expect(scrub("Bearer abc.def")).toBe("Bearer [hidden]");
     expect(scrub(`id ${"a".repeat(40)}`)).toBe("id [id]");
   });

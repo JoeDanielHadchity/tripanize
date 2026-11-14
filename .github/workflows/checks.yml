@@ -96,6 +96,12 @@ jobs:
           E2E_BASE_URL: http://localhost:8787
           E2E_RESEND_STUB: http://localhost:4011
         run: npx playwright test tests/e2e/email-code.spec.ts tests/e2e/date-calendar.spec.ts tests/e2e/settings-theme.spec.ts tests/e2e/prefs-strip-invites.spec.ts tests/e2e/core-flow.spec.ts
+      - name: Show logs
+        if: failure()
+        run: |
+          echo "::group::site.log"; tail -n 200 site.log; echo "::endgroup::"
+          echo "::group::resend-stub.log"; cat resend-stub.log; echo "::endgroup::"
+          for f in test-results/*/error-context.md; do echo "::group::$f"; head -n 80 "$f"; echo "::endgroup::"; done
       - name: Keep logs and failure screenshots
         if: failure()
         uses: actions/upload-artifact@v4
