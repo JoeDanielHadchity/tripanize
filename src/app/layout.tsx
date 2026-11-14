@@ -5,6 +5,7 @@ import { ToastProvider, ConfirmProvider } from "@/components/client";
 import { OfflineBanner, ServiceWorker } from "@/components/offline";
 import { DEFAULT_THEME } from "@/lib/theme";
 import { LegalFooter } from "@/components/legal-footer";
+import { ErrorReporter } from "@/components/error-reporter";
 import { SITE_ORIGIN, SITE_DESCRIPTION } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </ConfirmProvider>
         </ToastProvider>
         <ServiceWorker />
+        <ErrorReporter />
       </body>
     </html>
   );

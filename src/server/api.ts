@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/server/auth/auth";
 import { AppError } from "@/server/errors";
+import { recordError } from "@/server/errors/reports";
 
 /** Wraps a route handler: requires a session and maps AppErrors to HTTP responses. */
 export async function withUser(fn: (userId: string) => Promise<Response>) {
@@ -16,6 +17,7 @@ export async function withUser(fn: (userId: string) => Promise<Response>) {
       return NextResponse.json({ error: e.message, code: e.code }, { status });
     }
     console.error("[api]", e instanceof Error ? e.message : e);
+    await recordError({ source: "server", message: e instanceof Error ? e.message : String(e), stack: e instanceof Error ? e.stack : null, where: new URL(requestHeaders.get("x-url") ?? requestHeaders.get("referer") ?? "https://unknown").pathname, userId: session.user.id });
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

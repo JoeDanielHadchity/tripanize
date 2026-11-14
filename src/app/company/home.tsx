@@ -30,6 +30,7 @@ export function AdminHome({ d, name }: { d: Overview; name: string }) {
   if (d.trialsEnding) attention.push(<Row key="trials" icon="trials" tone="info" href="/company?tab=trials" action="View">{plural(d.trialsEnding, "trial")} ending within 3 days</Row>);
   if (d.pendingPayments) attention.push(<Row key="pay" icon="payments" tone="info" href="/company?tab=payments" action="View">{plural(d.pendingPayments, "payment")} not finished yet</Row>);
   if (d.failedJobs) attention.push(<Row key="jobs" icon="alert" tone="warn" href="/company?tab=health" action="Check">{plural(d.failedJobs, "AI plan")} failed this week</Row>);
+  if (d.openErrors) attention.push(<Row key="errors" icon="alert" tone="warn" href="/company?tab=health#errors" action="Check">{plural(d.openErrors, "error")} reported this week</Row>);
   if (d.failedEmails) attention.push(<Row key="emails" icon="alert" tone="warn" href="/company?tab=health" action="Check">{plural(d.failedEmails, "email")} could not be sent</Row>);
   if (d.unpricedAi) attention.push(<Row key="ai" icon="ai" tone="info" href="/company?tab=ai" action="Review">{plural(d.unpricedAi, "AI request")} without a cost estimate</Row>);
   const setup = [["AI", d.aiConfigured], ["Email", d.emailConfigured], ["Payments", d.paddleConfigured]].filter(([, ok]) => !ok).map(([label]) => label);

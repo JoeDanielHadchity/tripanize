@@ -1305,3 +1305,23 @@ model BroadcastDelivery {
   @@unique([broadcastId, userId])
   @@index([status, nextAttemptAt])
 }
+
+/// Crashes and unexpected errors from the server, website and app, grouped by fingerprint so one
+/// bug is one row. The company admin is emailed when a new one appears (or a fixed one returns).
+model ErrorReport {
+  id          String    @id @default(cuid())
+  fingerprint String    @unique
+  source      String // server | web | app
+  message     String
+  stack       String?
+  where       String? // API path, page or app screen
+  appVersion  String?
+  count       Int       @default(1)
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  lastUserId  String?
+  alertedAt   DateTime?
+  resolvedAt  DateTime?
+
+  @@index([resolvedAt, lastSeenAt])
+}

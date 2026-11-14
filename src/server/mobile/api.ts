@@ -3,6 +3,7 @@ import { AppError } from "@/server/errors";
 import { getMobileUser } from "./service";
 import { rateLimit } from "@/server/ratelimit";
 import { ZodError } from "zod";
+import { recordError } from "@/server/errors/reports";
 
 /** Native clients send the same signed session cookie as the website. Every
  * response, including errors, is private; no public cache contains trip data. */
@@ -22,6 +23,7 @@ export async function mobileRead(request: Request, read: (userId: string, sessio
       return Response.json({ error: error.message, code: error.code, ...(error.details ? { details: error.details } : {}) }, { status: statuses[error.code], headers });
     }
     console.error("[mobile-api]", error instanceof Error ? error.message : "Unexpected error");
+    await recordError({ source: "server", message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : null, where: `${request.method} ${new URL(request.url).pathname}` });
     return Response.json({ error: "Could not load your trip. Please try again." }, { status: 500, headers });
   }
 }
