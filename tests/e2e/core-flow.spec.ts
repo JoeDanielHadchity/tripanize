@@ -89,6 +89,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   await expect(dayCard.locator("h3").filter({ hasNotText: "Restaurant options" })).toHaveText(["Café A Brasileira", "Lunch at Time Out Market", "Jerónimos Monastery"]);
 
   // Swap a stop (manual replacement because AI isn't configured) with impact review
+  await dayCard.getByRole("group", { name: "Actions for Café A Brasileira" }).getByRole("button", { name: "More" }).click();
   await dayCard.getByRole("group", { name: "Actions for Café A Brasileira" }).getByRole("button", { name: "Swap" }).click();
   const swap = ana.getByRole("dialog");
   await expect(swap.getByText(/isn't configured on this server/)).toBeVisible();
@@ -98,6 +99,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   await expect(dayCard.getByRole("heading", { name: "Pastéis de Belém" })).toBeVisible();
 
   // Move a stop to unscheduled ideas
+  await dayCard.getByRole("group", { name: "Actions for Jerónimos Monastery" }).getByRole("button", { name: "More" }).click();
   await dayCard.getByRole("group", { name: "Actions for Jerónimos Monastery" }).getByRole("button", { name: "Move", exact: true }).click();
   const mv = ana.getByRole("dialog");
   await mv.getByLabel("Move to").selectOption({ label: "Unscheduled ideas (no date)" });

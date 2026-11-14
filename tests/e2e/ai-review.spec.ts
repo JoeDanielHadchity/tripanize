@@ -35,6 +35,7 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   if (process.env.E2E_SHOTS_DIR) await page.screenshot({ path: `${process.env.E2E_SHOTS_DIR}/${info.project.name}-13-ai-applied.png`, fullPage: true });
 
   // AI swap
+  await page.getByRole("group", { name: "Actions for Stub museum 1" }).getByRole("button", { name: "More" }).click();
   await page.getByRole("group", { name: "Actions for Stub museum 1" }).getByRole("button", { name: "Swap" }).click();
   const dlg = page.getByRole("dialog");
   await dlg.getByRole("button", { name: "Find alternatives" }).click();
