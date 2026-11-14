@@ -187,7 +187,11 @@ async function googleAccessToken(c: NonNullable<StoreConfig["google"]>, send: Fe
   const assertion = await signJwt({ alg: "RS256", typ: "JWT" }, { iss: c.clientEmail, scope: "https://www.googleapis.com/auth/androidpublisher", aud: c.tokenUri, iat: now, exp: now + 3600 }, c.privateKey);
   const response = await send(c.tokenUri, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }), signal: AbortSignal.timeout(15_000) });
   const body = await response.json().catch(() => null) as { access_token?: string; expires_in?: number } | null;
-  if (!response.ok || !body?.access_token) throw new AppError("UPSTREAM", "Could not reach Google Play. Your purchase is safe; please try again.");
+  if (!response.ok || !body?.access_token) {
+    const err = body as { error?: string; error_description?: string } | null;
+    console.error(`[store] Google Play token request failed: ${response.status} ${err?.error ?? ""} ${err?.error_description ?? ""}`.trim());
+    throw new AppError("UPSTREAM", "Could not reach Google Play. Your purchase is safe; please try again.");
+  }
   googleTokens.set(c.clientEmail, { token: body.access_token, expires: Date.now() + (body.expires_in ?? 3600) * 1000 });
   return body.access_token;
 }
@@ -207,7 +211,11 @@ async function verifyGoogle(c: StoreConfig, productId: string, purchaseToken: st
   const g = c.google!;
   const response = await googleApi(g, `/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}`, send);
   if (response.status === 404 || response.status === 400 || response.status === 410) throw new AppError("VALIDATION", "Google Play did not recognize this purchase.");
-  if (!response.ok) throw new AppError("UPSTREAM", "Could not reach Google Play. Your purchase is safe; please try again.");
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    console.error(`[store] Google Play purchase check failed: ${response.status} ${detail.slice(0, 300)}`);
+    throw new AppError("UPSTREAM", "Could not reach Google Play. Your purchase is safe; please try again.");
+  }
   const p = googlePurchase.parse(await response.json());
   // The intent id travels in the purchase itself, so a token for another trip or app cannot be replayed.
   if (p.obfuscatedExternalProfileId !== intentId) throw new AppError("VALIDATION", "This purchase belongs to another checkout.");
