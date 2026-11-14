@@ -1,3 +1,4 @@
+import { confirmSignUp } from "./confirm-email";
 import { expect, test } from "@playwright/test";
 import { createTrip } from "./create-trip";
 
@@ -12,6 +13,7 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   await page.getByLabel("Email").fill(`stub-${run}@example.test`);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
+  await confirmSignUp(page);
   await page.waitForURL("**/start");
   await page.goto("/trips/new");
   await createTrip(page, { name: "Stub trip", city: "Lisbon", start: "2027-05-01", end: "2027-05-03" });
@@ -33,6 +35,7 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   if (process.env.E2E_SHOTS_DIR) await page.screenshot({ path: `${process.env.E2E_SHOTS_DIR}/${info.project.name}-13-ai-applied.png`, fullPage: true });
 
   // AI swap
+  await page.getByRole("group", { name: "Actions for Stub museum 1" }).getByRole("button", { name: "More" }).click();
   await page.getByRole("group", { name: "Actions for Stub museum 1" }).getByRole("button", { name: "Swap" }).click();
   const dlg = page.getByRole("dialog");
   await dlg.getByRole("button", { name: "Find alternatives" }).click();

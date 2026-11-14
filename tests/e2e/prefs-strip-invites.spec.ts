@@ -1,3 +1,4 @@
+import { confirmSignUp } from "./confirm-email";
 import { expect, test, type Browser } from "@playwright/test";
 import { createTrip } from "./create-trip";
 
@@ -12,9 +13,10 @@ async function signUp(browser: Browser, name: string, email: string, isMobile: b
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
+  await confirmSignUp(page);
   await page.waitForURL("**/start");
   await page.getByRole("link", { name: "I have a destination", exact: true }).click();
-  await page.waitForURL("**/trips");
+  await page.waitForURL("**/trips/new"); await page.goto("/trips");
   return page;
 }
 
@@ -24,7 +26,7 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
   const vp = info.project.use.viewport ?? null;
   const ana = await signUp(browser, "Ana", `ana-p-${run}@example.test`, mobile, vp);
 
-  await ana.getByRole("link", { name: "+ Plan a new trip" }).click();
+  await ana.goto("/trips/new");
   await createTrip(ana, { name: `Porto ${run}`, city: "Porto", start: "2027-06-10", end: "2027-06-13" });
   await ana.waitForURL("**/onboarding");
   const tripUrl = ana.url().split("/onboarding")[0];
@@ -35,7 +37,7 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
   await ana.getByRole("button", { name: "Answer questions" }).click();
   await expect(ana.getByText("How full should your days be?")).toBeVisible();
   await ana.getByRole("button", { name: "Slow and relaxed" }).click();
-  await ana.getByRole("button", { name: "Food and markets" }).click();
+  await ana.getByRole("button", { name: "Food and markets", exact: true }).click();
   await ana.getByRole("button", { name: "Nature and hiking" }).click();
   await ana.getByRole("button", { name: "Save answers" }).click();
   await expect(ana.getByText("Food and markets, Nature and hiking")).toBeVisible();
@@ -52,7 +54,7 @@ test("preferences, day strip and home-screen invitations", async ({ browser }, i
 
   // Email invitation → accept from the trips page
   const ritaEmail = `rita-${run}@example.test`;
-  await ana.goto(`${tripUrl}/settings`);
+  await ana.goto(`${tripUrl}/settings#people`);
   await ana.getByLabel("Email (optional)").fill(ritaEmail);
   await ana.getByRole("button", { name: "Create invitation link" }).click();
   await expect(ana.getByLabel("Invitation link")).toBeVisible();

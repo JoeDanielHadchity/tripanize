@@ -81,7 +81,9 @@ function createAuth(frameworkCookies = true) { return betterAuth({
     adminVerifiedUntil: { type: "date", required: false, input: false, returned: false },
     adminEmailUnlockedAt: { type: "date", required: false, input: false, returned: false },
   } },
-  rateLimit: { enabled: true, window: 60, max: 30 },
+  // Off only for a site running on this machine (local development and the browser tests in CI, which sign
+  // up several people within seconds); always on for tripanize.app.
+  rateLimit: { enabled: !/^http:\/\/localhost[:/]/.test(currentRuntime().appUrl ?? ""), window: 60, max: 30 },
   plugins: [
     expo(),
     // Passwordless sign-in: a 6-digit code by email (delivered through Resend or SMTP). The first successful

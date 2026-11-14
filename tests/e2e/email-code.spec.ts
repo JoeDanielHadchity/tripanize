@@ -19,6 +19,7 @@ async function lastCode(to: string) {
 test("new and returning users sign in with an emailed code", async ({ page, browser }, info) => {
   const email = `code-${info.project.name}-${Date.now()}@example.test`;
   await page.goto("/sign-in");
+  await page.getByRole("tab", { name: "Email code" }).click();
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Email me a sign-in code" }).click();
   await expect(page.getByText(`We sent a 6-digit code to ${email}`)).toBeVisible();
@@ -35,12 +36,13 @@ test("new and returning users sign in with an emailed code", async ({ page, brow
   await expect(page.getByRole("link", { name: "Rita" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Help me choose", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "I have a destination", exact: true }).click();
-  await page.waitForURL("**/trips");
+  await page.waitForURL("**/trips/new");
 
   // Returning user, fresh browser: same email, new code, same account.
   const ctx = await browser.newContext();
   const again = await ctx.newPage();
   await again.goto("/sign-in");
+  await again.getByRole("tab", { name: "Email code" }).click();
   await again.getByLabel("Email").fill(email.toUpperCase());
   await again.getByRole("button", { name: "Email me a sign-in code" }).click();
   await expect(again.getByLabel("Sign-in code")).toBeVisible();

@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 // Create a trip is one question per screen (src/lib/trip-wizard.ts): Where, When, Who, Style, Budget,
 // Getting there, Must-sees, Food, Ready. Optional steps are passed with Next.
-export const nextStep = (page: Page) => page.getByRole("button", { name: /^Next/ }).click();
+export const nextStep = (page: Page) => page.getByRole("button", { name: /^Next(?! month)/ }).click();
 
 export type TripSteps = { name?: string; timezone?: string; mustSee?: string };
 

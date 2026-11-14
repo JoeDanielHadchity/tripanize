@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { reportError } from "@/lib/report-error";
 
 /** Shown when a page fails to load. Nothing in the trip is lost; trying again usually works. */
 export default function ErrorPage({ error, reset, retry }: { error: unknown; reset?: () => void; retry?: () => void }) {
-  useEffect(() => { console.error(error); }, [error]);
+  useEffect(() => { console.error(error); reportError(error); }, [error]);
   const again = retry ?? reset ?? (() => window.location.reload());
   return (
     <main id="main" className="status-page">

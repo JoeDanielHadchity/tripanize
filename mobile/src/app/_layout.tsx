@@ -17,7 +17,17 @@ import { onPushOpen, syncPush } from "../lib/push";
 import { recoverPurchases } from "../lib/purchases";
 import { workspaceHref } from "../lib/workspace";
 import { useAndroidKeyboardHeight } from "../lib/keyboard";
-export { ErrorBoundary } from "expo-router";
+import { ErrorBoundary as RouterErrorBoundary, type ErrorBoundaryProps } from "expo-router";
+import { installCrashReporting, reportError } from "../lib/report-error";
+
+installCrashReporting();
+
+/** A screen that failed to render: report it, then show Expo Router's retry screen. */
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  const path = usePathname();
+  useEffect(() => { reportError(props.error, `screen ${path}`); }, [props.error, path]);
+  return <RouterErrorBoundary {...props} />;
+}
 
 // Keep the launch screen up until the intro has drawn its first frame over it.
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);

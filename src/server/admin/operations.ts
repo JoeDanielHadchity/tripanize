@@ -32,6 +32,7 @@ export const adminCommand = z.discriminatedUnion("op", [
   z.object({ op: z.literal("ai.settings"), aiPaused: z.boolean(), aiDailyLimit: limit, aiUserDailyLimit: limit, pricingModel: z.string().trim().max(100).nullable(), inputUsdPerMillion: rate, outputUsdPerMillion: rate, searchUsdPerThousand: rate }).strict(),
   z.object({ op: z.literal("payment.sync"), id }).strict(),
   z.object({ op: z.literal("health.wake") }).strict(),
+  z.object({ op: z.literal("error.resolve"), id }).strict(),
   z.object({ op: z.literal("openai.costs.refresh") }).strict(),
   z.object({ op: z.literal("visitors.refresh"), range: z.union([z.literal(7), z.literal(30)]) }).strict(),
 ]);
@@ -116,6 +117,13 @@ export async function executeAdminCommand(actorId: string, input: unknown) {
         await adminAudit(actorId, c.op, "trial", c.id, { endsAt: c.endsAt }, tx);
         break;
       }
+      case "error.resolve": {
+        // Marked fixed: it leaves the open list, and an alert goes out again if it comes back.
+        if (!await tx.errorReport.findUnique({ where: { id: c.id }, select: { id: true } })) throw new AppError("NOT_FOUND", "Error not found.");
+        await tx.errorReport.update({ where: { id: c.id }, data: { resolvedAt: new Date() } });
+        await adminAudit(actorId, c.op, "error", c.id, {}, tx);
+        break;
+      }
       case "support.update": {
         if (!await tx.supportRequest.findUnique({ where: { id: c.id } })) throw new AppError("NOT_FOUND", "Support request not found.");
         await tx.supportRequest.update({ where: { id: c.id }, data: { status: c.status, note: c.note } });
@@ -162,7 +170,7 @@ export async function adminOverview(actorId: string) {
   ]);
   // Last-30-day figures and the "needs your attention" list on the dashboard home.
   const soon = new Date(Date.now() + 3 * 86400_000), now = new Date();
-  const [newUsers, newTrips, recentSales, aiCost, trialsEnding, failedJobs, failedEmails] = await Promise.all([
+  const [newUsers, newTrips, recentSales, aiCost, trialsEnding, failedJobs, failedEmails, openErrors] = await Promise.all([
     prisma.user.count({ where: { createdAt: { gte: since } } }),
     prisma.trip.count({ where: { createdAt: { gte: since } } }),
     prisma.premiumCheckout.aggregate({ where: { environment: env, status: "COMPLETED", reviewRequired: false, createdAt: { gte: since } }, _sum: { amountMinor: true }, _count: true }),
@@ -170,9 +178,10 @@ export async function adminOverview(actorId: string) {
     prisma.trialInvitation.count({ where: { acceptedAt: { not: null }, revokedAt: null, trialEndsAt: { gt: now, lte: soon } } }),
     prisma.generationJob.count({ where: { status: "FAILED", createdAt: { gte: new Date(Date.now() - 7 * 86400_000) } } }),
     prisma.tripNotification.count({ where: { emailStatus: "failed" } }),
+    prisma.errorReport.count({ where: { resolvedAt: null, lastSeenAt: { gte: new Date(Date.now() - 7 * 86400_000) } } }),
   ]);
   return { users, activeUsers, suspended, trips, verifiedPurchases, pendingPayments, salesMinor: sales._sum.amountMinor ?? 0, trials, trialPurchases, openSupport, aiRequests, failedAi, unpricedAi, environment: env,
-    newUsers, newTrips, recentSalesMinor: recentSales._sum.amountMinor ?? 0, recentSales: recentSales._count, aiCostMicros: Number(aiCost._sum.estimatedCostMicros ?? 0), trialsEnding, failedJobs, failedEmails,
+    newUsers, newTrips, recentSalesMinor: recentSales._sum.amountMinor ?? 0, recentSales: recentSales._count, aiCostMicros: Number(aiCost._sum.estimatedCostMicros ?? 0), trialsEnding, failedJobs, failedEmails, openErrors,
     aiConfigured: aiConfigured(), emailConfigured: emailConfigured(), paddleConfigured: Boolean(currentRuntime().paddle?.apiKey && currentRuntime().paddle?.webhookSecret) };
 }
 const search = (q: string) => q.trim().slice(0, 100);
@@ -237,15 +246,16 @@ export async function adminSupport(actorId: string, page: number) {
 }
 export async function adminHealth(actorId: string) {
   await requireCompanyAdmin(actorId);
-  const [jobs, discoveries, searches, emails, trialEmails, webhooks] = await Promise.all([
+  const [jobs, discoveries, searches, emails, trialEmails, webhooks, errors] = await Promise.all([
     prisma.generationJob.findMany({ where: { status: { in: ["FAILED", "QUEUED", "RUNNING"] } }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, kind: true, status: true, errorCode: true, createdAt: true, startedAt: true } }),
     prisma.discoveryRun.findMany({ where: { status: { in: ["failed", "queued", "running"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, status: true, createdAt: true } }),
     prisma.destinationSearch.findMany({ where: { deletedAt: null, status: { in: ["FAILED", "QUEUED", "RUNNING"] } }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, status: true, createdAt: true } }),
     prisma.tripNotification.count({ where: { emailStatus: { in: ["failed", "queued"] } } }),
     prisma.trialInvitation.count({ where: { emailStatus: { in: ["failed", "queued", "not_configured"] } } }),
     prisma.billingDelivery.findMany({ where: { environment: billingEnvironment() }, orderBy: { updatedAt: "desc" }, take: 30 }),
+    prisma.errorReport.findMany({ where: { resolvedAt: null }, orderBy: { lastSeenAt: "desc" }, take: 25, select: { id: true, source: true, message: true, stack: true, where: true, appVersion: true, count: true, firstSeenAt: true, lastSeenAt: true } }),
   ]);
-  return { jobs, discoveries, searches, emails, trialEmails, webhooks, aiConfigured: aiConfigured(), emailConfigured: emailConfigured(), supportConfigured: supportConfigured(), paddleConfigured: Boolean(currentRuntime().paddle?.apiKey && currentRuntime().paddle?.webhookSecret), environment: billingEnvironment() };
+  return { jobs, discoveries, searches, emails, trialEmails, webhooks, errors, aiConfigured: aiConfigured(), emailConfigured: emailConfigured(), supportConfigured: supportConfigured(), paddleConfigured: Boolean(currentRuntime().paddle?.apiKey && currentRuntime().paddle?.webhookSecret), environment: billingEnvironment() };
 }
 export async function adminAnnouncements(actorId: string) {
   await requireCompanyAdmin(actorId);
