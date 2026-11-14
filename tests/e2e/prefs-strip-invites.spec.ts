@@ -16,7 +16,7 @@ async function signUp(browser: Browser, name: string, email: string, isMobile: b
   await confirmSignUp(page);
   await page.waitForURL("**/start");
   await page.getByRole("link", { name: "I have a destination", exact: true }).click();
-  await page.waitForURL("**/trips/new");
+  await page.waitForURL("**/trips/new"); await page.goto("/trips");
   return page;
 }
 
