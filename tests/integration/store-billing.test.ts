@@ -6,7 +6,7 @@ import { beginStoreCreditPurchase, beginStorePurchase, completeStorePurchase, ha
 import { refreshTripPayment } from "@/server/billing/service";
 import { getTripPlan } from "@/server/plans/access";
 import { makeTrip, makeUser, resetDb } from "./helpers";
-import { balance } from "@/server/credits/service";
+import { balance, walletBalance } from "@/server/credits/service";
 
 const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const ec = generateKeyPairSync("ec", { namedCurve: "P-256" });
@@ -155,7 +155,9 @@ it("Premium bought in the app includes 100 AI credits, removed again on refund",
   const before = await balance(owner.id);
   const { intentId, productId } = await beginStorePurchase(owner.id, tripId, "google_play");
   await completeStorePurchase(owner.id, { store: "google_play", intentId, productId, purchaseToken: "token-".padEnd(40, "e") }, fakeStores({ google: { purchaseState: 0, obfuscatedExternalProfileId: intentId, orderId: "GPA.P" } }).send);
-  expect(await balance(owner.id)).toBe(before + 100);
+  expect(await balance(owner.id)).toBe(before);
+  expect(await walletBalance(tripId)).toBe(100);
   await syncStoreRefunds(fakeStores({ voided: ["GPA.P"] }).send);
+  expect(await walletBalance(tripId)).toBe(0);
   expect(await balance(owner.id)).toBe(before);
 });

@@ -8,7 +8,7 @@ import { beginCreditCheckout, recordCreditTransaction, refreshCreditPayments } f
 import { receivePaddleWebhook } from "@/server/billing/webhook";
 import { creditCheckoutAvailable, paddleConfigFromEnv } from "@/server/billing/config";
 import type { PaddleTransaction } from "@/server/billing/paddle";
-import { balance } from "@/server/credits/service";
+import { balance, walletBalance } from "@/server/credits/service";
 import { makeTrip, makeUser, resetDb } from "./helpers";
 
 const runtime = currentRuntime();
@@ -97,12 +97,13 @@ it("refuses a payment that doesn't match the saved purchase", async () => {
   expect(await balance(u.id)).toBe(15);
 });
 
-it("adds 100 credits to a $15 Premium trip purchase from the trip page", async () => {
+it("puts 100 credits in the trip's own credits for a $15 Premium purchase from the trip page", async () => {
   const u = await buyer(); const tripId = await makeTrip(u.id);
   const row = await prisma.premiumCheckout.create({ data: { tripId, buyerId: u.id, environment: "sandbox", priceId: price(1500), amountMinor: 1500, targetCapacity: 0 } });
   const paid = { ...tx(row.id, 1500, price(1500), 5, { tripId }), custom_data: { checkoutId: row.id, tripId, environment: "sandbox" as const } };
   await recordVerifiedTransaction(paid); await recordVerifiedTransaction(paid);
-  expect(await balance(u.id)).toBe(115);
+  expect(await balance(u.id)).toBe(15);
+  expect(await walletBalance(tripId)).toBe(100);
 });
 
 it("starts a checkout only for the buyer's own trip without Premium, with the bundle's Paddle price", async () => {
