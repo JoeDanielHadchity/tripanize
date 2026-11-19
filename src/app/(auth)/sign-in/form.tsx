@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import { Button, Field, Input, Notice, cx } from "@/components/ui";
 import { GoogleSignIn } from "@/components/google-sign-in";
 import { ConfirmEmail } from "@/components/confirm-email";
+import { PasswordInput } from "@/components/password-input";
 
 // Two equal ways in: email + password, or email + a 6-digit code. "confirm" is a password account
 // that still has to confirm its email (a code was just sent).
@@ -103,7 +104,7 @@ export function SignInForm({ next, emailReady, google = false }: { next: string;
             <Input id="email" name="email" type="email" autoComplete="email" required autoFocus value={email} onChange={e => setEmail(e.target.value)} />
           </Field>
           {method === "password" && <Field label="Password" htmlFor="password">
-            <Input id="password" name="password" type="password" autoComplete="current-password" required />
+            <PasswordInput id="password" name="password" autoComplete="current-password" required />
           </Field>}
           <Button type="submit" variant="primary" className="w-full" disabled={pending}>
             {method === "password" ? (pending ? "Signing in…" : "Sign in") : (pending ? "Sending…" : "Email me a sign-in code")}

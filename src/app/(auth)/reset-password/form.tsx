@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Button, Field, Input, Notice } from "@/components/ui";
+import { PasswordInput } from "@/components/password-input";
 
 export function ResetForm({ token, invalid }: { token: string | null; invalid: boolean }) {
   const [state, setState] = useState<"idle" | "pending" | "done">("idle");
@@ -39,7 +40,7 @@ export function ResetForm({ token, invalid }: { token: string | null; invalid: b
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
           {error && <Notice tone="danger">{error}</Notice>}
           <Field label="New password" htmlFor="password" hint="At least 10 characters.">
-            <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={10} />
+            <PasswordInput id="password" name="password" autoComplete="new-password" required minLength={10} />
           </Field>
           <Button type="submit" variant="primary" className="w-full" disabled={state === "pending"}>
             Save new password

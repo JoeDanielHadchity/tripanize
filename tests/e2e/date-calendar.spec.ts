@@ -10,7 +10,7 @@ test("pick trip dates on the calendar", async ({ browser }, info) => {
   await page.goto("/sign-up");
   await page.getByLabel("Your name").fill("Cal");
   await page.getByLabel("Email").fill(`cal-${info.project.name}-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("a-long-test-password");
+  await page.getByLabel("Password", { exact: true }).fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
   await confirmSignUp(page);
   await page.waitForURL("**/start");

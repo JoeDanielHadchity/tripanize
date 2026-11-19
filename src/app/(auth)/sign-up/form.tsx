@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import { Button, Field, Input, Notice } from "@/components/ui";
 import { GoogleSignIn } from "@/components/google-sign-in";
 import { ConfirmEmail } from "@/components/confirm-email";
+import { PasswordInput } from "@/components/password-input";
 
 export function SignUpForm({ next, google = false }: { next: string; google?: boolean }) {
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export function SignUpForm({ next, google = false }: { next: string; google?: bo
           <Input id="email" name="email" type="email" autoComplete="email" required />
         </Field>
         <Field label="Password" htmlFor="password" hint="At least 10 characters.">
-          <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={10} />
+          <PasswordInput id="password" name="password" autoComplete="new-password" required minLength={10} />
         </Field>
         <p className="text-xs leading-5 text-muted">By creating an account, you agree to our <Link href="/terms" className="text-accent-ink underline">Terms of service</Link>. Read our <Link href="/privacy" className="text-accent-ink underline">Privacy policy</Link> to understand how your information is used.</p>
         <Button type="submit" variant="primary" className="w-full" disabled={pending}>

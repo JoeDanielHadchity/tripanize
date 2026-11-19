@@ -14,7 +14,7 @@ test("appearance starts light and allows dark or system until the next reload", 
   await page.goto("/sign-up");
   await page.getByLabel("Your name").fill("Theo");
   await page.getByLabel("Email").fill(`theme-${info.project.name}-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("a-long-test-password");
+  await page.getByLabel("Password", { exact: true }).fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
   await confirmSignUp(page);
   await page.waitForURL("**/start");

@@ -9,6 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { clearOfflineData } from "@/components/offline";
 import { CURRENCIES } from "@/lib/money";
 import { INTERESTS } from "@/lib/constants";
+import { PasswordInput } from "@/components/password-input";
 
 type Initial = { name: string; homeCity: string; defaultCurrency: string; pace: "RELAXED" | "BALANCED" | "AMBITIOUS"; interests: string[]; dietary: string; accessibility: string; mapsApp: "GOOGLE" | "APPLE" | "OSM"; timezone: string };
 
@@ -57,8 +58,8 @@ export function AccountForm({ initial, company = false }: { initial: Initial; co
           setPw(error ? { msg: error.message ?? "Couldn't change password.", ok: false } : { msg: "Password changed. Other devices were signed out.", ok: true });
           if (!error) e.currentTarget.reset();
         }}>
-          <Field label="Current password" htmlFor="pw-cur"><Input id="pw-cur" name="current" type="password" autoComplete="current-password" required /></Field>
-          <Field label="New password" htmlFor="pw-new" hint="At least 10 characters."><Input id="pw-new" name="next" type="password" autoComplete="new-password" minLength={10} required /></Field>
+          <Field label="Current password" htmlFor="pw-cur"><PasswordInput id="pw-cur" name="current" autoComplete="current-password" required /></Field>
+          <Field label="New password" htmlFor="pw-new" hint="At least 10 characters."><PasswordInput id="pw-new" name="next" autoComplete="new-password" minLength={10} required /></Field>
           <div className="sm:col-span-2"><Button type="submit">Change password</Button></div>
         </form>
         {pw && <p role="status" className={pw.ok ? "text-sm text-sage-ink" : "text-sm text-danger"}>{pw.msg}</p>}

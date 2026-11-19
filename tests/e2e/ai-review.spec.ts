@@ -11,7 +11,7 @@ test("AI draft review: accept selected days, version history, AI swap", async ({
   await page.goto("/sign-up");
   await page.getByLabel("Your name").fill("Ana");
   await page.getByLabel("Email").fill(`stub-${run}@example.test`);
-  await page.getByLabel("Password").fill("a-long-test-password");
+  await page.getByLabel("Password", { exact: true }).fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
   await confirmSignUp(page);
   await page.waitForURL("**/start");

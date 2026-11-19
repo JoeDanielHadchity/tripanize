@@ -25,7 +25,7 @@ async function signUp(browser: Browser, name: string, email: string, viewport: {
   await page.goto(next ? `/sign-up?next=${encodeURIComponent(next)}` : "/sign-up");
   await page.getByLabel("Your name").fill(name);
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("a-long-test-password");
+  await page.getByLabel("Password", { exact: true }).fill("a-long-test-password");
   await page.getByRole("button", { name: "Create account" }).click();
   await confirmSignUp(page);
   await page.waitForURL(next ? `**${next}` : "**/start");
@@ -214,7 +214,7 @@ test("core flow: plan, edit, invite, share, split, settle, today, events", async
   await again.goto("/sign-in");
   // Sign-in opens on the password tab.
   await again.getByLabel("Email").fill(`ana-${run}@example.test`);
-  await again.getByLabel("Password").fill("a-long-test-password");
+  await again.getByLabel("Password", { exact: true }).fill("a-long-test-password");
   await again.getByRole("button", { name: "Sign in" }).click();
   await again.waitForURL("**/start");
   await again.getByRole("link", { name: "I have a destination", exact: true }).click();
