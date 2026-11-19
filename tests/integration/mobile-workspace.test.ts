@@ -333,7 +333,7 @@ it("provides the reference-style trip layout without mixing days, plans or viewe
   await expect(page(outsider.id, "itinerary", tripId, days[0].id)).rejects.toMatchObject({ code: "NOT_FOUND" });
 });
 
-it("shows AI credit balance, costs and history in the app only while credits apply", async () => {
+it("shows AI credit balance and history (never prices) in the app only while credits apply", async () => {
   const owner = await makeUser("Owner"), tripId = await makeTrip(owner.id);
   await prisma.user.update({ where: { id: owner.id }, data: { emailVerified: true } });
   expect((await page(owner.id, "account")).blocks.some(b => b.id === "credits")).toBe(false);
@@ -342,7 +342,8 @@ it("shows AI credit balance, costs and history in the app only while credits app
   const account = (await page(owner.id, "account")).blocks.find(b => b.id === "credits")!;
   expect(account.title).toBe("AI credits: 15");
   const credits = await page(owner.id, "credits");
-  expect(credits.blocks.map(b => b.id)).toEqual(expect.arrayContaining(["balance", "costs", "history"]));
+  expect(credits.blocks.map(b => b.id)).toEqual(expect.arrayContaining(["balance", "history"]));
+  expect(credits.blocks.map(b => b.id)).not.toContain("costs");
   expect(JSON.stringify(credits)).toContain("Welcome credits");
   expect(JSON.stringify(credits).toLowerCase()).not.toContain("tripanize.app"); // Store policy: no web checkout pointers.
   expect(JSON.stringify(await page(owner.id, "plan", tripId))).toContain("You have 15 credits.");
