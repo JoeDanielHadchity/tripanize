@@ -60,6 +60,17 @@ export function PremiumCheckout({ tripId, initial, trial, creditsNote }: { tripI
     setBusy(true); setError("");
     try { const r = await chooseNormalAction(tripId); if (!r.ok) throw new Error(r.error); router.push(r.data.next); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Please try again."); } finally { setBusy(false); }
   }
+  // Premium paid from the organizer's account credits (the "bank"), with no payment.
+  const credits = summary.credits;
+  const canUseCredits = credits.active && summary.canPurchase && !hasPremium && !summary.preview;
+  const enoughCredits = canUseCredits && credits.balance >= credits.price;
+  async function unlockWithCredits() {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const updated = await request<Summary>({ useCredits: true }); setSummary(updated);
+      router.push(`/trips/${tripId}/${updated.onboardingStage === "COMPLETE" ? "itinerary" : "onboarding"}`); router.refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Please try again."); } finally { setBusy(false); }
+  }
   async function checkout() {
     setBusy(true); setError(""); setMessage("");
     try {
@@ -73,6 +84,10 @@ export function PremiumCheckout({ tripId, initial, trial, creditsNote }: { tripI
   const premiumAction = offer ? <ActivateTrialButton invitationId={offer.invitationId} tripId={tripId} durationDays={offer.durationDays} />
     : hasPremium ? summary.onboardingStage === "PLAN" && summary.canPurchase ? <Button onClick={normal} disabled={busy} variant="primary">Continue to trip questions</Button>
       : <LinkButton href={`/trips/${tripId}`} variant="primary">{summary.onboardingStage === "COMPLETE" ? "Premium active · open trip" : "Continue to trip questions"}</LinkButton>
+    : enoughCredits ? <div className="flex flex-col gap-2">
+        <Button variant="primary" disabled={busy || awaiting} onClick={unlockWithCredits}>{busy ? "Unlocking…" : `Unlock with ${credits.price} credits`}</Button>
+        {summary.available && <Button disabled={busy || awaiting || summary.reviewRequired} onClick={checkout}>{awaiting ? "Confirming payment…" : "Pay $15 instead"}</Button>}
+      </div>
     : <Button variant="primary" disabled={busy || awaiting || !summary.canPurchase || !summary.available || summary.reviewRequired} onClick={checkout}>{busy ? "Opening checkout…" : awaiting ? "Confirming payment…" : "Unlock Premium"}</Button>;
   return <div className="space-y-6">
     {included && <Notice title={summary.source === "company" ? `${OPERATOR_NAME} all-access` : "Your one-trip trial is active"}>Every Premium feature is included for this trip and its members. No payment is needed, and no charge happens automatically.{summary.source === "trial" && summary.validUntil && <> Trial access ends on {new Date(summary.validUntil).toLocaleDateString("en-GB", { timeZone: "Asia/Riyadh" })}.</>}</Notice>}
@@ -89,6 +104,7 @@ export function PremiumCheckout({ tripId, initial, trial, creditsNote }: { tripI
       creditsNote={!included && !offer && !hasPremium ? creditsNote : undefined}
     />
 
+    {canUseCredits && <Notice tone={enoughCredits ? "sage" : undefined} title={`You have ${credits.balance} credits`}>{enoughCredits ? `Unlock Premium for this trip with ${credits.price} of them, with no payment. The rest stay in your account for AI planning on any trip.` : <>Unlocking Premium with credits uses {credits.price}. <a href="/account/credits" className="font-semibold underline">Top up or buy a bundle</a>, or pay $15 below.</>}</Notice>}
     {!summary.canPurchase && <Notice>Only the trip organizer can choose or pay for the plan. Your role is managed in Trip settings.</Notice>}
     {!summary.available && !hasPremium && !offer && <Notice>Premium checkout is temporarily unavailable. You can continue free.</Notice>}
     {summary.reviewRequired && <Notice tone="warn">A payment adjustment needs review. Contact support before making another purchase.</Notice>}

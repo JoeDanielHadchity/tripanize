@@ -198,7 +198,7 @@ export async function creditsView(userId: string, tripId?: string | null, db: Cl
 
 /** Spending on one trip, per person, for the organizer's Trip settings. */
 export async function tripCreditSpending(tripId: string, db: Client = prisma) {
-  const spent = await db.creditEntry.groupBy({ by: ["createdById"], where: { tripId, kind: "spend" }, _sum: { amount: true }, _count: true });
+  const spent = await db.creditEntry.groupBy({ by: ["createdById"], where: { tripId, kind: "spend", note: { not: "premium" } }, _sum: { amount: true }, _count: true });
   const users = await db.user.findMany({ where: { id: { in: spent.map(s => s.createdById).filter((v): v is string => Boolean(v)) } }, select: { id: true, name: true } });
   return spent.map(s => ({ userId: s.createdById, name: users.find(u => u.id === s.createdById)?.name ?? "Someone", actions: s._count, credits: -(s._sum.amount ?? 0) })).sort((a, b) => b.credits - a.credits);
 }

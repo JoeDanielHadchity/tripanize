@@ -23,6 +23,8 @@ export const CREDIT_PRICES = {
 export const WELCOME_CREDITS = 15;
 /** The AI credits included with a $15 Premium trip (the Starter bundle). */
 export const PREMIUM_INCLUDED_CREDITS = 100;
+/** Premium for one trip paid with account credits instead of money (same value as the $15 purchase). */
+export const PREMIUM_CREDIT_PRICE = 100;
 /** Once, for every account invited to Premium before credits launched. */
 export const INVITED_PREMIUM_CREDITS = 500;
 
@@ -42,7 +44,7 @@ export function planPrice(days: number, opts: { setup?: boolean; premium?: boole
 /** How each kind of spending reads in credit history (website and app). */
 export const CREDIT_SPEND_LABELS: Record<string, string> = {
   plan: "Planned days with AI", regenerate: "Regenerated days with AI", restaurants: "Restaurant ideas", events: "Event search",
-  destination: "Destination ideas", assistant: "AI assistant", swap: "Stop alternatives", packing: "Packing suggestions",
+  destination: "Destination ideas", premium: "Premium for a trip", assistant: "AI assistant", swap: "Stop alternatives", packing: "Packing suggestions",
 };
 /** The price list people see (website and app). */
 export const CREDIT_COSTS: readonly [string, number | "Free"][] = [

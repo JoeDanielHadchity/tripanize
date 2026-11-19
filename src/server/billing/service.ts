@@ -10,14 +10,16 @@ import { rateLimit } from "@/server/ratelimit";
 import { fetchTransaction, paddleRequest, paddleTransaction, type PaddleTransaction } from "./paddle";
 import { pendingTrialInvitations } from "@/server/admin/trials";
 import { settlePurchaseCredits } from "./credits";
-import { PREMIUM_INCLUDED_CREDITS } from "@/lib/credits";
+import { PREMIUM_CREDIT_PRICE, PREMIUM_INCLUDED_CREDITS } from "@/lib/credits";
+import { creditsView } from "@/server/credits/service";
 
 export async function billingSummary(userId: string, tripId: string) {
   const access = await requireTrip(tripId, userId);
   const plan = await getTripPlan(tripId);
   const recommended = premiumBandForPeople(plan.people);
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { selectedPremiumFeatures: true, onboardingStage: true } });
-  return { ...plan, onboardingStage: trip.onboardingStage, selectedFeatures: selectedPremiumFeatures(trip.selectedPremiumFeatures), canPurchase: access.role === "OWNER", available: checkoutAvailable(), environment: billingEnvironment(), recommended: recommended?.id ?? null,
+  const credits = await creditsView(userId);
+  return { ...plan, credits: { active: credits.active, balance: credits.balance, price: PREMIUM_CREDIT_PRICE }, onboardingStage: trip.onboardingStage, selectedFeatures: selectedPremiumFeatures(trip.selectedPremiumFeatures), canPurchase: access.role === "OWNER", available: checkoutAvailable(), environment: billingEnvironment(), recommended: recommended?.id ?? null,
     options: PREMIUM_BANDS.map(b => ({ ...b, eligible: !plan.premium, dueMinor: plan.premium ? 0 : b.priceMinor })) };
 }
 

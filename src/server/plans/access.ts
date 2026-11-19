@@ -7,7 +7,7 @@ import { PREMIUM_FEATURES, PREMIUM_BANDS, type PremiumFeature } from "@/lib/plan
 import { billingEnvironment } from "@/server/billing/config";
 import { isCompanyAccount } from "@/server/admin/identity";
 
-type Database = Pick<Tx, "trip" | "premiumCheckout" | "trialInvitation" | "creditCheckout">;
+type Database = Pick<Tx, "trip" | "premiumCheckout" | "trialInvitation" | "creditCheckout" | "premiumUnlock">;
 export function planAccessEnabled() { return currentRuntime().planAccessEnabled === true; }
 
 /** Count people once: planned totals, named travelers, and account members may overlap. */
@@ -24,7 +24,9 @@ export async function getTripPlan(tripId: string, db: Database = prisma) {
   const creditMinor = purchases.filter(p => !p.reviewRequired).reduce((sum, p) => sum + p.amountMinor, 0);
   // A credit bundle bought for this trip unlocks Premium too (the top-up never does).
   const bundleUnlock = await db.creditCheckout.findFirst({ where: { tripId, environment: billingEnvironment(), status: "COMPLETED", reviewRequired: false, bundle: { not: "topup" } }, select: { id: true } });
-  const hasPurchase = Boolean(bundleUnlock) || purchases.some(p => !p.reviewRequired && [900, 1500, 2500].includes(p.amountMinor));
+  // Premium paid with account credits.
+  const creditUnlock = await db.premiumUnlock.findUnique({ where: { tripId }, select: { id: true } });
+  const hasPurchase = Boolean(bundleUnlock) || Boolean(creditUnlock) || purchases.some(p => !p.reviewRequired && [900, 1500, 2500].includes(p.amountMinor));
   const band = hasPurchase ? PREMIUM_BANDS[0] : null;
   const preview = !planAccessEnabled() && !normalUserMode();
   const trip = await db.trip.findUniqueOrThrow({ where: { id: tripId }, select: { ownerId: true, owner: { select: { email: true, emailVerified: true } }, memberships: { select: { user: { select: { email: true, emailVerified: true } } } } } });
@@ -35,7 +37,7 @@ export async function getTripPlan(tripId: string, db: Database = prisma) {
   // A redeemed invitation covers its one bound trip for the entire trial. A
   // legitimate organizer transfer does not silently revoke access for members.
   const hasTrial = Boolean(trial?.acceptedAt && !trial.revokedAt && (!trial.trialEndsAt || trial.trialEndsAt > new Date()));
-  const source = hasPurchase ? "purchase" : company ? "company" : hasTrial ? "trial" : null;
+  const source = creditUnlock ? "credits" : hasPurchase ? "purchase" : company ? "company" : hasTrial ? "trial" : null;
   return { premium: preview || Boolean(source), preview, source, validUntil: source === "trial" ? trial?.trialEndsAt?.toISOString() ?? null : null, people, creditMinor, capacity: band?.capacity ?? 0, bandId: band?.id ?? null, reviewRequired: purchases.some(p => p.reviewRequired) };
 }
 

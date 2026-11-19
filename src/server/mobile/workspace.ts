@@ -1,4 +1,4 @@
-import { CREDIT_BUNDLES, CREDIT_PRICES, CREDIT_COSTS, PREMIUM_INCLUDED_CREDITS, creditEntryLabel, creditsText } from "@/lib/credits";
+import { CREDIT_BUNDLES, CREDIT_PRICES, CREDIT_COSTS, PREMIUM_CREDIT_PRICE, PREMIUM_INCLUDED_CREDITS, creditEntryLabel, creditsText } from "@/lib/credits";
 import { creditHistory, creditsView } from "@/server/credits/service";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
@@ -102,6 +102,10 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
     doc.blocks = [{ id: "premium", title: "Premium pass · $15 per trip", text: plan.premium ? `Premium is active${plan.validUntil ? ` until ${plan.validUntil}` : ""}. Everyone in this trip is included.` : "One payment covers your whole group. No subscription.", tone: "accent", lines: PLAN_COMPARISON.map(row => `${row.feature}: ${row.premium}`) },
       { id: "standard", title: "Free · $0", text: "AI planning for the first 2 days. Edit all days and add bookings and packing manually. Group roles and voting included." },
       ...(access.role === "OWNER" ? [{ id: "continue", actions: [act(plan.premium ? "Continue with Premium" : "Continue with Free", "trip.standard")] }] : []),
+      // Premium paid from the organizer's account credits, with no payment.
+      ...(!plan.premium && access.role === "OWNER" && credits.active ? [credits.balance >= PREMIUM_CREDIT_PRICE
+        ? { id: "credits-unlock", title: `Use your credits · ${creditsText(PREMIUM_CREDIT_PRICE)}`, text: `You have ${creditsText(credits.balance)}. Unlock Premium for this trip with ${PREMIUM_CREDIT_PRICE} of them, with no payment. The rest stay in your account for AI planning.`, tone: "accent" as const, actions: [act(`★ Unlock with ${creditsText(PREMIUM_CREDIT_PRICE)}`, "trip.premiumCredits", {}, `Use ${creditsText(PREMIUM_CREDIT_PRICE)} to unlock Premium for this trip?`)] }
+        : { id: "credits-unlock", title: `You have ${creditsText(credits.balance)}`, text: `Unlocking Premium with credits uses ${PREMIUM_CREDIT_PRICE}. Top up, or upgrade with a payment below.`, actions: [go("Get more credits", "credits")] }] : []),
       ...(!plan.premium ? [access.role !== "OWNER" ? { id: "store-owner", text: "Only the trip organizer can upgrade. Premium then covers everyone in this trip." }
         : storeConfig() ? { id: "store-purchase", title: "Upgrade this trip", text: `Pay once through Google Play or the App Store. No subscription, and everyone in this trip is included.${credits.active ? ` Includes ${creditsText(PREMIUM_INCLUDED_CREDITS)} for AI. Bigger bundles unlock Premium with more credits.` : ""}`, tone: "accent" as const, actions: [{ label: "★ Upgrade for $15", device: "purchase" as const },
           ...(credits.active ? CREDIT_BUNDLES.filter(b => b.unlocksPremium && b.priceCents > 1500).map(b => ({ label: `${b.name}: Premium + ${creditsText(b.credits)} · $${b.priceCents / 100}`, device: "purchase-credits" as const, values: { bundle: b.id, tripId } })) : [])] }

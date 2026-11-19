@@ -1325,3 +1325,14 @@ model ErrorReport {
 
   @@index([resolvedAt, lastSeenAt])
 }
+
+// Premium for a trip paid with account credits (PREMIUM_CREDIT_PRICE) instead of money. One per trip.
+model PremiumUnlock {
+  id        String   @id @default(cuid())
+  tripId    String   @unique
+  userId    String
+  credits   Int
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
