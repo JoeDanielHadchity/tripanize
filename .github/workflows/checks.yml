@@ -95,7 +95,7 @@ jobs:
         env:
           E2E_BASE_URL: http://localhost:8787
           E2E_RESEND_STUB: http://localhost:4011
-        run: npx playwright test tests/e2e/email-code.spec.ts tests/e2e/date-calendar.spec.ts tests/e2e/settings-theme.spec.ts tests/e2e/prefs-strip-invites.spec.ts tests/e2e/core-flow.spec.ts --project=desktop
+        run: npx playwright test tests/e2e/email-code.spec.ts tests/e2e/date-calendar.spec.ts tests/e2e/settings-theme.spec.ts tests/e2e/prefs-strip-invites.spec.ts tests/e2e/core-flow.spec.ts tests/e2e/security-headers.spec.ts --project=desktop
       - name: Show logs
         if: failure()
         run: |
