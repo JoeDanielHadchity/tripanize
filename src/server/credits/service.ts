@@ -109,8 +109,8 @@ export async function hold(input: { actorId: string; tripId?: string | null; act
       const bank = Math.max(0, await balance(userId, db));
       const owner = userId === input.actorId;
       throw new AppError("CREDITS", owner
-        ? `This trip is out of credits. This uses ${input.credits} and the trip has ${Math.max(0, left)} left. Add credits to the trip from your balance (you have ${bank}).`
-        : `This trip is out of credits. This uses ${input.credits} and the trip has ${Math.max(0, left)} left. Ask the organizer to add credits to the trip.`,
+        ? `This trip is out of credits (${Math.max(0, left)} left). Add credits to the trip from your balance (you have ${bank}).`
+        : `This trip is out of credits. Ask the organizer to add credits to the trip.`,
         { needed: input.credits, balance: Math.max(0, left), wallet: true, bank: owner ? bank : undefined, tripId: input.tripId, payerIsYou: owner });
     }
     return db.creditHold.create({ data: { userId, actorId: input.actorId, tripId: input.tripId, action: input.action, credits: input.credits, refKind: input.refKind, refId: input.refId ?? null, wallet: true } });
@@ -118,7 +118,7 @@ export async function hold(input: { actorId: string; tripId?: string | null; act
   const available = await balance(userId, db);
   if (available < input.credits) {
     const yours = userId === input.actorId;
-    throw new AppError("CREDITS", yours ? `Not enough credits. This uses ${input.credits} credits and you have ${Math.max(0, available)}.` : `Not enough credits. This uses ${input.credits} of the organizer's credits, and they have ${Math.max(0, available)} left.`, { needed: input.credits, balance: Math.max(0, available), payerIsYou: yours });
+    throw new AppError("CREDITS", yours ? `Not enough credits for this. You have ${Math.max(0, available)} left.` : `The organizer doesn't have enough credits left for this.`, { needed: input.credits, balance: Math.max(0, available), payerIsYou: yours });
   }
   return db.creditHold.create({ data: { userId, actorId: input.actorId, tripId: input.tripId ?? null, action: input.action, credits: input.credits, refKind: input.refKind, refId: input.refId ?? null } });
 }

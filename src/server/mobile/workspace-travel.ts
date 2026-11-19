@@ -14,7 +14,7 @@ export async function travelBlocks(userId: string, tripId: string, screen: strin
   const item = query.get("item");
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId } });
   const credits = screen === "packing" || screen === "events" ? await creditsView(userId, tripId) : null;
-  const cost = (n: number) => credits?.active ? ` · ${creditsText(n)}` : "";
+  const cost = (_n: number) => ""; // Prices are never shown to travelers (only on the admin dashboard).
   if (screen === "packing") {
     const { personal, shared } = await getPacking(userId, tripId);
     const tasks = await prisma.tripTask.findMany({ where: { tripId }, orderBy: [{ done: "asc" }, { position: "asc" }] });

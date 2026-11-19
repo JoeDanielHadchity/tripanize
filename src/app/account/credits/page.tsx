@@ -6,7 +6,7 @@ import { AppHeader } from "@/components/shell";
 import { Card, Notice, PageHeader } from "@/components/ui";
 import { MembersCreditsSwitch } from "@/components/members-credits-switch";
 import { creditHistory, creditsView, hasWallet, tripCreditSpending, walletBalance } from "@/server/credits/service";
-import { CREDIT_BUNDLES, CREDIT_COSTS, creditEntryLabel } from "@/lib/credits";
+import { CREDIT_BUNDLES, creditEntryLabel } from "@/lib/credits";
 import { CreditTopUp } from "@/components/credit-top-up";
 import { refreshCreditPayments, unlockableTrips } from "@/server/billing/credits";
 import { creditCheckoutAvailable } from "@/server/billing/config";
@@ -15,7 +15,6 @@ import { creditCheckoutAvailable } from "@/server/billing/config";
 export const metadata: Metadata = { title: "Credits", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
-const COSTS = CREDIT_COSTS;
 const ORDER = ["topup", "starter", "plus", "pro"];
 const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
@@ -52,19 +51,6 @@ export default async function AccountCreditsPage() {
               <p className="w-full text-xs text-muted">Credits don't expire. If something goes wrong with an AI request, its credits come back automatically.</p>
             </Card>
           </section>
-
-          <section aria-labelledby="costs-h">
-            <h2 id="costs-h" className={h2}>What each task costs</h2>
-            <Card className="p-0">
-              <table className="w-full text-left text-sm">
-                <caption className="sr-only">AI credits per task</caption>
-                <thead className="text-xs text-muted"><tr><th scope="col" className="px-4 py-3 font-medium">Task</th><th scope="col" className="px-4 py-3 text-right font-medium">Credits</th></tr></thead>
-                <tbody className="divide-y divide-line">{COSTS.map(([what, n]) => <tr key={what}><th scope="row" className="px-4 py-3 font-normal">{what}</th><td className="px-4 py-3 text-right font-bold tabular-nums">{n}</td></tr>)}</tbody>
-              </table>
-            </Card>
-            <p className="mt-2 text-xs text-muted">A week-long trip with a round of changes usually uses about 60 credits.</p>
-          </section>
-
           <section aria-labelledby="top-up-h" id="top-up" className="scroll-mt-24">
             <h2 id="top-up-h" className={h2}>Top up</h2>
             <CreditTopUp bundles={bundles} trips={await unlockableTrips(user.id)} available={creditCheckoutAvailable()} />

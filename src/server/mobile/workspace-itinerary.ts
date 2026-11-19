@@ -23,7 +23,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   const premium = (await getTripPlan(tripId)).premium;
   // What AI costs here, shown only when credits apply to whoever pays (the organizer, for an editor).
   const credits = await creditsView(userId, tripId);
-  const cost = (n: number) => credits.active ? ` · ${creditsText(n)}` : "";
+  const cost = (_n: number) => ""; // Prices are never shown to travelers (only on the admin dashboard).
   const creditLine = credits.active ? `${credits.wallet ? `This trip has ${creditsText(credits.balance)} left.` : `${credits.payerIsYou ? "You have" : "The organizer has"} ${creditsText(credits.balance)}.`}${credits.membersBlocked ? " The organizer has turned off AI on their credits for members." : ""}` : "";
   if (screen === "versions") {
     const versions = await listVersions(userId, tripId);
@@ -32,7 +32,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   if (screen === "assistant") {
     const chat = await getAssistantConversation(userId, tripId);
     return { pollMs: chat.turns.some(t => ["QUEUED", "RUNNING"].includes(t.status)) ? 3000 : undefined, blocks: [
-      { id: "intro", text: `Ask about your trip or propose a change. Review changes before applying them.${credits.active ? ` Questions are free. A change to your trip that the assistant prepares uses ${creditsText(CREDIT_PRICES.assistant)}. ${creditLine}` : ""}` },
+      { id: "intro", text: `Ask about your trip or propose a change. Review changes before applying them.${credits.active ? ` ${creditLine}` : ""}` },
       ...chat.turns.map(t => ({ id: t.id, title: t.question, text: t.reply ?? t.error ?? "Thinking…", meta: t.appliedAt ? "Applied" : t.status, lines: t.preview ? [...t.preview.changes, ...t.preview.warnings, ...t.preview.conflicts, ...t.preview.days.flatMap(d => [`${d.date}: ${d.beforeTitle ?? ""} → ${d.afterTitle ?? ""}`, `Before: ${d.before.map(s => `${s.time ?? "Anytime"} ${s.title}`).join(" · ")}`, `After: ${d.after.map(s => `${s.time ?? "Anytime"} ${s.title}`).join(" · ")}`])] : [], actions: [
         ...t.sources.flatMap(url => link("Source", url)),
         ...(chat.canEdit && t.preview && !t.appliedAt && !t.dismissed && t.status === "SUCCEEDED" ? [act("Apply reviewed changes", "assistant", { op: "apply", id: t.id }, "Apply these changes to the shared itinerary? You can restore the previous version from itinerary history."), act("Dismiss", "assistant", { op: "dismiss", id: t.id })] : []),
@@ -68,7 +68,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
     const questions = await getPlanQuestions(userId, tripId, { cachedOnly: true });
     const saved = trip.planPrefs && typeof trip.planPrefs === "object" && !Array.isArray(trip.planPrefs) ? trip.planPrefs : {};
     const blocks: MobileBlock[] = [{ id: "scope", title: premium ? "★ Plan every day" : "First 2 AI days included", text: "AI changes are saved as a draft for review. Your manual itinerary stays editable on every day." },
-      ...(credits.active ? [{ id: "credits", text: `Each day planned or regenerated with AI uses ${creditsText(CREDIT_PRICES.planDay)}, restaurants included. ${creditLine}`, actions: credits.wallet && credits.payerIsYou ? [go("Add credits to this trip", "premium", tripId)] : credits.payerIsYou ? [go("Credits & history", "credits")] : [] }] : []),
+      ...(credits.active ? [{ id: "credits", text: creditLine, actions: credits.wallet && credits.payerIsYou ? [go("Add credits to this trip", "premium", tripId)] : credits.payerIsYou ? [go("Credits & history", "credits")] : [] }] : []),
       ...(canEdit ? [form("prefs", "Planning & food preferences", "plan.preferences", [...questions.questions.map((q, i) => f(`answers.${i}.a`, q.q, "multi", { options: options(q.options), max: q.multi ? undefined : 1 })), f("note", "Travel preferences", "long"), f("foodNotes", "Food preferences & allergies", "long")], { answers: questions.questions.map(q => { const old = Array.isArray(saved.answers) ? saved.answers.find(a => a && typeof a === "object" && !Array.isArray(a) && a.q === q.q) : null; return { q: q.q, a: old && typeof old === "object" && !Array.isArray(old) && Array.isArray(old.a) ? wire(old.a) : [] }; }), note: typeof saved.note === "string" ? saved.note : "", foodNotes: typeof saved.foodNotes === "string" ? saved.foodNotes : "" }),
       form("generate", "Create an itinerary draft", "plan.start", [f("instruction", "Anything to focus on?", "long")], { kind: "full" }, "Generate itinerary"),
       ...(premium ? [form("regenerate", "Regenerate selected days", "plan.start", [f("dates", "Choose days", "multi", { options: days.map(d => ({ value: d.date, label: d.date })) }), f("instruction", "Instructions", "long")], { kind: "days" }, "Prepare alternatives")] : []),

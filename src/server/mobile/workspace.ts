@@ -1,4 +1,4 @@
-import { CREDIT_BUNDLES, CREDIT_PRICES, CREDIT_COSTS, CREDIT_SPEND_LABELS, PREMIUM_CREDIT_PRICE, PREMIUM_INCLUDED_CREDITS, creditEntryLabel, creditsText } from "@/lib/credits";
+import { CREDIT_BUNDLES, CREDIT_SPEND_LABELS, PREMIUM_CREDIT_PRICE, PREMIUM_INCLUDED_CREDITS, creditEntryLabel, creditsText } from "@/lib/credits";
 import { creditHistory, creditsView, tripWallet } from "@/server/credits/service";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
@@ -58,7 +58,6 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
       { id: "balance", title: `${creditsText(view.balance)} left`, text: "Credits pay for AI on trips you organize. Editors on your trips use yours too, unless you turn that off in a trip's settings.", tone: "accent" },
       // Store billing only: digital goods in the app are sold through Google Play or the App Store.
       ...(storeConfig() ? [{ id: "buy", title: "Add credits", text: "Pay once through Google Play or the App Store. Credits never expire.", actions: CREDIT_BUNDLES.map(b => ({ label: `${b.name}: ${creditsText(b.credits)} · $${b.priceCents / 100}`, device: "purchase-credits" as const, values: { bundle: b.id } })) }] : []),
-      { id: "costs", title: "What things cost", lines: CREDIT_COSTS.map(([what, n]) => `${what}: ${typeof n === "number" ? creditsText(n) : n}`) },
       { id: "history", title: "History", lines: history.length ? history.map(h => `${h.amount > 0 ? `+${h.amount}` : h.amount} · ${creditEntryLabel(h)} · ${when(h.createdAt)}${names.find(t => t.id === h.tripId) ? ` · ${names.find(t => t.id === h.tripId)!.name}` : ""}`) : ["Nothing yet."] },
     ] };
   }
@@ -83,7 +82,6 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
     const blocks: MobileBlock[] = [{ id: "searches", actions: [...searches.searches.map(s => go(`Search #${s.number}`, "discovery", undefined, s.id)), act("New search", "discovery.draft")] }];
     if (search) blocks.push({ id: "delete-search", actions: [{ ...act("Delete search", "discovery.delete", { id: search.id }, `Delete Search #${search.number}? Its saved answers and results will be removed. Any trip you created from it will be kept.`), danger: true }] });
     if (!search) blocks.push({ id: "empty", text: "Start a search to find five places that fit your preferences." });
-    if (search && search.status === "DRAFT") blocks.push({ id: "price", text: search.free ? `Your first search is free. After that, each new search uses ${CREDIT_PRICES.destination} credits.` : `This search uses ${search.price} credits.` });
     if (search && search.status === "DRAFT") blocks.push(form("discover", `Search #${search.number}`, "discovery.run", [f("departureCity", "Departure city & country", "text", { required: true }), f("timing", "When?", "select", { options: options(["dates", "month", "flexible"]) }), f("startDate", "Start date", "date"), f("endDate", "End date", "date"), f("month", "Travel month", "text", { hint: "YYYY-MM" }), f("days", "Number of days", "number"), f("adults", "Adults", "number"), f("children", "Children", "number"), f("budget", "Whole-trip budget per person (USD)", "number"), f("climate", "Weather", "select", { options: options(["Warm & sunny", "Mild & comfortable", "Cold or snowy", "No preference"]) }), f("interests", "What do you enjoy?", "multi", { options: options(DISCOVERY_INTERESTS) }), f("pace", "Pace", "select", { options: options(["RELAXED", "BALANCED", "AMBITIOUS"]) }), f("distance", "Travel distance", "select", { options: options(["Nearby — up to 3 hours", "Up to 6 hours", "Anywhere"]) }), f("crowds", "Crowds", "select", { options: options(["Quiet & less crowded", "A balance", "Lively & popular"]) }), f("constraints", "Anything else?", "long")], { ...wire(search.input) as Record<string, import("@/lib/mobile-workspace").MobileValue>, id: search.id }, "Find five destinations"));
     if (search?.error) blocks.push({ id: "error", text: search.error, tone: "warning", actions: [act("Start a new search", "discovery.draft")] });
     if (search?.result) {

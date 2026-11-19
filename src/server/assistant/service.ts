@@ -136,7 +136,7 @@ export async function runAssistantJob(jobId: string, generate: Generator, signal
     catch (error) { if (!(error instanceof AppError) || error.code !== "CREDITS") throw error; }
     if (!paid) {
       proposal.edits = [];
-      proposal.reply = `${proposal.reply}\n\nMaking this change uses ${CREDIT_PRICES.assistant} credits, and there aren't enough left. Add credits, then ask again. Questions stay free.`;
+      proposal.reply = `${proposal.reply}\n\nMaking this change needs credits, and there aren't enough left. Add credits, then ask again.`;
       preview = { changes: [], days: [], warnings: [], conflicts: [] };
     }
   }

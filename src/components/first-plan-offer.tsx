@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { LinkButton } from "@/components/ui";
 import { PremiumStar } from "@/components/premium-star";
-import { planPrice } from "@/lib/credits";
 
 /**
  * Shown once, right after setup plans a free trip's first days: the moment the rest is worth paying for.
@@ -17,7 +16,7 @@ export function FirstPlanOffer({ tripId, planned, total, credits = false }: { tr
       <h2 id="first-plan-offer-h" className="mt-2 font-display text-2xl font-extrabold sm:text-3xl">{heading}</h2>
       {credits ? (
         <p className="mt-2 max-w-2xl text-sm text-night-muted">
-          Plan {rest > 0 ? `the other ${rest} days` : "your days"} with AI for {planPrice(rest > 0 ? rest : total)} credits, or keep planning by hand for free. Bundles from $15 also unlock Premium for this trip: shared expenses, group chat and the AI assistant.
+          Plan {rest > 0 ? `the other ${rest} days` : "your days"} with AI using your credits, or keep planning by hand for free. Bundles from $15 also unlock Premium for this trip: shared expenses, group chat and the AI assistant.
         </p>
       ) : (
         <p className="mt-2 max-w-2xl text-sm text-night-muted">
@@ -26,7 +25,7 @@ export function FirstPlanOffer({ tripId, planned, total, credits = false }: { tr
       )}
       <div className="mt-5 flex flex-wrap items-center gap-3">
         {credits
-          ? <LinkButton href={`/trips/${tripId}/plan`} variant="primary">{rest > 0 ? `Plan the other ${rest} days · ${planPrice(rest)} credits` : `Plan with AI · ${planPrice(total)} credits`}</LinkButton>
+          ? <LinkButton href={`/trips/${tripId}/plan`} variant="primary">{rest > 0 ? `Plan the other ${rest} days with AI` : "Plan with AI"}</LinkButton>
           : <LinkButton href={`/trips/${tripId}/premium`} variant="primary" className="gap-2"><PremiumStar className="text-current" /> {rest > 0 ? "Plan the rest with Premium · $15" : "Plan it with Premium · $15"}</LinkButton>}
         <Link href={`/trips/${tripId}/itinerary`} className="inline-flex min-h-11 items-center text-sm font-bold text-night-accent underline">Keep planning for free</Link>
       </div>
