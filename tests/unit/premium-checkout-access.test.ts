@@ -10,7 +10,7 @@ vi.mock("@/app/actions/trials", () => ({ acceptTrialAction: vi.fn() }));
 type Props = ComponentProps<typeof PremiumCheckout>;
 const normal: Props["initial"] = {
   premium: false, preview: false, source: null, validUntil: null, people: 4,
-  creditMinor: 0, capacity: 0, bandId: null, reviewRequired: false,
+  creditMinor: 0, capacity: 0, bandId: null, reviewRequired: false, credits: { active: false, balance: 0, price: 100 },
   onboardingStage: "PLAN", selectedFeatures: [], canPurchase: true,
   available: true, environment: "live", recommended: "premium",
   options: [{ id: "premium", label: "Any group size", capacity: Number.MAX_SAFE_INTEGER, priceMinor: 1500, eligible: true, dueMinor: 1500 }],
@@ -75,4 +75,13 @@ it("keeps active trial members on their included access", () => {
   expect(html).toContain("10/11/2026");
   expect(html).toContain("No payment required.");
   expect(html).not.toContain("Unlock Premium");
+});
+
+it("offers Premium for credits when the organizer has enough, and explains when they don't", () => {
+  const rich = render({ credits: { active: true, balance: 115, price: 100 } });
+  expect(rich).toContain("Unlock with 100 credits");
+  expect(rich).toContain("Pay $15 instead");
+  const poor = render({ credits: { active: true, balance: 15, price: 100 } });
+  expect(poor).not.toContain("Unlock with 100 credits");
+  expect(poor).toContain("Top up or buy a bundle");
 });
