@@ -63,8 +63,12 @@ export async function sendAssistantMessage(userId: string, tripId: string, raw: 
   await rateLimit(`assistant:hour:${userId}`, 30, 3600, "You've reached the hourly assistant limit. Please try again later.");
   const selected = input.selectedDate ? await prisma.itineraryDay.findFirst({ where: { tripId, date: input.selectedDate } }) : null;
   const params: AssistantParams = { membershipId: m.id, clientId: input.clientId, message: input.message, selectedDate: selected?.date ?? null };
-  // Two credits per question, held until the reply finishes (refunded if it fails or is cancelled).
-  const held = await hold({ actorId: userId, tripId, action: "assistant", credits: CREDIT_PRICES.assistant, refKind: "job", refId: id });
+  // Questions are free; a reply that proposes changes to the trip costs 2 credits. They're held now and
+  // given back if the reply turns out to be just an answer (or fails). With no credits left, the
+  // question is still answered; a proposed change then asks for credits.
+  let held: Awaited<ReturnType<typeof hold>> = null;
+  try { held = await hold({ actorId: userId, tripId, action: "assistant", credits: CREDIT_PRICES.assistant, refKind: "job", refId: id }); }
+  catch (error) { if (!(error instanceof AppError) || error.code !== "CREDITS") throw error; params.unpaid = true; }
   try { await prisma.generationJob.create({ data: { id, tripId, kind: "assistant", params: json(params), requestedById: userId, createdAt: new Date(Math.max(Date.now(), (latest?.createdAt.getTime() ?? 0) + 1)), progress: [{ at: new Date().toISOString(), message: "Reading your trip and preparing a reply" }] } }); } catch (error) { await settle(held?.id, "refunded"); throw error; }
   await currentRuntime().wakeAi?.();
   return { id };
@@ -122,6 +126,20 @@ export async function runAssistantJob(jobId: string, generate: Generator, signal
   let preview: AssistantPreview;
   try { preview = previewAssistantEdits(state, proposal.edits).preview; }
   catch (e) { if (!(e instanceof AppError)) throw e; preview = { changes: [], days: [], warnings: [], conflicts: [e.message] }; }
+  // Charge only for an act: a reply with changes to the trip. A plain answer is free.
+  const holds = await prisma.creditHold.findMany({ where: { refKind: "job", refId: jobId, status: "held" }, select: { id: true } });
+  if (!preview.changes.length) { for (const h of holds) await settle(h.id, "refunded"); }
+  else if (!holds.length && params.unpaid) {
+    // Sent with no credits left: charge now if credits were added meanwhile, otherwise hold the change back.
+    let paid: Awaited<ReturnType<typeof hold>> = null;
+    try { paid = await hold({ actorId: job.requestedById, tripId: job.tripId, action: "assistant", credits: CREDIT_PRICES.assistant, refKind: "job", refId: jobId }); }
+    catch (error) { if (!(error instanceof AppError) || error.code !== "CREDITS") throw error; }
+    if (!paid) {
+      proposal.edits = [];
+      proposal.reply = `${proposal.reply}\n\nMaking this change uses ${CREDIT_PRICES.assistant} credits, and there aren't enough left. Add credits, then ask again. Questions stay free.`;
+      preview = { changes: [], days: [], warnings: [], conflicts: [] };
+    }
+  }
   const review: Review = { baseHash, preview, sources: [...new Set(result.sources.map(safeUrl).filter((u): u is string => Boolean(u)))].slice(0, 12) };
   await prisma.generationJob.update({ where: { id: jobId }, data: { status: "SUCCEEDED", finishedAt: new Date(), proposal: json(proposal), checks: json(review) } });
 }

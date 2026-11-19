@@ -26,4 +26,5 @@ export const assistantCommand = z.discriminatedUnion("op", [
   z.object({ op: z.literal("dismiss"), id: z.string().max(64) }).strict(),
   z.object({ op: z.literal("cancel"), id: z.string().max(64) }).strict(),
 ]);
-export type AssistantParams = { membershipId: string; clientId: string; message: string; selectedDate: string | null };
+/** unpaid: sent without credits on hold (none left); a reply that proposes changes then needs them. */
+export type AssistantParams = { membershipId: string; clientId: string; message: string; selectedDate: string | null; unpaid?: boolean };

@@ -1,6 +1,7 @@
 "use client";
 import { PremiumStar } from "./premium-star";
-import { notifyCreditsChanged } from "@/components/credits";
+import { notifyCreditsChanged, useCredits } from "@/components/credits";
+import { CREDIT_PRICES } from "@/lib/credits";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -28,6 +29,7 @@ export function TripAssistant({ tripId, defaultDate }: { tripId: string; default
   const [error, setError] = useState("");
   const [blocked, setBlocked] = useState(false);
   const [needsCredits, setNeedsCredits] = useState(false);
+  const credits = useCredits(tripId);
   const [refresh, setRefresh] = useState(0);
   const feed = useRef<HTMLDivElement>(null), nearBottom = useRef(true), busy = useRef(false);
   const attempt = useRef<{ clientId: string; message: string; selectedDate: string | null } | null>(null);
@@ -82,7 +84,7 @@ export function TripAssistant({ tripId, defaultDate }: { tripId: string; default
     </button>
     <Dialog open={open} onClose={() => setOpen(false)} title="AI trip assistant" wide tall>
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-        <p className="shrink-0 text-xs text-muted">Your conversation is private to you. The assistant uses your trip details and itinerary. Changes are shared with the trip only after you apply them.</p>
+        <p className="shrink-0 text-xs text-muted">Your conversation is private to you. The assistant uses your trip details and itinerary. Changes are shared with the trip only after you apply them.{credits?.active && <> Questions are free; a change it prepares for your trip uses {CREDIT_PRICES.assistant} credits.</>}</p>
         {!online && <Notice tone="warn">You’re offline. Reconnect to use the assistant.</Notice>}
         {error && <Notice tone="warn">{error} {needsCredits ? <a href={/trip is out of credits/.test(error) ? `/trips/${tripId}/premium#trip-credits` : "/account/credits"} className="font-semibold underline">{/trip is out of credits/.test(error) ? "Add credits" : "Top up"}</a> : !blocked && <button type="button" className="font-semibold underline" onClick={() => setRefresh(n => n + 1)}>Retry</button>}</Notice>}
         {conversation && !conversation.aiReady && <Notice tone="warn">The AI assistant is not configured yet.</Notice>}

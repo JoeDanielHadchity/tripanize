@@ -32,7 +32,7 @@ export async function itineraryBlocks(userId: string, tripId: string, screen: st
   if (screen === "assistant") {
     const chat = await getAssistantConversation(userId, tripId);
     return { pollMs: chat.turns.some(t => ["QUEUED", "RUNNING"].includes(t.status)) ? 3000 : undefined, blocks: [
-      { id: "intro", text: `Ask about your trip or propose a change. Review changes before applying them.${credits.active ? ` Each question uses ${creditsText(CREDIT_PRICES.assistant)}. ${creditLine}` : ""}` },
+      { id: "intro", text: `Ask about your trip or propose a change. Review changes before applying them.${credits.active ? ` Questions are free. A change to your trip that the assistant prepares uses ${creditsText(CREDIT_PRICES.assistant)}. ${creditLine}` : ""}` },
       ...chat.turns.map(t => ({ id: t.id, title: t.question, text: t.reply ?? t.error ?? "Thinking…", meta: t.appliedAt ? "Applied" : t.status, lines: t.preview ? [...t.preview.changes, ...t.preview.warnings, ...t.preview.conflicts, ...t.preview.days.flatMap(d => [`${d.date}: ${d.beforeTitle ?? ""} → ${d.afterTitle ?? ""}`, `Before: ${d.before.map(s => `${s.time ?? "Anytime"} ${s.title}`).join(" · ")}`, `After: ${d.after.map(s => `${s.time ?? "Anytime"} ${s.title}`).join(" · ")}`])] : [], actions: [
         ...t.sources.flatMap(url => link("Source", url)),
         ...(chat.canEdit && t.preview && !t.appliedAt && !t.dismissed && t.status === "SUCCEEDED" ? [act("Apply reviewed changes", "assistant", { op: "apply", id: t.id }, "Apply these changes to the shared itinerary? You can restore the previous version from itinerary history."), act("Dismiss", "assistant", { op: "dismiss", id: t.id })] : []),

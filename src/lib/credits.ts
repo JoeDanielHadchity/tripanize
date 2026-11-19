@@ -11,7 +11,7 @@ export const CREDIT_PRICES = {
   events: 3,
   /** Finding a destination: five ideas. */
   destination: 4,
-  /** One AI assistant question. */
+  /** An AI assistant reply that prepares changes to the trip (plain questions and answers are free). */
   assistant: 2,
   /** Alternatives for one stop. */
   swap: 2,
@@ -51,7 +51,8 @@ export const CREDIT_COSTS: readonly [string, number | "Free"][] = [
   ["Plan or regenerate one day with AI (restaurants included)", CREDIT_PRICES.planDay],
   ["Find events for your trip", CREDIT_PRICES.events],
   ["Find a destination (5 ideas). Your first search is free", CREDIT_PRICES.destination],
-  ["Ask the AI assistant", CREDIT_PRICES.assistant],
+  ["AI assistant: a change to your trip it prepares for you", CREDIT_PRICES.assistant],
+  ["AI assistant: questions and answers", "Free"],
   ["Swap a stop for alternatives", CREDIT_PRICES.swap],
   ["Packing suggestions", CREDIT_PRICES.packing],
   ["Refresh restaurant ideas, per day", CREDIT_PRICES.restaurantsDay],

@@ -201,3 +201,27 @@ it("gives unlimited credits to the company administrator account only", async ()
   await prisma.user.update({ where: { id: admin.id }, data: { emailVerified: false } });
   await expect(hold({ actorId: admin.id, action: "plan", credits: 999, refKind: "inline" })).rejects.toThrow(/Not enough credits/);
 });
+
+it("answers assistant questions for free and charges 2 credits only for a reply that prepares changes", async () => {
+  on();
+  const { claimJob, runJob } = await import("@/server/planner/run");
+  const owner = await verified("Owner"); const tripId = await premiumTrip(owner.id);
+  const day = await prisma.itineraryDay.findFirstOrThrow({ where: { tripId }, orderBy: { date: "asc" } });
+  const ask = async (edits: unknown[]) => {
+    const { id } = await sendAssistantMessage(owner.id, tripId, { clientId: randomUUID(), message: "Question", selectedDate: null });
+    await claimJob(id);
+    await runJob(id, (async () => ({ data: { reply: "Answer.", edits }, model: "isolated-stub", sources: [], usage: null })) as never);
+    return prisma.generationJob.findUniqueOrThrow({ where: { id } });
+  };
+  await ask([]);
+  expect(await balance(owner.id)).toBe(15);
+  await ask([{ type: "edit_day", date: day.date, title: "Slow morning", notes: null, activePlan: null }]);
+  expect(await balance(owner.id)).toBe(13);
+  // With no credits left: questions still work; a change is held back until credits are added.
+  await grant(owner.id, -13, { kind: "adjust" });
+  await ask([]);
+  const blocked = await ask([{ type: "edit_day", date: day.date, title: "Late start", notes: null, activePlan: null }]);
+  expect(await balance(owner.id)).toBe(0);
+  expect((blocked.proposal as { edits: unknown[]; reply: string }).edits).toEqual([]);
+  expect((blocked.proposal as { reply: string }).reply).toMatch(/uses 2 credits/);
+});
