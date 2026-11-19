@@ -348,7 +348,7 @@ it("shows AI credit balance and history (never prices) in the app only while cre
   expect(JSON.stringify(credits).toLowerCase()).not.toContain("tripanize.app"); // Store policy: no web checkout pointers.
   expect(JSON.stringify(await page(owner.id, "plan", tripId))).toContain("You have 15 credits.");
   await premium(tripId, owner.id);
-  expect(JSON.stringify(await page(owner.id, "events", tripId))).toContain("Find events now · 3 credits");
+  { const events = JSON.stringify(await page(owner.id, "events", tripId)); expect(events).toContain("Find events now"); expect(events).not.toMatch(/· \d+ credits/); }
 });
 
 it("offers credit bundles and Premium bundles through the store only when store billing is set up", async () => {
