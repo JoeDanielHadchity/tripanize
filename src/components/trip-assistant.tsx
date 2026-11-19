@@ -84,7 +84,7 @@ export function TripAssistant({ tripId, defaultDate }: { tripId: string; default
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <p className="shrink-0 text-xs text-muted">Your conversation is private to you. The assistant uses your trip details and itinerary. Changes are shared with the trip only after you apply them.</p>
         {!online && <Notice tone="warn">You’re offline. Reconnect to use the assistant.</Notice>}
-        {error && <Notice tone="warn">{error} {needsCredits ? <a href="/account/credits" className="font-semibold underline">Top up</a> : !blocked && <button type="button" className="font-semibold underline" onClick={() => setRefresh(n => n + 1)}>Retry</button>}</Notice>}
+        {error && <Notice tone="warn">{error} {needsCredits ? <a href={/trip is out of credits/.test(error) ? `/trips/${tripId}/premium#trip-credits` : "/account/credits"} className="font-semibold underline">{/trip is out of credits/.test(error) ? "Add credits" : "Top up"}</a> : !blocked && <button type="button" className="font-semibold underline" onClick={() => setRefresh(n => n + 1)}>Retry</button>}</Notice>}
         {conversation && !conversation.aiReady && <Notice tone="warn">The AI assistant is not configured yet.</Notice>}
         {conversation && !conversation.canEdit && <Notice>You have view-only access. You can ask about the trip; itinerary changes need an owner or collaborator.</Notice>}
         <div ref={feed} role="log" aria-label="Conversation with AI trip assistant" aria-live="polite" onScroll={() => { const el = feed.current; if (el) nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90; }} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-1">

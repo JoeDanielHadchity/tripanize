@@ -60,6 +60,7 @@ export const CREDIT_COSTS: readonly [string, number | "Free"][] = [
 ];
 /** One credit-history line's label. */
 export function creditEntryLabel(h: { kind: string; note: string | null }) {
+  if (h.kind === "transfer") return h.note === "premium" ? "Premium for a trip (moved to the trip's credits)" : "Moved to a trip's credits";
   return h.kind === "spend" ? CREDIT_SPEND_LABELS[h.note ?? ""] ?? "AI" : h.kind === "welcome" ? "Welcome credits" : h.kind === "purchase" ? h.note ?? "Top up" : h.note ?? (h.kind === "grant" ? "Credits from Tripanize" : "Adjusted by Tripanize");
 }
 /** "1 credit", "3 credits". */

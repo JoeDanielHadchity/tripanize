@@ -1,4 +1,5 @@
 import { unlockPremiumWithCredits } from "@/server/billing/credit-unlock";
+import { topUpTrip } from "@/server/credits/service";
 import { z } from "zod";
 import { AppError } from "@/server/errors";
 import { requireTrip } from "@/server/auth/permissions";
@@ -82,6 +83,7 @@ export async function mobileCommand(userId: string, raw: unknown, sessionId?: st
       return { to: { screen: "setup", tripId: result.id } };
     }
     case "trip.standard": await onboarding.chooseNormal(userId, tripId); return to("setup");
+    case "trip.walletTopUp": { const { amount } = parse(z.object({ amount: z.coerce.number().int().min(1).max(10_000) })); await topUpTrip(userId, tripId, amount); return to("premium"); }
     case "trip.premiumCredits": { await unlockPremiumWithCredits(userId, tripId); const st = await prisma.trip.findUnique({ where: { id: tripId }, select: { onboardingStage: true } }); return to(st?.onboardingStage === "COMPLETE" ? "itinerary" : "setup"); }
     case "trip.details": case "trip.update": {
       const { version: ver } = parse(z.object({ version })); const input = tripInput.parse(v);

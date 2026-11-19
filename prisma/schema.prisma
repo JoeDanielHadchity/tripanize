@@ -948,6 +948,7 @@ model CreditHold {
   refKind   String // job | discovery | destination | inline
   refId     String?
   status    String    @default("held") // held | spent | refunded
+  wallet    Boolean   @default(false) // paid from the trip's wallet (TripCreditEntry), not the account
   createdAt DateTime  @default(now())
   settledAt DateTime?
 
@@ -1335,4 +1336,21 @@ model PremiumUnlock {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// A trip's own credits ("trip wallet"). Premium paid with credits or money adds 100; AI on the trip is
+// paid from here; the organizer can move more over from their account. Kinds: unlock | purchase |
+// topup | spend | adjust.
+model TripCreditEntry {
+  id        String   @id @default(cuid())
+  tripId    String
+  amount    Int
+  kind      String
+  note      String?
+  userId    String?
+  holdId    String?  @unique
+  dedupeKey String?  @unique
+  createdAt DateTime @default(now())
+
+  @@index([tripId, createdAt])
 }

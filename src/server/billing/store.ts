@@ -9,7 +9,7 @@ import { rateLimit } from "@/server/ratelimit";
 import { currentRuntime, type StoreConfig } from "@/server/cloudflare/runtime";
 import { pendingTrialInvitations } from "@/server/admin/trials";
 import { billingEnvironment } from "./config";
-import { settlePurchaseCredits } from "./credits";
+import { settlePurchaseCredits, settleTripPurchaseCredits } from "./credits";
 import { CREDIT_BUNDLES, PREMIUM_INCLUDED_CREDITS, type CreditBundle } from "@/lib/credits";
 
 /** Google Play and the App Store sell consumable products: Premium for one trip
@@ -105,7 +105,7 @@ export async function completeStorePurchase(userId: string, input: CompleteStore
     await db.premiumCheckout.update({ where: { id: intent.id }, data: { status: "COMPLETED", transactionId: verified.transactionId, reviewRequired: false, paddleSummary: summary(input.store, verified) } });
     await db.trip.updateMany({ where: { id: intent.tripId, onboardingStage: "PLAN" }, data: { onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" } });
     // Premium for a trip includes the Starter bundle's AI credits, like on the website.
-    await settlePurchaseCredits(db, { userId: intent.buyerId, credits: PREMIUM_INCLUDED_CREDITS, transactionId: verified.transactionId, status: "COMPLETED", reviewRequired: false, note: `Premium: ${PREMIUM_INCLUDED_CREDITS} credits`, tripId: intent.tripId });
+    await settleTripPurchaseCredits(db, { userId: intent.buyerId, credits: PREMIUM_INCLUDED_CREDITS, transactionId: verified.transactionId, status: "COMPLETED", reviewRequired: false, tripId: intent.tripId });
   });
   // Google refunds purchases that are not acknowledged within three days. The
   // app also finishes the purchase; consuming twice is harmless.
@@ -162,7 +162,7 @@ async function markRefunded(transactionId: string) {
     if (row.status === "REFUNDED") return false;
     await prisma.$transaction(async db => {
       await db.premiumCheckout.update({ where: { id: row.id }, data: { status: "REFUNDED", paddleSummary: stamp(row.paddleSummary) } });
-      await settlePurchaseCredits(db, { userId: row.buyerId, credits: PREMIUM_INCLUDED_CREDITS, transactionId, status: "REFUNDED", reviewRequired: true, note: "", tripId: row.tripId });
+      await settleTripPurchaseCredits(db, { userId: row.buyerId, credits: PREMIUM_INCLUDED_CREDITS, transactionId, status: "REFUNDED", reviewRequired: true, tripId: row.tripId });
     });
     return true;
   }

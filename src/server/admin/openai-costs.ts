@@ -82,10 +82,12 @@ export async function openAiCostCheck(actorId: string, opts: { refresh?: boolean
   if (openAiAdminConfigured()) {
     try { bill = await openAiDailyCosts(opts); } catch (e) { error = e instanceof Error ? e.message : "OpenAI's cost report isn't available right now."; }
   }
-  const [spends, usage] = await Promise.all([
+  const [bankSpends, walletSpends, usage] = await Promise.all([
     prisma.creditEntry.findMany({ where: { kind: "spend", createdAt: { gte: since } }, select: { amount: true, createdAt: true } }),
+    prisma.tripCreditEntry.findMany({ where: { kind: "spend", createdAt: { gte: since } }, select: { amount: true, createdAt: true } }),
     prisma.aiUsage.findMany({ where: { createdAt: { gte: since } }, select: { estimatedCostMicros: true, createdAt: true } }),
   ]);
+  const spends = [...bankSpends, ...walletSpends];
   const day = (d: Date) => d.toISOString().slice(0, 10);
   const credits = new Map<string, number>(), estimate = new Map<string, number>();
   for (const s of spends) credits.set(day(s.createdAt), (credits.get(day(s.createdAt)) ?? 0) - s.amount);

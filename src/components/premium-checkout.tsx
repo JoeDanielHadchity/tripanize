@@ -104,7 +104,7 @@ export function PremiumCheckout({ tripId, initial, trial, creditsNote }: { tripI
       creditsNote={!included && !offer && !hasPremium ? creditsNote : undefined}
     />
 
-    {canUseCredits && <Notice tone={enoughCredits ? "sage" : undefined} title={`You have ${credits.balance} credits`}>{enoughCredits ? `Unlock Premium for this trip with ${credits.price} of them, with no payment. The rest stay in your account for AI planning on any trip.` : <>Unlocking Premium with credits uses {credits.price}. <a href="/account/credits" className="font-semibold underline">Top up or buy a bundle</a>, or pay $15 below.</>}</Notice>}
+    {canUseCredits && <Notice tone={enoughCredits ? "sage" : undefined} title={`You have ${credits.balance} credits`}>{enoughCredits ? `Unlock Premium for this trip with ${credits.price} of them, with no payment. Those ${credits.price} move into the trip’s own credits and pay for its AI planning, just like the credits included when you pay $15.` : <>Unlocking Premium with credits uses {credits.price}. <a href="/account/credits" className="font-semibold underline">Top up or buy a bundle</a>, or pay $15 below.</>}</Notice>}
     {!summary.canPurchase && <Notice>Only the trip organizer can choose or pay for the plan. Your role is managed in Trip settings.</Notice>}
     {!summary.available && !hasPremium && !offer && <Notice>Premium checkout is temporarily unavailable. You can continue free.</Notice>}
     {summary.reviewRequired && <Notice tone="warn">A payment adjustment needs review. Contact support before making another purchase.</Notice>}

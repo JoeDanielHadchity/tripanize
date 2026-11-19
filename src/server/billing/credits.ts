@@ -26,6 +26,25 @@ export async function settlePurchaseCredits(db: Db, input: { userId: string; cre
   }
 }
 
+/**
+ * Premium for a trip includes 100 AI credits for that trip: they go into the trip's wallet (taken back
+ * once on a refund). Purchases made before trip wallets put them in the buyer's balance; their refunds
+ * still take them back from there.
+ */
+export async function settleTripPurchaseCredits(db: Db, input: { userId: string; tripId: string; credits: number; transactionId: string; status: string; reviewRequired: boolean }) {
+  if (await db.creditEntry.findUnique({ where: { dedupeKey: `purchase:${input.transactionId}` }, select: { id: true } })) {
+    return settlePurchaseCredits(db, { ...input, note: "" });
+  }
+  const key = `purchase:${input.transactionId}`;
+  const granted = await db.tripCreditEntry.findUnique({ where: { dedupeKey: key }, select: { id: true } });
+  if (input.status === "COMPLETED" && !input.reviewRequired && !granted) {
+    await db.tripCreditEntry.create({ data: { tripId: input.tripId, amount: input.credits, kind: "purchase", note: "Included with Premium", userId: input.userId, dedupeKey: key } });
+  }
+  if (granted && input.reviewRequired && !await db.tripCreditEntry.findUnique({ where: { dedupeKey: `refund:${input.transactionId}` }, select: { id: true } })) {
+    await db.tripCreditEntry.create({ data: { tripId: input.tripId, amount: -input.credits, kind: "adjust", note: "Payment refunded", userId: input.userId, dedupeKey: `refund:${input.transactionId}` } });
+  }
+}
+
 /** Checks a Paddle transaction against the saved credit purchase, records it, and adds the credits once paid. */
 export async function recordCreditTransaction(tx: PaddleTransaction) {
   return prisma.$transaction(async db => {

@@ -1,5 +1,5 @@
-import { CREDIT_BUNDLES, CREDIT_PRICES, CREDIT_COSTS, PREMIUM_CREDIT_PRICE, PREMIUM_INCLUDED_CREDITS, creditEntryLabel, creditsText } from "@/lib/credits";
-import { creditHistory, creditsView } from "@/server/credits/service";
+import { CREDIT_BUNDLES, CREDIT_PRICES, CREDIT_COSTS, CREDIT_SPEND_LABELS, PREMIUM_CREDIT_PRICE, PREMIUM_INCLUDED_CREDITS, creditEntryLabel, creditsText } from "@/lib/credits";
+import { creditHistory, creditsView, tripWallet } from "@/server/credits/service";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { getMobileUser, getMobileTrips } from "./service";
@@ -104,13 +104,24 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
       ...(access.role === "OWNER" ? [{ id: "continue", actions: [act(plan.premium ? "Continue with Premium" : "Continue with Free", "trip.standard")] }] : []),
       // Premium paid from the organizer's account credits, with no payment.
       ...(!plan.premium && access.role === "OWNER" && credits.active ? [credits.balance >= PREMIUM_CREDIT_PRICE
-        ? { id: "credits-unlock", title: `Use your credits · ${creditsText(PREMIUM_CREDIT_PRICE)}`, text: `You have ${creditsText(credits.balance)}. Unlock Premium for this trip with ${PREMIUM_CREDIT_PRICE} of them, with no payment. The rest stay in your account for AI planning.`, tone: "accent" as const, actions: [act(`★ Unlock with ${creditsText(PREMIUM_CREDIT_PRICE)}`, "trip.premiumCredits", {}, `Use ${creditsText(PREMIUM_CREDIT_PRICE)} to unlock Premium for this trip?`)] }
+        ? { id: "credits-unlock", title: `Use your credits · ${creditsText(PREMIUM_CREDIT_PRICE)}`, text: `You have ${creditsText(credits.balance)}. Unlock Premium for this trip with ${PREMIUM_CREDIT_PRICE} of them, with no payment. They move into this trip's own credits and pay for its AI planning, like the credits included when you pay $15.`, tone: "accent" as const, actions: [act(`★ Unlock with ${creditsText(PREMIUM_CREDIT_PRICE)}`, "trip.premiumCredits", {}, `Use ${creditsText(PREMIUM_CREDIT_PRICE)} to unlock Premium for this trip?`)] }
         : { id: "credits-unlock", title: `You have ${creditsText(credits.balance)}`, text: `Unlocking Premium with credits uses ${PREMIUM_CREDIT_PRICE}. Top up, or upgrade with a payment below.`, actions: [go("Get more credits", "credits")] }] : []),
       ...(!plan.premium ? [access.role !== "OWNER" ? { id: "store-owner", text: "Only the trip organizer can upgrade. Premium then covers everyone in this trip." }
         : storeConfig() ? { id: "store-purchase", title: "Upgrade this trip", text: `Pay once through Google Play or the App Store. No subscription, and everyone in this trip is included.${credits.active ? ` Includes ${creditsText(PREMIUM_INCLUDED_CREDITS)} for AI. Bigger bundles unlock Premium with more credits.` : ""}`, tone: "accent" as const, actions: [{ label: "★ Upgrade for $15", device: "purchase" as const },
           ...(credits.active ? CREDIT_BUNDLES.filter(b => b.unlocksPremium && b.priceCents > 1500).map(b => ({ label: `${b.name}: Premium + ${creditsText(b.credits)} · $${b.priceCents / 100}`, device: "purchase-credits" as const, values: { bundle: b.id, tripId } })) : [])] }
         : { id: "store-setup", text: "In-app purchases are being set up. Existing purchased access and accepted trials work automatically.", tone: "warning" as const }] : []),
-    ]; return doc;
+    ];
+    // The trip's own credits, and moving more over from the organizer's balance (only when they ask).
+    const wallet = await tripWallet(userId, tripId);
+    if (wallet.active && (wallet.exists || (plan.premium && wallet.owner))) {
+      doc.blocks.push({ id: "trip-credits", title: `This trip's credits: ${wallet.balance}`, ...(wallet.exists && wallet.balance < 3 ? { tone: "warning" as const } : {}),
+        text: `AI on this trip is paid from its own credits. When they run out, AI pauses until you add more; nothing is taken from your balance by itself.${wallet.bank !== null ? ` Your balance: ${creditsText(wallet.bank)}.` : ""}`,
+        lines: wallet.history.slice(0, 8).map(h => `${h.amount > 0 ? "+" : ""}${h.amount} · ${h.kind === "spend" ? CREDIT_SPEND_LABELS[h.note ?? ""] ?? "AI" : h.kind === "topup" ? "Added from your balance" : h.kind === "unlock" ? "Premium unlocked with credits" : h.kind === "purchase" ? "Included with Premium" : h.note ?? "Adjusted"}`) });
+      if (wallet.owner) doc.blocks.push((wallet.bank ?? 0) > 0
+        ? form("trip-topup", "Add credits from your balance", "trip.walletTopUp", [f("amount", "Credits to add", "number", { required: true, hint: `You have ${wallet.bank}` })], { amount: Math.min(30, wallet.bank ?? 0) }, "Add to this trip")
+        : { id: "trip-topup", text: "Your balance is empty. Get more credits, then add them to this trip.", actions: [go("Get more credits", "credits")] });
+    }
+    return doc;
   }
   if (["expenses", "expense", "settlement", "chat", "locations", "assistant", "events", "event"].includes(screen) && !plan.premium) {
     doc.blocks = [{ id: "locked", title: "★ Included with Premium", text: screen === "chat" ? "Chat is part of Premium. Group votes are free for every trip." : "The organizer can unlock this feature for the whole trip.", actions: [...(screen === "chat" ? [go("Open group votes", "votes", tripId)] : []), go("View Premium pass", "premium", tripId), ...(screen === "locations" ? [act("Stop my location sharing", "location", { op: "stop" })] : [])] }]; return doc;

@@ -150,7 +150,7 @@ export function useAction() {
         if (!res.ok) {
           if (opts.onError) opts.onError(res);
           // Not enough credits: say so and offer the bundles right there.
-          else if (res.code === "CREDITS") toast({ tone: "error", message: res.error, action: { label: "Top up", href: "/account/credits" } });
+          else if (res.code === "CREDITS") { const d = res.details as { wallet?: boolean; tripId?: string } | undefined; toast({ tone: "error", message: res.error, action: d?.wallet && d.tripId ? { label: "Add credits", href: `/trips/${d.tripId}/premium#trip-credits` } : { label: "Top up", href: "/account/credits" } }); }
           else toast({ tone: "error", message: res.error });
           if (res.code === "CONFLICT") router.refresh();
           return null;

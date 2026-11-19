@@ -71,7 +71,7 @@ export async function balance(userId: string, db: Client = prisma) {
   await ensureStartingCredits(userId, db);
   const [entries, held] = await Promise.all([
     db.creditEntry.aggregate({ where: { userId }, _sum: { amount: true } }),
-    db.creditHold.aggregate({ where: { userId, status: "held" }, _sum: { credits: true } }),
+    db.creditHold.aggregate({ where: { userId, status: "held", wallet: false }, _sum: { credits: true } }),
   ]);
   return (entries._sum.amount ?? 0) - (held._sum.credits ?? 0);
 }
@@ -101,6 +101,20 @@ export async function hold(input: { actorId: string; tripId?: string | null; act
   // Only once credits apply to the paying account does the organizer's members switch matter.
   if (!await creditsActiveFor(await payerFor(input.actorId, input.tripId ?? null, db, { enforceSwitch: false }), db)) return null;
   const userId = await payerFor(input.actorId, input.tripId ?? null, db);
+  // A trip with its own credits pays from them, and only from them: when they run out the organizer
+  // decides whether to move more over from their account balance.
+  if (input.tripId && await walletPays(input.tripId, userId, db)) {
+    const left = await walletBalance(input.tripId, db);
+    if (left < input.credits) {
+      const bank = Math.max(0, await balance(userId, db));
+      const owner = userId === input.actorId;
+      throw new AppError("CREDITS", owner
+        ? `This trip is out of credits. This uses ${input.credits} and the trip has ${Math.max(0, left)} left. Add credits to the trip from your balance (you have ${bank}).`
+        : `This trip is out of credits. This uses ${input.credits} and the trip has ${Math.max(0, left)} left. Ask the organizer to add credits to the trip.`,
+        { needed: input.credits, balance: Math.max(0, left), wallet: true, bank: owner ? bank : undefined, tripId: input.tripId, payerIsYou: owner });
+    }
+    return db.creditHold.create({ data: { userId, actorId: input.actorId, tripId: input.tripId, action: input.action, credits: input.credits, refKind: input.refKind, refId: input.refId ?? null, wallet: true } });
+  }
   const available = await balance(userId, db);
   if (available < input.credits) {
     const yours = userId === input.actorId;
@@ -121,6 +135,7 @@ export async function settle(holdId: string | null | undefined, outcome: "spent"
   if (!h || h.status !== "held") return;
   const done = await db.creditHold.updateMany({ where: { id: holdId, status: "held" }, data: { status: outcome, settledAt: new Date() } });
   if (!done.count || outcome !== "spent") return;
+  if (h.wallet && h.tripId) { await db.tripCreditEntry.create({ data: { tripId: h.tripId, amount: -h.credits, kind: "spend", note: h.action, userId: h.actorId, holdId: h.id } }); return; }
   await db.creditEntry.create({ data: { userId: h.userId, amount: -h.credits, kind: "spend", note: h.action, tripId: h.tripId, holdId: h.id, createdById: h.actorId } });
 }
 
@@ -183,7 +198,7 @@ export async function creditHistory(userId: string, take = 50, db: Client = pris
   return db.creditEntry.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take });
 }
 
-export type CreditsView = { active: boolean; balance: number; payerIsYou: boolean; membersBlocked: boolean; unlimited?: boolean };
+export type CreditsView = { active: boolean; balance: number; payerIsYou: boolean; membersBlocked: boolean; unlimited?: boolean; /** On a trip with its own credits: balance is the trip's, bank the organizer's account. */ wallet?: boolean; bank?: number };
 /**
  * What the screens need: whether credits apply, and the balance that pays for this person's AI
  * (on a trip: the organizer's, for an editor). Never throws for a blocked member; it reports it.
@@ -193,14 +208,24 @@ export async function creditsView(userId: string, tripId?: string | null, db: Cl
   if (!await creditsActiveFor(payer, db)) return { active: false, balance: 0, payerIsYou: payer === userId, membersBlocked: false, unlimited: await unlimitedCredits(payer, db) };
   let membersBlocked = false;
   try { await payerFor(userId, tripId ?? null, db); } catch { membersBlocked = true; }
+  if (tripId && await walletPays(tripId, payer, db)) {
+    return { active: true, balance: Math.max(0, await walletBalance(tripId, db)), payerIsYou: payer === userId, membersBlocked, wallet: true, ...(payer === userId ? { bank: Math.max(0, await balance(payer, db)) } : {}) };
+  }
   return { active: true, balance: Math.max(0, await balance(payer, db)), payerIsYou: payer === userId, membersBlocked };
 }
 
 /** Spending on one trip, per person, for the organizer's Trip settings. */
 export async function tripCreditSpending(tripId: string, db: Client = prisma) {
-  const spent = await db.creditEntry.groupBy({ by: ["createdById"], where: { tripId, kind: "spend", note: { not: "premium" } }, _sum: { amount: true }, _count: true });
-  const users = await db.user.findMany({ where: { id: { in: spent.map(s => s.createdById).filter((v): v is string => Boolean(v)) } }, select: { id: true, name: true } });
-  return spent.map(s => ({ userId: s.createdById, name: users.find(u => u.id === s.createdById)?.name ?? "Someone", actions: s._count, credits: -(s._sum.amount ?? 0) })).sort((a, b) => b.credits - a.credits);
+  const [bank, wallet] = await Promise.all([
+    db.creditEntry.groupBy({ by: ["createdById"], where: { tripId, kind: "spend" }, _sum: { amount: true }, _count: true }),
+    db.tripCreditEntry.groupBy({ by: ["userId"], where: { tripId, kind: "spend" }, _sum: { amount: true }, _count: true }),
+  ]);
+  const totals = new Map<string | null, { actions: number; credits: number }>();
+  for (const [id, count, sum] of [...bank.map(s => [s.createdById, s._count, s._sum.amount] as const), ...wallet.map(s => [s.userId, s._count, s._sum.amount] as const)]) {
+    const t = totals.get(id) ?? { actions: 0, credits: 0 }; t.actions += count; t.credits -= sum ?? 0; totals.set(id, t);
+  }
+  const users = await db.user.findMany({ where: { id: { in: [...totals.keys()].filter((v): v is string => Boolean(v)) } }, select: { id: true, name: true } });
+  return [...totals].map(([userId, t]) => ({ userId, name: users.find(u => u.id === userId)?.name ?? "Someone", ...t })).sort((a, b) => b.credits - a.credits);
 }
 
 /** Whether a trip's AI is paid with credits: credits apply to its organizer's account. */
@@ -215,4 +240,59 @@ export async function setMembersUseCredits(userId: string, tripId: string, on: b
   if (!trip) throw new AppError("NOT_FOUND", "Trip not found.");
   if (trip.ownerId !== userId) throw new AppError("FORBIDDEN", "Only the organizer can change who uses their credits.");
   await prisma.trip.update({ where: { id: tripId }, data: { membersUseCredits: on } });
+}
+
+
+// ---- Trip wallets -------------------------------------------------------------------------------
+
+/** Whether a trip has its own credits (it was given some: Premium with credits or money, or a top-up). */
+export async function hasWallet(tripId: string, db: Client = prisma) {
+  return Boolean(await db.tripCreditEntry.findFirst({ where: { tripId }, select: { id: true } }));
+}
+/** The trip's wallet pays when it exists and the payer is the trip's organizer (whose credits these are). */
+async function walletPays(tripId: string, payerId: string, db: Client) {
+  const trip = await db.trip.findUnique({ where: { id: tripId }, select: { ownerId: true } });
+  return Boolean(trip && trip.ownerId === payerId && await hasWallet(tripId, db));
+}
+/** Credits the trip can spend now: everything put in, minus everything spent, minus actions still running. */
+export async function walletBalance(tripId: string, db: Client = prisma) {
+  const [entries, held] = await Promise.all([
+    db.tripCreditEntry.aggregate({ where: { tripId }, _sum: { amount: true } }),
+    db.creditHold.aggregate({ where: { tripId, status: "held", wallet: true }, _sum: { credits: true } }),
+  ]);
+  return (entries._sum.amount ?? 0) - (held._sum.credits ?? 0);
+}
+
+/**
+ * Moves credits from the organizer's account balance into one of their trips. Only ever done when the
+ * organizer asks; the balance is checked in the same transaction that moves it.
+ */
+export async function topUpTrip(userId: string, tripId: string, amount: number) {
+  if (!Number.isInteger(amount) || amount < 1 || amount > 10_000) throw new AppError("VALIDATION", "Enter a whole number of credits.");
+  const trip = await prisma.trip.findUnique({ where: { id: tripId }, select: { ownerId: true, name: true } });
+  if (!trip) throw new AppError("NOT_FOUND", "Trip not found.");
+  if (trip.ownerId !== userId) throw new AppError("FORBIDDEN", "Only the trip organizer can add credits to this trip.");
+  if (!await creditsActiveFor(userId)) throw new AppError("FORBIDDEN", "Credits aren't available on your account yet.");
+  await prisma.$transaction(async db => {
+    const bank = await balance(userId, db);
+    if (bank < amount) throw new AppError("CREDITS", `You have ${Math.max(0, bank)} credits in your balance. Top up your account first, or add fewer.`, { needed: amount, balance: Math.max(0, bank) });
+    await db.creditEntry.create({ data: { userId, amount: -amount, kind: "transfer", note: "trip-topup", tripId, createdById: userId } });
+    await db.tripCreditEntry.create({ data: { tripId, amount, kind: "topup", note: "Added from your balance", userId } });
+  });
+  return { trip: Math.max(0, await walletBalance(tripId)), bank: Math.max(0, await balance(userId)) };
+}
+
+/** A trip's credits for its screens: balance, the organizer's account balance, and the latest moves. */
+export async function tripWallet(userId: string, tripId: string, db: Client = prisma) {
+  const trip = await db.trip.findUnique({ where: { id: tripId }, select: { ownerId: true } });
+  if (!trip) throw new AppError("NOT_FOUND", "Trip not found.");
+  const owner = trip.ownerId === userId;
+  const active = await creditsActiveFor(trip.ownerId, db);
+  const exists = active && await hasWallet(tripId, db);
+  return {
+    active, exists, owner,
+    balance: exists ? Math.max(0, await walletBalance(tripId, db)) : 0,
+    bank: active && owner ? Math.max(0, await balance(userId, db)) : null,
+    history: exists ? await db.tripCreditEntry.findMany({ where: { tripId }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, amount: true, kind: true, note: true, createdAt: true } }) : [],
+  };
 }

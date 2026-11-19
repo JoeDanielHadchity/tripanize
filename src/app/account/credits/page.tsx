@@ -5,7 +5,7 @@ import { prisma } from "@/server/db";
 import { AppHeader } from "@/components/shell";
 import { Card, Notice, PageHeader } from "@/components/ui";
 import { MembersCreditsSwitch } from "@/components/members-credits-switch";
-import { creditHistory, creditsView, tripCreditSpending } from "@/server/credits/service";
+import { creditHistory, creditsView, hasWallet, tripCreditSpending, walletBalance } from "@/server/credits/service";
 import { CREDIT_BUNDLES, CREDIT_COSTS, creditEntryLabel } from "@/lib/credits";
 import { CreditTopUp } from "@/components/credit-top-up";
 import { refreshCreditPayments, unlockableTrips } from "@/server/billing/credits";
@@ -27,7 +27,11 @@ export default async function AccountCreditsPage() {
   const history = view.active ? await creditHistory(user.id, 50) : [];
   const owned = view.active ? await prisma.trip.findMany({ where: { ownerId: user.id }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, membersUseCredits: true, _count: { select: { memberships: true } } } }) : [];
   const spending = new Map<string, number>();
-  for (const t of owned) spending.set(t.id, (await tripCreditSpending(t.id)).reduce((sum, s) => sum + s.credits, 0));
+  const wallets = new Map<string, number>();
+  for (const t of owned) {
+    spending.set(t.id, (await tripCreditSpending(t.id)).reduce((sum, s) => sum + s.credits, 0));
+    if (await hasWallet(t.id)) wallets.set(t.id, Math.max(0, await walletBalance(t.id)));
+  }
   const names = await prisma.trip.findMany({ where: { id: { in: history.map(h => h.tripId).filter((v): v is string => Boolean(v)) } }, select: { id: true, name: true } });
   const tripName = (id: string | null) => names.find(t => t.id === id)?.name;
   const label = creditEntryLabel;
@@ -69,10 +73,10 @@ export default async function AccountCreditsPage() {
 
           {owned.length > 0 && <section aria-labelledby="trips-h">
             <h2 id="trips-h" className={h2}>Your trips</h2>
-            <p className="mb-3 text-sm text-muted">Editors on trips you organize use your credits for AI. You can turn that off per trip. Viewers never use your credits.</p>
+            <p className="mb-3 text-sm text-muted">Premium trips have their own credits: the 100 that come with Premium, plus whatever you add from your balance. AI on those trips is paid from the trip, never from your balance by itself. Editors on trips you organize use your credits for AI. You can turn that off per trip. Viewers never use your credits.</p>
             <Card className="p-0"><ul className="divide-y divide-line">
               {owned.map(t => <li key={t.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3">
-                <span className="min-w-0"><Link href={`/trips/${t.id}`} className="block font-medium underline-offset-2 hover:underline">{t.name}</Link><span className="block text-xs text-muted">{spending.get(t.id) ?? 0} credits used here</span></span>
+                <span className="min-w-0"><Link href={`/trips/${t.id}`} className="block font-medium underline-offset-2 hover:underline">{t.name}</Link><span className="block text-xs text-muted">{spending.get(t.id) ?? 0} credits used here{wallets.has(t.id) && <> · <Link href={`/trips/${t.id}/premium#trip-credits`} className="font-semibold underline">{wallets.get(t.id)} left on this trip · add more</Link></>}</span></span>
                 {t._count.memberships > 1 ? <MembersCreditsSwitch tripId={t.id} on={t.membersUseCredits} /> : <span className="text-xs text-muted">Only you so far</span>}
               </li>)}
             </ul></Card>

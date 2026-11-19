@@ -21,7 +21,10 @@ export async function unlockPremiumWithCredits(userId: string, tripId: string) {
     if (available < PREMIUM_CREDIT_PRICE) throw new AppError("VALIDATION", `Unlocking Premium uses ${PREMIUM_CREDIT_PRICE} credits. You have ${Math.max(0, available)}. Top up or buy a bundle to continue.`, { credits: true, needed: PREMIUM_CREDIT_PRICE, balance: Math.max(0, available) });
     if (await db.premiumUnlock.findUnique({ where: { tripId }, select: { id: true } })) throw new AppError("CONFLICT", "This trip already has Premium.");
     await db.premiumUnlock.create({ data: { tripId, userId, credits: PREMIUM_CREDIT_PRICE } });
-    await db.creditEntry.create({ data: { userId, amount: -PREMIUM_CREDIT_PRICE, kind: "spend", note: "premium", tripId, createdById: userId, dedupeKey: `premium-unlock:${tripId}` } });
+    // The credits move into the trip's own wallet: Premium plus 100 credits for this trip's AI, the same
+    // as paying $15.
+    await db.creditEntry.create({ data: { userId, amount: -PREMIUM_CREDIT_PRICE, kind: "transfer", note: "premium", tripId, createdById: userId, dedupeKey: `premium-unlock:${tripId}` } });
+    await db.tripCreditEntry.create({ data: { tripId, amount: PREMIUM_CREDIT_PRICE, kind: "unlock", note: "Premium unlocked with credits", userId, dedupeKey: `unlock:${tripId}` } });
     // Same next step as a paid upgrade: straight on to the trip details.
     await db.trip.updateMany({ where: { id: tripId, onboardingStage: "PLAN" }, data: { onboardingStage: "DETAILS", onboardingPlan: "PREMIUM" } });
   });
