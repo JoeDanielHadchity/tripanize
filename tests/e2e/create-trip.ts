@@ -6,6 +6,14 @@ export const nextStep = (page: Page) => page.getByRole("button", { name: /^Next(
 
 export type TripSteps = { name?: string; timezone?: string; mustSee?: string };
 
+/** New trip asks Free or Premium first; tests plan on Free. */
+export async function chooseFree(page: Page) {
+  const free = page.getByRole("link", { name: /Start free/ });
+  const city = page.getByLabel("City or region");
+  await free.or(city).first().waitFor();
+  if (await free.isVisible()) { await free.click(); await city.waitFor(); }
+}
+
 /** From the Who step to the trip being created. */
 export async function finishTrip(page: Page, o: TripSteps = {}) {
   await nextStep(page); // Who
@@ -25,6 +33,7 @@ export async function finishTrip(page: Page, o: TripSteps = {}) {
 
 /** On /trips/new: the whole flow with typed dates. */
 export async function createTrip(page: Page, o: TripSteps & { city: string; start: string; end: string }) {
+  await chooseFree(page);
   await page.getByLabel("City or region").fill(o.city);
   await nextStep(page);
   await page.getByLabel("Start date").fill(o.start);

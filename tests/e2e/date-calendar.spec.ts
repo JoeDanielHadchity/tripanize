@@ -1,6 +1,6 @@
 import { confirmSignUp } from "./confirm-email";
 import { expect, test } from "@playwright/test";
-import { finishTrip, nextStep } from "./create-trip";
+import { chooseFree, finishTrip, nextStep } from "./create-trip";
 
 // Trip dates picked on the calendar: first tap = start, second tap = end; the typed date fields stay in sync.
 test("pick trip dates on the calendar", async ({ browser }, info) => {
@@ -15,6 +15,7 @@ test("pick trip dates on the calendar", async ({ browser }, info) => {
   await confirmSignUp(page);
   await page.waitForURL("**/start");
   await page.goto("/trips/new");
+  await chooseFree(page);
   await page.getByLabel("City or region").fill("Lisbon");
   await nextStep(page);
 
