@@ -78,7 +78,8 @@ export async function mobileCommand(userId: string, raw: unknown, sessionId?: st
     case "trip.start": {
       // Same start as the website: where and when first, then the plan choice (the setup screen shows
       // Free, Premium, bundles and credits while the trip is at that step), then the travel questions.
-      const result = await onboarding.startTrip(userId, v as TripInput);
+      const { plan, ...trip } = v as TripInput & { plan?: unknown };
+      const result = await onboarding.startTrip(userId, trip as TripInput, undefined, onboarding.startPlan(plan));
       await detectTimezone(result.id).catch(() => undefined);
       return { to: { screen: "setup", tripId: result.id } };
     }

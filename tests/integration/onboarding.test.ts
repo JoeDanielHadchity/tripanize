@@ -170,3 +170,16 @@ it("activates a pending Premium trial on a trip started with where and when firs
   expect(trip.destinations.map(d => d.name)).toEqual(["Lisbon"]);
   expect(await prisma.trip.count()).toBe(1);
 });
+
+it("starts with the plan chosen first: free, premium (to pay) or credits", async () => {
+  const owner = await makeUser("Owner");
+  const free = await startTrip(owner.id, details, undefined, "free");
+  expect(free.next).toBe(`/trips/${free.id}/onboarding`);
+  expect((await prisma.trip.findUniqueOrThrow({ where: { id: free.id } })).onboardingStage).toBe("QUESTIONS");
+  const paid = await startTrip(owner.id, details, undefined, "premium");
+  expect(paid.next).toBe(`/trips/${paid.id}/premium?created=1&plan=premium`);
+  expect(await prisma.trip.findUniqueOrThrow({ where: { id: paid.id } })).toMatchObject({ onboardingStage: "PLAN", onboardingPlan: "PREMIUM" });
+  // Credits: without enough, the trip waits on the plan page showing the balance.
+  const short = await startTrip(owner.id, details, undefined, "credits");
+  expect(short.next).toBe(`/trips/${short.id}/premium?created=1&credits=short`);
+});

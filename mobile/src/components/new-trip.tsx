@@ -173,7 +173,44 @@ function SummaryRow({ label, value, onEdit }: { label: string; value: string; on
   </View>;
 }
 
+type StartPlan = "free" | "premium" | "credits";
+const PLANS: { id: StartPlan; title: string; price: string; points: string[]; cta: string }[] = [
+  { id: "free", title: "Free", price: "$0", cta: "Start free", points: ["AI plans your first 2 days", "Plan and edit every day yourself", "Invite your group: editors, viewers and voting", "Add bookings and packing by hand"] },
+  { id: "premium", title: "Premium", price: "$15 per trip", cta: "Choose Premium", points: ["One payment for the whole group", "AI plans every day of your trip", "Events, the AI assistant and stop alternatives", "Shared expenses, receipt scanning, chat and member locations", "Packing suggestions for your weather and plans"] },
+  { id: "credits", title: "Premium with your credits", price: "100 credits", cta: "Use my credits", points: ["Everything in Premium, with no payment", "The 100 credits move to the new trip and pay for its AI planning", "Not enough credits? You'll see your other options after creating the trip"] },
+];
+
+/** First step of a new trip: Free or Premium (paid, or from credits the person already has). */
+function PlanChoice({ onPick }: { onPick: (p: StartPlan) => void }) {
+  const c = useTheme();
+  return <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={[styles.content, { gap: 16 }]}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+      <IconButton name="close" label="Cancel" onPress={() => router.canGoBack() ? router.back() : router.replace("/trips")} />
+      <T style={{ fontFamily: "NunitoBold", fontSize: 12, color: c.accent, letterSpacing: 0.8 }}>NEW TRIP</T>
+    </View>
+    <View style={{ gap: 6 }}>
+      <T accessibilityRole="header" style={{ fontFamily: "NunitoHeading", fontSize: 30, lineHeight: 36 }}>Free or Premium?</T>
+      <Muted style={{ fontSize: 15, lineHeight: 21 }}>Choose how you want to plan this trip. You can upgrade a free trip any time later.</Muted>
+    </View>
+    {PLANS.map(p => <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={`${p.title}, ${p.price}`} onPress={() => onPick(p.id)}
+      style={({ pressed }) => ({ borderWidth: 2, borderColor: p.id === "premium" ? c.accent : c.line, borderRadius: 18, padding: 16, gap: 8, backgroundColor: c.raised, opacity: pressed ? 0.85 : 1 })}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <T style={{ fontFamily: "NunitoHeading", fontSize: 20, flexShrink: 1 }}>{p.title}</T>
+        <T style={{ fontFamily: "NunitoBold", fontSize: 15 }}>{p.price}</T>
+      </View>
+      {p.points.map(x => <View key={x} style={{ flexDirection: "row", gap: 8 }}><Ionicons name="checkmark" size={16} color={c.accent} style={{ marginTop: 2 }} /><Muted style={{ flex: 1, fontSize: 14, lineHeight: 20 }}>{x}</Muted></View>)}
+      <T style={{ fontFamily: "NunitoBold", fontSize: 15, color: c.accent }}>{p.cta} →</T>
+    </Pressable>)}
+  </ScrollView>;
+}
+
 export function NewTripScreen() {
+  const [plan, setPlan] = useState<StartPlan | null>(null);
+  if (!plan) return <PlanChoice onPick={setPlan} />;
+  return <TripWizardScreen plan={plan} onChangePlan={() => setPlan(null)} />;
+}
+
+function TripWizardScreen({ plan, onChangePlan }: { plan: StartPlan; onChangePlan: () => void }) {
   const c = useTheme();
   const scroll = useRef<ScrollView>(null);
   const [step, setStep] = useState(0);
@@ -207,7 +244,7 @@ export function NewTripScreen() {
 
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [step]);
   const go = (to: number) => { setError(null); setStep(Math.max(0, Math.min(WIZARD_STEPS.length - 1, to))); };
-  const back = () => step > 0 ? go(step - 1) : router.canGoBack() ? router.back() : router.replace("/trips");
+  const back = () => step > 0 ? go(step - 1) : onChangePlan();
 
   function next() {
     const problem = wizardStepError(current.id, check);
@@ -230,7 +267,7 @@ export function NewTripScreen() {
         destinations: named.map(d => ({ ...d, arriveDate: multi ? d.arriveDate : null, departDate: multi ? d.departDate : null })),
         travelers: travelers.map(n => ({ name: n, isChild: false })), mustSee, optional, commitments: [],
       };
-      const r = await post<MobileCommandResult>("/api/mobile/workspace", { action: "trip.start", values });
+      const r = await post<MobileCommandResult>("/api/mobile/workspace", { action: "trip.start", values: { ...values, plan } });
       if (r.to) router.replace(workspaceHref(r.to)); else router.replace("/trips");
     } catch (e) { setError(e instanceof Error ? e.message : "Could not create the trip. Please try again."); }
     finally { setBusy(false); }

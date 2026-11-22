@@ -14,6 +14,7 @@ import type { Generator } from "@/server/planner/run";
 import type { Proposal } from "@/server/planner/schema";
 import { acceptTrialInvitation, pendingTrialInvitations, redeemedTrialTrip } from "@/server/admin/trials";
 import { hold } from "@/server/credits/service";
+import { unlockPremiumWithCredits } from "@/server/billing/credit-unlock";
 import { planPrice } from "@/lib/credits";
 
 export async function createTripDraft(userId: string, name: string, trialInvitationId?: string) {
@@ -37,7 +38,16 @@ export async function createTripDraft(userId: string, name: string, trialInvitat
  * Premium from credits the person already has); then the travel questions. A pending Premium trial
  * invitation still activates on the new trip and skips the choice, as before.
  */
-export async function startTrip(userId: string, input: TripInput, trialInvitationId?: string) {
+export type StartPlan = "free" | "premium" | "credits";
+export const startPlan = (v: unknown): StartPlan | undefined => v === "free" || v === "premium" || v === "credits" ? v : undefined;
+
+/**
+ * plan is what the person chose before anything else (New trip → Free, Premium, or Premium from their
+ * credits): free goes straight to the travel questions; premium opens payment for the new trip; credits
+ * unlocks it from their balance (or opens the plan page with their balance if that isn't possible).
+ * Without a choice (older app versions) the plan page comes right after creation.
+ */
+export async function startTrip(userId: string, input: TripInput, trialInvitationId?: string, plan?: StartPlan) {
   const parsed = tripInput.safeParse(input);
   if (!parsed.success) throw new AppError("VALIDATION", parsed.error.issues[0]?.message ?? "Check the trip details.");
   if (!parsed.data.name.trim()) throw new AppError("VALIDATION", "Give your trip a name.");
@@ -51,8 +61,23 @@ export async function startTrip(userId: string, input: TripInput, trialInvitatio
     return { id: draft.id, next: `/trips/${draft.id}/onboarding`, trial: true };
   }
   const id = await createTrip(userId, input);
-  await prisma.trip.update({ where: { id }, data: { onboardingStage: "PLAN", onboardingPlan: "NORMAL", planQuestions: Prisma.DbNull } });
-  return { id, next: `/trips/${id}/premium?created=1`, trial: false };
+  if (plan === "free") {
+    await prisma.trip.update({ where: { id }, data: { onboardingStage: "QUESTIONS", onboardingPlan: "NORMAL", planQuestions: Prisma.DbNull } });
+    await getPlanQuestions(userId, id);
+    return { id, next: `/trips/${id}/onboarding`, trial: false };
+  }
+  await prisma.trip.update({ where: { id }, data: { onboardingStage: "PLAN", onboardingPlan: plan === "premium" ? "PREMIUM" : "NORMAL", planQuestions: Prisma.DbNull } });
+  if (plan === "credits") {
+    try {
+      await unlockPremiumWithCredits(userId, id);
+      await skipFilledDetails(userId, id);
+      return { id, next: `/trips/${id}/onboarding`, trial: false };
+    } catch (error) {
+      if (!(error instanceof AppError)) throw error;
+      return { id, next: `/trips/${id}/premium?created=1&credits=short`, trial: false };
+    }
+  }
+  return { id, next: `/trips/${id}/premium?created=1${plan === "premium" ? "&plan=premium" : ""}`, trial: false };
 }
 
 /**

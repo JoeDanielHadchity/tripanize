@@ -20,7 +20,7 @@ const resplit = (ds: WizardDest[], start: string, end: string) =>
   ds.filter(d => d.name.trim()).length > 1 && start && end && end >= start ? splitStays(ds.map(d => ({ ...d, arriveDate: "", departDate: "" })), start, end) : ds;
 
 /** Create a trip, one question per screen: Back / Next, Skip on optional steps, Create trip at the end. */
-export function TripWizard({ trial }: { trial?: { invitationId: string; durationDays: number | null } }) {
+export function TripWizard({ trial, plan }: { trial?: { invitationId: string; durationDays: number | null }; plan?: string }) {
   const router = useRouter();
   const { run, pending } = useAction();
   const [step, setStep] = useState(0);
@@ -74,7 +74,7 @@ export function TripWizard({ trial }: { trial?: { invitationId: string; duration
       destinations: named.map(d => ({ ...d, arriveDate: multi ? d.arriveDate : null, departDate: multi ? d.departDate : null })),
       travelers: travelers.map(n => ({ name: n, isChild: false })), mustSee, optional, commitments: [],
     };
-    const r = await run(() => startTripAction(data, trial?.invitationId), { onError: r => setError(r.error), refresh: false });
+    const r = await run(() => startTripAction(data, trial?.invitationId, plan), { onError: r => setError(r.error), refresh: false });
     if (r) { if (r.trial) window.location.assign(r.next); else router.push(r.next); }
   }
 
