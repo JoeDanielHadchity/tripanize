@@ -9,6 +9,7 @@ import { LinkButton, Notice, PageHeader } from "@/components/ui";
 import { TripForm } from "@/components/trip-form";
 import { PlanQuestions } from "../plan/questions";
 import { OnboardingProgress } from "./progress";
+import { skipFilledDetails } from "@/server/trips/onboarding";
 import type { PlanPrefs } from "@/server/planner/questions";
 export const metadata: Metadata = { title: "Prepare your trip" };
 export default async function OnboardingPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ step?: string }> }) {
@@ -17,6 +18,8 @@ export default async function OnboardingPage({ params, searchParams }: { params:
   const plan = await getTripPlan(tripId);
   if (trip.onboardingStage === "PLAN" || (trip.onboardingPlan === "PREMIUM" && !plan.premium)) redirect(`/trips/${tripId}/premium`);
   if (trip.onboardingStage === "COMPLETE") redirect(`/trips/${tripId}/itinerary`);
+  // Where and when were given when the trip was created: on to the travel questions.
+  if (trip.onboardingStage === "DETAILS" && step !== "details" && await skipFilledDetails(user.id, tripId)) redirect(`/trips/${tripId}/onboarding`);
   if (access.role !== "OWNER") return <Notice title="The organizer is preparing this trip">You can open the shared itinerary once it is ready. <LinkButton href={`/trips/${tripId}/itinerary`}>Open itinerary</LinkButton></Notice>;
   // On the questions step, "Edit trip details" reopens step 1 without losing the answers step.
   const details = trip.onboardingStage === "DETAILS" || (trip.onboardingStage === "QUESTIONS" && step === "details");

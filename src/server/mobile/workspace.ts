@@ -6,7 +6,7 @@ import { getMobileUser, getMobileTrips } from "./service";
 import { requireTrip } from "@/server/auth/permissions";
 import { getTripPlan } from "@/server/plans/access";
 import { PLAN_COMPARISON } from "@/lib/plans";
-import { onboardingState } from "@/server/trips/onboarding";
+import { onboardingState, skipFilledDetails } from "@/server/trips/onboarding";
 import { getPlanQuestions } from "@/server/planner/questions";
 import { getDestinationWorkspace, getDestinationSearch } from "@/server/destinations/service";
 import { DISCOVERY_INTERESTS } from "@/server/destinations/schema";
@@ -125,7 +125,9 @@ export async function workspace(userId: string, query: URLSearchParams): Promise
     doc.blocks = [{ id: "locked", title: "★ Included with Premium", text: screen === "chat" ? "Chat is part of Premium. Group votes are free for every trip." : "The organizer can unlock this feature for the whole trip.", actions: [...(screen === "chat" ? [go("Open group votes", "votes", tripId)] : []), go("View Premium pass", "premium", tripId), ...(screen === "locations" ? [act("Stop my location sharing", "location", { op: "stop" })] : [])] }]; return doc;
   }
   if (screen === "setup") {
-    const state = await onboardingState(userId, tripId);
+    let state = await onboardingState(userId, tripId);
+    // Where and when were given when the trip was created: on to the travel questions.
+    if (state.onboardingStage === "DETAILS" && access.role === "OWNER" && await skipFilledDetails(userId, tripId)) state = await onboardingState(userId, tripId);
     if (state.onboardingStage === "COMPLETE") { doc.blocks = [{ id: "ready", title: "Your trip is ready.", actions: [go("Open itinerary", "itinerary", tripId)] }]; return doc; }
     if (access.role !== "OWNER") { doc.blocks = [{ id: "owner", text: "The organizer is preparing this trip." }]; return doc; }
     if (state.onboardingStage === "DETAILS") doc.blocks = [form("details", "Tell us about your trip", "trip.details", tripFields(), await tripFormValues(tripId), "Continue")];

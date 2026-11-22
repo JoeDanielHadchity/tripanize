@@ -16,7 +16,8 @@ const COPY: Record<CreditBundle["id"], string> = {
 const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}`;
 
 /** Account › Credits: the four bundles, a trip to unlock Premium for, and Paddle's checkout window. */
-export function CreditTopUp({ bundles, trips, available }: { bundles: readonly CreditBundle[]; trips: { id: string; name: string }[]; available: boolean }) {
+/** forTrip: shown on one trip's Premium page, so bundles always unlock that trip and there's no trip picker. */
+export function CreditTopUp({ bundles, trips, available, forTrip = false }: { bundles: readonly CreditBundle[]; trips: { id: string; name: string }[]; available: boolean; forTrip?: boolean }) {
   const router = useRouter();
   const [tripId, setTripId] = useState(trips[0]?.id ?? "");
   const [busy, setBusy] = useState<string | null>(null);
@@ -54,7 +55,7 @@ export function CreditTopUp({ bundles, trips, available }: { bundles: readonly C
     } catch (e) { setError(e instanceof Error ? e.message : "Checkout could not be opened."); } finally { setBusy(null); }
   }
   return <div className="space-y-3">
-    {trips.length > 0 && <label className="block text-sm">
+    {trips.length > 0 && !forTrip && <label className="block text-sm">
       <span className="mb-1 block font-medium">Unlock Premium for</span>
       <Select value={tripId} onChange={e => setTripId(e.target.value)} className="w-full sm:w-auto">
         {trips.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}

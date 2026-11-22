@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { prisma } from "@/server/db";
 import { currentRuntime, setTestRuntime } from "@/server/cloudflare/runtime";
-import { createTripDraft, chooseNormal, saveOnboardingDetails, startOnboardingPlan, finishOnboarding, retryOnboarding, startTrip } from "@/server/trips/onboarding";
+import { createTripDraft, chooseNormal, saveOnboardingDetails, startOnboardingPlan, finishOnboarding, retryOnboarding, startTrip, skipFilledDetails } from "@/server/trips/onboarding";
 import { claimJob, runJob, type Generator } from "@/server/planner/run";
 import { getPlanQuestions, STANDARD_QUESTIONS } from "@/server/planner/questions";
 import { listBookings, createBooking } from "@/server/bookings/service";
@@ -128,10 +128,14 @@ it("plans the itinerary even when the setup event search fails, without paying f
   expect(JSON.stringify(job.progress)).toMatch(/Events couldn't be checked right now/);
 });
 
-it("starts a new trip with where and when first, on the free plan, straight to the travel questions", async () => {
+it("starts a new trip with where and when first, then the plan choice, then straight to the travel questions", async () => {
   const owner = await makeUser("Owner"); const calls: string[] = []; const generate = generator(calls);
   const started = await startTrip(owner.id, details);
-  expect(started).toMatchObject({ next: `/trips/${started.id}/onboarding`, trial: false });
+  expect(started).toMatchObject({ next: `/trips/${started.id}/premium?created=1`, trial: false });
+  expect((await prisma.trip.findUniqueOrThrow({ where: { id: started.id } })).onboardingStage).toBe("PLAN");
+  // Free chosen: the details given at the start aren't asked again.
+  await chooseNormal(owner.id, started.id);
+  expect(await skipFilledDetails(owner.id, started.id)).toBe(true);
   const trip = await prisma.trip.findUniqueOrThrow({ where: { id: started.id }, include: { destinations: true, days: true } });
   expect(trip).toMatchObject({ name: "Lisbon in May", onboardingStage: "QUESTIONS", onboardingPlan: "NORMAL", startDate: "2027-05-01", endDate: "2027-05-04" });
   expect(trip.destinations.map(d => d.name)).toEqual(["Lisbon"]); expect(trip.days).toHaveLength(4);

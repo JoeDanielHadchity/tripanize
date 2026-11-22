@@ -4,10 +4,14 @@ import Link from "next/link";
 import { requireUser } from "@/server/auth/session";
 import { billingSummary } from "@/server/billing/service";
 import { PremiumCheckout } from "@/components/premium-checkout";
-import { Notice } from "@/components/ui";
+import { Card, Notice } from "@/components/ui";
 import { userTrialAccess } from "@/server/admin/trials";
 import { tripWallet } from "@/server/credits/service";
 import { TripCredits } from "@/components/trip-credits";
+import { CreditTopUp } from "@/components/credit-top-up";
+import { creditCheckoutAvailable } from "@/server/billing/config";
+import { CREDIT_BUNDLES } from "@/lib/credits";
+import { prisma } from "@/server/db";
 export const metadata: Metadata = { title: "Choose your trip plan" };
 export default async function TripPremiumPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ created?: string }> }) {
   const { tripId } = await params; const user = await requireUser();
@@ -15,5 +19,8 @@ export default async function TripPremiumPage({ params, searchParams }: { params
   const trial = await userTrialAccess(user.id);
   const wallet = await tripWallet(user.id, tripId);
   const { created } = await searchParams;
-  return <>{created === "1" && <Notice tone="sage" className="mb-5" title="Your trip is created">{trial.status === "available" ? "Your Premium trial invitation can unlock this trip now, with no payment." : "Choose Standard or Premium before entering your destination and travel details."}</Notice>}<div className="premium-pass-navigation"><Link href={`/trips/${tripId}`}>← Back to trip</Link><Link href="/plans">Plans &amp; pricing</Link></div><PremiumCheckout tripId={tripId} initial={summary} creditsNote={await creditsActiveFor(user.id) ? "Includes 100 AI credits, plenty to plan your whole trip. Top up anytime." : undefined} trial={trial} />{(summary.premium || wallet.exists) && <div className="mt-6"><TripCredits tripId={tripId} initial={wallet} /></div>}</>;
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { name: true, ownerId: true } });
+  // Bundles that include Premium for this trip (the $15 one matches the Premium pass, so it isn't repeated).
+  const bundles = !summary.premium && trip.ownerId === user.id && summary.credits.active ? CREDIT_BUNDLES.filter(b => b.unlocksPremium && b.priceCents > 1500) : null;
+  return <>{created === "1" && <Notice tone="sage" className="mb-5" title="Your trip is created">{trial.status === "available" ? "Your Premium trial invitation can unlock this trip now, with no payment." : "Choose how to plan it: Free, Premium for this trip, a credit bundle that includes Premium, or Premium from credits you already have. You can upgrade later too."}</Notice>}<div className="premium-pass-navigation"><Link href={`/trips/${tripId}`}>← Back to trip</Link><Link href="/plans">Plans &amp; pricing</Link></div><PremiumCheckout tripId={tripId} initial={summary} creditsNote={await creditsActiveFor(user.id) ? "Includes 100 AI credits, plenty to plan your whole trip. Top up anytime." : undefined} trial={trial} />{bundles && <section aria-labelledby="bundles-h" className="mt-6"><Card><h2 id="bundles-h" className="font-display text-xl font-semibold">Or get Premium with a credit bundle</h2><p className="mt-1 mb-4 text-sm text-muted">Each bundle unlocks Premium for this trip and adds credits to your balance for AI planning on any trip. Credits never expire.</p><CreditTopUp bundles={bundles} trips={[{ id: tripId, name: trip.name }]} available={creditCheckoutAvailable()} forTrip /></Card></section>}{(summary.premium || wallet.exists) && <div className="mt-6"><TripCredits tripId={tripId} initial={wallet} /></div>}</>;
 }

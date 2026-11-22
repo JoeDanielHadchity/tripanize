@@ -33,9 +33,9 @@ export async function createTripDraft(userId: string, name: string, trialInvitat
 }
 
 /**
- * New setup order: where and when first, on one screen. The trip starts on the free plan and goes straight
- * to the travel questions; Premium is offered once the first plan is ready (or any time from the trip banner).
- * A pending Premium trial invitation still activates on the new trip, as before.
+ * Setup order: where and when first, on one screen; then the plan choice (Free, Premium $15, a bundle, or
+ * Premium from credits the person already has); then the travel questions. A pending Premium trial
+ * invitation still activates on the new trip and skips the choice, as before.
  */
 export async function startTrip(userId: string, input: TripInput, trialInvitationId?: string) {
   const parsed = tripInput.safeParse(input);
@@ -51,9 +51,20 @@ export async function startTrip(userId: string, input: TripInput, trialInvitatio
     return { id: draft.id, next: `/trips/${draft.id}/onboarding`, trial: true };
   }
   const id = await createTrip(userId, input);
-  await prisma.trip.update({ where: { id }, data: { onboardingStage: "QUESTIONS", onboardingPlan: "NORMAL", planQuestions: Prisma.DbNull } });
-  await getPlanQuestions(userId, id);
-  return { id, next: `/trips/${id}/onboarding`, trial: false };
+  await prisma.trip.update({ where: { id }, data: { onboardingStage: "PLAN", onboardingPlan: "NORMAL", planQuestions: Prisma.DbNull } });
+  return { id, next: `/trips/${id}/premium?created=1`, trial: false };
+}
+
+/**
+ * After the plan choice, a trip whose where-and-when were already given at the start goes straight to the
+ * travel questions instead of asking for its details again. Returns true when it moved the trip on.
+ */
+export async function skipFilledDetails(userId: string, tripId: string) {
+  const trip = await prisma.trip.findUnique({ where: { id: tripId }, select: { onboardingStage: true, startDate: true, endDate: true, ownerId: true, _count: { select: { destinations: true } } } });
+  if (!trip || trip.ownerId !== userId || trip.onboardingStage !== "DETAILS" || !trip.startDate || !trip.endDate || !trip._count.destinations) return false;
+  const moved = await prisma.trip.updateMany({ where: { id: tripId, onboardingStage: "DETAILS" }, data: { onboardingStage: "QUESTIONS", planQuestions: Prisma.DbNull } });
+  if (moved.count) await getPlanQuestions(userId, tripId);
+  return moved.count > 0;
 }
 
 export async function chooseNormal(userId: string, tripId: string) {

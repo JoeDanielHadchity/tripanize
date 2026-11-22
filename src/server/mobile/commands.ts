@@ -76,8 +76,8 @@ export async function mobileCommand(userId: string, raw: unknown, sessionId?: st
       return { to: { screen: "setup", tripId: result.id } };
     }
     case "trip.start": {
-      // Same one-step start as the website: where and when first, then the travel questions.
-      // Premium is offered after the first plan, not before.
+      // Same start as the website: where and when first, then the plan choice (the setup screen shows
+      // Free, Premium, bundles and credits while the trip is at that step), then the travel questions.
       const result = await onboarding.startTrip(userId, v as TripInput);
       await detectTimezone(result.id).catch(() => undefined);
       return { to: { screen: "setup", tripId: result.id } };

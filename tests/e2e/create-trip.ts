@@ -18,6 +18,9 @@ export async function finishTrip(page: Page, o: TripSteps = {}) {
   await nextStep(page); // Food & needs
   if (o.name) await page.getByLabel("Trip name").fill(o.name);
   await page.getByRole("button", { name: /^Create (trial )?trip$/ }).click();
+  // New trips ask Free or Premium next (trial trips skip it).
+  await page.waitForURL(/\/trips\/[^/]+\/(premium|onboarding)/);
+  if (/\/premium/.test(page.url())) { await page.getByRole("button", { name: "Continue free", exact: true }).click(); await page.waitForURL(/\/onboarding/); }
 }
 
 /** On /trips/new: the whole flow with typed dates. */
